@@ -1,0 +1,13 @@
+---
+# local-hostpath StorageClass — backed by hostPath directories that are
+# bind-mounted from the macOS host into kind nodes via extraMounts in cluster.yaml.
+# Data persists on the host filesystem across cluster deletions/recreations.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-hostpath
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain

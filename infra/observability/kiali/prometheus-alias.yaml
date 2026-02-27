@@ -1,0 +1,18 @@
+---
+# ExternalName Service: redirects Kiali's hardcoded prometheus.istio-system DNS
+# to our Prometheus deployment in the observability namespace.
+# Kiali default config targets http://prometheus.istio-system:9090 — this alias
+# makes that DNS resolve correctly without changing Kiali's configuration.
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: istio-system
+spec:
+  type: ExternalName
+  externalName: prometheus.observability.svc.cluster.local
+  ports:
+    - name: http
+      port: 9090
+      targetPort: 9090
+      protocol: TCP

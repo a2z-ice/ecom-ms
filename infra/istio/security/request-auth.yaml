@@ -1,0 +1,26 @@
+---
+# JWT validation for the ecom namespace
+# All requests arriving at ecom services are validated against Keycloak JWKS.
+apiVersion: security.istio.io/v1
+kind: RequestAuthentication
+metadata:
+  name: keycloak-jwt
+  namespace: ecom
+spec:
+  jwtRules:
+    - issuer: "http://idp.keycloak.net:30000/realms/bookstore"
+      jwksUri: "http://keycloak.identity.svc.cluster.local:8080/realms/bookstore/protocol/openid-connect/certs"
+      forwardOriginalToken: true
+
+---
+# JWT validation for the inventory namespace
+apiVersion: security.istio.io/v1
+kind: RequestAuthentication
+metadata:
+  name: keycloak-jwt
+  namespace: inventory
+spec:
+  jwtRules:
+    - issuer: "http://idp.keycloak.net:30000/realms/bookstore"
+      jwksUri: "http://keycloak.identity.svc.cluster.local:8080/realms/bookstore/protocol/openid-connect/certs"
+      forwardOriginalToken: true

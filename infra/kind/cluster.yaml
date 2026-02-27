@@ -1,0 +1,86 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: bookstore
+
+# Networking — use default kindnet CNI (compatible with Istio Ambient)
+networking:
+  disableDefaultCNI: false
+
+nodes:
+  - role: control-plane
+    # Map NodePorts from the container to the host so that all services are
+    # reachable at 127.0.0.1 without kubectl port-forward.
+    extraPortMappings:
+      - containerPort: 30000   # Main gateway (UI, APIs, Keycloak)
+        hostPort: 30000
+        protocol: TCP
+      - containerPort: 31111   # PgAdmin
+        hostPort: 31111
+        protocol: TCP
+      - containerPort: 32000   # Apache Superset
+        hostPort: 32000
+        protocol: TCP
+      - containerPort: 32100   # Kiali Service Mesh Observability
+        hostPort: 32100
+        protocol: TCP
+    # DATA_DIR is substituted by stack-up.sh / cluster-up.sh at runtime via sed.
+    # Do not hardcode an absolute path here — it varies per developer machine.
+    extraMounts:
+      - hostPath: DATA_DIR/ecom-db
+        containerPath: /data/ecom-db
+      - hostPath: DATA_DIR/inventory-db
+        containerPath: /data/inventory-db
+      - hostPath: DATA_DIR/analytics-db
+        containerPath: /data/analytics-db
+      - hostPath: DATA_DIR/keycloak-db
+        containerPath: /data/keycloak-db
+      - hostPath: DATA_DIR/superset
+        containerPath: /data/superset
+      - hostPath: DATA_DIR/kafka
+        containerPath: /data/kafka
+      - hostPath: DATA_DIR/redis
+        containerPath: /data/redis
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+
+  - role: worker
+    extraMounts:
+      - hostPath: DATA_DIR/ecom-db
+        containerPath: /data/ecom-db
+      - hostPath: DATA_DIR/inventory-db
+        containerPath: /data/inventory-db
+      - hostPath: DATA_DIR/analytics-db
+        containerPath: /data/analytics-db
+      - hostPath: DATA_DIR/keycloak-db
+        containerPath: /data/keycloak-db
+      - hostPath: DATA_DIR/superset
+        containerPath: /data/superset
+      - hostPath: DATA_DIR/kafka
+        containerPath: /data/kafka
+      - hostPath: DATA_DIR/redis
+        containerPath: /data/redis
+
+  - role: worker
+    extraMounts:
+      - hostPath: DATA_DIR/ecom-db
+        containerPath: /data/ecom-db
+      - hostPath: DATA_DIR/inventory-db
+        containerPath: /data/inventory-db
+      - hostPath: DATA_DIR/analytics-db
+        containerPath: /data/analytics-db
+      - hostPath: DATA_DIR/keycloak-db
+        containerPath: /data/keycloak-db
+      - hostPath: DATA_DIR/superset
+        containerPath: /data/superset
+      - hostPath: DATA_DIR/kafka
+        containerPath: /data/kafka
+      - hostPath: DATA_DIR/redis
+        containerPath: /data/redis
+
+# Add host entries so that the domain names resolve to the kind node.
+# /etc/hosts on the HOST machine must also contain:
+#   127.0.0.1  idp.keycloak.net  myecom.net  api.service.net

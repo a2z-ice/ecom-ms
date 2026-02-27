@@ -1,0 +1,69 @@
+---
+# NOTE: The keycloak-realm-json ConfigMap is managed by scripts/keycloak-import.sh
+# which patches it from realm-export.json before applying this Job.
+# Do NOT add a ConfigMap definition here — it would overwrite the patched content.
+
+# Job — imports the bookstore realm into Keycloak on first run.
+# Run after Keycloak deployment is Ready.
+# To re-import: delete the job and re-apply.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-realm-import
+  namespace: identity
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: realm-importer
+          image: quay.io/keycloak/keycloak:26.5.4
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for Keycloak to be ready..."
+              until (bash -c ">/dev/tcp/keycloak.identity.svc.cluster.local/8080" 2>/dev/null); do
+                echo "Keycloak not ready, retrying in 5s..."
+                sleep 5
+              done
+
+              echo "Importing bookstore realm..."
+              /opt/keycloak/bin/kc.sh import \
+                --file /realm/bookstore-realm.json \
+                --override false
+
+              echo "Realm import complete."
+          env:
+            - name: KC_DB
+              value: postgres
+            - name: KC_DB_URL
+              value: "jdbc:postgresql://keycloak-db.identity.svc.cluster.local:5432/keycloakdb"
+            - name: KC_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: KC_DB_USERNAME
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: KC_DB_PASSWORD
+          volumeMounts:
+            - name: realm-json
+              mountPath: /realm
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: realm-json
+          configMap:
+            name: keycloak-realm-json

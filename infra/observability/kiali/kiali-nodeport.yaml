@@ -1,0 +1,39 @@
+---
+# Exposes Kiali on NodePort 32100 so it can be reached at localhost:32100
+# via the kiali-proxy Docker container in the kind network.
+#
+# On macOS (Docker Desktop), the kind node IPs are not directly reachable
+# from the host. A proxy container bridges the gap:
+#
+#   docker run -d --name kiali-proxy \
+#     --network kind --restart unless-stopped \
+#     -p 32100:32100 \
+#     alpine/socat \
+#     TCP-LISTEN:32100,fork,reuseaddr TCP:172.19.0.4:32100
+#
+# If the cluster is recreated, update the IP to the new control-plane IP:
+#   kubectl get nodes -o wide | grep control-plane | awk '{print $6}'
+#
+# On Linux hosts (kind node IPs are routable), no proxy is needed —
+# the NodePort is accessible directly at <node-ip>:32100.
+#
+# kind/cluster.yaml already includes containerPort: 32100 / hostPort: 32100
+# for future cluster recreations on Linux or VM-based Docker hosts.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kiali-nodeport
+  namespace: istio-system
+  labels:
+    app: kiali
+    component: nodeport-access
+spec:
+  type: NodePort
+  selector:
+    app: kiali
+  ports:
+    - name: http-kiali
+      port: 20001
+      targetPort: 20001
+      nodePort: 32100
+      protocol: TCP

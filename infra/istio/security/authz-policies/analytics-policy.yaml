@@ -1,0 +1,21 @@
+---
+# Analytics namespace — deny all external traffic.
+# Only Debezium (infra ns) and Superset (analytics ns) may access analytics-db.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: analytics-db-policy
+  namespace: analytics
+spec:
+  selector:
+    matchLabels:
+      app: analytics-db
+  rules:
+    # Allow from Debezium (infra namespace)
+    - from:
+        - source:
+            namespaces: ["infra"]
+    # Allow from Superset (same namespace)
+    - from:
+        - source:
+            namespaces: ["analytics"]

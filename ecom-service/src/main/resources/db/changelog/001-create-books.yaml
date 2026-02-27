@@ -1,0 +1,64 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-books
+      author: bookstore
+      changes:
+        - createTable:
+            tableName: books
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: title
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: author
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: price
+                  type: NUMERIC(10,2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: TEXT
+              - column:
+                  name: cover_url
+                  type: VARCHAR(512)
+              - column:
+                  name: isbn
+                  type: VARCHAR(20)
+                  constraints:
+                    unique: true
+              - column:
+                  name: genre
+                  type: VARCHAR(100)
+              - column:
+                  name: published_year
+                  type: INT
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+        - createIndex:
+            tableName: books
+            indexName: idx_books_title
+            columns:
+              - column:
+                  name: title
+        - createIndex:
+            tableName: books
+            indexName: idx_books_author
+            columns:
+              - column:
+                  name: author

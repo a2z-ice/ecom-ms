@@ -1,0 +1,99 @@
+---
+# Debezium (Kafka Connect) — CDC engine.
+# Connector configs are registered separately in Session 8.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: debezium
+  namespace: infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: debezium
+  template:
+    metadata:
+      labels:
+        app: debezium
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: debezium
+          image: debezium/connect:2.7.0.Final
+          ports:
+            - containerPort: 8083
+          env:
+            - name: BOOTSTRAP_SERVERS
+              value: "kafka.infra.svc.cluster.local:9092"
+            - name: GROUP_ID
+              value: "debezium-connect-cluster"
+            - name: CONFIG_STORAGE_TOPIC
+              value: "debezium.configs"
+            - name: OFFSET_STORAGE_TOPIC
+              value: "debezium.offsets"
+            - name: STATUS_STORAGE_TOPIC
+              value: "debezium.status"
+            - name: CONFIG_STORAGE_REPLICATION_FACTOR
+              value: "1"
+            - name: OFFSET_STORAGE_REPLICATION_FACTOR
+              value: "1"
+            - name: STATUS_STORAGE_REPLICATION_FACTOR
+              value: "1"
+            - name: CONNECT_KEY_CONVERTER
+              value: "org.apache.kafka.connect.json.JsonConverter"
+            - name: CONNECT_VALUE_CONVERTER
+              value: "org.apache.kafka.connect.json.JsonConverter"
+            - name: CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE
+              value: "false"
+            - name: CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE
+              value: "false"
+            # Enable file-based secret provider for ${file:...} variable substitution
+            - name: CONNECT_CONFIG_PROVIDERS
+              value: "file"
+            - name: CONNECT_CONFIG_PROVIDERS_FILE_CLASS
+              value: "org.apache.kafka.common.config.provider.FileConfigProvider"
+          volumeMounts:
+            - name: db-credentials
+              mountPath: /opt/kafka/external-configuration/db-credentials
+              readOnly: true
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /connectors
+              port: 8083
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /connectors
+              port: 8083
+            initialDelaySeconds: 90
+            periodSeconds: 15
+      volumes:
+        - name: db-credentials
+          secret:
+            secretName: debezium-db-credentials
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: debezium
+  namespace: infra
+spec:
+  selector:
+    app: debezium
+  ports:
+    - port: 8083
+      targetPort: 8083
+  type: ClusterIP

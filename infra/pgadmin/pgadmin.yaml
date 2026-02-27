@@ -1,0 +1,92 @@
+---
+# Secret — PgAdmin credentials (REPLACE before applying)
+# kubectl create secret generic pgadmin-secret \
+#   --namespace infra \
+#   --from-literal=PGADMIN_DEFAULT_EMAIL=admin@bookstore.local \
+#   --from-literal=PGADMIN_DEFAULT_PASSWORD=<strong-password>
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pgadmin-secret
+  namespace: infra
+type: Opaque
+data:
+  PGADMIN_DEFAULT_EMAIL: YWRtaW5AYm9va3N0b3JlLmRldg==   # admin@bookstore.dev
+  PGADMIN_DEFAULT_PASSWORD: Q0hBTkdFX01F                  # CHANGE_ME
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pgadmin-pvc
+  namespace: infra
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 500Mi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgadmin
+  namespace: infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pgadmin
+  template:
+    metadata:
+      labels:
+        app: pgadmin
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 5050    # pgadmin official image UID
+        fsGroup: 5050
+      containers:
+        - name: pgadmin
+          image: dpage/pgadmin4:latest
+          ports:
+            - containerPort: 80
+          envFrom:
+            - secretRef:
+                name: pgadmin-secret
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/pgadmin
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /misc/ping
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: pgadmin-pvc
+
+---
+# NodePort service — accessible at localhost:31111 from host machine
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgadmin
+  namespace: infra
+spec:
+  selector:
+    app: pgadmin
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 31111
+  type: NodePort

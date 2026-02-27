@@ -1,0 +1,97 @@
+---
+# Secret — analytics-db credentials (REPLACE placeholders before applying)
+# kubectl create secret generic analytics-db-secret \
+#   --namespace analytics \
+#   --from-literal=POSTGRES_USER=analyticsuser \
+#   --from-literal=POSTGRES_PASSWORD=<strong-password> \
+#   --from-literal=POSTGRES_DB=analyticsdb
+apiVersion: v1
+kind: Secret
+metadata:
+  name: analytics-db-secret
+  namespace: analytics
+type: Opaque
+data:
+  POSTGRES_USER: YW5hbHl0aWNzdXNlcg==   # analyticsuser
+  POSTGRES_PASSWORD: Q0hBTkdFX01F       # CHANGE_ME
+  POSTGRES_DB: YW5hbHl0aWNzZGI=         # analyticsdb
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: analytics-db-pvc
+  namespace: analytics
+spec:
+  storageClassName: local-hostpath
+  volumeName: analytics-db-pv
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics-db
+  namespace: analytics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: analytics-db
+  template:
+    metadata:
+      labels:
+        app: analytics-db
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: analytics-db-secret
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, $(POSTGRES_USER), -d, $(POSTGRES_DB)]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: [pg_isready, -U, $(POSTGRES_USER), -d, $(POSTGRES_DB)]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: analytics-db-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: analytics-db
+  namespace: analytics
+spec:
+  selector:
+    app: analytics-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP

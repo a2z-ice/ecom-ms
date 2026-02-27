@@ -1,0 +1,31 @@
+---
+# AuthorizationPolicy for ecom-service:
+#   - GET /books and /books/search: allow all (public catalog)
+#   - All other methods/paths: require valid JWT (any authenticated principal)
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: ecom-service-policy
+  namespace: ecom
+spec:
+  selector:
+    matchLabels:
+      app: ecom-service
+  rules:
+    # Allow public read access to books
+    - to:
+        - operation:
+            methods: ["GET"]
+            paths: ["/ecom/books", "/ecom/books/*", "/ecom/books/search"]
+    # Allow health/metrics without auth
+    - to:
+        - operation:
+            methods: ["GET"]
+            paths: ["/ecom/actuator/health", "/ecom/actuator/health/*", "/ecom/actuator/prometheus"]
+    # Require JWT for all other operations (cart, checkout)
+    - from:
+        - source:
+            requestPrincipals: ["*"]
+      to:
+        - operation:
+            notPaths: ["/ecom/books", "/ecom/books/*", "/ecom/actuator/*"]

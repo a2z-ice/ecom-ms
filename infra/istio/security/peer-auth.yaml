@@ -1,0 +1,52 @@
+---
+# Enforce strict mTLS for all app namespaces.
+# Any traffic that is not mTLS-encrypted will be rejected.
+
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: strict-mtls
+  namespace: ecom
+spec:
+  mtls:
+    mode: STRICT
+
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: strict-mtls
+  namespace: inventory
+spec:
+  mtls:
+    mode: STRICT
+
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: strict-mtls
+  namespace: analytics
+spec:
+  mtls:
+    mode: STRICT
+
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: strict-mtls
+  namespace: identity
+spec:
+  mtls:
+    mode: STRICT
+
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: strict-mtls
+  namespace: infra
+spec:
+  mtls:
+    mode: STRICT

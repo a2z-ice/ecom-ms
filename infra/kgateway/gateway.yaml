@@ -1,0 +1,22 @@
+---
+# Main Gateway — NodePort 30000, handles all external traffic.
+# Uses the Istio GatewayClass (included with Istio 1.21+).
+# All HTTPRoutes attach to this Gateway via parentRefs.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: bookstore-gateway
+  namespace: infra
+  annotations:
+    # Tell Istio to create this gateway's Service as NodePort (kind-friendly)
+    networking.istio.io/service-type: NodePort
+spec:
+  gatewayClassName: istio
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 8080
+      # Allow HTTPRoutes from all namespaces to attach
+      allowedRoutes:
+        namespaces:
+          from: All

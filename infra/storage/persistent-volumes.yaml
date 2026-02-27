@@ -1,0 +1,111 @@
+---
+# ecom-db PV — PostgreSQL for ecom-service (Books, Orders, Cart)
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ecom-db-pv
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-hostpath
+  hostPath:
+    path: /data/ecom-db
+    type: DirectoryOrCreate
+
+---
+# inventory-db PV — PostgreSQL for inventory-service (Stock Inventory)
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: inventory-db-pv
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-hostpath
+  hostPath:
+    path: /data/inventory-db
+    type: DirectoryOrCreate
+
+---
+# analytics-db PV — PostgreSQL for analytics (fact_orders, dim_books, etc.)
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: analytics-db-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-hostpath
+  hostPath:
+    path: /data/analytics-db
+    type: DirectoryOrCreate
+
+---
+# keycloak-db PV — PostgreSQL for Keycloak (Realm, Users, Sessions)
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: keycloak-db-pv
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-hostpath
+  hostPath:
+    path: /data/keycloak-db
+    type: DirectoryOrCreate
+
+---
+# superset PV — Superset SQLite database and dashboard state
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: superset-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-hostpath
+  hostPath:
+    path: /data/superset
+    type: DirectoryOrCreate
+
+---
+# kafka PV — KRaft logs and topic data
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: kafka-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-hostpath
+  hostPath:
+    path: /data/kafka
+    type: DirectoryOrCreate
+
+---
+# redis PV — AOF + RDB persistence files
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: redis-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-hostpath
+  hostPath:
+    path: /data/redis
+    type: DirectoryOrCreate

@@ -1,0 +1,83 @@
+---
+# ecom namespace — default deny all ingress/egress, then allow explicitly
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: ecom
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+
+---
+# Allow KGateway → ecom-service (UI traffic)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-to-ecom
+  namespace: ecom
+spec:
+  podSelector:
+    matchLabels:
+      app: ecom-service
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kgateway-system
+  egress:
+    # ecom-service → ecom-db
+    - to:
+        - podSelector:
+            matchLabels:
+              app: ecom-db
+      ports:
+        - port: 5432
+    # ecom-service → Kafka
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: infra
+      ports:
+        - port: 9092
+    # ecom-service → Redis
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: infra
+      ports:
+        - port: 6379
+    # ecom-service → Keycloak (JWKS)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: identity
+      ports:
+        - port: 8080
+    # DNS
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+
+---
+# Allow ecom-db to receive only from ecom-service and Debezium
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ecom-db-policy
+  namespace: ecom
+spec:
+  podSelector:
+    matchLabels:
+      app: ecom-db
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: ecom-service
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: infra
+  egress: []

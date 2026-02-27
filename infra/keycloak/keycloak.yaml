@@ -1,0 +1,236 @@
+---
+# Secret — Keycloak admin credentials and DB password (REPLACE before applying)
+# kubectl create secret generic keycloak-secret \
+#   --namespace identity \
+#   --from-literal=KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+#   --from-literal=KC_BOOTSTRAP_ADMIN_PASSWORD=<strong-password> \
+#   --from-literal=KC_DB_URL=jdbc:postgresql://keycloak-db.identity.svc.cluster.local:5432/keycloakdb \
+#   --from-literal=KC_DB_USERNAME=keycloakuser \
+#   --from-literal=KC_DB_PASSWORD=<strong-password>
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-secret
+  namespace: identity
+type: Opaque
+data:
+  KC_BOOTSTRAP_ADMIN_USERNAME: YWRtaW4=           # admin
+  KC_BOOTSTRAP_ADMIN_PASSWORD: Q0hBTkdFX01F       # CHANGE_ME
+  KC_DB_USERNAME: a2V5Y2xvYWt1c2Vy               # keycloakuser
+  KC_DB_PASSWORD: Q0hBTkdFX01F                   # CHANGE_ME
+
+---
+# Keycloak needs its own PostgreSQL instance
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-db-secret
+  namespace: identity
+type: Opaque
+data:
+  POSTGRES_USER: a2V5Y2xvYWt1c2Vy     # keycloakuser
+  POSTGRES_PASSWORD: Q0hBTkdFX01F     # CHANGE_ME
+  POSTGRES_DB: a2V5Y2xvYWtkYg==       # keycloakdb
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: keycloak-db-pvc
+  namespace: identity
+spec:
+  storageClassName: local-hostpath
+  volumeName: keycloak-db-pv
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak-db
+  namespace: identity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak-db
+  template:
+    metadata:
+      labels:
+        app: keycloak-db
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          envFrom:
+            - secretRef:
+                name: keycloak-db-secret
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 300m
+              memory: 512Mi
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, $(POSTGRES_USER), -d, $(POSTGRES_DB)]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: keycloak-db-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak-db
+  namespace: identity
+spec:
+  selector:
+    app: keycloak-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP
+
+---
+# ConfigMap to hold the realm JSON — mounted into the import job
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm-config
+  namespace: identity
+data:
+  # The realm JSON file is referenced here; actual content is in realm-export.json
+  # and loaded by the import-job.yaml
+  realm-file: "bookstore-realm.json"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: identity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      initContainers:
+        # Wait for keycloak-db to be ready before starting Keycloak
+        - name: wait-for-db
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z keycloak-db.identity.svc.cluster.local 5432; do
+                echo "Waiting for keycloak-db..."
+                sleep 3
+              done
+              echo "keycloak-db is ready."
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.5.4
+          args:
+            - start
+            - --http-enabled=true
+            - --hostname-strict=false
+            - --proxy-headers=xforwarded
+          ports:
+            - containerPort: 8080
+          env:
+            - name: KC_DB
+              value: postgres
+            - name: KC_DB_URL
+              value: "jdbc:postgresql://keycloak-db.identity.svc.cluster.local:5432/keycloakdb"
+            - name: KC_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: KC_DB_USERNAME
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: KC_DB_PASSWORD
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: KC_BOOTSTRAP_ADMIN_USERNAME
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: KC_BOOTSTRAP_ADMIN_PASSWORD
+            - name: KC_HOSTNAME
+              value: "idp.keycloak.net"
+            - name: KC_HOSTNAME_PORT
+              value: "30000"
+            - name: KC_HTTP_PORT
+              value: "8080"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /realms/master
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /realms/master
+              port: 8080
+            initialDelaySeconds: 90
+            periodSeconds: 15
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: identity
+spec:
+  selector:
+    app: keycloak
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP

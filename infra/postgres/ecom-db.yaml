@@ -1,0 +1,114 @@
+---
+# Secret — ecom-db credentials
+# Actual values injected at deploy time via: kubectl create secret generic ecom-db-secret ...
+# The secret MUST be created before applying this manifest.
+# Example (run once, not committed):
+#   kubectl create secret generic ecom-db-secret \
+#     --namespace ecom \
+#     --from-literal=POSTGRES_USER=ecomuser \
+#     --from-literal=POSTGRES_PASSWORD=<strong-password> \
+#     --from-literal=POSTGRES_DB=ecomdb
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ecom-db-secret
+  namespace: ecom
+type: Opaque
+# Values are base64-encoded placeholders — REPLACE before applying in any real environment.
+# Generate: echo -n 'value' | base64
+data:
+  POSTGRES_USER: ZWNvbXVzZXI=         # ecomuser
+  POSTGRES_PASSWORD: Q0hBTkdFX01F     # CHANGE_ME
+  POSTGRES_DB: ZWNvbWRi               # ecomdb
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ecom-db-pvc
+  namespace: ecom
+spec:
+  storageClassName: local-hostpath
+  volumeName: ecom-db-pv
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecom-db
+  namespace: ecom
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ecom-db
+  template:
+    metadata:
+      labels:
+        app: ecom-db
+    spec:
+      securityContext:
+        fsGroup: 999        # Data volume owned by postgres group; container starts as root, drops to UID 999
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: ecom-db-secret
+          env:
+            # Enable logical replication for Debezium CDC
+            - name: POSTGRES_INITDB_ARGS
+              value: "--encoding=UTF8"
+          args:
+            - postgres
+            - -c
+            - wal_level=logical
+            - -c
+            - max_replication_slots=10
+            - -c
+            - max_wal_senders=10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, $(POSTGRES_USER), -d, $(POSTGRES_DB)]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: [pg_isready, -U, $(POSTGRES_USER), -d, $(POSTGRES_DB)]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: ecom-db-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ecom-db
+  namespace: ecom
+spec:
+  selector:
+    app: ecom-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP

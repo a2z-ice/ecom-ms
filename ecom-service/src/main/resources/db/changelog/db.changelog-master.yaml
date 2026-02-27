@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/001-create-books.yaml
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/002-create-cart.yaml
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/003-create-orders.yaml
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/004-seed-books.yaml
+      relativeToChangelogFile: false

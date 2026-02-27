@@ -1,0 +1,28 @@
+---
+# AuthorizationPolicy for inventory-service:
+#   - GET /inven/stock/*: allow all (public)
+#   - GET /inven/health: allow all
+#   - POST /inven/reserve: only from ecom-service (mTLS principal)
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: inventory-service-policy
+  namespace: inventory
+spec:
+  selector:
+    matchLabels:
+      app: inventory-service
+  rules:
+    # Public: stock queries and health
+    - to:
+        - operation:
+            methods: ["GET"]
+            paths: ["/inven/stock/*", "/inven/health"]
+    # Internal only: reserve endpoint — ecom-service mTLS principal
+    - from:
+        - source:
+            principals: ["cluster.local/ns/ecom/sa/ecom-service"]
+      to:
+        - operation:
+            methods: ["POST"]
+            paths: ["/inven/reserve"]

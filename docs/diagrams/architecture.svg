@@ -1,0 +1,412 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="960" viewBox="0 0 1400 960" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', 'Inter', Arial, sans-serif">
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#1e3a5f;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#2563eb;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="tierBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8fafc;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#f1f5f9;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="nodeBlue" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="nodeGreen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="nodeOrange" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#d97706;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="nodePurple" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="nodeSlate" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#64748b;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#475569;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="nodeTeal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#0891b2;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#0e7490;stop-opacity:1"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.12"/>
+    </filter>
+    <filter id="shadowCard">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.10"/>
+    </filter>
+    <marker id="arrowBlue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrowGray" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#10b981"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#8b5cf6"/>
+    </marker>
+    <marker id="arrowRed" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#dc2626"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1400" height="960" fill="#ffffff"/>
+
+  <!-- Header -->
+  <rect x="0" y="0" width="1400" height="72" fill="url(#headerGrad)"/>
+  <text x="700" y="28" text-anchor="middle" font-size="22" font-weight="700" fill="white" letter-spacing="0.5">BookStore Platform — Infrastructure Architecture</text>
+  <text x="700" y="54" text-anchor="middle" font-size="13" fill="#93c5fd" letter-spacing="0.3">Kubernetes (kind) · Istio Ambient Mesh 1.28.4 · Istio Gateway (K8s Gateway API) · Production-Grade Microservices</text>
+
+  <!-- ═══ TIER LABELS (left axis) ═══ -->
+  <rect x="12" y="90" width="60" height="86" rx="6" fill="#dbeafe"/>
+  <text transform="rotate(-90,42,133)" x="42" y="133" text-anchor="middle" font-size="9" font-weight="700" fill="#1e40af">CLIENT</text>
+
+  <rect x="12" y="188" width="60" height="86" rx="6" fill="#dcfce7"/>
+  <text transform="rotate(-90,42,231)" x="42" y="231" text-anchor="middle" font-size="9" font-weight="700" fill="#166534">INGRESS</text>
+
+  <rect x="12" y="286" width="60" height="186" rx="6" fill="#fef9c3"/>
+  <text transform="rotate(-90,42,379)" x="42" y="379" text-anchor="middle" font-size="9" font-weight="700" fill="#854d0e">APPLICATION</text>
+
+  <rect x="12" y="484" width="60" height="186" rx="6" fill="#fae8ff"/>
+  <text transform="rotate(-90,42,577)" x="42" y="577" text-anchor="middle" font-size="9" font-weight="700" fill="#6b21a8">DATA &amp; MESSAGING</text>
+
+  <rect x="12" y="682" width="60" height="252" rx="6" fill="#e0f2fe"/>
+  <text transform="rotate(-90,42,808)" x="42" y="808" text-anchor="middle" font-size="9" font-weight="700" fill="#0c4a6e">ANALYTICS &amp; OBS</text>
+
+  <!-- ═══ TIER 1: CLIENT ═══ -->
+  <rect x="84" y="90" width="1304" height="86" rx="10" fill="url(#tierBg)" stroke="#bfdbfe" stroke-width="1.5" filter="url(#shadowCard)"/>
+  <rect x="556" y="108" width="288" height="58" rx="10" fill="url(#nodeBlue)" filter="url(#shadow)"/>
+  <text x="700" y="131" text-anchor="middle" font-size="20" fill="white">🌐</text>
+  <text x="700" y="151" text-anchor="middle" font-size="13" font-weight="700" fill="white">User Browser</text>
+  <text x="700" y="166" text-anchor="middle" font-size="10" fill="#bfdbfe">React SPA · OIDC Authorization Code + PKCE</text>
+
+  <!-- ═══ TIER 2: INGRESS ═══ -->
+  <rect x="84" y="188" width="1304" height="86" rx="10" fill="url(#tierBg)" stroke="#bbf7d0" stroke-width="1.5" filter="url(#shadowCard)"/>
+
+  <!-- Istio Gateway -->
+  <rect x="420" y="204" width="210" height="58" rx="10" fill="url(#nodeGreen)" filter="url(#shadow)"/>
+  <text x="525" y="227" text-anchor="middle" font-size="18" fill="white">⚡</text>
+  <text x="525" y="247" text-anchor="middle" font-size="13" font-weight="700" fill="white">Istio Gateway</text>
+  <text x="525" y="261" text-anchor="middle" font-size="10" fill="#d1fae5">Kubernetes Gateway API · NodePort :30000</text>
+
+  <!-- Keycloak -->
+  <rect x="670" y="204" width="210" height="58" rx="10" fill="url(#nodeOrange)" filter="url(#shadow)"/>
+  <text x="775" y="227" text-anchor="middle" font-size="18" fill="white">🔐</text>
+  <text x="775" y="247" text-anchor="middle" font-size="13" font-weight="700" fill="white">Keycloak 26.5.4</text>
+  <text x="775" y="261" text-anchor="middle" font-size="10" fill="#fef9c3">idp.keycloak.net:30000 · realm: bookstore</text>
+
+  <!-- Istio badge -->
+  <rect x="920" y="204" width="210" height="58" rx="10" fill="url(#nodeSlate)" filter="url(#shadow)"/>
+  <text x="1025" y="227" text-anchor="middle" font-size="18" fill="white">🛡️</text>
+  <text x="1025" y="247" text-anchor="middle" font-size="13" font-weight="700" fill="white">Istio Ambient Mesh</text>
+  <text x="1025" y="261" text-anchor="middle" font-size="10" fill="#e2e8f0">mTLS STRICT · JWT validation · ztunnel</text>
+
+  <!-- ═══ TIER 3: APPLICATION ═══ -->
+  <rect x="84" y="286" width="1304" height="186" rx="10" fill="url(#tierBg)" stroke="#fef08a" stroke-width="1.5" filter="url(#shadowCard)"/>
+  <text x="200" y="308" font-size="11" font-weight="600" fill="#92400e">Application Services</text>
+
+  <!-- UI Service card -->
+  <rect x="100" y="316" width="215" height="136" rx="10" fill="white" stroke="#bfdbfe" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="100" y="316" width="215" height="36" rx="10" fill="url(#nodeBlue)"/>
+  <rect x="100" y="336" width="215" height="16" fill="url(#nodeBlue)"/>
+  <text x="207" y="339" text-anchor="middle" font-size="12" font-weight="700" fill="white">UI Service</text>
+  <text x="207" y="368" text-anchor="middle" font-size="11" fill="#374151">React 19.2 / Nginx</text>
+  <text x="207" y="385" text-anchor="middle" font-size="10" fill="#6b7280">myecom.net:30000</text>
+  <rect x="116" y="396" width="183" height="18" rx="4" fill="#eff6ff"/>
+  <text x="207" y="409" text-anchor="middle" font-size="10" fill="#2563eb">In-memory token · CSRF/Redis</text>
+  <text x="207" y="430" text-anchor="middle" font-size="10" fill="#9ca3af">Catalog · Cart · Checkout pages</text>
+  <text x="207" y="444" text-anchor="middle" font-size="10" fill="#9ca3af">CallbackPage · SearchPage</text>
+
+  <!-- E-Commerce Service card -->
+  <rect x="360" y="316" width="230" height="136" rx="10" fill="white" stroke="#bbf7d0" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="360" y="316" width="230" height="36" rx="10" fill="url(#nodeGreen)"/>
+  <rect x="360" y="336" width="230" height="16" fill="url(#nodeGreen)"/>
+  <text x="475" y="339" text-anchor="middle" font-size="12" font-weight="700" fill="white">E-Commerce Service</text>
+  <text x="475" y="368" text-anchor="middle" font-size="11" fill="#374151">Spring Boot 4.0.3</text>
+  <text x="475" y="385" text-anchor="middle" font-size="10" fill="#6b7280">api.service.net:30000/ecom</text>
+  <rect x="376" y="396" width="198" height="18" rx="4" fill="#f0fdf4"/>
+  <text x="475" y="409" text-anchor="middle" font-size="10" fill="#15803d">Books · Cart · Checkout · Orders</text>
+  <text x="475" y="430" text-anchor="middle" font-size="10" fill="#9ca3af">Liquibase migrations · JWT auth</text>
+  <text x="475" y="444" text-anchor="middle" font-size="10" fill="#9ca3af">Publishes order.created to Kafka</text>
+
+  <!-- Inventory Service card -->
+  <rect x="640" y="316" width="230" height="136" rx="10" fill="white" stroke="#fef08a" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="640" y="316" width="230" height="36" rx="10" fill="url(#nodeOrange)"/>
+  <rect x="640" y="336" width="230" height="16" fill="url(#nodeOrange)"/>
+  <text x="755" y="339" text-anchor="middle" font-size="12" font-weight="700" fill="white">Inventory Service</text>
+  <text x="755" y="368" text-anchor="middle" font-size="11" fill="#374151">Python FastAPI</text>
+  <text x="755" y="385" text-anchor="middle" font-size="10" fill="#6b7280">api.service.net:30000/inven</text>
+  <rect x="656" y="396" width="198" height="18" rx="4" fill="#fffbeb"/>
+  <text x="755" y="409" text-anchor="middle" font-size="10" fill="#b45309">Stock reserve · GET /stock/{id}</text>
+  <text x="755" y="430" text-anchor="middle" font-size="10" fill="#9ca3af">Alembic migrations · JWT auth</text>
+  <text x="755" y="444" text-anchor="middle" font-size="10" fill="#9ca3af">Consumes order.created → reserve</text>
+
+  <!-- Analytics Consumer card -->
+  <rect x="920" y="316" width="215" height="136" rx="10" fill="white" stroke="#e9d5ff" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="920" y="316" width="215" height="36" rx="10" fill="url(#nodePurple)"/>
+  <rect x="920" y="336" width="215" height="16" fill="url(#nodePurple)"/>
+  <text x="1027" y="339" text-anchor="middle" font-size="12" font-weight="700" fill="white">Analytics Consumer</text>
+  <text x="1027" y="368" text-anchor="middle" font-size="11" fill="#374151">Python / kafka-python-ng</text>
+  <text x="1027" y="385" text-anchor="middle" font-size="10" fill="#6b7280">analytics namespace</text>
+  <rect x="936" y="396" width="183" height="18" rx="4" fill="#faf5ff"/>
+  <text x="1027" y="409" text-anchor="middle" font-size="10" fill="#7c3aed">Kafka events → analytics-db</text>
+  <text x="1027" y="430" text-anchor="middle" font-size="10" fill="#9ca3af">order.created + inventory.updated</text>
+  <text x="1027" y="444" text-anchor="middle" font-size="10" fill="#9ca3af">Star schema population</text>
+
+  <!-- ═══ TIER 4: DATA AND MESSAGING ═══ -->
+  <rect x="84" y="484" width="1304" height="186" rx="10" fill="url(#tierBg)" stroke="#e9d5ff" stroke-width="1.5" filter="url(#shadowCard)"/>
+  <text x="200" y="506" font-size="11" font-weight="600" fill="#6b21a8">Data and Messaging Infrastructure</text>
+
+  <!-- ecom-db -->
+  <rect x="100" y="516" width="172" height="130" rx="10" fill="white" stroke="#bfdbfe" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="100" y="516" width="172" height="36" rx="10" fill="url(#nodeBlue)"/>
+  <rect x="100" y="536" width="172" height="16" fill="url(#nodeBlue)"/>
+  <text x="186" y="539" text-anchor="middle" font-size="11" font-weight="700" fill="white">ecom-db</text>
+  <text x="186" y="568" text-anchor="middle" font-size="11" fill="#374151">PostgreSQL</text>
+  <text x="186" y="585" text-anchor="middle" font-size="10" fill="#6b7280">Books, Orders, Cart</text>
+  <rect x="114" y="596" width="144" height="18" rx="4" fill="#eff6ff"/>
+  <text x="186" y="609" text-anchor="middle" font-size="10" fill="#2563eb">WAL logical replication</text>
+  <text x="186" y="632" text-anchor="middle" font-size="10" fill="#9ca3af">ecom namespace</text>
+
+  <!-- inventory-db -->
+  <rect x="296" y="516" width="172" height="130" rx="10" fill="white" stroke="#fef08a" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="296" y="516" width="172" height="36" rx="10" fill="url(#nodeOrange)"/>
+  <rect x="296" y="536" width="172" height="16" fill="url(#nodeOrange)"/>
+  <text x="382" y="539" text-anchor="middle" font-size="11" font-weight="700" fill="white">inventory-db</text>
+  <text x="382" y="568" text-anchor="middle" font-size="11" fill="#374151">PostgreSQL</text>
+  <text x="382" y="585" text-anchor="middle" font-size="10" fill="#6b7280">Stock Inventory table</text>
+  <rect x="310" y="596" width="144" height="18" rx="4" fill="#fffbeb"/>
+  <text x="382" y="609" text-anchor="middle" font-size="10" fill="#b45309">WAL logical replication</text>
+  <text x="382" y="632" text-anchor="middle" font-size="10" fill="#9ca3af">inventory namespace</text>
+
+  <!-- Debezium CDC -->
+  <rect x="492" y="516" width="172" height="130" rx="10" fill="white" stroke="#fecaca" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="492" y="516" width="172" height="36" rx="10" fill="#dc2626"/>
+  <rect x="492" y="536" width="172" height="16" fill="#dc2626"/>
+  <text x="578" y="539" text-anchor="middle" font-size="11" font-weight="700" fill="white">Debezium CDC</text>
+  <text x="578" y="568" text-anchor="middle" font-size="11" fill="#374151">v2.7.0.Final</text>
+  <text x="578" y="585" text-anchor="middle" font-size="10" fill="#6b7280">Change Data Capture</text>
+  <rect x="506" y="596" width="144" height="18" rx="4" fill="#fef2f2"/>
+  <text x="578" y="609" text-anchor="middle" font-size="10" fill="#b91c1c">PostgreSQL → Kafka topics</text>
+  <text x="578" y="632" text-anchor="middle" font-size="10" fill="#9ca3af">infra namespace</text>
+
+  <!-- Apache Kafka -->
+  <rect x="688" y="516" width="180" height="130" rx="10" fill="white" stroke="#fed7aa" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="688" y="516" width="180" height="36" rx="10" fill="#ea580c"/>
+  <rect x="688" y="536" width="180" height="16" fill="#ea580c"/>
+  <text x="778" y="539" text-anchor="middle" font-size="11" font-weight="700" fill="white">Apache Kafka (KRaft)</text>
+  <text x="778" y="568" text-anchor="middle" font-size="11" fill="#374151">No Zookeeper</text>
+  <text x="778" y="585" text-anchor="middle" font-size="10" fill="#6b7280">Topics: order.created</text>
+  <text x="778" y="599" text-anchor="middle" font-size="10" fill="#6b7280">inventory.updated</text>
+  <rect x="702" y="611" width="152" height="18" rx="4" fill="#fff7ed"/>
+  <text x="778" y="624" text-anchor="middle" font-size="10" fill="#c2410c">infra namespace</text>
+
+  <!-- Redis -->
+  <rect x="892" y="516" width="172" height="130" rx="10" fill="white" stroke="#fecaca" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="892" y="516" width="172" height="36" rx="10" fill="#dc2626"/>
+  <rect x="892" y="536" width="172" height="16" fill="#dc2626"/>
+  <text x="978" y="539" text-anchor="middle" font-size="11" font-weight="700" fill="white">Redis</text>
+  <text x="978" y="568" text-anchor="middle" font-size="11" fill="#374151">Session Cache</text>
+  <text x="978" y="585" text-anchor="middle" font-size="10" fill="#6b7280">CSRF tokens</text>
+  <text x="978" y="599" text-anchor="middle" font-size="10" fill="#6b7280">Rate limiting (Bucket4j)</text>
+  <rect x="906" y="611" width="144" height="18" rx="4" fill="#fef2f2"/>
+  <text x="978" y="624" text-anchor="middle" font-size="10" fill="#b91c1c">infra namespace</text>
+
+  <!-- keycloak-db -->
+  <rect x="1088" y="516" width="172" height="130" rx="10" fill="white" stroke="#fed7aa" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="1088" y="516" width="172" height="36" rx="10" fill="url(#nodeOrange)"/>
+  <rect x="1088" y="536" width="172" height="16" fill="url(#nodeOrange)"/>
+  <text x="1174" y="539" text-anchor="middle" font-size="11" font-weight="700" fill="white">keycloak-db</text>
+  <text x="1174" y="568" text-anchor="middle" font-size="11" fill="#374151">PostgreSQL</text>
+  <text x="1174" y="585" text-anchor="middle" font-size="10" fill="#6b7280">Realm · Users · Clients</text>
+  <text x="1174" y="599" text-anchor="middle" font-size="10" fill="#6b7280">Sessions · Credentials</text>
+  <rect x="1102" y="611" width="144" height="18" rx="4" fill="#fffbeb"/>
+  <text x="1174" y="624" text-anchor="middle" font-size="10" fill="#b45309">identity namespace</text>
+
+  <!-- ═══ TIER 5: ANALYTICS AND OBSERVABILITY ═══ -->
+  <rect x="84" y="682" width="1304" height="252" rx="10" fill="url(#tierBg)" stroke="#bae6fd" stroke-width="1.5" filter="url(#shadowCard)"/>
+  <text x="200" y="704" font-size="11" font-weight="600" fill="#0c4a6e">Analytics, Observability and Administration</text>
+
+  <!-- analytics-db -->
+  <rect x="100" y="714" width="200" height="200" rx="10" fill="white" stroke="#e9d5ff" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="100" y="714" width="200" height="36" rx="10" fill="url(#nodePurple)"/>
+  <rect x="100" y="734" width="200" height="16" fill="url(#nodePurple)"/>
+  <text x="200" y="737" text-anchor="middle" font-size="11" font-weight="700" fill="white">analytics-db</text>
+  <text x="200" y="766" text-anchor="middle" font-size="11" fill="#374151">PostgreSQL (Star Schema)</text>
+  <text x="200" y="783" text-anchor="middle" font-size="10" fill="#6b7280">fact_orders</text>
+  <text x="200" y="798" text-anchor="middle" font-size="10" fill="#6b7280">fact_order_items</text>
+  <text x="200" y="813" text-anchor="middle" font-size="10" fill="#6b7280">dim_books</text>
+  <text x="200" y="828" text-anchor="middle" font-size="10" fill="#6b7280">fact_inventory</text>
+  <rect x="114" y="840" width="172" height="18" rx="4" fill="#faf5ff"/>
+  <text x="200" y="853" text-anchor="middle" font-size="10" fill="#7c3aed">analytics namespace</text>
+  <text x="200" y="898" text-anchor="middle" font-size="10" fill="#9ca3af">Views: vw_product_sales_volume</text>
+  <text x="200" y="912" text-anchor="middle" font-size="10" fill="#9ca3af">vw_sales_over_time</text>
+
+  <!-- Apache Superset -->
+  <rect x="320" y="714" width="200" height="170" rx="10" fill="white" stroke="#bae6fd" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="320" y="714" width="200" height="36" rx="10" fill="url(#nodeTeal)"/>
+  <rect x="320" y="734" width="200" height="16" fill="url(#nodeTeal)"/>
+  <text x="420" y="737" text-anchor="middle" font-size="11" font-weight="700" fill="white">Apache Superset</text>
+  <text x="420" y="766" text-anchor="middle" font-size="11" fill="#374151">Business Intelligence</text>
+  <text x="420" y="783" text-anchor="middle" font-size="10" fill="#6b7280">Product Sales Volume (Bar)</text>
+  <text x="420" y="798" text-anchor="middle" font-size="10" fill="#6b7280">Sales Over Time (Line)</text>
+  <rect x="334" y="810" width="172" height="18" rx="4" fill="#e0f2fe"/>
+  <text x="420" y="823" text-anchor="middle" font-size="10" fill="#0e7490">localhost:32000</text>
+  <text x="420" y="864" text-anchor="middle" font-size="10" fill="#9ca3af">ECharts rendering</text>
+  <text x="420" y="878" text-anchor="middle" font-size="10" fill="#9ca3af">analytics namespace</text>
+
+  <!-- Prometheus -->
+  <rect x="540" y="714" width="185" height="150" rx="10" fill="white" stroke="#fecaca" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="540" y="714" width="185" height="36" rx="10" fill="#e11d48"/>
+  <rect x="540" y="734" width="185" height="16" fill="#e11d48"/>
+  <text x="632" y="737" text-anchor="middle" font-size="11" font-weight="700" fill="white">Prometheus</text>
+  <text x="632" y="766" text-anchor="middle" font-size="11" fill="#374151">Metrics Collection</text>
+  <text x="632" y="783" text-anchor="middle" font-size="10" fill="#6b7280">Scrapes all services</text>
+  <rect x="554" y="796" width="157" height="18" rx="4" fill="#fff1f2"/>
+  <text x="632" y="809" text-anchor="middle" font-size="10" fill="#be123c">observability namespace</text>
+  <text x="632" y="848" text-anchor="middle" font-size="10" fill="#9ca3af">OTel Collector pipeline</text>
+
+  <!-- Grafana -->
+  <rect x="745" y="714" width="185" height="150" rx="10" fill="white" stroke="#fed7aa" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="745" y="714" width="185" height="36" rx="10" fill="#f97316"/>
+  <rect x="745" y="734" width="185" height="16" fill="#f97316"/>
+  <text x="837" y="737" text-anchor="middle" font-size="11" font-weight="700" fill="white">Grafana</text>
+  <text x="837" y="766" text-anchor="middle" font-size="11" fill="#374151">Dashboards and Alerts</text>
+  <text x="837" y="783" text-anchor="middle" font-size="10" fill="#6b7280">Prometheus data source</text>
+  <rect x="759" y="796" width="157" height="18" rx="4" fill="#fff7ed"/>
+  <text x="837" y="809" text-anchor="middle" font-size="10" fill="#c2410c">observability namespace</text>
+  <text x="837" y="848" text-anchor="middle" font-size="10" fill="#9ca3af">Service dashboards</text>
+
+  <!-- Kiali -->
+  <rect x="950" y="714" width="185" height="150" rx="10" fill="white" stroke="#bbf7d0" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="950" y="714" width="185" height="36" rx="10" fill="url(#nodeGreen)"/>
+  <rect x="950" y="734" width="185" height="16" fill="url(#nodeGreen)"/>
+  <text x="1042" y="737" text-anchor="middle" font-size="11" font-weight="700" fill="white">Kiali</text>
+  <text x="1042" y="766" text-anchor="middle" font-size="11" fill="#374151">Mesh Observability</text>
+  <text x="1042" y="783" text-anchor="middle" font-size="10" fill="#6b7280">Service traffic graph</text>
+  <rect x="964" y="796" width="157" height="18" rx="4" fill="#f0fdf4"/>
+  <text x="1042" y="809" text-anchor="middle" font-size="10" fill="#15803d">istio-system namespace</text>
+  <text x="1042" y="848" text-anchor="middle" font-size="10" fill="#9ca3af">mTLS status visualisation</text>
+
+  <!-- PgAdmin -->
+  <rect x="1155" y="714" width="185" height="150" rx="10" fill="white" stroke="#bfdbfe" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="1155" y="714" width="185" height="36" rx="10" fill="url(#nodeSlate)"/>
+  <rect x="1155" y="734" width="185" height="16" fill="url(#nodeSlate)"/>
+  <text x="1247" y="737" text-anchor="middle" font-size="11" font-weight="700" fill="white">PgAdmin</text>
+  <text x="1247" y="766" text-anchor="middle" font-size="11" fill="#374151">DB Administration</text>
+  <text x="1247" y="783" text-anchor="middle" font-size="10" fill="#6b7280">All 4 PostgreSQL instances</text>
+  <rect x="1169" y="796" width="157" height="18" rx="4" fill="#f8fafc"/>
+  <text x="1247" y="809" text-anchor="middle" font-size="10" fill="#475569">localhost:31111</text>
+  <text x="1247" y="848" text-anchor="middle" font-size="10" fill="#9ca3af">infra namespace</text>
+
+  <!-- ═══ CONNECTION LINES ═══ -->
+
+  <!-- Browser → KGateway -->
+  <path d="M 630 166 L 525 204" fill="none" stroke="#3b82f6" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
+  <text x="560" y="190" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="600">HTTPS</text>
+
+  <!-- Browser ↔ Keycloak OIDC -->
+  <path d="M 760 166 L 775 204" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#arrowOrange)"/>
+  <text x="800" y="192" text-anchor="middle" font-size="9" fill="#f59e0b" font-weight="600">OIDC PKCE</text>
+
+  <!-- KGateway → UI Service -->
+  <path d="M 440 262 L 310 286 L 207 316" fill="none" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <text x="320" y="283" text-anchor="middle" font-size="9" fill="#10b981" font-weight="600">myecom.net</text>
+
+  <!-- KGateway → E-Commerce -->
+  <path d="M 525 262 L 475 286 L 475 316" fill="none" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <text x="510" y="286" text-anchor="middle" font-size="9" fill="#10b981" font-weight="600">/ecom</text>
+
+  <!-- KGateway → Inventory -->
+  <path d="M 600 262 L 700 286 L 755 316" fill="none" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <text x="690" y="286" text-anchor="middle" font-size="9" fill="#10b981" font-weight="600">/inven</text>
+
+  <!-- E-Commerce ↔ Inventory (mTLS) -->
+  <line x1="590" y1="384" x2="640" y2="384" stroke="#64748b" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arrowGray)"/>
+  <text x="615" y="377" text-anchor="middle" font-size="9" fill="#64748b">mTLS</text>
+
+  <!-- UI Service → Redis (CSRF) -->
+  <path d="M 207 452 L 207 468 L 978 468 L 978 516" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowRed)"/>
+  <text x="580" y="464" text-anchor="middle" font-size="9" fill="#dc2626">CSRF / session</text>
+
+  <!-- E-Commerce → ecom-db -->
+  <path d="M 400 452 L 186 452 L 186 516" fill="none" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlue)"/>
+  <text x="285" y="448" text-anchor="middle" font-size="9" fill="#3b82f6">JDBC</text>
+
+  <!-- Inventory → inventory-db -->
+  <path d="M 680 440 L 382 440 L 382 516" fill="none" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrowOrange)"/>
+  <text x="530" y="436" text-anchor="middle" font-size="9" fill="#f59e0b">JDBC</text>
+
+  <!-- ecom-db → Debezium -->
+  <line x1="272" y1="581" x2="492" y2="581" stroke="#dc2626" stroke-width="2" marker-end="url(#arrowRed)"/>
+  <text x="382" y="574" text-anchor="middle" font-size="9" fill="#dc2626">WAL CDC</text>
+
+  <!-- inventory-db → Debezium -->
+  <line x1="468" y1="598" x2="492" y2="598" stroke="#dc2626" stroke-width="1.5" marker-end="url(#arrowRed)"/>
+
+  <!-- Debezium → Kafka -->
+  <line x1="664" y1="581" x2="688" y2="581" stroke="#ea580c" stroke-width="2.5" marker-end="url(#arrowOrange)"/>
+  <text x="676" y="574" text-anchor="middle" font-size="9" fill="#ea580c">events</text>
+
+  <!-- E-Commerce → Kafka (publish order.created) -->
+  <path d="M 475 452 L 475 480 L 778 480 L 778 516" fill="none" stroke="#ea580c" stroke-width="2" marker-end="url(#arrowOrange)"/>
+  <text x="660" y="476" text-anchor="middle" font-size="9" fill="#ea580c" font-weight="600">order.created</text>
+
+  <!-- Inventory → Kafka (publish inventory.updated) -->
+  <path d="M 870 452 L 870 480 L 868 480 L 868 516" fill="none" stroke="#ea580c" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowOrange)"/>
+  <text x="910" y="490" text-anchor="middle" font-size="9" fill="#ea580c">inv.updated</text>
+
+  <!-- Kafka → Analytics Consumer (consume) -->
+  <path d="M 868 516 L 868 476 L 1027 476 L 1027 452" fill="none" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrowPurple)"/>
+  <text x="970" y="472" text-anchor="middle" font-size="9" fill="#8b5cf6" font-weight="600">consume events</text>
+
+  <!-- Analytics Consumer → analytics-db -->
+  <path d="M 1027 452 L 1027 692 L 200 692 L 200 714" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arrowPurple)"/>
+
+  <!-- analytics-db → Superset -->
+  <line x1="300" y1="799" x2="320" y2="799" stroke="#0891b2" stroke-width="2.5" marker-end="url(#arrowGray)"/>
+  <text x="310" y="791" text-anchor="middle" font-size="9" fill="#0891b2">SQL</text>
+
+  <!-- Keycloak → keycloak-db -->
+  <path d="M 880 262 L 1174 262 L 1174 516" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowOrange)"/>
+
+  <!-- Prometheus → Grafana -->
+  <line x1="725" y1="789" x2="745" y2="789" stroke="#f97316" stroke-width="2" marker-end="url(#arrowGray)"/>
+  <text x="735" y="781" text-anchor="middle" font-size="9" fill="#f97316">metrics</text>
+
+  <!-- ═══ LEGEND ═══ -->
+  <rect x="84" y="870" width="630" height="72" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text x="399" y="889" text-anchor="middle" font-size="11" font-weight="700" fill="#1e293b">Legend</text>
+  <line x1="104" y1="906" x2="144" y2="906" stroke="#3b82f6" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
+  <text x="225" y="910" text-anchor="middle" font-size="10" fill="#374151">HTTPS / REST API call</text>
+  <line x1="104" y1="928" x2="144" y2="928" stroke="#64748b" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arrowGray)"/>
+  <text x="235" y="932" text-anchor="middle" font-size="10" fill="#374151">mTLS service-to-service</text>
+  <line x1="330" y1="906" x2="370" y2="906" stroke="#ea580c" stroke-width="2.5" marker-end="url(#arrowOrange)"/>
+  <text x="455" y="910" text-anchor="middle" font-size="10" fill="#374151">Kafka event stream</text>
+  <line x1="330" y1="928" x2="370" y2="928" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arrowPurple)"/>
+  <text x="455" y="932" text-anchor="middle" font-size="10" fill="#374151">CDC data pipeline</text>
+  <line x1="540" y1="906" x2="580" y2="906" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowRed)"/>
+  <text x="650" y="910" text-anchor="middle" font-size="10" fill="#374151">Session / CSRF</text>
+  <line x1="540" y1="928" x2="580" y2="928" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowOrange)"/>
+  <text x="650" y="932" text-anchor="middle" font-size="10" fill="#374151">Identity / auth</text>
+
+  <!-- ═══ SECURITY BADGE ═══ -->
+  <rect x="1180" y="870" width="204" height="72" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text x="1282" y="889" text-anchor="middle" font-size="11" font-weight="700" fill="#1e293b">Security Invariants</text>
+  <text x="1282" y="907" text-anchor="middle" font-size="10" fill="#374151">✓ mTLS STRICT mesh-wide</text>
+  <text x="1282" y="922" text-anchor="middle" font-size="10" fill="#374151">✓ JWT validated per service</text>
+  <text x="1282" y="937" text-anchor="middle" font-size="10" fill="#374151">✓ Non-root containers</text>
+
+  <!-- Footer -->
+  <text x="700" y="956" text-anchor="middle" font-size="10" fill="#94a3b8">All services on kind cluster · NodePort 30000 · kind hostMapping · No port-forwarding required</text>
+</svg>

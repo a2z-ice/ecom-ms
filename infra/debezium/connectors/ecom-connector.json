@@ -1,0 +1,30 @@
+{
+  "name": "ecom-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "plugin.name": "pgoutput",
+    "tasks.max": "1",
+
+    "database.hostname": "ecom-db.ecom.svc.cluster.local",
+    "database.port": "5432",
+    "database.user": "${file:/opt/kafka/external-configuration/db-credentials/ECOM_DB_USER}",
+    "database.password": "${file:/opt/kafka/external-configuration/db-credentials/ECOM_DB_PASSWORD}",
+    "database.dbname": "ecomdb",
+    "database.server.name": "ecom-connector",
+
+    "table.include.list": "public.orders,public.order_items,public.books",
+
+    "topic.prefix": "ecom-connector",
+    "slot.name": "debezium_ecom_slot",
+    "publication.name": "debezium_ecom_pub",
+
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "false",
+    "value.converter.schemas.enable": "false",
+
+    "decimal.handling.mode": "double",
+    "time.precision.mode": "connect",
+    "snapshot.mode": "initial"
+  }
+}

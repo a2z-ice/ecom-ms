@@ -1,0 +1,108 @@
+---
+# Secret — ecom-service runtime config (REPLACE all CHANGE_ME values)
+# kubectl create secret generic ecom-service-secret \
+#   --namespace ecom \
+#   --from-literal=DB_URL=jdbc:postgresql://ecom-db.ecom.svc.cluster.local:5432/ecomdb \
+#   --from-literal=DB_USERNAME=ecomuser \
+#   --from-literal=DB_PASSWORD=<password> \
+#   --from-literal=KEYCLOAK_JWKS_URI=http://keycloak.identity.svc.cluster.local:8080/realms/bookstore/protocol/openid-connect/certs \
+#   --from-literal=KEYCLOAK_ISSUER_URI=http://idp.keycloak.net:30000/realms/bookstore \
+#   --from-literal=KAFKA_BOOTSTRAP_SERVERS=kafka.infra.svc.cluster.local:9092 \
+#   --from-literal=REDIS_HOST=redis.infra.svc.cluster.local \
+#   --from-literal=REDIS_PASSWORD=<password>
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ecom-service-secret
+  namespace: ecom
+type: Opaque
+data:
+  DB_URL: amRiYzpwb3N0Z3Jlc3FsOi8vZWNvbS1kYi5lY29tLnN2Yy5jbHVzdGVyLmxvY2FsOjU0MzIvZWNvbWRi
+  DB_USERNAME: ZWNvbXVzZXI=
+  DB_PASSWORD: Q0hBTkdFX01F
+  KEYCLOAK_JWKS_URI: aHR0cDovL2tleWNsb2FrLmlkZW50aXR5LnN2Yy5jbHVzdGVyLmxvY2FsOjgwODAvcmVhbG1zL2Jvb2tzdG9yZS9wcm90b2NvbC9vcGVuaWQtY29ubmVjdC9jZXJ0cw==
+  KEYCLOAK_ISSUER_URI: aHR0cDovL2lkcC5rZXljbG9hay5uZXQ6MzAwMDAvcmVhbG1zL2Jvb2tzdG9yZQ==
+  KAFKA_BOOTSTRAP_SERVERS: a2Fma2EuaW5mcmEuc3ZjLmNsdXN0ZXIubG9jYWw6OTA5Mg==
+  REDIS_HOST: cmVkaXMuaW5mcmEuc3ZjLmNsdXN0ZXIubG9jYWw=
+  REDIS_PASSWORD: Q0hBTkdFX01F
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecom-service
+  namespace: ecom
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ecom-service
+  template:
+    metadata:
+      labels:
+        app: ecom-service
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: ecom-service
+          image: bookstore/ecom-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: ecom-service-secret
+          env:
+            # Spring Boot 4.0 may initialize JPA before Liquibase; setting ddl-auto=none
+            # prevents Hibernate validation from running before Liquibase creates tables.
+            # Liquibase owns schema creation via spring.liquibase.change-log.
+            - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+              value: "none"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            # Spring Boot Tomcat needs a writable /tmp to create working directories
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /ecom/actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ecom/actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 15
+      volumes:
+        - name: tmp
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ecom-service
+  namespace: ecom
+spec:
+  selector:
+    app: ecom-service
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP

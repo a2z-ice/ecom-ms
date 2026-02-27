@@ -1,0 +1,117 @@
+---
+# ConfigMap — Nginx config mounted into the container
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ui-nginx-config
+  namespace: ecom
+data:
+  default.conf: |
+    server {
+        listen 80;
+        server_name _;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Content-Security-Policy "default-src 'self'; connect-src 'self' http://api.service.net:30000 http://idp.keycloak.net:30000; frame-src 'self' http://idp.keycloak.net:30000; frame-ancestors 'self';" always;
+
+        # Proxy API calls to backend services
+        location /ecom/ {
+            proxy_pass http://ecom-service.ecom.svc.cluster.local:8080/ecom/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+
+        location /inven/ {
+            proxy_pass http://inventory-service.inventory.svc.cluster.local:8000/inven/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        location /nginx-health {
+            access_log off;
+            return 200 "ok\n";
+            add_header Content-Type text/plain;
+        }
+
+        gzip on;
+        gzip_types text/plain text/css application/json application/javascript;
+    }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ui-service
+  namespace: ecom
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ui-service
+  template:
+    metadata:
+      labels:
+        app: ui-service
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: ui
+          image: bookstore/ui-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /nginx-health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /nginx-health
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: ui-nginx-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ui-service
+  namespace: ecom
+spec:
+  selector:
+    app: ui-service
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP

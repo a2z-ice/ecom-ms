@@ -1,0 +1,105 @@
+---
+# Secret — inventory-db credentials (REPLACE placeholders before applying)
+# kubectl create secret generic inventory-db-secret \
+#   --namespace inventory \
+#   --from-literal=POSTGRES_USER=inventoryuser \
+#   --from-literal=POSTGRES_PASSWORD=<strong-password> \
+#   --from-literal=POSTGRES_DB=inventorydb
+apiVersion: v1
+kind: Secret
+metadata:
+  name: inventory-db-secret
+  namespace: inventory
+type: Opaque
+data:
+  POSTGRES_USER: aW52ZW50b3J5dXNlcg==   # inventoryuser
+  POSTGRES_PASSWORD: Q0hBTkdFX01F       # CHANGE_ME
+  POSTGRES_DB: aW52ZW50b3J5ZGI=         # inventorydb
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: inventory-db-pvc
+  namespace: inventory
+spec:
+  storageClassName: local-hostpath
+  volumeName: inventory-db-pv
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-db
+  namespace: inventory
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventory-db
+  template:
+    metadata:
+      labels:
+        app: inventory-db
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: inventory-db-secret
+          args:
+            - postgres
+            - -c
+            - wal_level=logical
+            - -c
+            - max_replication_slots=10
+            - -c
+            - max_wal_senders=10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, $(POSTGRES_USER), -d, $(POSTGRES_DB)]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: [pg_isready, -U, $(POSTGRES_USER), -d, $(POSTGRES_DB)]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: inventory-db-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-db
+  namespace: inventory
+spec:
+  selector:
+    app: inventory-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP

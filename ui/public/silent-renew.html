@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+<head><title>Silent Renew</title></head>
+<body>
+<script>
+  // Pass the authorization response URL back to the parent frame.
+  // oidc-client-ts IFrameWindow expects: { url: string } via postMessage.
+  parent.postMessage({ url: location.href }, location.origin);
+</script>
+</body>
+</html>

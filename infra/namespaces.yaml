@@ -1,0 +1,67 @@
+---
+# ecom — E-Commerce Service + its PostgreSQL
+# baseline: allows postgres to run; application containers enforce their own securityContext
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ecom
+  labels:
+    istio.io/dataplane-mode: ambient
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+
+---
+# inventory — Inventory Service + its PostgreSQL
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: inventory
+  labels:
+    istio.io/dataplane-mode: ambient
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+
+---
+# analytics — Analytics DB + Apache Superset
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: analytics
+  labels:
+    istio.io/dataplane-mode: ambient
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+
+---
+# identity — Keycloak + its PostgreSQL
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: identity
+  labels:
+    istio.io/dataplane-mode: ambient
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+
+---
+# infra — Redis, Kafka, Zookeeper, Debezium, PgAdmin
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: infra
+  labels:
+    istio.io/dataplane-mode: ambient
+    # baseline (not restricted) because Kafka/Zookeeper require more privileges
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+
+---
+# observability — Prometheus, Grafana, Kiali, OTel Collector
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+  labels:
+    istio.io/dataplane-mode: ambient
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest

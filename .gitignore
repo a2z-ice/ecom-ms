@@ -1,0 +1,29 @@
+# Persistent data volumes — mounted into kind nodes via extraMounts, never committed
+data/ecom-db/
+data/inventory-db/
+data/analytics-db/
+data/keycloak-db/
+data/superset/
+data/kafka/
+data/redis/
+
+# Node modules
+node_modules/
+ui/node_modules/
+e2e/node_modules/
+
+# Build artifacts
+ui/dist/
+e2e/playwright-report/
+e2e/test-results/
+
+# Maven
+ecom-service/target/
+
+# Python
+__pycache__/
+*.pyc
+inventory-service/.venv/
+
+# OS
+.DS_Store

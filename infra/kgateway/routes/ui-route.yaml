@@ -1,0 +1,23 @@
+---
+# HTTPRoute — myecom.net:30000 → ui-service in ecom namespace
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ui-route
+  namespace: ecom
+spec:
+  parentRefs:
+    - name: bookstore-gateway
+      namespace: infra
+  hostnames:
+    - "myecom.net"
+    - "localhost"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: ui-service
+          namespace: ecom
+          port: 80
