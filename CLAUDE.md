@@ -248,26 +248,35 @@ components/NavBar.tsx
 
 ### e2e (`e2e/`)
 ```
-playwright.config.ts       workers:1, baseURL:http://myecom.net:30000
-fixtures/auth.setup.ts     OIDC login → saves storage state to fixtures/user1.json
-helpers/db.ts              pg client: queryAnalyticsDb(), pollUntilFound()
-*.spec.ts                  catalog, search, auth, cart, checkout, cdc, superset
+playwright.config.ts       workers:1, baseURL:http://localhost:30000 (PKCE requires localhost)
+fixtures/auth.setup.ts     OIDC login → saves storageState (fixtures/user1.json) +
+                           sessionStorage separately (fixtures/user1-session.json)
+                           NOTE: Playwright storageState does NOT capture sessionStorage
+helpers/db.ts              pg client: queryAnalyticsDb(), pollUntilFound() via kubectl exec
+helpers/auth.ts            auth utilities
+*.spec.ts                  catalog, search, auth, cart, checkout, cdc, superset,
+                           istio-gateway, kiali, guest-cart, ui-fixes, mtls-enforcement
 ```
 
 ### infra (`infra/`)
 ```
-kind/cluster.yaml       kind cluster with hostMapping + NodePort 30000
+kind/cluster.yaml       kind cluster with hostMapping + NodePort 30000; contains DATA_DIR
+                        placeholder substituted at runtime by cluster-up.sh via sed
+storage/                storageclass.yaml (local-hostpath) + persistent-volumes.yaml (7 PVs)
 namespaces.yaml
 kgateway/               gateway.yaml + HTTPRoutes per service
 keycloak/               keycloak.yaml, import-job.yaml, realm-export.json
-postgres/               ecom-db.yaml, inventory-db.yaml, analytics-db.yaml
-kafka/                  kafka.yaml (KRaft), sink-connector.json
+postgres/               ecom-db.yaml, inventory-db.yaml, analytics-db.yaml (each with PVC)
+kafka/                  kafka.yaml (KRaft), zookeeper.yaml (intentionally EMPTY placeholder)
 debezium/               debezium.yaml, register-connectors.sh, connectors/*.json
+                        Connector credentials loaded via mounted Secret files, not hardcoded
 istio/security/         peer-auth.yaml, request-auth.yaml, authz-policies/
-observability/          prometheus/, grafana/, kiali/, otel-collector.yaml
-kubernetes/             hpa/, pdb/, network-policies/
-superset/               deployment + bootstrap job for pre-built charts
-analytics/schema/       DDL for fact_orders, fact_order_items, dim_books, fact_inventory
+observability/          prometheus/, kiali/ (nodeport + config-patch + prometheus-alias),
+                        otel-collector.yaml
+kubernetes/             hpa/, pdb/, network-policies/ (ecom-netpol, inventory-netpol)
+superset/               deployment + bootstrap-job (pre-populates dashboards)
+analytics/schema/       DDL: fact_orders, fact_order_items, dim_books, fact_inventory +
+                        views vw_product_sales_volume, vw_sales_over_time (used by Superset)
 ```
 
 ---
@@ -406,7 +415,7 @@ Applied in this order per namespace:
 ### Scripts Naming Convention
 
 All `scripts/` files must be idempotent (safe to run multiple times):
-- `cluster-up.sh` — create kind cluster + install Istio + Kubernetes Gateway API + namespaces
+- `cluster-up.sh` — create kind cluster + install Istio + Kubernetes Gateway API + namespaces; substitutes `DATA_DIR` placeholder in `infra/kind/cluster.yaml` via `sed` before calling `kind create`
 - `infra-up.sh` — apply all infra manifests
 - `verify-routes.sh` — curl all external routes, assert HTTP 200/302
 - `verify-cdc.sh` — seed a row, poll analytics DB, assert row present
@@ -414,6 +423,18 @@ All `scripts/` files must be idempotent (safe to run multiple times):
 - `stack-up.sh` — one-command full bootstrap (cluster + infra + keycloak + connectors)
 - `cluster-down.sh` — clean teardown; `--purge-data` to delete host data volumes
 - `sanity-test.sh` — comprehensive cluster health check (pods + routes + Kafka + Debezium)
+
+---
+
+## Plans Convention
+
+Every enhancement, feature, or new session **must** produce a plan file in `plans/` **before or alongside** implementation:
+
+- **File name:** `plans/session-<NN>-<meaningful-slug>.md` (e.g. `session-18-kafka-persistence.md`)
+- **Also update:** `plans/implementation-plan.md` — add the new session section there too
+- **Minimum content:** Goal, Deliverables table, Acceptance Criteria, Build & Deploy commands, Status
+
+Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` through `plans/session-17-*.md`.
 
 ---
 
