@@ -5,11 +5,12 @@ Run as a Kubernetes Job after Superset is deployed and the analytics DB has data
 
 Creates:
   - Database connection to analytics-db
-  - Dataset: vw_product_sales_volume
-  - Dataset: vw_sales_over_time
-  - ECharts bar chart: "Product Sales Volume"
-  - ECharts timeseries line chart: "Sales Over Time"
-  - Dashboard: "Book Store Analytics" with both charts
+  - 10 Datasets (2 existing + 8 new analytics views)
+  - 14 Charts (2 existing + 12 new)
+  - 3 Dashboards:
+      "Book Store Analytics"      — 5 charts (product sales + time trend + author/genre/price)
+      "Sales & Revenue Analytics" — 5 charts (KPIs + order status + avg order value over time)
+      "Inventory Analytics"       — 4 charts (health table + stock/reserved + turnover + genre)
 
 NOTE: Superset latest uses ECharts exclusively.
       viz_type "bar"/"line" are removed; use "echarts_bar"/"echarts_timeseries_line".
@@ -17,7 +18,6 @@ NOTE: Superset latest uses ECharts exclusively.
 import json
 import os
 import sqlite3
-import subprocess
 import requests
 
 SUPERSET_URL = os.environ.get("SUPERSET_URL", "http://superset.analytics.svc.cluster.local:8088")
@@ -82,13 +82,13 @@ def upsert_dataset(session: requests.Session, token: str, csrf_token: str,
     return resp.json()["id"]
 
 
-def metric(col_name: str, col_type: str = "DOUBLE PRECISION") -> dict:
-    """Build a simple SUM metric object for Superset chart params."""
+def metric(col_name: str, col_type: str = "DOUBLE PRECISION", agg: str = "SUM") -> dict:
+    """Build a simple aggregation metric object for Superset chart params."""
     return {
         "expressionType": "SIMPLE",
         "column": {"column_name": col_name, "type": col_type},
-        "aggregate": "SUM",
-        "label": col_name,
+        "aggregate": agg,
+        "label": f"{agg}({col_name})",
     }
 
 
@@ -117,12 +117,12 @@ def upsert_chart(session: requests.Session, token: str, csrf_token: str,
 
 
 def upsert_dashboard(session: requests.Session, token: str, csrf_token: str,
-                     chart_ids: list[int]) -> int:
+                     title: str, chart_ids: list[int]) -> int:
     h = headers(token, csrf_token)
     existing = session.get(f"{SUPERSET_URL}/api/v1/dashboard/", headers=h).json()
     dash_id = None
     for d in existing.get("result", []):
-        if d["dashboard_title"] == "Book Store Analytics":
+        if d["dashboard_title"] == title:
             dash_id = d["id"]
             break
 
@@ -151,7 +151,7 @@ def upsert_dashboard(session: requests.Session, token: str, csrf_token: str,
 
     if dash_id is None:
         resp = session.post(f"{SUPERSET_URL}/api/v1/dashboard/", json={
-            "dashboard_title": "Book Store Analytics",
+            "dashboard_title": title,
             "published": True,
             "position_json": position_json,
         }, headers=h)
@@ -189,18 +189,32 @@ def main() -> None:
     db_id = upsert_database(session, token, csrf_token)
     print(f"  DB id={db_id}")
 
+    # ─── Datasets ───────────────────────────────────────────────────────────
     print("Creating datasets...")
-    sales_vol_ds = upsert_dataset(session, token, csrf_token, db_id, "vw_product_sales_volume")
-    sales_time_ds = upsert_dataset(session, token, csrf_token, db_id, "vw_sales_over_time")
-    print(f"  vw_product_sales_volume id={sales_vol_ds}")
-    print(f"  vw_sales_over_time id={sales_time_ds}")
+    ds = {}
+    for view in [
+        "vw_product_sales_volume",
+        "vw_sales_over_time",
+        "vw_revenue_by_author",
+        "vw_revenue_by_genre",
+        "vw_order_status_distribution",
+        "vw_inventory_health",
+        "vw_avg_order_value",
+        "vw_top_books_by_revenue",
+        "vw_inventory_turnover",
+        "vw_book_price_distribution",
+    ]:
+        ds[view] = upsert_dataset(session, token, csrf_token, db_id, view)
+        print(f"  {view} id={ds[view]}")
 
-    print("Creating ECharts bar chart: Product Sales Volume...")
+    # ─── Charts ─────────────────────────────────────────────────────────────
+    print("Creating charts...")
+
+    # ── Dashboard 1: Book Store Analytics ───────────────────────────────────
     bar_chart_id = upsert_chart(
         session, token, csrf_token,
-        "Product Sales Volume",
-        "echarts_bar",
-        sales_vol_ds,
+        "Product Sales Volume", "echarts_bar",
+        ds["vw_product_sales_volume"],
         {
             "metrics": [metric("units_sold", "BIGINT")],
             "groupby": ["title"],
@@ -209,13 +223,12 @@ def main() -> None:
             "color_scheme": "supersetColors",
         },
     )
+    print(f"  Product Sales Volume id={bar_chart_id}")
 
-    print("Creating ECharts line chart: Sales Over Time...")
     line_chart_id = upsert_chart(
         session, token, csrf_token,
-        "Sales Over Time",
-        "echarts_timeseries_line",
-        sales_time_ds,
+        "Sales Over Time", "echarts_timeseries_line",
+        ds["vw_sales_over_time"],
         {
             "metrics": [metric("daily_revenue")],
             "groupby": [],
@@ -224,13 +237,207 @@ def main() -> None:
             "color_scheme": "supersetColors",
         },
     )
+    print(f"  Sales Over Time id={line_chart_id}")
 
-    print("Creating dashboard...")
-    dash_id = upsert_dashboard(session, token, csrf_token, [bar_chart_id, line_chart_id])
+    revenue_by_author_id = upsert_chart(
+        session, token, csrf_token,
+        "Revenue by Author", "echarts_bar",
+        ds["vw_revenue_by_author"],
+        {
+            "metrics": [metric("revenue")],
+            "groupby": ["author"],
+            "x_axis": "author",
+            "row_limit": 20,
+            "color_scheme": "supersetColors",
+        },
+    )
+    print(f"  Revenue by Author id={revenue_by_author_id}")
 
-    print("✔ Superset bootstrap complete.")
-    print(f"  Dashboard: Book Store Analytics (id={dash_id})")
-    print(f"  URL: {SUPERSET_URL}/superset/dashboard/{dash_id}/")
+    top_books_id = upsert_chart(
+        session, token, csrf_token,
+        "Top Books by Revenue", "echarts_bar",
+        ds["vw_top_books_by_revenue"],
+        {
+            "metrics": [metric("total_revenue")],
+            "groupby": ["title"],
+            "x_axis": "title",
+            "row_limit": 10,
+            "color_scheme": "supersetColors",
+        },
+    )
+    print(f"  Top Books by Revenue id={top_books_id}")
+
+    price_dist_id = upsert_chart(
+        session, token, csrf_token,
+        "Book Price Distribution", "echarts_pie",
+        ds["vw_book_price_distribution"],
+        {
+            "metric": metric("book_count", "BIGINT", "SUM"),
+            "groupby": ["price_range"],
+            "row_limit": 10,
+            "color_scheme": "supersetColors",
+            "show_labels": True,
+        },
+    )
+    print(f"  Book Price Distribution id={price_dist_id}")
+
+    # ── Dashboard 2: Sales & Revenue Analytics ───────────────────────────────
+    total_revenue_kpi_id = upsert_chart(
+        session, token, csrf_token,
+        "Total Revenue KPI", "big_number_total",
+        ds["vw_sales_over_time"],
+        {
+            "metric": metric("daily_revenue"),
+            "subheader": "Total Revenue (All Time)",
+            "y_axis_format": "$,.2f",
+        },
+    )
+    print(f"  Total Revenue KPI id={total_revenue_kpi_id}")
+
+    total_orders_kpi_id = upsert_chart(
+        session, token, csrf_token,
+        "Total Orders KPI", "big_number_total",
+        ds["vw_avg_order_value"],
+        {
+            "metric": metric("order_count", "BIGINT"),
+            "subheader": "Total Orders (All Time)",
+            "y_axis_format": ",d",
+        },
+    )
+    print(f"  Total Orders KPI id={total_orders_kpi_id}")
+
+    avg_order_kpi_id = upsert_chart(
+        session, token, csrf_token,
+        "Average Order Value KPI", "big_number_total",
+        ds["vw_avg_order_value"],
+        {
+            "metric": metric("avg_order_value", "DOUBLE PRECISION", "AVG"),
+            "subheader": "Avg Order Value",
+            "y_axis_format": "$,.2f",
+        },
+    )
+    print(f"  Average Order Value KPI id={avg_order_kpi_id}")
+
+    order_status_id = upsert_chart(
+        session, token, csrf_token,
+        "Order Status Distribution", "echarts_pie",
+        ds["vw_order_status_distribution"],
+        {
+            "metric": metric("order_count", "BIGINT"),
+            "groupby": ["status"],
+            "row_limit": 10,
+            "color_scheme": "supersetColors",
+            "show_labels": True,
+        },
+    )
+    print(f"  Order Status Distribution id={order_status_id}")
+
+    avg_order_time_id = upsert_chart(
+        session, token, csrf_token,
+        "Avg Order Value Over Time", "echarts_timeseries_line",
+        ds["vw_avg_order_value"],
+        {
+            "metrics": [metric("avg_order_value")],
+            "groupby": [],
+            "x_axis": "sale_date",
+            "row_limit": 365,
+            "color_scheme": "supersetColors",
+        },
+    )
+    print(f"  Avg Order Value Over Time id={avg_order_time_id}")
+
+    # ── Dashboard 3: Inventory Analytics ────────────────────────────────────
+    inv_health_table_id = upsert_chart(
+        session, token, csrf_token,
+        "Inventory Health Table", "table",
+        ds["vw_inventory_health"],
+        {
+            "all_columns": ["title", "author", "stock_quantity", "reserved", "available", "stock_status"],
+            "order_by_cols": ["available"],
+            "row_limit": 50,
+            "table_timestamp_format": "%Y-%m-%d",
+        },
+    )
+    print(f"  Inventory Health Table id={inv_health_table_id}")
+
+    stock_vs_reserved_id = upsert_chart(
+        session, token, csrf_token,
+        "Stock vs Reserved", "echarts_bar",
+        ds["vw_inventory_health"],
+        {
+            "metrics": [
+                metric("stock_quantity", "INTEGER"),
+                metric("reserved", "INTEGER"),
+            ],
+            "groupby": ["title"],
+            "x_axis": "title",
+            "row_limit": 20,
+            "color_scheme": "supersetColors",
+        },
+    )
+    print(f"  Stock vs Reserved id={stock_vs_reserved_id}")
+
+    inv_turnover_id = upsert_chart(
+        session, token, csrf_token,
+        "Inventory Turnover Rate", "echarts_bar",
+        ds["vw_inventory_turnover"],
+        {
+            "metrics": [metric("turnover_rate_pct", "DOUBLE PRECISION")],
+            "groupby": ["title"],
+            "x_axis": "title",
+            "row_limit": 20,
+            "color_scheme": "supersetColors",
+        },
+    )
+    print(f"  Inventory Turnover Rate id={inv_turnover_id}")
+
+    revenue_by_genre_id = upsert_chart(
+        session, token, csrf_token,
+        "Revenue by Genre", "echarts_bar",
+        ds["vw_revenue_by_genre"],
+        {
+            "metrics": [metric("revenue")],
+            "groupby": ["genre"],
+            "x_axis": "genre",
+            "row_limit": 20,
+            "color_scheme": "supersetColors",
+        },
+    )
+    print(f"  Revenue by Genre id={revenue_by_genre_id}")
+
+    # ─── Dashboards ──────────────────────────────────────────────────────────
+    print("Creating dashboards...")
+
+    dash1_id = upsert_dashboard(
+        session, token, csrf_token,
+        "Book Store Analytics",
+        [bar_chart_id, line_chart_id, revenue_by_author_id, top_books_id, price_dist_id],
+    )
+    print(f"  Book Store Analytics id={dash1_id}")
+
+    dash2_id = upsert_dashboard(
+        session, token, csrf_token,
+        "Sales & Revenue Analytics",
+        [total_revenue_kpi_id, total_orders_kpi_id, avg_order_kpi_id,
+         order_status_id, avg_order_time_id],
+    )
+    print(f"  Sales & Revenue Analytics id={dash2_id}")
+
+    dash3_id = upsert_dashboard(
+        session, token, csrf_token,
+        "Inventory Analytics",
+        [inv_health_table_id, stock_vs_reserved_id, inv_turnover_id, revenue_by_genre_id],
+    )
+    print(f"  Inventory Analytics id={dash3_id}")
+
+    print("")
+    print("Superset bootstrap complete.")
+    print(f"  Dashboard 1: Book Store Analytics (id={dash1_id})")
+    print(f"    URL: {SUPERSET_URL}/superset/dashboard/{dash1_id}/")
+    print(f"  Dashboard 2: Sales & Revenue Analytics (id={dash2_id})")
+    print(f"    URL: {SUPERSET_URL}/superset/dashboard/{dash2_id}/")
+    print(f"  Dashboard 3: Inventory Analytics (id={dash3_id})")
+    print(f"    URL: {SUPERSET_URL}/superset/dashboard/{dash3_id}/")
 
 
 if __name__ == "__main__":

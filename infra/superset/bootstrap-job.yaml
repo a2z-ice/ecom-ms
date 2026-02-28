@@ -1,0 +1,260 @@
+---
+# ConfigMap — Superset bootstrap script
+# Contains the bootstrap_dashboards.py script mounted into the Superset pod
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: superset-bootstrap-script
+  namespace: analytics
+data:
+  bootstrap_dashboards.py: |
+    #!/usr/bin/env python3
+    """
+    Bootstrap Superset dashboards for the Book Store analytics.
+    Runs inside the Superset pod (has sqlite3, requests available).
+    """
+    import json
+    import os
+    import sqlite3
+    import requests
+
+    SUPERSET_URL = os.environ.get("SUPERSET_URL", "http://localhost:8088")
+    SUPERSET_USER = os.environ["SUPERSET_ADMIN_USERNAME"]
+    SUPERSET_PASS = os.environ["SUPERSET_ADMIN_PASSWORD"]
+    ANALYTICS_DB_URL = os.environ["ANALYTICS_DB_URL"]
+    SUPERSET_SQLITE = os.environ.get("SUPERSET_SQLITE", "/app/superset_home/superset.db")
+
+    def login(session):
+        resp = session.post(f"{SUPERSET_URL}/api/v1/security/login", json={
+            "username": SUPERSET_USER, "password": SUPERSET_PASS,
+            "provider": "db", "refresh": True,
+        })
+        resp.raise_for_status()
+        token = resp.json()["access_token"]
+        csrf_resp = session.get(f"{SUPERSET_URL}/api/v1/security/csrf_token/",
+                                headers={"Authorization": f"Bearer {token}"})
+        csrf_resp.raise_for_status()
+        return token, csrf_resp.json()["result"]
+
+    def h(token, csrf): return {"Authorization": f"Bearer {token}", "X-CSRFToken": csrf}
+
+    def upsert_database(s, t, c):
+        existing = s.get(f"{SUPERSET_URL}/api/v1/database/", headers=h(t,c)).json()
+        for db in existing.get("result", []):
+            if db["database_name"] == "Analytics DB": return db["id"]
+        r = s.post(f"{SUPERSET_URL}/api/v1/database/", json={
+            "database_name": "Analytics DB", "sqlalchemy_uri": ANALYTICS_DB_URL,
+            "expose_in_sqllab": True}, headers=h(t,c))
+        r.raise_for_status(); return r.json()["id"]
+
+    def upsert_dataset(s, t, c, db_id, table_name):
+        existing = s.get(f"{SUPERSET_URL}/api/v1/dataset/", headers=h(t,c)).json()
+        for ds in existing.get("result", []):
+            if ds["table_name"] == table_name: return ds["id"]
+        r = s.post(f"{SUPERSET_URL}/api/v1/dataset/", json={
+            "database": db_id, "table_name": table_name, "schema": "public"}, headers=h(t,c))
+        r.raise_for_status(); return r.json()["id"]
+
+    def metric(col, col_type="DOUBLE PRECISION", agg="SUM"):
+        return {"expressionType": "SIMPLE",
+                "column": {"column_name": col, "type": col_type},
+                "aggregate": agg, "label": f"{agg}({col})"}
+
+    def upsert_chart(s, t, c, name, viz_type, ds_id, params):
+        existing = s.get(f"{SUPERSET_URL}/api/v1/chart/", headers=h(t,c)).json()
+        for ch in existing.get("result", []):
+            if ch["slice_name"] == name:
+                s.put(f"{SUPERSET_URL}/api/v1/chart/{ch['id']}", json={
+                    "viz_type": viz_type, "datasource_id": ds_id,
+                    "params": json.dumps(params)}, headers=h(t,c))
+                return ch["id"]
+        r = s.post(f"{SUPERSET_URL}/api/v1/chart/", json={
+            "slice_name": name, "viz_type": viz_type,
+            "datasource_id": ds_id, "datasource_type": "table",
+            "params": json.dumps(params)}, headers=h(t,c))
+        r.raise_for_status(); return r.json()["id"]
+
+    def upsert_dashboard(s, t, c, title, chart_ids):
+        existing = s.get(f"{SUPERSET_URL}/api/v1/dashboard/", headers=h(t,c)).json()
+        dash_id = None
+        for d in existing.get("result", []):
+            if d["dashboard_title"] == title: dash_id = d["id"]; break
+        pos = json.dumps({
+            "DASHBOARD_VERSION_KEY": "v2",
+            "GRID_ID": {"children": ["ROW-1"], "id": "GRID_ID", "parents": ["ROOT_ID"], "type": "GRID"},
+            "ROOT_ID": {"children": ["GRID_ID"], "id": "ROOT_ID", "type": "ROOT"},
+            "ROW-1": {"children": [f"CHART-{i}" for i in chart_ids], "id": "ROW-1",
+                      "meta": {"background": "BACKGROUND_TRANSPARENT"},
+                      "parents": ["ROOT_ID", "GRID_ID"], "type": "ROW"},
+            **{f"CHART-{i}": {"children": [], "id": f"CHART-{i}",
+                              "meta": {"chartId": i, "height": 50, "width": 6},
+                              "parents": ["ROOT_ID", "GRID_ID", "ROW-1"], "type": "CHART"}
+               for i in chart_ids}
+        })
+        if dash_id is None:
+            r = s.post(f"{SUPERSET_URL}/api/v1/dashboard/", json={
+                "dashboard_title": title, "published": True, "position_json": pos}, headers=h(t,c))
+            r.raise_for_status(); dash_id = r.json()["id"]
+        else:
+            s.put(f"{SUPERSET_URL}/api/v1/dashboard/{dash_id}", json={"position_json": pos}, headers=h(t,c))
+        conn = sqlite3.connect(SUPERSET_SQLITE)
+        cur = conn.cursor()
+        cur.execute("DELETE FROM dashboard_slices WHERE dashboard_id=?", (dash_id,))
+        for cid in chart_ids:
+            cur.execute("INSERT INTO dashboard_slices (dashboard_id, slice_id) VALUES (?,?)", (dash_id, cid))
+        conn.commit(); conn.close()
+        print(f"  Dashboard '{title}' id={dash_id}")
+        return dash_id
+
+    def main():
+        s = requests.Session()
+        print("Logging in...")
+        t, c = login(s)
+        print("Creating DB connection...")
+        db_id = upsert_database(s, t, c)
+        print(f"  db_id={db_id}")
+
+        views = ["vw_product_sales_volume", "vw_sales_over_time", "vw_revenue_by_author",
+                 "vw_revenue_by_genre", "vw_order_status_distribution", "vw_inventory_health",
+                 "vw_avg_order_value", "vw_top_books_by_revenue", "vw_inventory_turnover",
+                 "vw_book_price_distribution"]
+        ds = {v: upsert_dataset(s, t, c, db_id, v) for v in views}
+        print(f"  Datasets: {ds}")
+
+        bar = upsert_chart(s, t, c, "Product Sales Volume", "echarts_bar", ds["vw_product_sales_volume"],
+            {"metrics": [metric("units_sold","BIGINT")], "groupby": ["title"], "x_axis": "title", "row_limit": 20, "color_scheme": "supersetColors"})
+        line = upsert_chart(s, t, c, "Sales Over Time", "echarts_timeseries_line", ds["vw_sales_over_time"],
+            {"metrics": [metric("daily_revenue")], "groupby": [], "x_axis": "sale_date", "row_limit": 365, "color_scheme": "supersetColors"})
+        rev_author = upsert_chart(s, t, c, "Revenue by Author", "echarts_bar", ds["vw_revenue_by_author"],
+            {"metrics": [metric("revenue")], "groupby": ["author"], "x_axis": "author", "row_limit": 20, "color_scheme": "supersetColors"})
+        top_books = upsert_chart(s, t, c, "Top Books by Revenue", "echarts_bar", ds["vw_top_books_by_revenue"],
+            {"metrics": [metric("total_revenue")], "groupby": ["title"], "x_axis": "title", "row_limit": 10, "color_scheme": "supersetColors"})
+        price_dist = upsert_chart(s, t, c, "Book Price Distribution", "echarts_pie", ds["vw_book_price_distribution"],
+            {"metric": metric("book_count","BIGINT"), "groupby": ["price_range"], "row_limit": 10, "color_scheme": "supersetColors", "show_labels": True})
+        total_rev = upsert_chart(s, t, c, "Total Revenue KPI", "big_number_total", ds["vw_sales_over_time"],
+            {"metric": metric("daily_revenue"), "subheader": "Total Revenue (All Time)", "y_axis_format": "$,.2f"})
+        total_ord = upsert_chart(s, t, c, "Total Orders KPI", "big_number_total", ds["vw_avg_order_value"],
+            {"metric": metric("order_count","BIGINT"), "subheader": "Total Orders (All Time)", "y_axis_format": ",d"})
+        avg_ord_kpi = upsert_chart(s, t, c, "Average Order Value KPI", "big_number_total", ds["vw_avg_order_value"],
+            {"metric": metric("avg_order_value","DOUBLE PRECISION","AVG"), "subheader": "Avg Order Value", "y_axis_format": "$,.2f"})
+        ord_status = upsert_chart(s, t, c, "Order Status Distribution", "echarts_pie", ds["vw_order_status_distribution"],
+            {"metric": metric("order_count","BIGINT"), "groupby": ["status"], "row_limit": 10, "color_scheme": "supersetColors", "show_labels": True})
+        avg_ord_time = upsert_chart(s, t, c, "Avg Order Value Over Time", "echarts_timeseries_line", ds["vw_avg_order_value"],
+            {"metrics": [metric("avg_order_value")], "groupby": [], "x_axis": "sale_date", "row_limit": 365, "color_scheme": "supersetColors"})
+        inv_table = upsert_chart(s, t, c, "Inventory Health Table", "table", ds["vw_inventory_health"],
+            {"all_columns": ["title","author","stock_quantity","reserved","available","stock_status"],
+             "order_by_cols": ["available"], "row_limit": 50})
+        stock_res = upsert_chart(s, t, c, "Stock vs Reserved", "echarts_bar", ds["vw_inventory_health"],
+            {"metrics": [metric("stock_quantity","INTEGER"), metric("reserved","INTEGER")],
+             "groupby": ["title"], "x_axis": "title", "row_limit": 20, "color_scheme": "supersetColors"})
+        inv_turn = upsert_chart(s, t, c, "Inventory Turnover Rate", "echarts_bar", ds["vw_inventory_turnover"],
+            {"metrics": [metric("turnover_rate_pct")], "groupby": ["title"], "x_axis": "title", "row_limit": 20, "color_scheme": "supersetColors"})
+        rev_genre = upsert_chart(s, t, c, "Revenue by Genre", "echarts_bar", ds["vw_revenue_by_genre"],
+            {"metrics": [metric("revenue")], "groupby": ["genre"], "x_axis": "genre", "row_limit": 20, "color_scheme": "supersetColors"})
+
+        upsert_dashboard(s, t, c, "Book Store Analytics", [bar, line, rev_author, top_books, price_dist])
+        upsert_dashboard(s, t, c, "Sales & Revenue Analytics", [total_rev, total_ord, avg_ord_kpi, ord_status, avg_ord_time])
+        upsert_dashboard(s, t, c, "Inventory Analytics", [inv_table, stock_res, inv_turn, rev_genre])
+        print("Bootstrap complete.")
+
+    if __name__ == "__main__":
+        main()
+
+---
+# Kubernetes Job — runs bootstrap script inside the Superset pod via kubectl exec
+# The job uses the same Superset image with the script mounted from the ConfigMap
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: superset-bootstrap
+  namespace: analytics
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: superset-bootstrap-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      initContainers:
+        # Wait for Superset to be ready before running bootstrap
+        - name: wait-for-superset
+          image: curlimages/curl:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for Superset health endpoint..."
+              until curl -sf http://superset.analytics.svc.cluster.local:8088/health; do
+                echo "Superset not ready yet, retrying in 10s..."
+                sleep 10
+              done
+              echo "Superset is ready."
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+      containers:
+        - name: bootstrap
+          image: apache/superset:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              pip install requests --quiet
+              python /bootstrap/bootstrap_dashboards.py
+          envFrom:
+            - secretRef:
+                name: superset-secret
+          env:
+            - name: SUPERSET_URL
+              value: "http://superset.analytics.svc.cluster.local:8088"
+            - name: SUPERSET_SQLITE
+              value: "/app/superset_home/superset.db"
+          volumeMounts:
+            - name: bootstrap-script
+              mountPath: /bootstrap
+            - name: superset-data
+              mountPath: /app/superset_home
+            - name: tmp
+              mountPath: /tmp
+          securityContext:
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 300m
+              memory: 512Mi
+      volumes:
+        - name: bootstrap-script
+          configMap:
+            name: superset-bootstrap-script
+        - name: superset-data
+          persistentVolumeClaim:
+            claimName: superset-pvc
+        - name: tmp
+          emptyDir: {}
+
+---
+# ServiceAccount for the bootstrap job (minimal permissions — just pod access)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: superset-bootstrap-sa
+  namespace: analytics

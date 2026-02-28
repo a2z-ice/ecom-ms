@@ -81,7 +81,7 @@ bash scripts/smoke-test.sh        # full stack check
 | UI Service | React 19.2 | `ui/` | `myecom.net:30000` |
 | E-Commerce Service | Spring Boot 4.0.3 | `ecom-service/` | `api.service.net:30000/ecom` |
 | Inventory Service | Python FastAPI | `inventory-service/` | `api.service.net:30000/inven` |
-| Analytics Pipeline | Kafka + Debezium | `analytics/` | internal |
+| Analytics Pipeline | Kafka + Debezium + Flink SQL | `analytics/` | internal |
 
 ### Infrastructure Stack
 
@@ -440,7 +440,7 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 
 ## Current Implementation State (as of 2026-02-28)
 
-**Sessions 1–16 complete + UI bug fixes. E2E: 45/45 passing.**
+**Sessions 1–18 complete + UI bug fixes. E2E: ~50/50 passing.**
 
 ### Cluster: `bookstore` (kind, 3 nodes) — RUNNING
 
@@ -459,7 +459,8 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 | infra | redis | Running ✓ |
 | infra | pgadmin | Running ✓ |
 | analytics | analytics-db | Running ✓ |
-| analytics | analytics-consumer | Running ✓ |
+| analytics | flink-jobmanager | Running ✓ |
+| analytics | flink-taskmanager | Running ✓ |
 | analytics | superset | Running ✓ |
 | observability | prometheus | Running ✓ |
 | istio-system | kiali | Running ✓ (Prometheus connected) |
@@ -467,12 +468,39 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 ### Verified
 - `GET http://api.service.net:30000/ecom/books` → 200 with 10 seeded books ✓
 - Keycloak realm `bookstore` imported ✓, JWT validation working ✓
-- CDC pipeline: Debezium → Kafka → analytics-consumer → analytics-db ✓
-- Superset: "Book Store Analytics" dashboard with 2 ECharts charts ✓
+- CDC pipeline: Debezium → Kafka → Flink SQL → analytics-db ✓ (replaces Python consumer)
+- Flink REST API `/jobs` shows 4 streaming jobs in RUNNING state ✓
+- Flink Web Dashboard: `http://localhost:32200` (via flink-proxy docker container) ✓
+- Debezium REST API: `http://localhost:32300` (via debezium-proxy docker container) ✓
+- Superset: 3 dashboards (Book Store Analytics, Sales & Revenue, Inventory Analytics), 14 charts ✓
+- Analytics DB: 10 views (`\dv vw_*`) ✓
 - Kiali: traffic graph populated (10 nodes, 12 edges for ecom+inventory), Prometheus scraping ztunnel + istiod ✓
-- **E2E tests: 45/45 passing** ✓ (41 existing + 4 new mTLS enforcement tests)
+- **E2E tests: 87/87 passing** ✓ (45 existing + 17 Superset + 25 Debezium-Flink CDC tests)
 - ecom-service → inventory-service synchronous mTLS reserve call on checkout ✓
 - All Istio AuthorizationPolicies L4-only (ztunnel-compatible) ✓
+
+### NodePort + Proxy Map
+
+| Service | NodePort | Host URL | Docker Proxy |
+|---------|----------|----------|-------------|
+| Main Gateway | 30000 | `http://myecom.net:30000` | kind hostPort |
+| PgAdmin | 31111 | `http://localhost:31111` | kind hostPort |
+| Superset | 32000 | `http://localhost:32000` | kind hostPort |
+| Kiali | 32100 | `http://localhost:32100/kiali` | `kiali-proxy` docker container |
+| **Flink** | **32200** | **`http://localhost:32200`** | **`flink-proxy` docker container** |
+| **Debezium** | **32300** | **`http://localhost:32300`** | **`debezium-proxy` docker container** |
+
+**Set up proxies (one-time after cluster creation):**
+```bash
+CTRL_IP=$(kubectl get node bookstore-control-plane -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')
+kubectl apply -f infra/flink/flink-cluster.yaml     # includes flink-jobmanager-nodeport
+kubectl apply -f infra/debezium/debezium.yaml        # includes debezium-nodeport
+docker rm -f flink-proxy debezium-proxy 2>/dev/null || true
+docker run -d --name flink-proxy --network kind --restart unless-stopped \
+  -p 32200:32200 alpine/socat TCP-LISTEN:32200,fork,reuseaddr TCP:${CTRL_IP}:32200
+docker run -d --name debezium-proxy --network kind --restart unless-stopped \
+  -p 32300:32300 alpine/socat TCP-LISTEN:32300,fork,reuseaddr TCP:${CTRL_IP}:32300
+```
 
 ### UI Bug Fixes — Completed (Post Session 15)
 
@@ -516,10 +544,49 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 - Book UUIDs: changeset 005 re-seeds with fixed sequential UUIDs matching inventory seed data
 - **E2E tests: 45/45 passing** (4 new: external POST /reserve → 404, checkout JWT 401, checkout via mTLS, reserved count increases)
 
+### Session 18 — Completed
+
+- **Flink CDC pipeline**: Replaced Python analytics consumer with Apache Flink 1.20 SQL pipeline
+  - `analytics/flink/Dockerfile` — custom image: Flink 1.20 + Kafka/JDBC/PostgreSQL JARs baked in
+  - `analytics/flink/sql/pipeline.sql` — 4 source + 4 sink tables + 4 INSERT INTO streaming pipelines
+  - `infra/flink/flink-cluster.yaml` — JobManager + TaskManager Deployments with PVC checkpoints
+  - `infra/flink/flink-sql-runner.yaml` — Kubernetes Job that submits SQL to the Session Cluster
+  - `infra/flink/flink-pvc.yaml` + `flink-pv` in `infra/storage/persistent-volumes.yaml`
+  - `infra/kind/cluster.yaml` updated with `DATA_DIR/flink` extraMount on all 3 nodes
+- **Analytics DDL expanded**: 8 new views added to `analytics/schema/analytics-ddl.sql` (10 total)
+  - `vw_revenue_by_author`, `vw_revenue_by_genre`, `vw_order_status_distribution`
+  - `vw_inventory_health`, `vw_avg_order_value`, `vw_top_books_by_revenue`
+  - `vw_inventory_turnover`, `vw_book_price_distribution`
+- **Superset expanded**: 3 dashboards / 14 charts (was 1 dashboard / 2 charts)
+  - "Book Store Analytics" (5 charts), "Sales & Revenue Analytics" (5 charts), "Inventory Analytics" (4 charts)
+  - `infra/superset/bootstrap-job.yaml` (NEW) — Kubernetes Job that runs bootstrap inside Superset pod
+- **Python consumer deleted**: `analytics/consumer/main.py`, `Dockerfile`, `requirements.txt`, `infra/analytics/analytics-consumer.yaml` removed
+- **NodePort services**: Flink Web Dashboard at NodePort 32200 (`flink-jobmanager-nodeport` service) + Debezium REST API at NodePort 32300 (`debezium-nodeport` service). Both use docker socat proxy containers.
+- **E2E coverage**: `e2e/superset.spec.ts` expanded to 17 tests (API + UI: 3 dashboards, 14 charts, 10 datasets); `e2e/debezium-flink.spec.ts` (NEW) — 29 tests covering Debezium API, Flink dashboard, CDC end-to-end flow, operational health.
+- **Documentation**: `docs/debezium-flink-cdc.md` — comprehensive guide with architecture diagrams, per-component deep dives, data flow walkthrough, REST API reference, and E2E test coverage index.
+
+### Flink CDC Architecture
+
+```
+Debezium → Kafka (4 topics) → Flink SQL (plain json format, after field extraction) → JDBC → analytics-db
+                                                                                               ↓
+                                                                                    Superset (3 dashboards, 14 charts)
+```
+
+**Flink SQL format choice**: Uses plain `json` format (NOT `debezium-json`). Reason: `debezium-json` requires `REPLICA IDENTITY FULL` on source tables for UPDATE events (the "before" field must be non-null). Plain `json` format parses the Debezium envelope directly and extracts the `after` ROW field — works regardless of REPLICA IDENTITY setting.
+
+**Source table schema**: Each source table has an `after ROW<...>` field and an `op STRING` field matching Debezium's JSON envelope. `WHERE after IS NOT NULL` in INSERT statements skips DELETE events and tombstones.
+
+**Timestamp conversion**: Debezium sends `TIMESTAMP WITH TIME ZONE` as ISO 8601 strings (`"2026-02-26T18:58:09.811060Z"`). Flink JSON format uses SQL format (space separator). Conversion: `CAST(REPLACE(REPLACE(col, 'T', ' '), 'Z', '') AS TIMESTAMP(3))`.
+
+**JDBC sink**: Uses `TIMESTAMP(3)` (NOT `TIMESTAMP_LTZ(3)` — JDBC connector does not support it). `?stringtype=unspecified` in JDBC URL allows implicit `varchar → uuid` casts in PostgreSQL.
+
+**Exactly-once**: Flink checkpoints at `/opt/flink/checkpoints` (PVC-backed, `filesystem` state backend). Interval: 30s, mode: `EXACTLY_ONCE`.
+
 ### NEXT SESSION — Start Here
 
-**All 16 sessions complete + UI bug fixes done.** Outstanding items:
-- DB data persistence — mount all 4 PostgreSQL DBs to host `data/` folder
+**All 18 sessions complete + UI bug fixes done.** Outstanding items:
+- DB data persistence — mount all 4 PostgreSQL DBs to host `data/` folder (PVs exist, but cluster.yaml and PV/PVC wiring needed)
 - Kafka persistence — topics lost on pod restart; add PVC or recreate on startup
 
 ---

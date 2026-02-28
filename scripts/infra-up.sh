@@ -68,23 +68,42 @@ info "Deploying PgAdmin..."
 kubectl apply -f "${REPO_ROOT}/infra/pgadmin/pgadmin.yaml"
 wait_deployment pgadmin infra
 
-# ── 6. Summary ──────────────────────────────────────────────────────────────
+# ── 6. Flink (CDC analytics pipeline) ───────────────────────────────────────
+info "Deploying Flink cluster (JobManager + TaskManager)..."
+kubectl apply -f "${REPO_ROOT}/infra/flink/flink-pvc.yaml"
+kubectl apply -f "${REPO_ROOT}/infra/flink/flink-config.yaml"
+kubectl apply -f "${REPO_ROOT}/infra/flink/flink-cluster.yaml"
+wait_deployment flink-jobmanager analytics
+wait_deployment flink-taskmanager analytics
+
+info "Submitting Flink SQL pipeline..."
+# Delete previous runner job if it exists (Jobs are immutable)
+kubectl delete job flink-sql-runner -n analytics --ignore-not-found
+kubectl apply -f "${REPO_ROOT}/infra/flink/flink-sql-runner.yaml"
+kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeout=180s || \
+  info "Warning: flink-sql-runner did not complete in 180s — check pod logs"
+
+# ── 7. Summary ──────────────────────────────────────────────────────────────
 echo ""
 info "Infrastructure pod status:"
 kubectl get pods -n ecom -l app=ecom-db
 kubectl get pods -n inventory -l app=inventory-db
-kubectl get pods -n analytics -l app=analytics-db
+kubectl get pods -n analytics
 kubectl get pods -n infra
 
 echo ""
-echo -e "${GREEN}✔ Session 2 complete.${NC}"
+echo -e "${GREEN}✔ Infrastructure up.${NC}"
 echo ""
 echo "Acceptance checks:"
 echo "  kubectl get pods -n ecom         # ecom-db Running"
 echo "  kubectl get pods -n inventory    # inventory-db Running"
-echo "  kubectl get pods -n analytics    # analytics-db Running"
+echo "  kubectl get pods -n analytics    # analytics-db, flink-jobmanager, flink-taskmanager Running"
 echo "  kubectl get pods -n infra        # redis, kafka, zookeeper, debezium, pgadmin"
 echo "  curl http://localhost:31111      # PgAdmin UI"
+echo ""
+echo "Verify Flink jobs running:"
+echo "  kubectl exec -n analytics deploy/flink-jobmanager -- \\"
+echo "    curl -s http://localhost:8081/jobs | python3 -m json.tool"
 echo ""
 echo "Verify Kafka topics:"
 echo "  kubectl exec -n infra deploy/kafka -- kafka-topics \\"

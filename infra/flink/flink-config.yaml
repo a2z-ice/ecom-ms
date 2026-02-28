@@ -1,0 +1,30 @@
+---
+# Flink cluster configuration
+# Mounted at /opt/flink/conf/flink-conf.yaml in both JobManager and TaskManager pods
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flink-config
+  namespace: analytics
+data:
+  flink-conf.yaml: |
+    jobmanager.rpc.address: flink-jobmanager
+    jobmanager.rpc.port: 6123
+    jobmanager.memory.process.size: 600m
+    taskmanager.memory.process.size: 1024m
+    taskmanager.numberOfTaskSlots: 4
+    parallelism.default: 1
+    state.backend: filesystem
+    state.checkpoints.dir: file:///opt/flink/checkpoints
+    execution.checkpointing.interval: 30s
+    execution.checkpointing.mode: EXACTLY_ONCE
+    rest.port: 8081
+    rest.address: 0.0.0.0
+
+  log4j-console.properties: |
+    rootLogger.level = INFO
+    rootLogger.appenderRef.console.ref = ConsoleAppender
+    appender.console.name = ConsoleAppender
+    appender.console.type = CONSOLE
+    appender.console.layout.type = PatternLayout
+    appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n

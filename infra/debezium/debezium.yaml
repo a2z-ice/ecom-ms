@@ -85,6 +85,7 @@ spec:
             secretName: debezium-db-credentials
 
 ---
+# Debezium ClusterIP Service — internal: Kafka Connect REST API
 apiVersion: v1
 kind: Service
 metadata:
@@ -97,3 +98,28 @@ spec:
     - port: 8083
       targetPort: 8083
   type: ClusterIP
+
+---
+# Debezium NodePort Service — external: REST API at host:32300
+# Access: http://localhost:32300 (after docker proxy setup — see CLAUDE.md)
+# Key endpoints:
+#   GET /connectors                         — list all connectors
+#   GET /connectors/{name}/status           — connector + task health
+#   GET /connectors/{name}/topics           — topics written by this connector
+#   GET /connector-plugins                  — available connector plugins
+apiVersion: v1
+kind: Service
+metadata:
+  name: debezium-nodeport
+  namespace: infra
+  labels:
+    app: debezium
+spec:
+  type: NodePort
+  selector:
+    app: debezium
+  ports:
+    - name: rest
+      port: 8083
+      targetPort: 8083
+      nodePort: 32300

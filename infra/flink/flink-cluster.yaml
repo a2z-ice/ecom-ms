@@ -1,0 +1,295 @@
+---
+# Flink JobManager — coordinates streaming jobs and exposes REST API at :8081
+# Includes SQL Gateway sidecar at :9091 for remote SQL submission
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-jobmanager
+  namespace: analytics
+  labels:
+    app: flink-jobmanager
+    component: jobmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flink-jobmanager
+  template:
+    metadata:
+      labels:
+        app: flink-jobmanager
+        component: jobmanager
+    spec:
+      # The flink:1.20 image runs as user 'flink' (UID 9999) — non-root by default
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 9999
+        fsGroup: 9999
+      containers:
+        - name: jobmanager
+          image: bookstore/flink:latest
+          imagePullPolicy: Never
+          command: ["/docker-entrypoint.sh"]
+          args: ["jobmanager"]
+          ports:
+            - containerPort: 6123
+              name: rpc
+            - containerPort: 6124
+              name: blob
+            - containerPort: 8081
+              name: rest
+          env:
+            - name: FLINK_PROPERTIES
+              value: |
+                jobmanager.rpc.address: flink-jobmanager
+                jobmanager.memory.process.size: 900m
+                parallelism.default: 1
+                state.backend: filesystem
+                state.checkpoints.dir: file:///opt/flink/checkpoints
+                execution.checkpointing.interval: 30s
+                execution.checkpointing.mode: EXACTLY_ONCE
+                rest.port: 8081
+                rest.address: 0.0.0.0
+            - name: ANALYTICS_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: analytics-db-secret
+                  key: POSTGRES_USER
+            - name: ANALYTICS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: analytics-db-secret
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: checkpoints
+              mountPath: /opt/flink/checkpoints
+            - name: tmp
+              mountPath: /tmp
+            - name: flink-log
+              mountPath: /opt/flink/log
+          securityContext:
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 200m
+              memory: 768Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /overview
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /overview
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
+
+        # SQL Gateway sidecar — enables remote SQL submission via REST API at :9091
+        # sql-client.sh connects in gateway mode: sql-client.sh gateway -e http://flink-jobmanager:9091
+        - name: sql-gateway
+          image: bookstore/flink:latest
+          imagePullPolicy: Never
+          command:
+            - /bin/bash
+            - -c
+            - |
+              echo "Waiting for JobManager REST API..."
+              until curl -sf http://localhost:8081/overview > /dev/null 2>&1; do
+                sleep 3
+              done
+              echo "JobManager ready. Starting SQL Gateway on port 9091..."
+              bin/sql-gateway.sh start-foreground \
+                -Dsql-gateway.endpoint.rest.address=0.0.0.0 \
+                -Dsql-gateway.endpoint.rest.port=9091 \
+                -Drest.address=localhost \
+                -Drest.port=8081 \
+                -Dexecution.target=remote \
+                -Dparallelism.default=1
+          ports:
+            - containerPort: 9091
+              name: sql-gateway
+          env:
+            - name: FLINK_PROPERTIES
+              value: |
+                jobmanager.rpc.address: flink-jobmanager
+                rest.address: localhost
+                rest.port: 8081
+                execution.target: remote
+                parallelism.default: 1
+            - name: ANALYTICS_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: analytics-db-secret
+                  key: POSTGRES_USER
+            - name: ANALYTICS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: analytics-db-secret
+                  key: POSTGRES_PASSWORD
+          securityContext:
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 300m
+              memory: 512Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: flink-log
+              mountPath: /opt/flink/log
+            - name: checkpoints
+              mountPath: /opt/flink/checkpoints
+
+      volumes:
+        - name: checkpoints
+          persistentVolumeClaim:
+            claimName: flink-checkpoints-pvc
+        - name: tmp
+          emptyDir: {}
+        - name: flink-log
+          emptyDir: {}
+
+---
+# JobManager ClusterIP Service — internal: RPC (TaskManager→JobManager) + REST API + SQL Gateway
+apiVersion: v1
+kind: Service
+metadata:
+  name: flink-jobmanager
+  namespace: analytics
+  labels:
+    app: flink-jobmanager
+spec:
+  selector:
+    app: flink-jobmanager
+  ports:
+    - name: rpc
+      port: 6123
+      targetPort: 6123
+    - name: blob
+      port: 6124
+      targetPort: 6124
+    - name: rest
+      port: 8081
+      targetPort: 8081
+    - name: sql-gateway
+      port: 9091
+      targetPort: 9091
+
+---
+# JobManager NodePort Service — external: Flink Web Dashboard at host:32200
+# Access: http://localhost:32200 (after docker proxy setup — see CLAUDE.md)
+apiVersion: v1
+kind: Service
+metadata:
+  name: flink-jobmanager-nodeport
+  namespace: analytics
+  labels:
+    app: flink-jobmanager
+spec:
+  type: NodePort
+  selector:
+    app: flink-jobmanager
+  ports:
+    - name: rest
+      port: 8081
+      targetPort: 8081
+      nodePort: 32200
+
+---
+# Flink TaskManager — executes the actual streaming operators
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-taskmanager
+  namespace: analytics
+  labels:
+    app: flink-taskmanager
+    component: taskmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flink-taskmanager
+  template:
+    metadata:
+      labels:
+        app: flink-taskmanager
+        component: taskmanager
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 9999
+        fsGroup: 9999
+      containers:
+        - name: taskmanager
+          image: bookstore/flink:latest
+          imagePullPolicy: Never
+          command: ["/docker-entrypoint.sh"]
+          args: ["taskmanager"]
+          ports:
+            - containerPort: 6122
+              name: data
+          env:
+            - name: FLINK_PROPERTIES
+              value: |
+                jobmanager.rpc.address: flink-jobmanager
+                taskmanager.memory.process.size: 1024m
+                taskmanager.numberOfTaskSlots: 4
+                parallelism.default: 1
+                state.backend: filesystem
+                state.checkpoints.dir: file:///opt/flink/checkpoints
+                execution.checkpointing.interval: 30s
+                execution.checkpointing.mode: EXACTLY_ONCE
+            - name: ANALYTICS_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: analytics-db-secret
+                  key: POSTGRES_USER
+            - name: ANALYTICS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: analytics-db-secret
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: checkpoints
+              mountPath: /opt/flink/checkpoints
+            - name: tmp
+              mountPath: /tmp
+            - name: flink-log
+              mountPath: /opt/flink/log
+          securityContext:
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 200m
+              memory: 768Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+      volumes:
+        - name: checkpoints
+          persistentVolumeClaim:
+            claimName: flink-checkpoints-pvc
+        - name: tmp
+          emptyDir: {}
+        - name: flink-log
+          emptyDir: {}

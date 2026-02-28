@@ -1,0 +1,301 @@
+---
+# ConfigMap — Flink SQL pipeline definition
+# Mounted into the sql-runner Job at /sql/pipeline.sql
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flink-pipeline-sql
+  namespace: analytics
+data:
+  pipeline.sql: |
+    -- Flink SQL CDC Pipeline
+    -- Reads Debezium CDC events from Kafka using plain JSON format
+    -- Extracts `after` field from Debezium envelope directly
+    -- Writes to analytics PostgreSQL DB via JDBC upsert
+
+    -- SOURCE TABLES: parse Debezium envelope with plain json format
+    -- Avoids debezium-json format issues with null `before` on UPDATE events
+    -- (requires REPLICA IDENTITY FULL on source tables for debezium-json,
+    --  but plain json format just extracts `after` and ignores `before`)
+
+    CREATE TABLE kafka_orders (
+      after ROW<
+        id         STRING,
+        user_id    STRING,
+        total      DOUBLE,
+        status     STRING,
+        created_at STRING
+      >,
+      op STRING
+    ) WITH (
+      'connector'                    = 'kafka',
+      'topic'                        = 'ecom-connector.public.orders',
+      'properties.bootstrap.servers' = 'kafka.infra.svc.cluster.local:9092',
+      'properties.group.id'          = 'flink-analytics-consumer',
+      'format'                       = 'json',
+      'json.ignore-parse-errors'     = 'true',
+      'scan.startup.mode'            = 'earliest-offset'
+    );
+
+    CREATE TABLE kafka_order_items (
+      after ROW<
+        id                STRING,
+        order_id          STRING,
+        book_id           STRING,
+        quantity          INT,
+        price_at_purchase DOUBLE
+      >,
+      op STRING
+    ) WITH (
+      'connector'                    = 'kafka',
+      'topic'                        = 'ecom-connector.public.order_items',
+      'properties.bootstrap.servers' = 'kafka.infra.svc.cluster.local:9092',
+      'properties.group.id'          = 'flink-analytics-consumer',
+      'format'                       = 'json',
+      'json.ignore-parse-errors'     = 'true',
+      'scan.startup.mode'            = 'earliest-offset'
+    );
+
+    CREATE TABLE kafka_books (
+      after ROW<
+        id             STRING,
+        title          STRING,
+        author         STRING,
+        price          DOUBLE,
+        description    STRING,
+        cover_url      STRING,
+        isbn           STRING,
+        genre          STRING,
+        published_year INT,
+        created_at     STRING
+      >,
+      op STRING
+    ) WITH (
+      'connector'                    = 'kafka',
+      'topic'                        = 'ecom-connector.public.books',
+      'properties.bootstrap.servers' = 'kafka.infra.svc.cluster.local:9092',
+      'properties.group.id'          = 'flink-analytics-consumer',
+      'format'                       = 'json',
+      'json.ignore-parse-errors'     = 'true',
+      'scan.startup.mode'            = 'earliest-offset'
+    );
+
+    CREATE TABLE kafka_inventory (
+      after ROW<
+        book_id    STRING,
+        quantity   INT,
+        reserved   INT,
+        updated_at STRING
+      >,
+      op STRING
+    ) WITH (
+      'connector'                    = 'kafka',
+      'topic'                        = 'inventory-connector.public.inventory',
+      'properties.bootstrap.servers' = 'kafka.infra.svc.cluster.local:9092',
+      'properties.group.id'          = 'flink-analytics-consumer',
+      'format'                       = 'json',
+      'json.ignore-parse-errors'     = 'true',
+      'scan.startup.mode'            = 'earliest-offset'
+    );
+
+    -- SINK TABLES (JDBC -> PostgreSQL analytics-db)
+    -- PRIMARY KEY enables JDBC upsert mode (INSERT ... ON CONFLICT DO UPDATE)
+    -- ?stringtype=unspecified: allows PostgreSQL to cast varchar -> uuid implicitly
+
+    CREATE TABLE sink_fact_orders (
+      id         STRING,
+      user_id    STRING,
+      total      DOUBLE,
+      status     STRING,
+      created_at TIMESTAMP(3),
+      PRIMARY KEY (id) NOT ENFORCED
+    ) WITH (
+      'connector'                   = 'jdbc',
+      'url'                         = 'jdbc:postgresql://analytics-db.analytics.svc.cluster.local:5432/analyticsdb?stringtype=unspecified',
+      'table-name'                  = 'fact_orders',
+      'username'                    = '${ANALYTICS_DB_USER}',
+      'password'                    = '${ANALYTICS_DB_PASSWORD}',
+      'sink.buffer-flush.max-rows'  = '1',
+      'sink.buffer-flush.interval'  = '1s'
+    );
+
+    CREATE TABLE sink_fact_order_items (
+      id                STRING,
+      order_id          STRING,
+      book_id           STRING,
+      quantity          INT,
+      price_at_purchase DOUBLE,
+      PRIMARY KEY (id) NOT ENFORCED
+    ) WITH (
+      'connector'                   = 'jdbc',
+      'url'                         = 'jdbc:postgresql://analytics-db.analytics.svc.cluster.local:5432/analyticsdb?stringtype=unspecified',
+      'table-name'                  = 'fact_order_items',
+      'username'                    = '${ANALYTICS_DB_USER}',
+      'password'                    = '${ANALYTICS_DB_PASSWORD}',
+      'sink.buffer-flush.max-rows'  = '1',
+      'sink.buffer-flush.interval'  = '1s'
+    );
+
+    CREATE TABLE sink_dim_books (
+      id             STRING,
+      title          STRING,
+      author         STRING,
+      price          DOUBLE,
+      description    STRING,
+      cover_url      STRING,
+      isbn           STRING,
+      genre          STRING,
+      published_year INT,
+      created_at     TIMESTAMP(3),
+      PRIMARY KEY (id) NOT ENFORCED
+    ) WITH (
+      'connector'                   = 'jdbc',
+      'url'                         = 'jdbc:postgresql://analytics-db.analytics.svc.cluster.local:5432/analyticsdb?stringtype=unspecified',
+      'table-name'                  = 'dim_books',
+      'username'                    = '${ANALYTICS_DB_USER}',
+      'password'                    = '${ANALYTICS_DB_PASSWORD}',
+      'sink.buffer-flush.max-rows'  = '1',
+      'sink.buffer-flush.interval'  = '1s'
+    );
+
+    CREATE TABLE sink_fact_inventory (
+      book_id    STRING,
+      quantity   INT,
+      reserved   INT,
+      updated_at TIMESTAMP(3),
+      PRIMARY KEY (book_id) NOT ENFORCED
+    ) WITH (
+      'connector'                   = 'jdbc',
+      'url'                         = 'jdbc:postgresql://analytics-db.analytics.svc.cluster.local:5432/analyticsdb?stringtype=unspecified',
+      'table-name'                  = 'fact_inventory',
+      'username'                    = '${ANALYTICS_DB_USER}',
+      'password'                    = '${ANALYTICS_DB_PASSWORD}',
+      'sink.buffer-flush.max-rows'  = '1',
+      'sink.buffer-flush.interval'  = '1s'
+    );
+
+    -- WHERE after IS NOT NULL: skip DELETE events (op='d') and tombstone messages
+    -- Timestamps: ISO 8601 -> REPLACE 'T' with ' ', strip 'Z' -> CAST AS TIMESTAMP(3)
+
+    INSERT INTO sink_fact_orders
+    SELECT after.id, after.user_id, after.total, after.status,
+           CAST(REPLACE(REPLACE(after.created_at, 'T', ' '), 'Z', '') AS TIMESTAMP(3))
+    FROM kafka_orders
+    WHERE after IS NOT NULL;
+
+    INSERT INTO sink_fact_order_items
+    SELECT after.id, after.order_id, after.book_id, after.quantity, after.price_at_purchase
+    FROM kafka_order_items
+    WHERE after IS NOT NULL;
+
+    INSERT INTO sink_dim_books
+    SELECT after.id, after.title, after.author, after.price, after.description,
+           after.cover_url, after.isbn, after.genre, after.published_year,
+           CAST(REPLACE(REPLACE(after.created_at, 'T', ' '), 'Z', '') AS TIMESTAMP(3))
+    FROM kafka_books
+    WHERE after IS NOT NULL;
+
+    INSERT INTO sink_fact_inventory
+    SELECT after.book_id, after.quantity, after.reserved,
+           CAST(REPLACE(REPLACE(after.updated_at, 'T', ' '), 'Z', '') AS TIMESTAMP(3))
+    FROM kafka_inventory
+    WHERE after IS NOT NULL;
+
+---
+# Kubernetes Job — submits the Flink SQL pipeline to the running Session Cluster
+# Re-run manually to re-submit: kubectl delete job flink-sql-runner -n analytics && kubectl apply -f this
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flink-sql-runner
+  namespace: analytics
+spec:
+  # Never auto-retry — if the job fails, investigate and fix the SQL
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 9999
+        fsGroup: 9999
+      initContainers:
+        # Wait for SQL Gateway to be ready (it starts after JobManager REST API)
+        - name: wait-for-sql-gateway
+          image: curlimages/curl:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for Flink SQL Gateway..."
+              until curl -sf http://flink-jobmanager.analytics.svc.cluster.local:9091/v1/info; do
+                echo "SQL Gateway not ready yet, retrying in 5s..."
+                sleep 5
+              done
+              echo "SQL Gateway is ready."
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+      containers:
+        - name: sql-runner
+          image: bookstore/flink:latest
+          imagePullPolicy: Never
+          # sql-client.sh in gateway mode: connects to SQL Gateway for remote SQL submission
+          command:
+            - /bin/bash
+            - -c
+            - |
+              # Substitute env vars in the SQL file before submission
+              envsubst < /sql/pipeline.sql > /tmp/pipeline-resolved.sql
+              echo "Submitting SQL pipeline via SQL Gateway..."
+              bin/sql-client.sh gateway \
+                -e http://flink-jobmanager.analytics.svc.cluster.local:9091 \
+                -f /tmp/pipeline-resolved.sql
+              echo "SQL submission complete. Exit: $?"
+          env:
+            - name: ANALYTICS_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: analytics-db-secret
+                  key: POSTGRES_USER
+            - name: ANALYTICS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: analytics-db-secret
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: pipeline-sql
+              mountPath: /sql
+            - name: tmp
+              mountPath: /tmp
+            - name: flink-log
+              mountPath: /opt/flink/log
+          securityContext:
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 300m
+              memory: 512Mi
+      volumes:
+        - name: pipeline-sql
+          configMap:
+            name: flink-pipeline-sql
+        - name: tmp
+          emptyDir: {}
+        - name: flink-log
+          emptyDir: {}

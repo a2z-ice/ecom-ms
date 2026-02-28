@@ -23,6 +23,12 @@ nodes:
       - containerPort: 32100   # Kiali Service Mesh Observability
         hostPort: 32100
         protocol: TCP
+      - containerPort: 32200   # Flink Web Dashboard
+        hostPort: 32200
+        protocol: TCP
+      - containerPort: 32300   # Debezium (Kafka Connect) REST API
+        hostPort: 32300
+        protocol: TCP
     # DATA_DIR is substituted by stack-up.sh / cluster-up.sh at runtime via sed.
     # Do not hardcode an absolute path here — it varies per developer machine.
     extraMounts:
@@ -40,6 +46,8 @@ nodes:
         containerPath: /data/kafka
       - hostPath: DATA_DIR/redis
         containerPath: /data/redis
+      - hostPath: DATA_DIR/flink
+        containerPath: /data/flink
     kubeadmConfigPatches:
       - |
         kind: InitConfiguration
@@ -63,6 +71,8 @@ nodes:
         containerPath: /data/kafka
       - hostPath: DATA_DIR/redis
         containerPath: /data/redis
+      - hostPath: DATA_DIR/flink
+        containerPath: /data/flink
 
   - role: worker
     extraMounts:
@@ -80,6 +90,8 @@ nodes:
         containerPath: /data/kafka
       - hostPath: DATA_DIR/redis
         containerPath: /data/redis
+      - hostPath: DATA_DIR/flink
+        containerPath: /data/flink
 
 # Add host entries so that the domain names resolve to the kind node.
 # /etc/hosts on the HOST machine must also contain:

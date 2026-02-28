@@ -605,6 +605,68 @@ kubectl rollout status deployment/inventory-service -n inventory --timeout=60s
 
 ---
 
+## Session 18 — Apache Flink CDC Pipeline & Enhanced Superset Analytics
+
+**Goal:** Replace the Python analytics CDC consumer with a production-grade Apache Flink SQL streaming pipeline. Expand Superset from 1 dashboard/2 charts to 3 dashboards/14 charts.
+
+### Deliverables
+
+| File | Purpose |
+|------|---------|
+| `analytics/flink/Dockerfile` | Custom image: Flink 1.20 + Kafka/JDBC/PostgreSQL connector JARs baked in |
+| `analytics/flink/sql/pipeline.sql` | Flink SQL DDL (4 source + 4 sink tables) + 4 INSERT INTO pipelines |
+| `infra/flink/flink-cluster.yaml` | JobManager Deployment + Service + TaskManager Deployment |
+| `infra/flink/flink-config.yaml` | ConfigMap: flink-conf.yaml (checkpoints, parallelism, state backend) |
+| `infra/flink/flink-sql-runner.yaml` | Kubernetes Job: submits SQL pipeline to Session Cluster |
+| `infra/flink/flink-pvc.yaml` | PVC for checkpoint storage (2Gi, local-hostpath StorageClass) |
+| `plans/session-18-flink-analytics-superset.md` | Session plan doc |
+
+**Modified:** `infra/storage/persistent-volumes.yaml` (flink-pv), `infra/kind/cluster.yaml` (flink extraMount), `analytics/schema/analytics-ddl.sql` (8 new views), `infra/superset/bootstrap/bootstrap_dashboards.py` (14 charts, 3 dashboards), `scripts/infra-up.sh` (Flink deployment), `CLAUDE.md`
+
+**Deleted:** `analytics/consumer/main.py`, `analytics/consumer/Dockerfile`, `analytics/consumer/requirements.txt`, `infra/analytics/analytics-consumer.yaml`
+
+**Created:** `infra/superset/bootstrap-job.yaml` (Kubernetes Job for Superset bootstrap)
+
+### Acceptance Criteria
+
+- [x] `analytics/flink/Dockerfile`, `analytics/flink/sql/pipeline.sql` created
+- [x] `infra/flink/` manifests created (flink-cluster, flink-config, flink-sql-runner, flink-pvc)
+- [x] `flink-pv` added to `infra/storage/persistent-volumes.yaml`; kind cluster.yaml updated
+- [x] 8 new analytics views in `analytics/schema/analytics-ddl.sql` (10 total)
+- [x] Superset bootstrap expanded: 10 datasets, 14 charts, 3 dashboards
+- [x] `infra/superset/bootstrap-job.yaml` created
+- [x] Python consumer files deleted
+- [x] `scripts/infra-up.sh` applies Flink manifests
+- [x] `e2e/superset.spec.ts` expanded to ~10 tests
+- [ ] `flink-jobmanager` and `flink-taskmanager` pods Running in `analytics` namespace (deploy-time)
+- [ ] Flink REST API (`GET /jobs`) shows 4 streaming jobs in RUNNING state (deploy-time)
+- [ ] All 8 new views exist in analytics DB (deploy-time)
+- [ ] Superset has 3 dashboards, 14 charts (deploy-time)
+- [ ] E2E tests: ≥50 passing (deploy-time)
+
+### Build & Deploy Commands
+
+```bash
+docker build -t bookstore/flink:latest ./analytics/flink
+kind load docker-image bookstore/flink:latest --name bookstore
+kubectl apply -f infra/storage/persistent-volumes.yaml
+kubectl apply -f infra/flink/flink-pvc.yaml
+kubectl apply -f infra/flink/flink-config.yaml
+kubectl apply -f infra/flink/flink-cluster.yaml
+kubectl rollout status deployment/flink-jobmanager -n analytics --timeout=120s
+kubectl rollout status deployment/flink-taskmanager -n analytics --timeout=120s
+kubectl delete job flink-sql-runner -n analytics --ignore-not-found
+kubectl apply -f infra/flink/flink-sql-runner.yaml
+kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeout=180s
+kubectl delete -f infra/analytics/analytics-consumer.yaml --ignore-not-found
+kubectl apply -f infra/superset/bootstrap-job.yaml
+kubectl wait --for=condition=complete job/superset-bootstrap -n analytics --timeout=300s
+```
+
+### Status: Implementation complete — pending cluster deployment verification
+
+---
+
 ## Cross-Session Rules
 
 These apply to every session:
