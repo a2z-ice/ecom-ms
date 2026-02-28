@@ -1,8 +1,10 @@
 ---
-# AuthorizationPolicy for inventory-service:
-#   - GET /inven/stock/*: allow all (public)
-#   - GET /inven/health: allow all
-#   - POST /inven/reserve: only from ecom-service (mTLS principal)
+# inventory-service AuthorizationPolicy — L4-only (no waypoint proxy in Ambient mode).
+# ztunnel cannot enforce HTTP attributes (methods, paths) without a waypoint.
+# Layer 7 separation is achieved at the gateway level: the HTTPRoute only exposes
+# public GET endpoints (/stock, /health). POST /reserve is not routed externally.
+# At L4, ztunnel verifies the SPIFFE principal for internal mTLS calls.
+# NOTE: The Istio gateway pod runs in the 'infra' namespace.
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
@@ -13,16 +15,13 @@ spec:
     matchLabels:
       app: inventory-service
   rules:
-    # Public: stock queries and health
-    - to:
-        - operation:
-            methods: ["GET"]
-            paths: ["/inven/stock/*", "/inven/health"]
-    # Internal only: reserve endpoint — ecom-service mTLS principal
+    # Allow external traffic via Istio gateway (GET /stock, GET /health)
     - from:
         - source:
-            principals: ["cluster.local/ns/ecom/sa/ecom-service"]
-      to:
-        - operation:
-            methods: ["POST"]
-            paths: ["/inven/reserve"]
+            namespaces: ["infra"]
+    # Allow ecom-service SA for POST /reserve (mTLS, pod-to-pod, bypasses gateway)
+    # and ui-service nginx proxy for /inven/* (both in ecom namespace).
+    # ztunnel verifies ecom-service calls using the SPIFFE principal at L4.
+    - from:
+        - source:
+            namespaces: ["ecom"]

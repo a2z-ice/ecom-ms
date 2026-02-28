@@ -32,6 +32,7 @@ export default function CatalogPage() {
     setAddingId(book.id)
     try {
       await cartApi.add(book.id, 1)
+      window.dispatchEvent(new Event('cartUpdated'))
       setToast(`"${book.title}" added to cart`)
     } catch {
       setToast('Failed to add to cart')

@@ -1,7 +1,9 @@
 ---
-# AuthorizationPolicy for ecom-service:
-#   - GET /books and /books/search: allow all (public catalog)
-#   - All other methods/paths: require valid JWT (any authenticated principal)
+# ecom-service AuthorizationPolicy — L4-only (no waypoint proxy in Ambient mode).
+# Spring Security handles JWT validation and path-level authorization at L7.
+# Istio ztunnel enforces namespace-level access at L4.
+# NOTE: The Istio gateway pod runs in the 'infra' namespace (gatewayClassName: istio
+# with Gateway resource in infra ns), so external user traffic originates from infra.
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
@@ -12,20 +14,15 @@ spec:
     matchLabels:
       app: ecom-service
   rules:
-    # Allow public read access to books
-    - to:
-        - operation:
-            methods: ["GET"]
-            paths: ["/ecom/books", "/ecom/books/*", "/ecom/books/search"]
-    # Allow health/metrics without auth
-    - to:
-        - operation:
-            methods: ["GET"]
-            paths: ["/ecom/actuator/health", "/ecom/actuator/health/*", "/ecom/actuator/prometheus"]
-    # Require JWT for all other operations (cart, checkout)
+    # Allow traffic from the Istio gateway (external user/UI requests routed through gateway)
     - from:
         - source:
-            requestPrincipals: ["*"]
-      to:
-        - operation:
-            notPaths: ["/ecom/books", "/ecom/books/*", "/ecom/actuator/*"]
+            namespaces: ["infra"]
+    # Allow ui-service nginx proxy calls (ui-service is in ecom namespace, proxies /ecom/* here)
+    - from:
+        - source:
+            namespaces: ["ecom"]
+    # Allow Prometheus scraping from observability namespace
+    - from:
+        - source:
+            namespaces: ["observability"]

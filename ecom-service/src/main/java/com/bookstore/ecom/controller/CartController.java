@@ -1,6 +1,7 @@
 package com.bookstore.ecom.controller;
 
 import com.bookstore.ecom.dto.CartRequest;
+import com.bookstore.ecom.dto.CartUpdateRequest;
 import com.bookstore.ecom.model.CartItem;
 import com.bookstore.ecom.service.CartService;
 import jakarta.validation.Valid;
@@ -30,6 +31,14 @@ public class CartController {
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody CartRequest request) {
         return ResponseEntity.ok(cartService.addToCart(jwt.getSubject(), request));
+    }
+
+    @PutMapping("/{itemId}")
+    public ResponseEntity<CartItem> updateCartItem(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID itemId,
+            @Valid @RequestBody CartUpdateRequest request) {
+        return ResponseEntity.ok(cartService.setQuantity(jwt.getSubject(), itemId, request.quantity()));
     }
 
     @DeleteMapping("/{itemId}")

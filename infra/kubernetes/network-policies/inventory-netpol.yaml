@@ -1,0 +1,87 @@
+---
+# inventory namespace — default deny all ingress/egress, then allow explicitly
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: inventory
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+
+---
+# Allow traffic to inventory-service from KGateway and ecom-service
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-to-inventory-service
+  namespace: inventory
+spec:
+  podSelector:
+    matchLabels:
+      app: inventory-service
+  ingress:
+    # External GET traffic via Istio gateway in infra namespace (/stock, /health only)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: infra
+    # ecom-service direct mTLS call for POST /reserve (bypasses gateway)
+    # ui-service nginx proxy for /inven/* (both in ecom namespace)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ecom
+  egress:
+    # inventory-service → inventory-db
+    - to:
+        - podSelector:
+            matchLabels:
+              app: inventory-db
+      ports:
+        - port: 5432
+    # inventory-service → Kafka
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: infra
+      ports:
+        - port: 9092
+    # inventory-service → Keycloak (JWKS for JWT middleware)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: identity
+      ports:
+        - port: 8080
+    # Istio Ambient Mesh HBONE — ztunnel uses port 15008 for inter-pod mTLS tunneling
+    - to: []
+      ports:
+        - port: 15008
+    # DNS
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+
+---
+# Allow inventory-db to receive only from inventory-service and Debezium
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: inventory-db-policy
+  namespace: inventory
+spec:
+  podSelector:
+    matchLabels:
+      app: inventory-db
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: inventory-service
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: infra
+  egress: []

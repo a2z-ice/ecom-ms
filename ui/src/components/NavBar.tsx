@@ -1,28 +1,39 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { cartApi } from '../api/cart'
 import { guestCartCount } from '../hooks/useGuestCart'
 
 export default function NavBar() {
   const { user, isLoading, login, logout } = useAuth()
   const [cartCount, setCartCount] = useState(0)
 
-  // Refresh guest cart count when localStorage changes (cross-tab or same-tab via storage event)
+  // Authenticated: fetch cart count from server and listen for cartUpdated events
   useEffect(() => {
-    if (user) {
-      // Authenticated: reset badge (server cart count not tracked here for simplicity)
+    if (!user) {
       setCartCount(0)
       return
     }
-    // Guest: count from localStorage
+    const fetchCount = () => {
+      cartApi.get()
+        .then(items => setCartCount(items.reduce((n, i) => n + i.quantity, 0)))
+        .catch(() => setCartCount(0))
+    }
+    fetchCount()
+    window.addEventListener('cartUpdated', fetchCount)
+    return () => window.removeEventListener('cartUpdated', fetchCount)
+  }, [user])
+
+  // Guest: count from localStorage changes (cross-tab via storage event)
+  useEffect(() => {
+    if (user) return
     const update = () => setCartCount(guestCartCount())
     update()
     window.addEventListener('storage', update)
     return () => window.removeEventListener('storage', update)
   }, [user])
 
-  // When a guest adds an item in the same tab, the storage event doesn't fire.
-  // Poll every 500ms as a lightweight workaround for same-tab updates.
+  // Guest: poll every 500ms for same-tab localStorage updates
   useEffect(() => {
     if (user) return
     const id = setInterval(() => setCartCount(guestCartCount()), 500)
@@ -35,7 +46,7 @@ export default function NavBar() {
       <Link to="/search" className="nav-link">Search</Link>
       <Link to="/cart" className="nav-link nav-cart-badge">
         Cart
-        {!user && cartCount > 0 && (
+        {cartCount > 0 && (
           <span className="nav-cart-count">{cartCount}</span>
         )}
       </Link>
@@ -45,7 +56,7 @@ export default function NavBar() {
       ) : user ? (
         <>
           <span className="nav-user">{user.profile.email}</span>
-          <button className="btn btn-ghost" onClick={logout}>Logout</button>
+          <button className="btn btn-ghost" onClick={logout} style={{ color: '#fff', borderColor: '#cbd5e0' }}>Logout</button>
         </>
       ) : (
         <button className="btn btn-outline" onClick={() => login()} style={{ color: '#fff', borderColor: '#cbd5e0' }}>Login</button>

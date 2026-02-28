@@ -58,11 +58,12 @@ export default function CartPage() {
       if (item.quantity <= 1) {
         await cartApi.remove(item.id)
       } else {
-        await cartApi.add(item.book.id, -1)
+        await cartApi.update(item.id, item.quantity - 1)
       }
     }
     const updated = await cartApi.get()
     setServerItems(updated)
+    window.dispatchEvent(new Event('cartUpdated'))
   }
 
   const handleLoginToCheckout = () => {
@@ -73,6 +74,7 @@ export default function CartPage() {
     setChecking(true)
     try {
       const order = await cartApi.checkout()
+      window.dispatchEvent(new Event('cartUpdated'))
       navigate(`/order-confirmation?orderId=${order.id}&total=${order.total}`)
     } catch (e: any) {
       setToast('Checkout failed: ' + e.message)

@@ -417,9 +417,9 @@ All `scripts/` files must be idempotent (safe to run multiple times):
 
 ---
 
-## Current Implementation State (as of 2026-02-27)
+## Current Implementation State (as of 2026-02-28)
 
-**Sessions 1–15 complete. E2E: 36/36 passing.**
+**Sessions 1–16 complete + UI bug fixes. E2E: 45/45 passing.**
 
 ### Cluster: `bookstore` (kind, 3 nodes) — RUNNING
 
@@ -449,7 +449,18 @@ All `scripts/` files must be idempotent (safe to run multiple times):
 - CDC pipeline: Debezium → Kafka → analytics-consumer → analytics-db ✓
 - Superset: "Book Store Analytics" dashboard with 2 ECharts charts ✓
 - Kiali: traffic graph populated (10 nodes, 12 edges for ecom+inventory), Prometheus scraping ztunnel + istiod ✓
-- **E2E tests: 36/36 passing** ✓
+- **E2E tests: 45/45 passing** ✓ (41 existing + 4 new mTLS enforcement tests)
+- ecom-service → inventory-service synchronous mTLS reserve call on checkout ✓
+- All Istio AuthorizationPolicies L4-only (ztunnel-compatible) ✓
+
+### UI Bug Fixes — Completed (Post Session 15)
+
+- **Nav cart badge for auth users**: NavBar fetches server cart count via `cartApi.get()` on login; listens for `cartUpdated` DOM event. Badge now shows for both guest and authenticated users.
+- **`cartUpdated` event**: Dispatched from `CatalogPage`, `SearchPage`, and `CartPage` after any cart mutation. NavBar re-fetches count on each dispatch.
+- **Minus button fix**: `CartRequest.java` has `@Min(1)` so `quantity: -1` was rejected with 400. Added `PUT /cart/{itemId}` endpoint with `CartUpdateRequest` DTO, `CartService.setQuantity()`, and `cartApi.update()` in frontend. CartPage uses `cartApi.update(item.id, item.quantity - 1)` for decrement.
+- **Logout button styling**: Added `style={{ color: '#fff', borderColor: '#cbd5e0' }}` to Logout button in NavBar (matching Login button style — both white text on dark navbar).
+- **`api/client.ts`**: Added `put` method alongside existing `get`, `post`, `delete`.
+- **E2E coverage**: `ui-fixes.spec.ts` (5 tests) — auth badge, minus decrement, minus removes, logout color, badge clears after checkout.
 
 ### Session 14 — Completed
 
@@ -472,9 +483,21 @@ All `scripts/` files must be idempotent (safe to run multiple times):
 - UI Docker image rebuilt with VITE build args (see build command in Commands section)
 - **CRITICAL**: `docker build` for ui-service requires `--build-arg` for VITE_ vars (baked in at build time by Vite)
 
+### Session 16 — Completed
+
+- Named ServiceAccounts: `ecom-service` (ecom ns) + `inventory-service` (inventory ns)
+- Rewritten AuthorizationPolicies: all L4-only (namespace + SPIFFE principal). L7 policies cause implicit deny-all in Istio Ambient without waypoint proxy
+- DB policies: ecom-db, inventory-db, keycloak-db locked to their namespaces + infra
+- NetworkPolicies: `infra/kubernetes/network-policies/inventory-netpol.yaml` (NEW); ecom-netpol updated with HBONE port 15008, ui-service egress, Prometheus ingress
+- HTTPRoute: `inven-route.yaml` restricted to GET /stock/* and GET /health only; POST /reserve not exposed externally
+- RestClientConfig: forced HTTP/1.1 — Java's default JDK HttpClient sends h2c upgrade headers that Starlette rejects with 400 "Invalid HTTP request received"
+- OrderService: calls `inventoryClient.reserve()` before creating order (synchronous mTLS)
+- Book UUIDs: changeset 005 re-seeds with fixed sequential UUIDs matching inventory seed data
+- **E2E tests: 45/45 passing** (4 new: external POST /reserve → 404, checkout JWT 401, checkout via mTLS, reserved count increases)
+
 ### NEXT SESSION — Start Here
 
-**All 15 sessions complete.** Outstanding items:
+**All 16 sessions complete + UI bug fixes done.** Outstanding items:
 - DB data persistence — mount all 4 PostgreSQL DBs to host `data/` folder
 - Kafka persistence — topics lost on pod restart; add PVC or recreate on startup
 
@@ -489,6 +512,11 @@ These are non-obvious breaking changes from Spring Boot 3.x. The fixes are alrea
 3. **Actuator health subpaths**: `/actuator/health` pattern does NOT match `/actuator/health/liveness` or `/actuator/health/readiness`. Fix: use `/actuator/health/**` in SecurityConfig.
 4. **readOnlyRootFilesystem + Tomcat**: Spring Boot Tomcat needs writable `/tmp`. Fix: emptyDir volume mounted at `/tmp`.
 5. **Jackson 3.x package rename**: Spring Boot 4.0 migrates from `com.fasterxml.jackson` to `tools.jackson`. The Kafka `JsonSerializer` must use the new packages. Fix: `Jackson3JsonSerializer.java` in `ecom-service/src/main/java/com/bookstore/ecom/config/` wraps Jackson 3.x for Kafka serialization.
+6. **RestClient HTTP/2 upgrade breaks FastAPI**: Spring Boot 4.0's `RestClient.create()` uses `JdkClientHttpRequestFactory` (Java's `HttpClient`). Java's `HttpClient` may send `Connection: Upgrade, HTTP2-Settings` headers even for plain HTTP. Starlette/uvicorn's h11 parser rejects these with `400 Bad Request: "Invalid HTTP request received."`. Fix: force HTTP/1.1 explicitly:
+   ```java
+   var httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
+   RestClient.builder().requestFactory(new JdkClientHttpRequestFactory(httpClient)).build();
+   ```
 
 ## Kafka KRaft Mode (no Zookeeper)
 

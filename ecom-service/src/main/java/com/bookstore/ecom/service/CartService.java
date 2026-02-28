@@ -55,6 +55,17 @@ public class CartService {
     }
 
     @Transactional
+    public CartItem setQuantity(String userId, UUID itemId, int quantity) {
+        CartItem item = cartItemRepository.findById(itemId)
+            .orElseThrow(() -> new ResourceNotFoundException("Cart item not found: " + itemId));
+        if (!item.getUserId().equals(userId)) {
+            throw new ResourceNotFoundException("Cart item not found: " + itemId);
+        }
+        item.setQuantity(quantity);
+        return cartItemRepository.save(item);
+    }
+
+    @Transactional
     public void clearCart(String userId) {
         cartItemRepository.deleteByUserId(userId);
     }

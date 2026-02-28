@@ -1,0 +1,22 @@
+---
+# ecom-db AuthorizationPolicy: restrict to ecom namespace + infra namespace (Debezium).
+# Using namespace-level isolation at L4 (TCP/PostgreSQL).
+# Combined with NetworkPolicy (only ecom-service pod reaches port 5432), this
+# provides defense-in-depth without the SPIFFE-identity startup race condition
+# that occurs when checking principals at the ztunnel L4 layer.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: ecom-db-policy
+  namespace: ecom
+spec:
+  selector:
+    matchLabels:
+      app: ecom-db
+  rules:
+    - from:
+        - source:
+            namespaces: ["ecom"]
+    - from:
+        - source:
+            namespaces: ["infra"]

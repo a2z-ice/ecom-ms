@@ -1,0 +1,15 @@
+---
+# keycloak-db AuthorizationPolicy: only pods in the identity namespace may connect.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: keycloak-db-policy
+  namespace: identity
+spec:
+  selector:
+    matchLabels:
+      app: keycloak-db
+  rules:
+    - from:
+        - source:
+            namespaces: ["identity"]

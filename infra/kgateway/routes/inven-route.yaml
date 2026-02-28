@@ -1,5 +1,7 @@
 ---
 # HTTPRoute — api.service.net:30000/inven → inventory-service in inventory namespace
+# Only exposes public read endpoints. POST /inven/stock/reserve is internal-only:
+# ecom-service calls it directly (pod-to-pod mTLS), bypassing the gateway.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -12,10 +14,22 @@ spec:
   hostnames:
     - "api.service.net"
   rules:
+    # Public stock read (GET /inven/stock/{book_id})
     - matches:
         - path:
             type: PathPrefix
-            value: /inven
+            value: /inven/stock
+          method: GET
+      backendRefs:
+        - name: inventory-service
+          namespace: inventory
+          port: 8000
+    # Health endpoint (GET /inven/health)
+    - matches:
+        - path:
+            type: Exact
+            value: /inven/health
+          method: GET
       backendRefs:
         - name: inventory-service
           namespace: inventory

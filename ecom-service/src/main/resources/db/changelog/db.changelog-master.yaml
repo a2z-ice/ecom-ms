@@ -11,3 +11,6 @@ databaseChangeLog:
   - include:
       file: db/changelog/004-seed-books.yaml
       relativeToChangelogFile: false
+  - include:
+      file: db/changelog/005-fix-book-uuids.yaml
+      relativeToChangelogFile: false

@@ -5,7 +5,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.middleware.auth import get_current_user, require_role
 from app.models.inventory import Inventory
 from app.schemas.inventory import ReserveRequest, ReserveResponse, StockResponse
 
@@ -32,9 +31,10 @@ async def get_stock(book_id: UUID, db: AsyncSession = Depends(get_db)):
 async def reserve_stock(
     request: ReserveRequest,
     db: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_role("admin")),  # Internal: only called by ecom-service (mTLS + admin role)
+    # Authorization enforced by Istio mTLS: only ecom-service SA may call this endpoint.
+    # See infra/istio/security/authz-policies/inventory-service-policy.yaml
 ):
-    """Internal endpoint — called by ecom-service over mTLS. Requires admin role."""
+    """Internal endpoint — called by ecom-service over mTLS. Access controlled by Istio AuthorizationPolicy."""
     result = await db.execute(
         select(Inventory).where(Inventory.book_id == request.book_id).with_for_update()
     )

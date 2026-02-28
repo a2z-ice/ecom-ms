@@ -1,0 +1,130 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-fix-book-uuids
+      author: bookstore
+      context: "!test"
+      preConditions:
+        onFail: MARK_RAN
+        sqlCheck:
+          expectedResult: "0"
+          sql: "SELECT COUNT(*) FROM books WHERE id = '00000000-0000-0000-0000-000000000001'"
+      comment: >
+        Re-seed books with fixed sequential UUIDs matching the inventory-service seed data.
+        The original 004 seed used gen_random_uuid() which produces UUIDs that do not match
+        the inventory-service's placeholder book_ids (00000000-...-000000000001 through 10).
+        The ecom-service now calls inventory-service synchronously at checkout to reserve stock,
+        so book IDs must align. Dependent rows (order_items, cart_items, orders) are truncated
+        first due to FK constraints. This changeset is idempotent: skipped if fixed UUIDs exist.
+      changes:
+        - sql:
+            sql: "TRUNCATE TABLE order_items, cart_items, orders, books RESTART IDENTITY CASCADE"
+        - insert:
+            tableName: books
+            columns:
+              - column: {name: id, value: "00000000-0000-0000-0000-000000000001"}
+              - column: {name: title, value: "The Pragmatic Programmer"}
+              - column: {name: author, value: "David Thomas, Andrew Hunt"}
+              - column: {name: price, valueNumeric: 49.99}
+              - column: {name: genre, value: "Software Engineering"}
+              - column: {name: isbn, value: "978-0135957059"}
+              - column: {name: published_year, valueNumeric: 2019}
+              - column: {name: description, value: "Your journey to mastery in programming."}
+        - insert:
+            tableName: books
+            columns:
+              - column: {name: id, value: "00000000-0000-0000-0000-000000000002"}
+              - column: {name: title, value: "Clean Code"}
+              - column: {name: author, value: "Robert C. Martin"}
+              - column: {name: price, valueNumeric: 39.99}
+              - column: {name: genre, value: "Software Engineering"}
+              - column: {name: isbn, value: "978-0132350884"}
+              - column: {name: published_year, valueNumeric: 2008}
+              - column: {name: description, value: "A handbook of agile software craftsmanship."}
+        - insert:
+            tableName: books
+            columns:
+              - column: {name: id, value: "00000000-0000-0000-0000-000000000003"}
+              - column: {name: title, value: "Designing Data-Intensive Applications"}
+              - column: {name: author, value: "Martin Kleppmann"}
+              - column: {name: price, valueNumeric: 59.99}
+              - column: {name: genre, value: "Systems Design"}
+              - column: {name: isbn, value: "978-1449373320"}
+              - column: {name: published_year, valueNumeric: 2017}
+              - column: {name: description, value: "Foundations for scalable, reliable, and maintainable systems."}
+        - insert:
+            tableName: books
+            columns:
+              - column: {name: id, value: "00000000-0000-0000-0000-000000000004"}
+              - column: {name: title, value: "Domain-Driven Design"}
+              - column: {name: author, value: "Eric Evans"}
+              - column: {name: price, valueNumeric: 54.99}
+              - column: {name: genre, value: "Software Architecture"}
+              - column: {name: isbn, value: "978-0321125217"}
+              - column: {name: published_year, valueNumeric: 2003}
+              - column: {name: description, value: "Tackling complexity in the heart of software."}
+        - insert:
+            tableName: books
+            columns:
+              - column: {name: id, value: "00000000-0000-0000-0000-000000000005"}
+              - column: {name: title, value: "Microservices Patterns"}
+              - column: {name: author, value: "Chris Richardson"}
+              - column: {name: price, valueNumeric: 44.99}
+              - column: {name: genre, value: "Software Architecture"}
+              - column: {name: isbn, value: "978-1617294549"}
+              - column: {name: published_year, valueNumeric: 2018}
+              - column: {name: description, value: "Building applications with the microservices architecture."}
+        - insert:
+            tableName: books
+            columns:
+              - column: {name: id, value: "00000000-0000-0000-0000-000000000006"}
+              - column: {name: title, value: "Kubernetes in Action"}
+              - column: {name: author, value: "Marko Luksa"}
+              - column: {name: price, valueNumeric: 64.99}
+              - column: {name: genre, value: "DevOps"}
+              - column: {name: isbn, value: "978-1617293726"}
+              - column: {name: published_year, valueNumeric: 2017}
+              - column: {name: description, value: "Comprehensive guide to deploying and managing applications in Kubernetes."}
+        - insert:
+            tableName: books
+            columns:
+              - column: {name: id, value: "00000000-0000-0000-0000-000000000007"}
+              - column: {name: title, value: "Spring in Action"}
+              - column: {name: author, value: "Craig Walls"}
+              - column: {name: price, valueNumeric: 49.99}
+              - column: {name: genre, value: "Java"}
+              - column: {name: isbn, value: "978-1617297571"}
+              - column: {name: published_year, valueNumeric: 2022}
+              - column: {name: description, value: "The definitive guide to the Spring Framework."}
+        - insert:
+            tableName: books
+            columns:
+              - column: {name: id, value: "00000000-0000-0000-0000-000000000008"}
+              - column: {name: title, value: "Learning Python"}
+              - column: {name: author, value: "Mark Lutz"}
+              - column: {name: price, valueNumeric: 69.99}
+              - column: {name: genre, value: "Python"}
+              - column: {name: isbn, value: "978-1449355739"}
+              - column: {name: published_year, valueNumeric: 2013}
+              - column: {name: description, value: "Powerful object-oriented programming from O'Reilly."}
+        - insert:
+            tableName: books
+            columns:
+              - column: {name: id, value: "00000000-0000-0000-0000-000000000009"}
+              - column: {name: title, value: "Site Reliability Engineering"}
+              - column: {name: author, value: "Niall Murphy, Betsy Beyer et al."}
+              - column: {name: price, valueNumeric: 59.99}
+              - column: {name: genre, value: "DevOps"}
+              - column: {name: isbn, value: "978-1491929124"}
+              - column: {name: published_year, valueNumeric: 2016}
+              - column: {name: description, value: "How Google runs production systems."}
+        - insert:
+            tableName: books
+            columns:
+              - column: {name: id, value: "00000000-0000-0000-0000-000000000010"}
+              - column: {name: title, value: "Kafka: The Definitive Guide"}
+              - column: {name: author, value: "Gwen Shapira, Todd Palino et al."}
+              - column: {name: price, valueNumeric: 54.99}
+              - column: {name: genre, value: "Data Engineering"}
+              - column: {name: isbn, value: "978-1492043089"}
+              - column: {name: published_year, valueNumeric: 2021}
+              - column: {name: description, value: "Real-time data and stream processing at scale."}

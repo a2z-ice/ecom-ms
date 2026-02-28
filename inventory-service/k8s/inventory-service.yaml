@@ -34,6 +34,7 @@ spec:
       labels:
         app: inventory-service
     spec:
+      serviceAccountName: inventory-service
       securityContext:
         runAsNonRoot: true
         runAsUser: 1001
@@ -42,7 +43,7 @@ spec:
         - name: migrate
           image: bookstore/inventory-service:latest
           imagePullPolicy: IfNotPresent
-          command: ["python", "-m", "alembic", "upgrade", "head"]
+          command: ["python3", "-m", "alembic", "upgrade", "head"]
           envFrom:
             - secretRef:
                 name: inventory-service-secret

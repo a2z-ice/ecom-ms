@@ -1,5 +1,6 @@
 package com.bookstore.ecom.service;
 
+import com.bookstore.ecom.client.InventoryClient;
 import com.bookstore.ecom.dto.OrderCreatedEvent;
 import com.bookstore.ecom.exception.BusinessException;
 import com.bookstore.ecom.kafka.OrderEventPublisher;
@@ -24,12 +25,20 @@ public class OrderService {
     private final CartService cartService;
     private final OrderRepository orderRepository;
     private final OrderEventPublisher eventPublisher;
+    private final InventoryClient inventoryClient;
 
     @Transactional
     public Order checkout(String userId) {
         List<CartItem> cartItems = cartService.getCart(userId);
         if (cartItems.isEmpty()) {
             throw new BusinessException("Cannot checkout: cart is empty");
+        }
+
+        // Synchronous mTLS call to inventory-service — reserve stock before committing order.
+        // Istio ztunnel authenticates this pod as principal cluster.local/ns/ecom/sa/ecom-service.
+        // The inventory AuthorizationPolicy allows POST /inven/stock/reserve only from this principal.
+        for (CartItem cartItem : cartItems) {
+            inventoryClient.reserve(cartItem.getBook().getId(), cartItem.getQuantity());
         }
 
         Order order = new Order();

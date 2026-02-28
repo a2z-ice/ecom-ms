@@ -1,0 +1,21 @@
+---
+# inventory-db AuthorizationPolicy: restrict to inventory namespace + infra namespace (Debezium).
+# Using namespace-level isolation at L4 (TCP/PostgreSQL).
+# Combined with NetworkPolicy, this provides defense-in-depth without the
+# SPIFFE-identity startup race condition at the ztunnel L4 layer.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: inventory-db-policy
+  namespace: inventory
+spec:
+  selector:
+    matchLabels:
+      app: inventory-db
+  rules:
+    - from:
+        - source:
+            namespaces: ["inventory"]
+    - from:
+        - source:
+            namespaces: ["infra"]

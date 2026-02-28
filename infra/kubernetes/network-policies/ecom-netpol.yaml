@@ -21,10 +21,21 @@ spec:
     matchLabels:
       app: ecom-service
   ingress:
+    # Istio gateway pod in infra namespace handles all external traffic
     - from:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: kgateway-system
+              kubernetes.io/metadata.name: infra
+    # ui-service nginx proxy (same ecom namespace) proxies /ecom/* here
+    - from:
+        - podSelector:
+            matchLabels:
+              app: ui-service
+    # Prometheus scraping from observability namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
   egress:
     # ecom-service → ecom-db
     - to:
@@ -54,6 +65,60 @@ spec:
               kubernetes.io/metadata.name: identity
       ports:
         - port: 8080
+    # ecom-service → inventory-service (mTLS via ztunnel)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: inventory
+      ports:
+        - port: 8000
+    # Istio Ambient Mesh HBONE — ztunnel uses port 15008 for inter-pod mTLS tunneling.
+    # Without this rule, ztunnel cannot establish encrypted tunnels to any destination
+    # (ecom-db, inventory-service, etc.) and all connections time out.
+    - to: []
+      ports:
+        - port: 15008
+    # DNS
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+
+---
+# Allow KGateway → ui-service (static SPA files)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-to-ui
+  namespace: ecom
+spec:
+  podSelector:
+    matchLabels:
+      app: ui-service
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: infra
+  egress:
+    # ui-service nginx proxies /ecom/* to ecom-service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: ecom-service
+      ports:
+        - port: 8080
+    # ui-service nginx proxies /inven/* to inventory-service
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: inventory
+      ports:
+        - port: 8000
+    # Istio Ambient Mesh HBONE — ztunnel tunneling for in-mesh proxy calls
+    - to: []
+      ports:
+        - port: 15008
     # DNS
     - to: []
       ports:

@@ -495,6 +495,116 @@ kubectl rollout restart deployment/ui-service -n ecom
 
 ---
 
+## Session 16 — mTLS Enforcement & Synchronous Service-to-Service Communication
+
+**Goal:** Fix five concrete gaps in the Istio mTLS enforcement between services and add a real synchronous inter-service call (ecom-service → inventory-service at checkout).
+
+### Root Cause Analysis
+
+Five gaps were identified and fixed:
+
+1. **ServiceAccount identity mismatch (CRITICAL)**: Deployments used the `default` SA, so the actual mTLS principal was `cluster.local/ns/ecom/sa/default`, not `cluster.local/ns/ecom/sa/ecom-service`. AuthorizationPolicy rule was dead.
+2. **Wrong path in AuthorizationPolicy**: Policy said `/inven/reserve`. Actual path is `/inven/stock/reserve` (router prefix `/stock` + route `/reserve`). Rule never matched.
+3. **No synchronous mTLS call existed**: `OrderService.checkout()` only published a Kafka event. The `/inven/stock/reserve` endpoint was never called.
+4. **DB pods had no AuthorizationPolicies**: Any pod in the cluster could reach them.
+5. **NetworkPolicy missing egress to inventory**: `ecom-netpol.yaml` had no egress rule for ecom-service → inventory port 8000.
+6. **Book/inventory UUID mismatch**: ecom-service seeded books with `gen_random_uuid()`, inventory used fixed sequential UUIDs. Added changeset 005 to re-seed books with fixed UUIDs matching inventory.
+
+### Deliverables
+
+- `infra/istio/security/serviceaccounts.yaml` — named SAs: `ecom-service` (ecom ns) + `inventory-service` (inventory ns)
+- `ecom-service/k8s/ecom-service.yaml` — `serviceAccountName: ecom-service` + `INVENTORY_SERVICE_URL` env
+- `inventory-service/k8s/inventory-service.yaml` — `serviceAccountName: inventory-service`
+- `infra/istio/security/authz-policies/inventory-service-policy.yaml` — fixed path `/inven/reserve` → `/inven/stock/reserve`
+- `infra/istio/security/authz-policies/ecom-db-policy.yaml` — NEW: locks ecom-db to ecom/infra namespaces (L4)
+- `infra/istio/security/authz-policies/inventory-db-policy.yaml` — NEW: locks inventory-db to inventory/infra namespaces (L4)
+- `infra/istio/security/authz-policies/keycloak-db-policy.yaml` — NEW: locks keycloak-db to identity namespace (L4)
+- `infra/kubernetes/network-policies/ecom-netpol.yaml` — added: egress to inventory port 8000, HBONE port 15008, Prometheus ingress (observability ns), ui-service ingress
+- `infra/kubernetes/network-policies/inventory-netpol.yaml` — NEW: default-deny-all + allow-to-inventory-service + inventory-db-policy
+- `infra/kgateway/routes/inven-route.yaml` — restricted to only GET /inven/stock/* and GET /inven/health (POST /reserve not exposed externally)
+- `inventory-service/app/api/stock.py` — removed `require_role("admin")` from `/reserve`; access controlled by HTTPRoute (not exposed externally) + NetworkPolicy (ecom namespace only) + AuthorizationPolicy (L4)
+- `ecom-service/src/main/java/com/bookstore/ecom/config/RestClientConfig.java` — forced HTTP/1.1 via JdkClientHttpRequestFactory to avoid h2c upgrade headers rejected by Starlette
+- `ecom-service/src/main/java/com/bookstore/ecom/dto/InventoryReserveRequest.java` — NEW (snake_case fields to match FastAPI schema)
+- `ecom-service/src/main/java/com/bookstore/ecom/dto/InventoryReserveResponse.java` — NEW (snake_case fields)
+- `ecom-service/src/main/java/com/bookstore/ecom/config/RestClientConfig.java` — NEW: `RestClient` bean with `INVENTORY_SERVICE_URL` base URL
+- `ecom-service/src/main/java/com/bookstore/ecom/client/InventoryClient.java` — NEW: `reserve(bookId, qty)` POST to inventory
+- `ecom-service/src/main/java/com/bookstore/ecom/service/OrderService.java` — added inventory reserve loop before order creation
+- `ecom-service/src/main/resources/db/changelog/005-fix-book-uuids.yaml` — NEW: re-seeds books with fixed UUIDs matching inventory
+- `ecom-service/src/main/resources/db/changelog/db.changelog-master.yaml` — includes changeset 005
+- `e2e/mtls-enforcement.spec.ts` — 4 tests: external 403, JWT 401, checkout success, reserved count increase
+
+### Build & Deploy
+
+```bash
+# Build and load images
+cd ecom-service && mvn package -DskipTests
+docker build -t bookstore/ecom-service:latest .
+kind load docker-image bookstore/ecom-service:latest --name bookstore
+
+cd ../inventory-service
+docker build -t bookstore/inventory-service:latest .
+kind load docker-image bookstore/inventory-service:latest --name bookstore
+
+# Apply manifests
+kubectl apply -f infra/istio/security/serviceaccounts.yaml
+kubectl apply -f infra/istio/security/authz-policies/
+kubectl apply -f infra/kubernetes/network-policies/ecom-netpol.yaml
+kubectl apply -f ecom-service/k8s/ecom-service.yaml
+kubectl apply -f inventory-service/k8s/inventory-service.yaml
+kubectl rollout restart deployment/ecom-service -n ecom
+kubectl rollout restart deployment/inventory-service -n inventory
+kubectl rollout status deployment/ecom-service -n ecom --timeout=90s
+kubectl rollout status deployment/inventory-service -n inventory --timeout=60s
+```
+
+### Acceptance Criteria
+
+- [x] `kubectl get sa -n ecom ecom-service` and `kubectl get sa -n inventory inventory-service` exist
+- [x] External `POST http://api.service.net:30000/inven/stock/reserve` → 404 (HTTPRoute does not expose this endpoint; it is internal-only)
+- [x] `POST http://api.service.net:30000/ecom/checkout` without JWT → 401
+- [x] Checkout via UI succeeds (order confirmation page loads) — confirms mTLS reserve call works
+- [x] `GET /inven/stock/00000000-0000-0000-0000-000000000001` `reserved` field increases after checkout
+- [x] E2E tests: 45/45 passing (41 existing + 4 new)
+
+### Implementation Notes
+
+**Istio Ambient mTLS without waypoint proxy (L4 enforcement only)**:
+- ztunnel cannot enforce L7 attributes (methods, paths, requestPrincipals). Using them in ALLOW policies causes all rules to be omitted → implicit deny-all.
+- Replaced all L7 AuthorizationPolicies with L4-only (namespace/principal checks).
+- `/reserve` endpoint protection: HTTPRoute restricts external access (only GET /stock and GET /health exposed), NetworkPolicy restricts to ecom+infra namespaces, SPIFFE principal confirms ecom-service identity at L4.
+- ui-service nginx proxies `/ecom/*` and `/inven/*` — needed ingress rules in both service NetworkPolicies.
+- Gateway pod runs in `infra` namespace (not `kgateway-system`) with `gatewayClassName: istio`.
+- RestClient must force HTTP/1.1 (`HttpClient.Version.HTTP_1_1`) — Java's default HttpClient may send h2c upgrade headers that Starlette/uvicorn's h11 parser rejects with 400 "Invalid HTTP request received".
+
+---
+
+## Session 17 — UI Bug Fixes: Cart Badge, PUT Quantity Endpoint, Logout Styling
+
+**Goal:** Document completed post-Session-15 UI bug fixes.
+
+### Deliverables (already implemented)
+
+- `ui/src/components/NavBar.tsx` — fetches server cart count via `cartApi.get()` on login; listens for `cartUpdated` DOM event; badge shows for both guest and auth users
+- `ecom-service/src/main/java/com/bookstore/ecom/dto/CartUpdateRequest.java` — NEW: `@Min(1) int quantity`
+- `ecom-service/src/main/java/com/bookstore/ecom/service/CartService.java` — `setQuantity()` method
+- `ecom-service/src/main/java/com/bookstore/ecom/controller/CartController.java` — `PUT /cart/{itemId}` endpoint
+- `ui/src/api/client.ts` — `put()` method added
+- `ui/src/api/cart.ts` — `cartApi.update(itemId, quantity)` added
+- `ui/src/pages/CartPage.tsx` — minus button uses `cartApi.update(item.id, item.quantity - 1)`; removes item at quantity 0
+- `ui/src/components/NavBar.tsx` — logout button styled `color: '#fff', borderColor: '#cbd5e0'` (matches Login)
+- `e2e/ui-fixes.spec.ts` — 5 tests: auth badge, minus decrement, minus removes item, logout color, badge clears after checkout
+
+### Acceptance Criteria (all verified)
+
+- [x] Cart badge appears for authenticated users after login
+- [x] Minus button decrements quantity (PUT /cart/{id} with quantity-1)
+- [x] Minus at quantity 1 removes item from cart (DELETE)
+- [x] Logout button has white text matching Login button style
+- [x] Cart badge clears after successful checkout
+- [x] E2E tests: 41/41 passing
+
+---
+
 ## Cross-Session Rules
 
 These apply to every session:
