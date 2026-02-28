@@ -440,7 +440,7 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 
 ## Current Implementation State (as of 2026-02-28)
 
-**Sessions 1–18 complete + UI bug fixes. E2E: ~50/50 passing.**
+**Sessions 1–18 complete + UI bug fixes. E2E: 89/89 passing.**
 
 ### Cluster: `bookstore` (kind, 3 nodes) — RUNNING
 
@@ -472,10 +472,10 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 - Flink REST API `/jobs` shows 4 streaming jobs in RUNNING state ✓
 - Flink Web Dashboard: `http://localhost:32200` (via flink-proxy docker container) ✓
 - Debezium REST API: `http://localhost:32300` (via debezium-proxy docker container) ✓
-- Superset: 3 dashboards (Book Store Analytics, Sales & Revenue, Inventory Analytics), 14 charts ✓
+- Superset: 3 dashboards, 16 charts (Book Store Analytics, Sales & Revenue Analytics, Inventory Analytics) ✓
 - Analytics DB: 10 views (`\dv vw_*`) ✓
 - Kiali: traffic graph populated (10 nodes, 12 edges for ecom+inventory), Prometheus scraping ztunnel + istiod ✓
-- **E2E tests: 87/87 passing** ✓ (45 existing + 17 Superset + 25 Debezium-Flink CDC tests)
+- **E2E tests: 89/89 passing** ✓ (45 existing + 19 Superset + 25 Debezium-Flink CDC tests)
 - ecom-service → inventory-service synchronous mTLS reserve call on checkout ✓
 - All Istio AuthorizationPolicies L4-only (ztunnel-compatible) ✓
 
@@ -557,9 +557,12 @@ docker run -d --name debezium-proxy --network kind --restart unless-stopped \
   - `vw_revenue_by_author`, `vw_revenue_by_genre`, `vw_order_status_distribution`
   - `vw_inventory_health`, `vw_avg_order_value`, `vw_top_books_by_revenue`
   - `vw_inventory_turnover`, `vw_book_price_distribution`
-- **Superset expanded**: 3 dashboards / 14 charts (was 1 dashboard / 2 charts)
-  - "Book Store Analytics" (5 charts), "Sales & Revenue Analytics" (5 charts), "Inventory Analytics" (4 charts)
+- **Superset expanded**: 3 dashboards / 16 charts (was 1 dashboard / 2 charts)
+  - "Book Store Analytics" (5 charts), "Sales & Revenue Analytics" (5 charts), "Inventory Analytics" (6 charts including 2 new pie charts)
+  - Added "Stock Status Distribution" (pie) and "Revenue Share by Genre" (pie) to Inventory Analytics
   - `infra/superset/bootstrap-job.yaml` (NEW) — Kubernetes Job that runs bootstrap inside Superset pod
+  - **Working viz types** (confirmed in `apache/superset:latest`): `echarts_timeseries_bar`, `echarts_timeseries_line`, `pie`, `table`, `big_number_total`
+  - `echarts_bar` and `echarts_pie` are NOT registered — do not use them
 - **Python consumer deleted**: `analytics/consumer/main.py`, `Dockerfile`, `requirements.txt`, `infra/analytics/analytics-consumer.yaml` removed
 - **NodePort services**: Flink Web Dashboard at NodePort 32200 (`flink-jobmanager-nodeport` service) + Debezium REST API at NodePort 32300 (`debezium-nodeport` service). Both use docker socat proxy containers.
 - **E2E coverage**: `e2e/superset.spec.ts` expanded to 17 tests (API + UI: 3 dashboards, 14 charts, 10 datasets); `e2e/debezium-flink.spec.ts` (NEW) — 29 tests covering Debezium API, Flink dashboard, CDC end-to-end flow, operational health.
@@ -570,7 +573,7 @@ docker run -d --name debezium-proxy --network kind --restart unless-stopped \
 ```
 Debezium → Kafka (4 topics) → Flink SQL (plain json format, after field extraction) → JDBC → analytics-db
                                                                                                ↓
-                                                                                    Superset (3 dashboards, 14 charts)
+                                                                                    Superset (3 dashboards, 16 charts)
 ```
 
 **Flink SQL format choice**: Uses plain `json` format (NOT `debezium-json`). Reason: `debezium-json` requires `REPLICA IDENTITY FULL` on source tables for UPDATE events (the "before" field must be non-null). Plain `json` format parses the Debezium envelope directly and extracts the `after` ROW field — works regardless of REPLICA IDENTITY setting.

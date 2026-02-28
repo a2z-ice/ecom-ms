@@ -12,8 +12,12 @@ Creates:
       "Sales & Revenue Analytics" — 5 charts (KPIs + order status + avg order value over time)
       "Inventory Analytics"       — 4 charts (health table + stock/reserved + turnover + genre)
 
-NOTE: Superset latest uses ECharts exclusively.
-      viz_type "bar"/"line" are removed; use "echarts_bar"/"echarts_timeseries_line".
+NOTE: Confirmed working viz types in apache/superset:latest:
+      - "echarts_timeseries_bar"  (bar charts — NOT "echarts_bar", not registered)
+      - "echarts_timeseries_line" (line/time-series charts)
+      - "pie"                     (pie charts — NOT "echarts_pie", not registered)
+      - "table"                   (table/grid)
+      - "big_number_total"        (KPI big numbers)
 """
 import json
 import os
@@ -98,12 +102,15 @@ def upsert_chart(session: requests.Session, token: str, csrf_token: str,
     existing = session.get(f"{SUPERSET_URL}/api/v1/chart/", headers=h).json()
     for c in existing.get("result", []):
         if c["slice_name"] == name:
-            # Update in place
-            session.put(f"{SUPERSET_URL}/api/v1/chart/{c['id']}", json={
+            # Update in place — include datasource_type to avoid 400
+            r = session.put(f"{SUPERSET_URL}/api/v1/chart/{c['id']}", json={
                 "viz_type": viz_type,
                 "datasource_id": dataset_id,
+                "datasource_type": "table",
                 "params": json.dumps(params),
             }, headers=h)
+            if not r.ok:
+                print(f"  WARN: PUT chart {c['id']} ({name}) returned {r.status_code}: {r.text[:100]}")
             return c["id"]
     resp = session.post(f"{SUPERSET_URL}/api/v1/chart/", json={
         "slice_name": name,
@@ -213,11 +220,11 @@ def main() -> None:
     # ── Dashboard 1: Book Store Analytics ───────────────────────────────────
     bar_chart_id = upsert_chart(
         session, token, csrf_token,
-        "Product Sales Volume", "echarts_bar",
+        "Product Sales Volume", "echarts_timeseries_bar",
         ds["vw_product_sales_volume"],
         {
             "metrics": [metric("units_sold", "BIGINT")],
-            "groupby": ["title"],
+            "groupby": [],
             "x_axis": "title",
             "row_limit": 20,
             "color_scheme": "supersetColors",
@@ -241,11 +248,11 @@ def main() -> None:
 
     revenue_by_author_id = upsert_chart(
         session, token, csrf_token,
-        "Revenue by Author", "echarts_bar",
+        "Revenue by Author", "echarts_timeseries_bar",
         ds["vw_revenue_by_author"],
         {
             "metrics": [metric("revenue")],
-            "groupby": ["author"],
+            "groupby": [],
             "x_axis": "author",
             "row_limit": 20,
             "color_scheme": "supersetColors",
@@ -255,11 +262,11 @@ def main() -> None:
 
     top_books_id = upsert_chart(
         session, token, csrf_token,
-        "Top Books by Revenue", "echarts_bar",
+        "Top Books by Revenue", "echarts_timeseries_bar",
         ds["vw_top_books_by_revenue"],
         {
             "metrics": [metric("total_revenue")],
-            "groupby": ["title"],
+            "groupby": [],
             "x_axis": "title",
             "row_limit": 10,
             "color_scheme": "supersetColors",
@@ -269,7 +276,7 @@ def main() -> None:
 
     price_dist_id = upsert_chart(
         session, token, csrf_token,
-        "Book Price Distribution", "echarts_pie",
+        "Book Price Distribution", "pie",
         ds["vw_book_price_distribution"],
         {
             "metric": metric("book_count", "BIGINT", "SUM"),
@@ -320,7 +327,7 @@ def main() -> None:
 
     order_status_id = upsert_chart(
         session, token, csrf_token,
-        "Order Status Distribution", "echarts_pie",
+        "Order Status Distribution", "pie",
         ds["vw_order_status_distribution"],
         {
             "metric": metric("order_count", "BIGINT"),
@@ -353,7 +360,6 @@ def main() -> None:
         ds["vw_inventory_health"],
         {
             "all_columns": ["title", "author", "stock_quantity", "reserved", "available", "stock_status"],
-            "order_by_cols": ["available"],
             "row_limit": 50,
             "table_timestamp_format": "%Y-%m-%d",
         },
@@ -362,14 +368,14 @@ def main() -> None:
 
     stock_vs_reserved_id = upsert_chart(
         session, token, csrf_token,
-        "Stock vs Reserved", "echarts_bar",
+        "Stock vs Reserved", "echarts_timeseries_bar",
         ds["vw_inventory_health"],
         {
             "metrics": [
                 metric("stock_quantity", "INTEGER"),
                 metric("reserved", "INTEGER"),
             ],
-            "groupby": ["title"],
+            "groupby": [],
             "x_axis": "title",
             "row_limit": 20,
             "color_scheme": "supersetColors",
@@ -379,11 +385,11 @@ def main() -> None:
 
     inv_turnover_id = upsert_chart(
         session, token, csrf_token,
-        "Inventory Turnover Rate", "echarts_bar",
+        "Inventory Turnover Rate", "echarts_timeseries_bar",
         ds["vw_inventory_turnover"],
         {
             "metrics": [metric("turnover_rate_pct", "DOUBLE PRECISION")],
-            "groupby": ["title"],
+            "groupby": [],
             "x_axis": "title",
             "row_limit": 20,
             "color_scheme": "supersetColors",
@@ -393,17 +399,49 @@ def main() -> None:
 
     revenue_by_genre_id = upsert_chart(
         session, token, csrf_token,
-        "Revenue by Genre", "echarts_bar",
+        "Revenue by Genre", "echarts_timeseries_bar",
         ds["vw_revenue_by_genre"],
         {
             "metrics": [metric("revenue")],
-            "groupby": ["genre"],
+            "groupby": [],
             "x_axis": "genre",
             "row_limit": 20,
             "color_scheme": "supersetColors",
         },
     )
     print(f"  Revenue by Genre id={revenue_by_genre_id}")
+
+    # New pie chart: stock status distribution (Critical / Low / OK)
+    stock_status_pie_id = upsert_chart(
+        session, token, csrf_token,
+        "Stock Status Distribution", "pie",
+        ds["vw_inventory_health"],
+        {
+            "metric": metric("title", "VARCHAR", "COUNT"),
+            "groupby": ["stock_status"],
+            "row_limit": 10,
+            "color_scheme": "supersetColors",
+            "show_labels": True,
+            "show_legend": True,
+        },
+    )
+    print(f"  Stock Status Distribution id={stock_status_pie_id}")
+
+    # New pie chart: revenue share by genre
+    genre_revenue_pie_id = upsert_chart(
+        session, token, csrf_token,
+        "Revenue Share by Genre", "pie",
+        ds["vw_revenue_by_genre"],
+        {
+            "metric": metric("revenue"),
+            "groupby": ["genre"],
+            "row_limit": 20,
+            "color_scheme": "supersetColors",
+            "show_labels": True,
+            "show_legend": True,
+        },
+    )
+    print(f"  Revenue Share by Genre id={genre_revenue_pie_id}")
 
     # ─── Dashboards ──────────────────────────────────────────────────────────
     print("Creating dashboards...")
@@ -426,7 +464,8 @@ def main() -> None:
     dash3_id = upsert_dashboard(
         session, token, csrf_token,
         "Inventory Analytics",
-        [inv_health_table_id, stock_vs_reserved_id, inv_turnover_id, revenue_by_genre_id],
+        [inv_health_table_id, stock_vs_reserved_id, inv_turnover_id,
+         revenue_by_genre_id, stock_status_pie_id, genre_revenue_pie_id],
     )
     print(f"  Inventory Analytics id={dash3_id}")
 

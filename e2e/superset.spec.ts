@@ -20,7 +20,7 @@ const SUPERSET_URL  = 'http://localhost:32000'
 const SUPERSET_USER = process.env.SUPERSET_ADMIN_USERNAME ?? 'admin'
 const SUPERSET_PASS = process.env.SUPERSET_ADMIN_PASSWORD ?? 'CHANGE_ME'
 
-// All expected chart names (14 total)
+// All expected chart names (16 total — 14 original + 2 new inventory pie charts)
 const ALL_CHARTS = [
   'Product Sales Volume',
   'Sales Over Time',
@@ -36,6 +36,8 @@ const ALL_CHARTS = [
   'Stock vs Reserved',
   'Inventory Turnover Rate',
   'Revenue by Genre',
+  'Stock Status Distribution',
+  'Revenue Share by Genre',
 ]
 
 // All expected dashboard names (3 total)
@@ -96,7 +98,7 @@ test.describe('Superset Analytics', () => {
     await page.screenshot({ path: 'screenshots/superset-02-api-dashboards.png' })
   })
 
-  test('Superset API: all 14 charts exist', async ({ page, request }) => {
+  test('Superset API: all 16 charts exist', async ({ page, request }) => {
     const loginResp = await request.post(`${SUPERSET_URL}/api/v1/security/login`, {
       data: { username: SUPERSET_USER, password: SUPERSET_PASS, provider: 'db', refresh: true },
     })
@@ -151,7 +153,7 @@ test.describe('Superset Analytics', () => {
 
   // ── UI: Chart list page ───────────────────────────────────────────────────
 
-  test('UI: chart list shows all 14 charts', async ({ page }) => {
+  test('UI: chart list shows all 16 charts', async ({ page }) => {
     await page.goto('/chart/list/')
     await page.screenshot({ path: 'screenshots/superset-07-chart-list.png', fullPage: true })
 
@@ -255,5 +257,17 @@ test.describe('Superset Analytics', () => {
     await page.goto('/chart/list/')
     await expect(page.getByText(/revenue by genre/i)).toBeVisible()
     await page.screenshot({ path: 'screenshots/superset-22-revenue-by-genre-chart.png', fullPage: true })
+  })
+
+  test('Chart: "Stock Status Distribution" pie chart is in chart list', async ({ page }) => {
+    await page.goto('/chart/list/')
+    await expect(page.getByText(/stock status distribution/i)).toBeVisible()
+    await page.screenshot({ path: 'screenshots/superset-23-stock-status-chart.png', fullPage: true })
+  })
+
+  test('Chart: "Revenue Share by Genre" pie chart is in chart list', async ({ page }) => {
+    await page.goto('/chart/list/')
+    await expect(page.getByText(/revenue share by genre/i)).toBeVisible()
+    await page.screenshot({ path: 'screenshots/superset-24-revenue-share-chart.png', fullPage: true })
   })
 })
