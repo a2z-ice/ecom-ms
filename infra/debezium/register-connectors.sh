@@ -94,12 +94,22 @@ wait_for_debezium
 register_connector "ecom-connector"       "${CONNECTORS_DIR}/ecom-connector.json"       "$ECOM_USER" "$ECOM_PASS"
 register_connector "inventory-connector"  "${CONNECTORS_DIR}/inventory-connector.json"  "$INV_USER"  "$INV_PASS"
 
-info "Waiting 15s for connectors to start..."
-sleep 15
-
-info "Checking connector statuses..."
-check_connector_status "ecom-connector"
-check_connector_status "inventory-connector"
+info "Polling until both connectors reach RUNNING state (max 60s)..."
+_wait_connector_running() {
+  local name=$1
+  local i=0
+  until check_connector_status "$name" 2>/dev/null; do
+    i=$((i + 1))
+    if [[ $i -ge 12 ]]; then
+      echo "  WARN: ${name} not RUNNING after 60s"
+      return 1
+    fi
+    echo "  ${name} not RUNNING yet, retrying in 5s..."
+    sleep 5
+  done
+}
+_wait_connector_running "ecom-connector"
+_wait_connector_running "inventory-connector"
 
 echo ""
 echo -e "${GREEN}✔ Debezium connectors registered and running.${NC}"

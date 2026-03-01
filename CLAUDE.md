@@ -644,9 +644,28 @@ These bugs were found and fixed during a full `up.sh --fresh --data` rebuild:
 - **Analytics DDL ordering**: Must be applied BEFORE Flink starts (Flink JDBC sink requires tables to pre-exist). Moved DDL apply to right after `analytics-db` is ready. Fixed `kubectl exec` to use `-i` flag (without it, stdin redirect is silently ignored).
 - **verify-cdc.sh column name**: Fixed `WHERE order_id = '...'` to `WHERE id = '...'` in fact_orders polling query.
 
+### Bootstrap Optimization (2026-03-01)
+
+`scripts/up.sh --fresh` rewritten to parallelize heavily:
+- **Docker builds start as background processes** right after storage/namespaces — overlap entire infra deploy phase (~8-12 min saved on cold build)
+- **PostgreSQL, Redis+Kafka, Flink JM+TM** all waited in parallel (`kubectl rollout status ... &` + `wait`)
+- **Keycloak apply overlaps Flink startup** (both applied at same time, waited separately)
+- **Flink sql-runner** submitted fire-and-forget; verified at end
+- **Kiali helm install** moved to END of bootstrap (was blocking top ~8-10 min)
+- **PgAdmin** removed from critical path (apply only, no wait)
+- **App service waits** run in parallel
+
+`infra/debezium/register-connectors.sh`: replaced hardcoded `sleep 15` with a poll loop (5s interval, max 60s) checking connector RUNNING state.
+
+`infra/superset/bootstrap-job.yaml` fixed:
+- ServiceAccount moved to first YAML document (Job controller needs it at scheduling time)
+- `echarts_bar` → `echarts_timeseries_bar` (echarts_bar not registered in apache/superset:latest)
+- `echarts_pie` → `pie` (echarts_pie not registered in apache/superset:latest)
+- Container command changed to use `/app/.venv/bin/python` (Superset's venv, has requests built-in — no pip install, no network dependency)
+
 ### NEXT SESSION — Start Here
 
-**All 18 sessions complete + UI bug fixes + fresh-cluster bootstrap fully validated.** Outstanding items:
+**All 18 sessions complete + UI bug fixes + fresh-cluster bootstrap fully validated + bootstrap optimized.** Outstanding items:
 - DB data persistence — mount all 4 PostgreSQL DBs to host `data/` folder (PVs exist, but cluster.yaml and PV/PVC wiring needed)
 - Kafka persistence — topics lost on pod restart; add PVC or recreate on startup
 

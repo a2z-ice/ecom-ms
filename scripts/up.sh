@@ -58,6 +58,7 @@ wait_deploy() {
 
 # ── Bootstrap function: full fresh cluster + all services ────────────────────
 bootstrap_fresh() {
+  # ── 1. Kind cluster + Istio + KGateway (~4-6 min, sequential) ───────────────
   section "Creating kind cluster 'bookstore'"
   mkdir -p "${REPO_ROOT}/data"/{ecom-db,inventory-db,analytics-db,keycloak-db,superset,kafka,redis,flink}
   DATA_DIR="${REPO_ROOT}/data"
@@ -71,28 +72,6 @@ bootstrap_fresh() {
 
   section "Installing Kubernetes Gateway API (kgateway)"
   bash "${REPO_ROOT}/infra/kgateway/install.sh"
-
-  section "Installing Kiali (service mesh observability)"
-  helm repo add kiali https://kiali.org/helm-charts 2>/dev/null || true
-  helm repo update kiali
-  if helm status kiali-server -n istio-system &>/dev/null; then
-    info "Kiali already installed, upgrading..."
-    helm upgrade kiali-server kiali/kiali-server \
-      -n istio-system \
-      --version 1.86.0 \
-      --set auth.strategy=anonymous \
-      --wait
-  else
-    helm install kiali-server kiali/kiali-server \
-      -n istio-system \
-      --version 1.86.0 \
-      --set auth.strategy=anonymous \
-      --wait
-  fi
-  kubectl apply -f "${REPO_ROOT}/infra/observability/kiali/kiali-config-patch.yaml"
-  kubectl rollout restart deployment/kiali -n istio-system
-  kubectl rollout status deployment/kiali -n istio-system --timeout=120s
-  kubectl apply -f "${REPO_ROOT}/infra/observability/kiali/kiali-nodeport.yaml"
 
   section "Applying namespaces and Gateway resource"
   kubectl apply -f "${REPO_ROOT}/infra/namespaces.yaml"
@@ -115,17 +94,63 @@ bootstrap_fresh() {
   kubectl apply -f "${REPO_ROOT}/infra/storage/storageclass.yaml"
   kubectl apply -f "${REPO_ROOT}/infra/storage/persistent-volumes.yaml"
 
+  # ── 2. Start Docker builds in parallel background ────────────────────────────
+  # Builds run concurrently while infrastructure is deploying below. Logs go to
+  # /tmp/build-*.log; we print them only on failure. Images are kind-loaded after
+  # all builds complete (kind load is serialized to avoid contention).
+  # Using plain variables (not associative arrays) for bash 3.2 compatibility
+  # (macOS ships bash 3.2 as /bin/bash).
+  section "Starting parallel Docker image builds (background)"
+  _ECOM_PID="" _INV_PID="" _FLINK_PID="" _UI_PID=""
+  if docker image inspect bookstore/ecom-service:latest &>/dev/null; then
+    info "  bookstore/ecom-service:latest already exists — skipping build."
+  else
+    info "  Building bookstore/ecom-service:latest (background)..."
+    docker build -t bookstore/ecom-service:latest "${REPO_ROOT}/ecom-service" \
+      >/tmp/build-ecom.log 2>&1 &
+    _ECOM_PID=$!
+  fi
+  if docker image inspect bookstore/inventory-service:latest &>/dev/null; then
+    info "  bookstore/inventory-service:latest already exists — skipping build."
+  else
+    info "  Building bookstore/inventory-service:latest (background)..."
+    docker build -t bookstore/inventory-service:latest "${REPO_ROOT}/inventory-service" \
+      >/tmp/build-inventory.log 2>&1 &
+    _INV_PID=$!
+  fi
+  if docker image inspect bookstore/flink:latest &>/dev/null; then
+    info "  bookstore/flink:latest already exists — skipping build."
+  else
+    info "  Building bookstore/flink:latest (background)..."
+    docker build -t bookstore/flink:latest "${REPO_ROOT}/analytics/flink" \
+      >/tmp/build-flink.log 2>&1 &
+    _FLINK_PID=$!
+  fi
+  # UI always rebuilt — VITE vars are baked in at build time
+  info "  Building bookstore/ui-service:latest (background)..."
+  docker build \
+    --build-arg VITE_KEYCLOAK_AUTHORITY=http://idp.keycloak.net:30000/realms/bookstore \
+    --build-arg VITE_KEYCLOAK_CLIENT_ID=ui-client \
+    --build-arg VITE_REDIRECT_URI=http://localhost:30000/callback \
+    -t bookstore/ui-service:latest "${REPO_ROOT}/ui" \
+    >/tmp/build-ui.log 2>&1 &
+  _UI_PID=$!
+
+  # ── 3. PostgreSQL (all 3 apply, then wait in parallel) ───────────────────────
+  # IMPORTANT: use explicit PID tracking for all parallel waits so that bare
+  # `wait` never accidentally reaps the background docker build processes.
   section "Deploying PostgreSQL instances"
   kubectl apply -f "${REPO_ROOT}/infra/postgres/ecom-db.yaml"
   kubectl apply -f "${REPO_ROOT}/infra/postgres/inventory-db.yaml"
   kubectl apply -f "${REPO_ROOT}/infra/postgres/analytics-db.yaml"
-  wait_deploy ecom-db ecom
-  wait_deploy inventory-db inventory
-  wait_deploy analytics-db analytics
+  info "Waiting for all PostgreSQL instances in parallel..."
+  kubectl rollout status deployment/ecom-db      -n ecom      --timeout=300s & _P1=$!
+  kubectl rollout status deployment/inventory-db -n inventory --timeout=300s & _P2=$!
+  kubectl rollout status deployment/analytics-db -n analytics --timeout=300s & _P3=$!
+  wait $_P1 $_P2 $_P3
 
+  # ── 4. Analytics DDL (before Flink — JDBC sink requires tables to pre-exist) ─
   section "Applying analytics DB schema"
-  # Apply DDL before Flink starts — JDBC sink requires tables to pre-exist.
-  # Use -i flag to pipe stdin through kubectl exec to psql.
   if [[ -f "${REPO_ROOT}/analytics/schema/analytics-ddl.sql" ]]; then
     info "Waiting for analytics-db pod..."
     kubectl wait --for=condition=Ready pod -n analytics -l app=analytics-db --timeout=60s
@@ -138,23 +163,23 @@ bootstrap_fresh() {
     info "Analytics schema applied."
   fi
 
-  section "Deploying Redis"
+  # ── 5. Redis + Kafka in parallel ─────────────────────────────────────────────
+  section "Deploying Redis + Kafka (KRaft)"
   kubectl apply -f "${REPO_ROOT}/infra/redis/redis.yaml"
-  wait_deploy redis infra
-
-  section "Deploying Kafka (KRaft)"
   kubectl apply -f "${REPO_ROOT}/infra/kafka/zookeeper.yaml" 2>/dev/null || true  # intentionally empty placeholder
   kubectl apply -f "${REPO_ROOT}/infra/kafka/kafka.yaml"
-  wait_deploy kafka infra
+  info "Waiting for Redis + Kafka in parallel..."
+  kubectl rollout status deployment/redis -n infra --timeout=300s & _P1=$!
+  kubectl rollout status deployment/kafka -n infra --timeout=300s & _P2=$!
+  wait $_P1 $_P2
   # Apply topic-init Job separately (never re-apply kafka.yaml here — that would
   # reconfigure the Deployment and could restart Kafka mid-job).
   kubectl delete job kafka-topic-init -n infra --ignore-not-found
   kubectl apply -f "${REPO_ROOT}/infra/kafka/kafka-topics-init.yaml"
   kubectl wait --for=condition=complete job/kafka-topic-init -n infra --timeout=300s
 
-  section "Deploying Debezium (Kafka Connect)"
-  # Create debezium-db-credentials secret from the same passwords used by the DB secrets
-  # (ecomuser/CHANGE_ME and inventoryuser/CHANGE_ME — change before production use)
+  # ── 6. Debezium + PgAdmin (apply both; only Debezium blocks connectors later) ─
+  section "Deploying Debezium (Kafka Connect) + PgAdmin"
   ECOM_USER=$(kubectl get secret -n ecom ecom-db-secret -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)
   ECOM_PASS=$(kubectl get secret -n ecom ecom-db-secret -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d)
   INV_USER=$(kubectl get secret -n inventory inventory-db-secret -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)
@@ -166,25 +191,60 @@ bootstrap_fresh() {
     --from-literal=INVENTORY_DB_PASSWORD="$INV_PASS" \
     --dry-run=client -o yaml | kubectl apply -f -
   kubectl apply -f "${REPO_ROOT}/infra/debezium/debezium.yaml"
+  kubectl apply -f "${REPO_ROOT}/infra/pgadmin/pgadmin.yaml"
+  # Apply Keycloak manifests now so it starts pulling images while we wait for Debezium
+  kubectl apply -f "${REPO_ROOT}/infra/keycloak/keycloak.yaml"
+  # Only wait for Debezium — PgAdmin and Keycloak continue in background
   wait_deploy debezium infra
 
-  section "Deploying PgAdmin"
-  kubectl apply -f "${REPO_ROOT}/infra/pgadmin/pgadmin.yaml"
-  wait_deploy pgadmin infra
+  # ── 7. Wait for Docker builds, then kind load ────────────────────────────────
+  # Must happen BEFORE deploying Flink or app services (they use custom images).
+  # Builds have been running in background since step 2 (overlapping all infra).
+  section "Waiting for Docker builds to complete"
+  _BUILD_OK=true
+  _wait_build() {
+    local _tag=$1 _pid=$2 _log=$3
+    [[ -z "$_pid" ]] && { info "  $_tag skipped (pre-existing image)"; return 0; }
+    if wait "$_pid"; then
+      info "  $_tag built successfully."
+    else
+      err "  $_tag build FAILED. Log: $_log"
+      cat "$_log" >&2
+      _BUILD_OK=false
+    fi
+  }
+  _wait_build "bookstore/ecom-service:latest"      "$_ECOM_PID"  "/tmp/build-ecom.log"
+  _wait_build "bookstore/inventory-service:latest" "$_INV_PID"   "/tmp/build-inventory.log"
+  _wait_build "bookstore/flink:latest"             "$_FLINK_PID" "/tmp/build-flink.log"
+  _wait_build "bookstore/ui-service:latest"        "$_UI_PID"    "/tmp/build-ui.log"
+  $_BUILD_OK || { err "One or more Docker builds failed — aborting."; exit 1; }
 
-  section "Deploying Flink (CDC analytics pipeline)"
+  section "Loading images into kind cluster (serialized)"
+  for _img in \
+    "bookstore/ecom-service:latest" \
+    "bookstore/inventory-service:latest" \
+    "bookstore/flink:latest" \
+    "bookstore/ui-service:latest"; do
+    info "  Loading $_img..."
+    kind load docker-image "$_img" --name bookstore
+  done
+
+  # ── 8. Flink cluster (now that custom image is in kind) ───────────────────────
+  section "Deploying Flink cluster"
   kubectl apply -f "${REPO_ROOT}/infra/flink/flink-pvc.yaml"
   kubectl apply -f "${REPO_ROOT}/infra/flink/flink-config.yaml"
   kubectl apply -f "${REPO_ROOT}/infra/flink/flink-cluster.yaml"
-  wait_deploy flink-jobmanager analytics
-  wait_deploy flink-taskmanager analytics
+  info "Waiting for Flink JobManager + TaskManager in parallel..."
+  kubectl rollout status deployment/flink-jobmanager  -n analytics --timeout=300s & _P1=$!
+  kubectl rollout status deployment/flink-taskmanager -n analytics --timeout=300s & _P2=$!
+  wait $_P1 $_P2
   kubectl delete job flink-sql-runner -n analytics --ignore-not-found
   kubectl apply -f "${REPO_ROOT}/infra/flink/flink-sql-runner.yaml"
-  kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeout=180s || \
-    warn "flink-sql-runner did not complete in 180s — check: kubectl logs -n analytics -l job-name=flink-sql-runner"
+  info "Flink SQL runner submitted (fire-and-forget — will verify at end)"
 
-  section "Deploying Keycloak"
-  kubectl apply -f "${REPO_ROOT}/infra/keycloak/keycloak.yaml"
+  # ── 9. Wait for Keycloak, import realm, reset passwords ─────────────────────
+  # Keycloak was applied in step 6, should be nearly ready by now.
+  section "Waiting for Keycloak + importing realm"
   wait_deploy keycloak-db identity
   wait_deploy keycloak identity
   bash "${REPO_ROOT}/scripts/keycloak-import.sh"
@@ -218,47 +278,19 @@ bootstrap_fresh() {
     warn "  Keycloak pod not found — skipping password reset"
   fi
 
-  section "Building and loading application Docker images"
-  # Build custom bookstore images and load them into kind (imagePullPolicy: IfNotPresent/Never)
-  # Format: "image:tag|build_context"
-  for img_spec in \
-    "bookstore/ecom-service:latest|${REPO_ROOT}/ecom-service" \
-    "bookstore/inventory-service:latest|${REPO_ROOT}/inventory-service" \
-    "bookstore/flink:latest|${REPO_ROOT}/analytics/flink"; do
-    full_img="${img_spec%%|*}"
-    ctx="${img_spec##*|}"
-    if docker image inspect "$full_img" &>/dev/null; then
-      info "Image $full_img already exists — skipping build."
-    else
-      info "Building $full_img..."
-      docker build -t "$full_img" "$ctx"
-    fi
-    info "Loading $full_img into kind cluster..."
-    kind load docker-image "$full_img" --name bookstore
-  done
-  # UI requires VITE build args — always build fresh (VITE vars are baked in at build time)
-  info "Building bookstore/ui-service:latest (VITE build args required)..."
-  docker build \
-    --build-arg VITE_KEYCLOAK_AUTHORITY=http://idp.keycloak.net:30000/realms/bookstore \
-    --build-arg VITE_KEYCLOAK_CLIENT_ID=ui-client \
-    --build-arg VITE_REDIRECT_URI=http://localhost:30000/callback \
-    -t bookstore/ui-service:latest "${REPO_ROOT}/ui"
-  kind load docker-image bookstore/ui-service:latest --name bookstore
-
+  # ── 10. Deploy application services (custom images already in kind) ───────────
   section "Deploying application services"
   kubectl apply -f "${REPO_ROOT}/ecom-service/k8s/"
-  if [[ -d "${REPO_ROOT}/inventory-service/k8s/" ]]; then
-    kubectl apply -f "${REPO_ROOT}/inventory-service/k8s/"
-  fi
-  if [[ -d "${REPO_ROOT}/ui/k8s/" ]]; then
-    kubectl apply -f "${REPO_ROOT}/ui/k8s/"
-  fi
-  wait_deploy ecom-service ecom || true
-  wait_deploy inventory-service inventory || true
-  wait_deploy ui-service ecom || true
+  [[ -d "${REPO_ROOT}/inventory-service/k8s/" ]] && kubectl apply -f "${REPO_ROOT}/inventory-service/k8s/"
+  [[ -d "${REPO_ROOT}/ui/k8s/" ]]                && kubectl apply -f "${REPO_ROOT}/ui/k8s/"
+  info "Waiting for app services in parallel..."
+  kubectl rollout status deployment/ecom-service      -n ecom      --timeout=300s & _P1=$!
+  kubectl rollout status deployment/inventory-service -n inventory --timeout=300s & _P2=$!
+  kubectl rollout status deployment/ui-service        -n ecom      --timeout=300s & _P3=$!
+  wait $_P1 $_P2 $_P3 || warn "One or more app service rollouts timed out — check pod logs"
 
+  # ── 11. Networking + policies ─────────────────────────────────────────────────
   section "Applying HTTPRoutes (kgateway)"
-  # -R recurses into routes/ subdirectory; .sh files are ignored by kubectl apply
   kubectl apply -R -f "${REPO_ROOT}/infra/kgateway/"
 
   section "Applying Istio security policies"
@@ -267,6 +299,7 @@ bootstrap_fresh() {
   section "Applying Kubernetes policies (HPA, PDB, NetworkPolicies)"
   kubectl apply -R -f "${REPO_ROOT}/infra/kubernetes/"
 
+  # ── 12. Superset ─────────────────────────────────────────────────────────────
   section "Deploying Apache Superset"
   kubectl apply -f "${REPO_ROOT}/infra/superset/superset.yaml"
   wait_deploy superset analytics
@@ -277,16 +310,43 @@ bootstrap_fresh() {
       warn "superset-bootstrap did not complete — dashboards may need manual setup"
   fi
 
+  # ── 13. Prometheus + Kiali (moved to end — Kiali helm was the biggest blocker) ─
   section "Deploying Prometheus"
   kubectl apply -f "${REPO_ROOT}/infra/observability/prometheus/prometheus.yaml"
   kubectl apply -f "${REPO_ROOT}/infra/observability/kiali/prometheus-alias.yaml"
-  # Restart Kiali so it picks up the live Prometheus connection
+
+  section "Installing Kiali (service mesh observability)"
+  helm repo add kiali https://kiali.org/helm-charts 2>/dev/null || true
+  helm repo update kiali
+  if helm status kiali-server -n istio-system &>/dev/null; then
+    info "Kiali already installed, upgrading..."
+    helm upgrade kiali-server kiali/kiali-server \
+      -n istio-system \
+      --version 1.86.0 \
+      --set auth.strategy=anonymous \
+      --wait
+  else
+    helm install kiali-server kiali/kiali-server \
+      -n istio-system \
+      --version 1.86.0 \
+      --set auth.strategy=anonymous \
+      --wait
+  fi
+  kubectl apply -f "${REPO_ROOT}/infra/observability/kiali/kiali-config-patch.yaml"
+  kubectl apply -f "${REPO_ROOT}/infra/observability/kiali/kiali-nodeport.yaml"
   kubectl rollout restart deployment/kiali -n istio-system
   kubectl rollout status deployment/kiali -n istio-system --timeout=120s
 
+  # ── 14. Debezium connectors ───────────────────────────────────────────────────
   section "Registering Debezium CDC connectors"
   bash "${REPO_ROOT}/infra/debezium/register-connectors.sh"
 
+  # ── 15. Verify Flink SQL runner completed ─────────────────────────────────────
+  section "Verifying Flink SQL runner"
+  kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeout=120s || \
+    warn "flink-sql-runner not yet complete — check: kubectl logs -n analytics -l job-name=flink-sql-runner"
+
+  # ── 16. Smoke test ────────────────────────────────────────────────────────────
   section "Smoke test"
   bash "${REPO_ROOT}/scripts/smoke-test.sh"
 

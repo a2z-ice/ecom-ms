@@ -1,6 +1,14 @@
 ---
+# ServiceAccount MUST be the first document — Job controller looks it up
+# immediately when scheduling the pod. If it doesn't exist yet, the pod fails.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: superset-bootstrap-sa
+  namespace: analytics
+
+---
 # ConfigMap — Superset bootstrap script
-# Contains the bootstrap_dashboards.py script mounted into the Superset pod
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -11,7 +19,12 @@ data:
     #!/usr/bin/env python3
     """
     Bootstrap Superset dashboards for the Book Store analytics.
-    Runs inside the Superset pod (has sqlite3, requests available).
+    Runs inside the Superset pod. Uses the superset venv Python so all
+    dependencies (including requests) are already available — no pip install.
+
+    Confirmed working viz types in apache/superset:latest:
+      echarts_timeseries_bar, echarts_timeseries_line, pie, table, big_number_total
+    Do NOT use: echarts_bar, echarts_pie (not registered in this Superset build).
     """
     import json
     import os
@@ -121,15 +134,18 @@ data:
         ds = {v: upsert_dataset(s, t, c, db_id, v) for v in views}
         print(f"  Datasets: {ds}")
 
-        bar = upsert_chart(s, t, c, "Product Sales Volume", "echarts_bar", ds["vw_product_sales_volume"],
-            {"metrics": [metric("units_sold","BIGINT")], "groupby": ["title"], "x_axis": "title", "row_limit": 20, "color_scheme": "supersetColors"})
+        # echarts_timeseries_bar: the only registered bar chart type in apache/superset:latest.
+        # Works for categorical x-axis (title, author, genre) as well as time-series.
+        bar = upsert_chart(s, t, c, "Product Sales Volume", "echarts_timeseries_bar", ds["vw_product_sales_volume"],
+            {"metrics": [metric("units_sold","BIGINT")], "groupby": [], "x_axis": "title", "row_limit": 20, "color_scheme": "supersetColors"})
         line = upsert_chart(s, t, c, "Sales Over Time", "echarts_timeseries_line", ds["vw_sales_over_time"],
             {"metrics": [metric("daily_revenue")], "groupby": [], "x_axis": "sale_date", "row_limit": 365, "color_scheme": "supersetColors"})
-        rev_author = upsert_chart(s, t, c, "Revenue by Author", "echarts_bar", ds["vw_revenue_by_author"],
-            {"metrics": [metric("revenue")], "groupby": ["author"], "x_axis": "author", "row_limit": 20, "color_scheme": "supersetColors"})
-        top_books = upsert_chart(s, t, c, "Top Books by Revenue", "echarts_bar", ds["vw_top_books_by_revenue"],
-            {"metrics": [metric("total_revenue")], "groupby": ["title"], "x_axis": "title", "row_limit": 10, "color_scheme": "supersetColors"})
-        price_dist = upsert_chart(s, t, c, "Book Price Distribution", "echarts_pie", ds["vw_book_price_distribution"],
+        rev_author = upsert_chart(s, t, c, "Revenue by Author", "echarts_timeseries_bar", ds["vw_revenue_by_author"],
+            {"metrics": [metric("revenue")], "groupby": [], "x_axis": "author", "row_limit": 20, "color_scheme": "supersetColors"})
+        top_books = upsert_chart(s, t, c, "Top Books by Revenue", "echarts_timeseries_bar", ds["vw_top_books_by_revenue"],
+            {"metrics": [metric("total_revenue")], "groupby": [], "x_axis": "title", "row_limit": 10, "color_scheme": "supersetColors"})
+        # pie: the registered pie chart type; use metric (singular) + groupby
+        price_dist = upsert_chart(s, t, c, "Book Price Distribution", "pie", ds["vw_book_price_distribution"],
             {"metric": metric("book_count","BIGINT"), "groupby": ["price_range"], "row_limit": 10, "color_scheme": "supersetColors", "show_labels": True})
         total_rev = upsert_chart(s, t, c, "Total Revenue KPI", "big_number_total", ds["vw_sales_over_time"],
             {"metric": metric("daily_revenue"), "subheader": "Total Revenue (All Time)", "y_axis_format": "$,.2f"})
@@ -137,23 +153,23 @@ data:
             {"metric": metric("order_count","BIGINT"), "subheader": "Total Orders (All Time)", "y_axis_format": ",d"})
         avg_ord_kpi = upsert_chart(s, t, c, "Average Order Value KPI", "big_number_total", ds["vw_avg_order_value"],
             {"metric": metric("avg_order_value","DOUBLE PRECISION","AVG"), "subheader": "Avg Order Value", "y_axis_format": "$,.2f"})
-        ord_status = upsert_chart(s, t, c, "Order Status Distribution", "echarts_pie", ds["vw_order_status_distribution"],
+        ord_status = upsert_chart(s, t, c, "Order Status Distribution", "pie", ds["vw_order_status_distribution"],
             {"metric": metric("order_count","BIGINT"), "groupby": ["status"], "row_limit": 10, "color_scheme": "supersetColors", "show_labels": True})
         avg_ord_time = upsert_chart(s, t, c, "Avg Order Value Over Time", "echarts_timeseries_line", ds["vw_avg_order_value"],
             {"metrics": [metric("avg_order_value")], "groupby": [], "x_axis": "sale_date", "row_limit": 365, "color_scheme": "supersetColors"})
         inv_table = upsert_chart(s, t, c, "Inventory Health Table", "table", ds["vw_inventory_health"],
             {"all_columns": ["title","author","stock_quantity","reserved","available","stock_status"],
              "order_by_cols": ["available"], "row_limit": 50})
-        stock_res = upsert_chart(s, t, c, "Stock vs Reserved", "echarts_bar", ds["vw_inventory_health"],
+        stock_res = upsert_chart(s, t, c, "Stock vs Reserved", "echarts_timeseries_bar", ds["vw_inventory_health"],
             {"metrics": [metric("stock_quantity","INTEGER"), metric("reserved","INTEGER")],
-             "groupby": ["title"], "x_axis": "title", "row_limit": 20, "color_scheme": "supersetColors"})
-        inv_turn = upsert_chart(s, t, c, "Inventory Turnover Rate", "echarts_bar", ds["vw_inventory_turnover"],
-            {"metrics": [metric("turnover_rate_pct")], "groupby": ["title"], "x_axis": "title", "row_limit": 20, "color_scheme": "supersetColors"})
-        rev_genre = upsert_chart(s, t, c, "Revenue by Genre", "echarts_bar", ds["vw_revenue_by_genre"],
-            {"metrics": [metric("revenue")], "groupby": ["genre"], "x_axis": "genre", "row_limit": 20, "color_scheme": "supersetColors"})
-        stock_status = upsert_chart(s, t, c, "Stock Status Distribution", "echarts_pie", ds["vw_inventory_health"],
+             "groupby": [], "x_axis": "title", "row_limit": 20, "color_scheme": "supersetColors"})
+        inv_turn = upsert_chart(s, t, c, "Inventory Turnover Rate", "echarts_timeseries_bar", ds["vw_inventory_turnover"],
+            {"metrics": [metric("turnover_rate_pct")], "groupby": [], "x_axis": "title", "row_limit": 20, "color_scheme": "supersetColors"})
+        rev_genre = upsert_chart(s, t, c, "Revenue by Genre", "echarts_timeseries_bar", ds["vw_revenue_by_genre"],
+            {"metrics": [metric("revenue")], "groupby": [], "x_axis": "genre", "row_limit": 20, "color_scheme": "supersetColors"})
+        stock_status = upsert_chart(s, t, c, "Stock Status Distribution", "pie", ds["vw_inventory_health"],
             {"metric": metric("stock_quantity","INTEGER"), "groupby": ["stock_status"], "row_limit": 10, "color_scheme": "supersetColors", "show_labels": True})
-        rev_share_genre = upsert_chart(s, t, c, "Revenue Share by Genre", "echarts_pie", ds["vw_revenue_by_genre"],
+        rev_share_genre = upsert_chart(s, t, c, "Revenue Share by Genre", "pie", ds["vw_revenue_by_genre"],
             {"metric": metric("revenue"), "groupby": ["genre"], "row_limit": 10, "color_scheme": "supersetColors", "show_labels": True})
 
         upsert_dashboard(s, t, c, "Book Store Analytics", [bar, line, rev_author, top_books, price_dist])
@@ -165,8 +181,7 @@ data:
         main()
 
 ---
-# Kubernetes Job — runs bootstrap script inside the Superset pod via kubectl exec
-# The job uses the same Superset image with the script mounted from the ConfigMap
+# Kubernetes Job — bootstraps Superset dashboards/charts via the REST API.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -183,7 +198,6 @@ spec:
         runAsUser: 1000
         fsGroup: 1000
       initContainers:
-        # Wait for Superset to be ready before running bootstrap
         - name: wait-for-superset
           image: curlimages/curl:latest
           command:
@@ -212,12 +226,11 @@ spec:
         - name: bootstrap
           image: apache/superset:latest
           imagePullPolicy: IfNotPresent
+          # Use the Superset venv Python — requests and all deps already present.
+          # No pip install needed, no network dependency, no PVC dependency.
           command:
-            - sh
-            - -c
-            - |
-              pip install requests --quiet
-              python /bootstrap/bootstrap_dashboards.py
+            - /app/.venv/bin/python
+            - /bootstrap/bootstrap_dashboards.py
           envFrom:
             - secretRef:
                 name: superset-secret
@@ -254,11 +267,3 @@ spec:
             claimName: superset-pvc
         - name: tmp
           emptyDir: {}
-
----
-# ServiceAccount for the bootstrap job (minimal permissions — just pod access)
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: superset-bootstrap-sa
-  namespace: analytics
