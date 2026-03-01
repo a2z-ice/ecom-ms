@@ -128,8 +128,7 @@ echo ""
 # 6. Debezium connector status
 info "Checking Debezium CDC connectors..."
 for connector in ecom-connector inventory-connector; do
-  STATUS=$(kubectl exec -n infra deploy/debezium -- \
-    curl -sf "http://localhost:8083/connectors/${connector}/status" 2>/dev/null \
+  STATUS=$(curl -s --max-time 10 "http://localhost:32300/connectors/${connector}/status" 2>/dev/null \
     | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['connector']['state'])" 2>/dev/null \
     || echo "UNKNOWN")
   [[ "$STATUS" == "RUNNING" ]] \

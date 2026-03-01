@@ -15,7 +15,7 @@ info() { echo -e "${YELLOW}INFO${NC} $*"; }
 http_check() {
   local label=$1 url=$2 expected=${3:-200}
   local code
-  code=$(curl -sf -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null || echo "000")
+  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null || echo "000")
   [[ "$code" == "$expected" ]] && ok "[$label] $url → $code" || fail "[$label] $url → expected=$expected actual=$code"
 }
 
@@ -76,8 +76,7 @@ echo ""
 # ── 4. Debezium connector status ─────────────────────────────────────────────
 info "Checking Debezium connectors..."
 for connector in ecom-connector inventory-connector; do
-  STATUS=$(kubectl exec -n infra deploy/debezium -- \
-    curl -sf "http://localhost:8083/connectors/${connector}/status" 2>/dev/null \
+  STATUS=$(curl -s --max-time 10 "http://localhost:32300/connectors/${connector}/status" 2>/dev/null \
     | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['connector']['state'])" 2>/dev/null || echo "UNKNOWN")
   [[ "$STATUS" == "RUNNING" ]] && ok "[Debezium] $connector=RUNNING" || fail "[Debezium] $connector=$STATUS"
 done

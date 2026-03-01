@@ -51,7 +51,7 @@ while [[ $ELAPSED -lt $MAX_WAIT ]]; do
   COUNT=$(kubectl exec -n analytics \
     "$(kubectl get pod -n analytics -l app=analytics-db -o jsonpath='{.items[0].metadata.name}')" \
     -- sh -c "PGPASSWORD=\$POSTGRES_PASSWORD psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"
-      SELECT COUNT(*) FROM fact_orders WHERE order_id = '${TEST_ORDER_ID}';
+      SELECT COUNT(*) FROM fact_orders WHERE id = '${TEST_ORDER_ID}';
     \"" 2>/dev/null || echo "0")
 
   if [[ "${COUNT// /}" == "1" ]]; then

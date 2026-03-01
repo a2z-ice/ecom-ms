@@ -1,0 +1,22 @@
+
+Write me a plan.md file. Have a e-commerce application in microservice architecture. I have two separate microservices one is for the e-commerce portal and another is inventory. I have keycloak as Identity provider. the front end is developed using react and backend is spring boot, the inventory is being developed in python fastapi. Now I want to enhance it. I want to create a event calendar which is being only used by admin user. In this event calendar the admin setup or configure the promotion package and the interval of the promotion like when the promotion start data , time and when it ends. The enter interval will be marked in a professional look. When the promotion starts it being notified about the product and let customer know the promotion every day so when customer login and they will receive the promotion message about the product. The admin can draft the event and the event will take effect only when admin publish the event.
+
+When the event publish the event only on the start event days a job will be takeing the responsibility to send message every day once to every user. When user login they will see the promotion message about the product in their inbox. The inbox menue will show the count of inbox unread message (the standrad UI and process neeed to maintain). The inbox menu must located next the logout botton's left side.
+
+Techonologies:
+The message will be send every day based on the event calender start date, time and end date time. So a job will be triggred using flink and will be running only withing the time interval is being set by the admin
+The job will be a knative rust application job so the flink job will trigger the knative rust application job to send the message to the user inbox. The message will be stored in a separate microservice which is responsible for handling the messages and notifications. This microservice will be developed using spring boot and will have its own database to store the messages.
+The event calendar will be developed as a separate microservice using spring boot and will have its own database to store the event details. The admin will be able to create, edit, and delete events through a user-friendly interface. The event details will include the promotion package, start date, time, and end date.
+The front end will be updated to include the event calendar for the admin user and the inbox menu for the customers. The inbox menu will show the count of unread messages and will allow users to view their messages in a professional and user-friendly manner.
+The integration between the microservices will be done using REST APIs. The event calendar microservice will communicate with the message microservice to trigger the sending of messages when an event is published. The message microservice will handle the logic for sending messages to users based on the event details and the time interval set by the admin.
+Overall, this enhancement will provide a seamless experience for both the admin and the customers, allowing the admin to easily manage promotions and the customers to stay informed about the latest promotions through their inbox. The use of microservices and the integration between them will ensure scalability and maintainability of the application.# E-commerce Application Enhancement Plan
+
+## Overview
+This document outlines the plan to enhance our existing e-commerce application by introducing an event calendar feature for admin users. This feature will allow admins to set up and configure promotion packages, including the start and end dates and times for promotions. Customers will receive notifications about active promotions in their inbox when they log in. The enhancement will involve the development of new microservices and the integration of existing ones, utilizing technologies such as Spring Boot, FastAPI, Flink, Knative, and Rust.    
+## Technologies Used
+- **Frontend**: React
+- **Backend**: Spring Boot (for e-commerce portal and message microservice), FastAPI (for inventory microservice)
+- **Identity Provider**: Keycloak
+- **Job Scheduling**: Flink
+- **Message Sending**: Knative Rust application
+- **Databases**: Separate databases for event calendar and message microservices    

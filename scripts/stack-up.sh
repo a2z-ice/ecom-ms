@@ -85,8 +85,6 @@ wait_deployment ui-service ecom         || true
 
 # ── Step 7: Debezium CDC connectors ────────────────────────────────────────
 section "Debezium CDC connectors"
-info "Waiting 20s for Debezium to be fully ready..."
-sleep 20
 bash "${REPO_ROOT}/infra/debezium/register-connectors.sh" || true
 
 # ── Step 8: Analytics consumer ─────────────────────────────────────────────
@@ -113,21 +111,8 @@ if [[ -f "${REPO_ROOT}/infra/observability/prometheus/prometheus.yaml" ]]; then
 fi
 kubectl apply -f "${REPO_ROOT}/infra/observability/kiali/prometheus-alias.yaml"
 kubectl apply -f "${REPO_ROOT}/infra/observability/kiali/kiali-nodeport.yaml"
+info "Kiali available at http://localhost:32100/kiali (kind NodePort — no proxy needed)"
 
-# ── Step 11: Kiali Docker proxy ────────────────────────────────────────────
-section "Kiali proxy (localhost:32100)"
-CTRL_IP=$(kubectl get node bookstore-control-plane \
-  -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')
-docker rm -f kiali-proxy 2>/dev/null || true
-docker run -d \
-  --name kiali-proxy \
-  --network kind \
-  --restart unless-stopped \
-  -p 32100:32100 \
-  alpine/socat \
-  TCP-LISTEN:32100,fork,reuseaddr "TCP:${CTRL_IP}:32100"
-info "Kiali available at http://localhost:32100/kiali"
-
-# ── Step 12: Sanity test ───────────────────────────────────────────────────
+# ── Step 11: Sanity test ───────────────────────────────────────────────────
 section "Sanity test"
 bash "${REPO_ROOT}/scripts/sanity-test.sh"

@@ -151,10 +151,14 @@ data:
             {"metrics": [metric("turnover_rate_pct")], "groupby": ["title"], "x_axis": "title", "row_limit": 20, "color_scheme": "supersetColors"})
         rev_genre = upsert_chart(s, t, c, "Revenue by Genre", "echarts_bar", ds["vw_revenue_by_genre"],
             {"metrics": [metric("revenue")], "groupby": ["genre"], "x_axis": "genre", "row_limit": 20, "color_scheme": "supersetColors"})
+        stock_status = upsert_chart(s, t, c, "Stock Status Distribution", "echarts_pie", ds["vw_inventory_health"],
+            {"metric": metric("stock_quantity","INTEGER"), "groupby": ["stock_status"], "row_limit": 10, "color_scheme": "supersetColors", "show_labels": True})
+        rev_share_genre = upsert_chart(s, t, c, "Revenue Share by Genre", "echarts_pie", ds["vw_revenue_by_genre"],
+            {"metric": metric("revenue"), "groupby": ["genre"], "row_limit": 10, "color_scheme": "supersetColors", "show_labels": True})
 
         upsert_dashboard(s, t, c, "Book Store Analytics", [bar, line, rev_author, top_books, price_dist])
         upsert_dashboard(s, t, c, "Sales & Revenue Analytics", [total_rev, total_ord, avg_ord_kpi, ord_status, avg_ord_time])
-        upsert_dashboard(s, t, c, "Inventory Analytics", [inv_table, stock_res, inv_turn, rev_genre])
+        upsert_dashboard(s, t, c, "Inventory Analytics", [inv_table, stock_res, inv_turn, rev_genre, stock_status, rev_share_genre])
         print("Bootstrap complete.")
 
     if __name__ == "__main__":

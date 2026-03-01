@@ -60,15 +60,48 @@ npm run report                    # open last HTML report
 ```
 
 ### Cluster Lifecycle
+
+**Recommended — use the smart master script:**
+```bash
+bash scripts/up.sh           # smart start: fresh bootstrap, recovery, or health check (auto-detects)
+bash scripts/up.sh --fresh   # force full teardown + rebuild from scratch
+bash scripts/down.sh         # delete cluster (keeps data)
+bash scripts/down.sh --data  # delete cluster + wipe all data
+bash scripts/down.sh --all   # delete cluster + data + images
+```
+
+**Individual steps (advanced):**
 ```bash
 bash scripts/cluster-up.sh        # create kind cluster + Istio + Kubernetes Gateway API
 bash scripts/infra-up.sh          # apply all infra manifests
 bash scripts/keycloak-import.sh   # patch ConfigMap + run realm import Job
-bash infra/debezium/register-connectors.sh  # POST CDC connectors
+bash infra/debezium/register-connectors.sh  # PUT CDC connectors (reads creds from K8s secret)
 bash scripts/verify-routes.sh     # smoke-test all external HTTP routes
 bash scripts/verify-cdc.sh        # seed row + poll analytics DB (30s)
 bash scripts/smoke-test.sh        # full stack check
 ```
+
+### After Docker Desktop Restart
+**Use `up.sh`** — it auto-detects the degraded state and runs full recovery:
+```bash
+bash scripts/up.sh
+```
+
+Or use the dedicated recovery script directly:
+```bash
+bash scripts/restart-after-docker.sh
+```
+
+This handles all root causes automatically:
+1. **ztunnel restart** — Istio Ambient mesh HBONE plumbing breaks after Docker restart; ztunnel must be restarted first
+2. **Pod rolling restart (all pods)** — After ztunnel restart, existing pods lose HBONE registration; every pod must restart in dependency order (DBs first, then apps)
+3. **Debezium connector re-registration** — Kafka topics (including `debezium.configs`) are lost on Kafka restart; connectors must be re-registered
+
+See `docs/restart-app.md` for the full explanation and root cause analysis.
+
+**Important Debezium re-registration caveat:** The `${file:...}` FileConfigProvider syntax does NOT expand during Kafka Connect connector validation (only at task startup). `register-connectors.sh` reads real credentials from the K8s secret and injects them directly — do NOT send `${file:...}` literals during PUT.
+
+**Connector registration format:** Use `PUT /connectors/{name}/config` with just the config object (no outer `name`/`config` wrapper). The JSON files in `infra/debezium/connectors/` have the full wrapper format for `POST /connectors` — `register-connectors.sh` extracts the `config` key automatically.
 
 ---
 
@@ -378,6 +411,24 @@ Applied in this order per namespace:
 2. `RequestAuthentication` — Keycloak JWKS for JWT validation
 3. `AuthorizationPolicy` — explicit allow rules; default deny-all implied
 
+**NodePort + STRICT mTLS**: ztunnel on worker nodes intercepts ALL inbound traffic (including kind NodePort from host). To allow direct host→pod plaintext for NodePort-exposed services, use `portLevelMtls: PERMISSIVE` on the specific port. This REQUIRES a `selector` — namespace-wide `portLevelMtls` is not supported:
+```yaml
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: debezium-nodeport-permissive
+  namespace: infra
+spec:
+  selector:
+    matchLabels:
+      app: debezium
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "8083":
+      mode: PERMISSIVE
+```
+
 ### CDC / Debezium Pattern
 
 - PostgreSQL must have `wal_level=logical` (set via `POSTGRES_INITDB_ARGS` or ConfigMap)
@@ -415,14 +466,17 @@ Applied in this order per namespace:
 ### Scripts Naming Convention
 
 All `scripts/` files must be idempotent (safe to run multiple times):
+- `up.sh` — **master smart startup**: auto-detects scenario (no cluster → fresh bootstrap; degraded → recovery; healthy → verify connectors + smoke test); options: `--fresh`, `--yes`/`-y`
+- `down.sh` — enhanced teardown; options: `--data` (wipe `./data/`), `--images` (remove Docker images), `--all` (data + images), `--yes`/`-y` (skip prompts)
 - `cluster-up.sh` — create kind cluster + install Istio + Kubernetes Gateway API + namespaces; substitutes `DATA_DIR` placeholder in `infra/kind/cluster.yaml` via `sed` before calling `kind create`
+- `cluster-down.sh` — thin wrapper around `down.sh`; maps `--purge-data` → `--data` for backward compat
 - `infra-up.sh` — apply all infra manifests
 - `verify-routes.sh` — curl all external routes, assert HTTP 200/302
 - `verify-cdc.sh` — seed a row, poll analytics DB, assert row present
-- `smoke-test.sh` — full stack smoke test (used in Session 13)
+- `smoke-test.sh` — full stack smoke test
 - `stack-up.sh` — one-command full bootstrap (cluster + infra + keycloak + connectors)
-- `cluster-down.sh` — clean teardown; `--purge-data` to delete host data volumes
 - `sanity-test.sh` — comprehensive cluster health check (pods + routes + Kafka + Debezium)
+- `restart-after-docker.sh` — full recovery after Docker Desktop restart (ztunnel + pod restarts in dependency order + Debezium re-registration)
 
 ---
 
@@ -438,9 +492,9 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 
 ---
 
-## Current Implementation State (as of 2026-02-28)
+## Current Implementation State (as of 2026-03-01)
 
-**Sessions 1–18 complete + UI bug fixes. E2E: 89/89 passing.**
+**Sessions 1–18 complete + UI bug fixes + fresh-cluster bootstrap fixes. E2E: 89/89 passing.**
 
 ### Cluster: `bookstore` (kind, 3 nodes) — RUNNING
 
@@ -470,8 +524,8 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 - Keycloak realm `bookstore` imported ✓, JWT validation working ✓
 - CDC pipeline: Debezium → Kafka → Flink SQL → analytics-db ✓ (replaces Python consumer)
 - Flink REST API `/jobs` shows 4 streaming jobs in RUNNING state ✓
-- Flink Web Dashboard: `http://localhost:32200` (via flink-proxy docker container) ✓
-- Debezium REST API: `http://localhost:32300` (via debezium-proxy docker container) ✓
+- Flink Web Dashboard: `http://localhost:32200` (kind hostPort, NodePort 32200) ✓
+- Debezium REST API: `http://localhost:32300` (kind hostPort, NodePort 32300) ✓
 - Superset: 3 dashboards, 16 charts (Book Store Analytics, Sales & Revenue Analytics, Inventory Analytics) ✓
 - Analytics DB: 10 views (`\dv vw_*`) ✓
 - Kiali: traffic graph populated (10 nodes, 12 edges for ecom+inventory), Prometheus scraping ztunnel + istiod ✓
@@ -479,28 +533,20 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 - ecom-service → inventory-service synchronous mTLS reserve call on checkout ✓
 - All Istio AuthorizationPolicies L4-only (ztunnel-compatible) ✓
 
-### NodePort + Proxy Map
+### NodePort Map
 
-| Service | NodePort | Host URL | Docker Proxy |
-|---------|----------|----------|-------------|
-| Main Gateway | 30000 | `http://myecom.net:30000` | kind hostPort |
-| PgAdmin | 31111 | `http://localhost:31111` | kind hostPort |
-| Superset | 32000 | `http://localhost:32000` | kind hostPort |
-| Kiali | 32100 | `http://localhost:32100/kiali` | `kiali-proxy` docker container |
-| **Flink** | **32200** | **`http://localhost:32200`** | **`flink-proxy` docker container** |
-| **Debezium** | **32300** | **`http://localhost:32300`** | **`debezium-proxy` docker container** |
+All ports are exposed directly via kind `extraPortMappings` on the control-plane node — no proxy containers needed.
 
-**Set up proxies (one-time after cluster creation):**
-```bash
-CTRL_IP=$(kubectl get node bookstore-control-plane -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')
-kubectl apply -f infra/flink/flink-cluster.yaml     # includes flink-jobmanager-nodeport
-kubectl apply -f infra/debezium/debezium.yaml        # includes debezium-nodeport
-docker rm -f flink-proxy debezium-proxy 2>/dev/null || true
-docker run -d --name flink-proxy --network kind --restart unless-stopped \
-  -p 32200:32200 alpine/socat TCP-LISTEN:32200,fork,reuseaddr TCP:${CTRL_IP}:32200
-docker run -d --name debezium-proxy --network kind --restart unless-stopped \
-  -p 32300:32300 alpine/socat TCP-LISTEN:32300,fork,reuseaddr TCP:${CTRL_IP}:32300
-```
+| Service | NodePort | Host URL |
+|---------|----------|----------|
+| Main Gateway | 30000 | `http://myecom.net:30000` |
+| PgAdmin | 31111 | `http://localhost:31111` |
+| Superset | 32000 | `http://localhost:32000` |
+| Kiali | 32100 | `http://localhost:32100/kiali` |
+| Flink | 32200 | `http://localhost:32200` |
+| Debezium | 32300 | `http://localhost:32300` |
+
+All 6 ports are declared in `infra/kind/cluster.yaml` under `extraPortMappings` on the `control-plane` role node. kind binds them directly from host to the container port — no socat or proxy containers required.
 
 ### UI Bug Fixes — Completed (Post Session 15)
 
@@ -564,7 +610,7 @@ docker run -d --name debezium-proxy --network kind --restart unless-stopped \
   - **Working viz types** (confirmed in `apache/superset:latest`): `echarts_timeseries_bar`, `echarts_timeseries_line`, `pie`, `table`, `big_number_total`
   - `echarts_bar` and `echarts_pie` are NOT registered — do not use them
 - **Python consumer deleted**: `analytics/consumer/main.py`, `Dockerfile`, `requirements.txt`, `infra/analytics/analytics-consumer.yaml` removed
-- **NodePort services**: Flink Web Dashboard at NodePort 32200 (`flink-jobmanager-nodeport` service) + Debezium REST API at NodePort 32300 (`debezium-nodeport` service). Both use docker socat proxy containers.
+- **NodePort services**: Flink Web Dashboard at NodePort 32200 (`flink-jobmanager-nodeport` service) + Debezium REST API at NodePort 32300 (`debezium-nodeport` service). Both exposed directly via kind `extraPortMappings` — no proxy containers.
 - **E2E coverage**: `e2e/superset.spec.ts` expanded to 17 tests (API + UI: 3 dashboards, 14 charts, 10 datasets); `e2e/debezium-flink.spec.ts` (NEW) — 29 tests covering Debezium API, Flink dashboard, CDC end-to-end flow, operational health.
 - **Documentation**: `docs/debezium-flink-cdc.md` — comprehensive guide with architecture diagrams, per-component deep dives, data flow walkthrough, REST API reference, and E2E test coverage index.
 
@@ -586,9 +632,21 @@ Debezium → Kafka (4 topics) → Flink SQL (plain json format, after field extr
 
 **Exactly-once**: Flink checkpoints at `/opt/flink/checkpoints` (PVC-backed, `filesystem` state backend). Interval: 30s, mode: `EXACTLY_ONCE`.
 
+### Fresh Bootstrap Fixes (2026-03-01)
+
+These bugs were found and fixed during a full `up.sh --fresh --data` rebuild:
+
+- **GatewayClass race condition**: `kgateway/install.sh` now polls for `gatewayclass/istio` before `kubectl wait` (istiod creates it asynchronously after startup)
+- **Istio Gateway NodePort**: Istio auto-creates `bookstore-gateway-istio` service with random NodePort. `up.sh` now patches it to 30000 after creation (must match kind `extraPortMappings`)
+- **Istio STRICT mTLS + NodePort**: ztunnel rejects plaintext from host via kind NodePort. Fixed with workload-specific `PeerAuthentication` using `portLevelMtls: PERMISSIVE` for each NodePort-exposed infra/analytics service (requires `selector`; namespace-wide portLevelMtls is not supported)
+- **Kafka CDC topics**: `KAFKA_AUTO_CREATE_TOPICS_ENABLE=false` — added 4 Debezium topics to kafka-topic-init job (`ecom-connector.public.{books,orders,order_items}`, `inventory-connector.public.inventory`)
+- **Keycloak missing `sub` claim**: Realm import with custom `clientScopes` (roles/profile/email) replaced Keycloak's built-in `openid` scope, losing the `sub` claim mapper. Fixed: added `oidc-sub-mapper` to the `profile` scope in `realm-export.json`. Without `sub`, `jwt.getSubject()` returns null → `null user_id` in cart_items.
+- **Analytics DDL ordering**: Must be applied BEFORE Flink starts (Flink JDBC sink requires tables to pre-exist). Moved DDL apply to right after `analytics-db` is ready. Fixed `kubectl exec` to use `-i` flag (without it, stdin redirect is silently ignored).
+- **verify-cdc.sh column name**: Fixed `WHERE order_id = '...'` to `WHERE id = '...'` in fact_orders polling query.
+
 ### NEXT SESSION — Start Here
 
-**All 18 sessions complete + UI bug fixes done.** Outstanding items:
+**All 18 sessions complete + UI bug fixes + fresh-cluster bootstrap fully validated.** Outstanding items:
 - DB data persistence — mount all 4 PostgreSQL DBs to host `data/` folder (PVs exist, but cluster.yaml and PV/PVC wiring needed)
 - Kafka persistence — topics lost on pod restart; add PVC or recreate on startup
 
@@ -629,3 +687,5 @@ until (bash -c ">/dev/tcp/keycloak.identity.svc.cluster.local/8080" 2>/dev/null)
   sleep 5
 done
 ```
+
+**`sub` claim in access tokens**: Keycloak's built-in `openid` scope includes the `sub` (subject UUID) claim mapper. When a realm import defines custom `clientScopes` (roles/profile/email), the import replaces Keycloak's built-in scopes and the `openid` scope's `sub` mapper is lost. **Fix**: add `oidc-sub-mapper` explicitly to the `profile` scope in `realm-export.json`. Without `sub`, `jwt.getSubject()` returns null in Spring Security → `null value in column "user_id"` DB errors.

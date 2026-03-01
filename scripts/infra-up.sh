@@ -44,9 +44,8 @@ kubectl apply -f "${REPO_ROOT}/infra/redis/redis.yaml"
 wait_deployment redis infra
 
 # ── 3. Kafka + Zookeeper ────────────────────────────────────────────────────
-info "Deploying Zookeeper..."
-kubectl apply -f "${REPO_ROOT}/infra/kafka/zookeeper.yaml"
-wait_deployment zookeeper infra
+info "Deploying Zookeeper placeholder (intentionally empty — Kafka runs in KRaft mode)..."
+kubectl apply -f "${REPO_ROOT}/infra/kafka/zookeeper.yaml" 2>/dev/null || true
 
 info "Deploying Kafka..."
 kubectl apply -f "${REPO_ROOT}/infra/kafka/kafka.yaml"

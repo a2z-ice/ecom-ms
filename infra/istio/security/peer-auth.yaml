@@ -32,6 +32,41 @@ spec:
     mode: STRICT
 
 ---
+# Superset: NodePort 32000 receives plaintext from kind hostPort — allow on app port 8088.
+# portLevelMtls requires a selector (cannot be used on namespace-wide policies).
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: superset-nodeport-permissive
+  namespace: analytics
+spec:
+  selector:
+    matchLabels:
+      app: superset
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "8088":
+      mode: PERMISSIVE
+
+---
+# Flink: NodePort 32200 receives plaintext from kind hostPort — allow on app port 8081.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: flink-nodeport-permissive
+  namespace: analytics
+spec:
+  selector:
+    matchLabels:
+      app: flink-jobmanager
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "8081":
+      mode: PERMISSIVE
+
+---
 apiVersion: security.istio.io/v1
 kind: PeerAuthentication
 metadata:
@@ -50,3 +85,37 @@ metadata:
 spec:
   mtls:
     mode: STRICT
+
+---
+# Debezium: NodePort 32300 receives plaintext from kind hostPort — allow on app port 8083.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: debezium-nodeport-permissive
+  namespace: infra
+spec:
+  selector:
+    matchLabels:
+      app: debezium
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "8083":
+      mode: PERMISSIVE
+
+---
+# PgAdmin: NodePort 31111 receives plaintext from kind hostPort — allow on app port 80.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: pgadmin-nodeport-permissive
+  namespace: infra
+spec:
+  selector:
+    matchLabels:
+      app: pgadmin
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "80":
+      mode: PERMISSIVE

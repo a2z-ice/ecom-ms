@@ -153,6 +153,11 @@ spec:
 
               create_topic "order.created"
               create_topic "inventory.updated"
+              # Debezium CDC topics (auto-create disabled, must be pre-created)
+              create_topic "ecom-connector.public.books"
+              create_topic "ecom-connector.public.orders"
+              create_topic "ecom-connector.public.order_items"
+              create_topic "inventory-connector.public.inventory"
               echo "All topics ready."
           resources:
             requests:
