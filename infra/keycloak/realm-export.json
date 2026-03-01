@@ -113,7 +113,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "REPLACE_USER1_PASSWORD",
+          "value": "CHANGE_ME",
           "temporary": false
         }
       ],
@@ -131,7 +131,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "REPLACE_ADMIN1_PASSWORD",
+          "value": "CHANGE_ME",
           "temporary": false
         }
       ],

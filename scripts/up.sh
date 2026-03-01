@@ -146,10 +146,11 @@ bootstrap_fresh() {
   kubectl apply -f "${REPO_ROOT}/infra/kafka/zookeeper.yaml" 2>/dev/null || true  # intentionally empty placeholder
   kubectl apply -f "${REPO_ROOT}/infra/kafka/kafka.yaml"
   wait_deploy kafka infra
-  # Re-apply to trigger kafka-topic-init Job (idempotent: delete stale job first)
+  # Apply topic-init Job separately (never re-apply kafka.yaml here — that would
+  # reconfigure the Deployment and could restart Kafka mid-job).
   kubectl delete job kafka-topic-init -n infra --ignore-not-found
-  kubectl apply -f "${REPO_ROOT}/infra/kafka/kafka.yaml"
-  kubectl wait --for=condition=complete job/kafka-topic-init -n infra --timeout=120s
+  kubectl apply -f "${REPO_ROOT}/infra/kafka/kafka-topics-init.yaml"
+  kubectl wait --for=condition=complete job/kafka-topic-init -n infra --timeout=300s
 
   section "Deploying Debezium (Kafka Connect)"
   # Create debezium-db-credentials secret from the same passwords used by the DB secrets
@@ -187,6 +188,33 @@ bootstrap_fresh() {
   wait_deploy keycloak-db identity
   wait_deploy keycloak identity
   bash "${REPO_ROOT}/scripts/keycloak-import.sh"
+
+  # Reset bookstore user passwords via the Keycloak admin API.
+  # The realm-export.json now uses "CHANGE_ME" directly, but this step also
+  # ensures any previous cluster still gets the correct passwords applied.
+  info "Resetting bookstore user passwords..."
+  _KC_ADMIN_TOKEN=$(curl -s -X POST \
+    "http://idp.keycloak.net:30000/realms/master/protocol/openid-connect/token" \
+    -d "grant_type=password&client_id=admin-cli&username=admin&password=CHANGE_ME" \
+    -H "Content-Type: application/x-www-form-urlencoded" \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('access_token',''))")
+  if [[ -n "$_KC_ADMIN_TOKEN" ]]; then
+    for _username in user1 admin1; do
+      _uid=$(curl -s -H "Authorization: Bearer $_KC_ADMIN_TOKEN" \
+        "http://idp.keycloak.net:30000/admin/realms/bookstore/users?username=${_username}" \
+        | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['id'] if d else '')")
+      if [[ -n "$_uid" ]]; then
+        curl -s -X PUT \
+          "http://idp.keycloak.net:30000/admin/realms/bookstore/users/${_uid}/reset-password" \
+          -H "Authorization: Bearer $_KC_ADMIN_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{"type":"password","value":"CHANGE_ME","temporary":false}'
+        info "  Password set for ${_username}"
+      fi
+    done
+  else
+    warn "Could not obtain Keycloak admin token — skipping password reset (realm import sets passwords)"
+  fi
 
   section "Building and loading application Docker images"
   # Build custom bookstore images and load them into kind (imagePullPolicy: IfNotPresent/Never)

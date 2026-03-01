@@ -1,0 +1,66 @@
+---
+# Job — pre-create required Kafka topics after Kafka is running.
+# Kept separate from kafka.yaml so re-running the job never re-applies
+# the Kafka deployment (which could trigger a restart and break the job).
+#
+# Usage:
+#   kubectl delete job kafka-topic-init -n infra --ignore-not-found
+#   kubectl apply -f infra/kafka/kafka-topics-init.yaml
+#   kubectl wait --for=condition=complete job/kafka-topic-init -n infra --timeout=300s
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-topic-init
+  namespace: infra
+spec:
+  # 20 retries with Kubernetes exponential backoff gives ~10 minutes of retry
+  # window — enough for image pull on a cold kind node (confluentinc/cp-kafka
+  # is ~600 MB and may need to be fetched on whichever node the pod lands on).
+  backoffLimit: 20
+  # Hard deadline: if the job has not completed in 5 minutes something is
+  # fundamentally wrong; fail fast so the operator can investigate.
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: topic-creator
+          image: confluentinc/cp-kafka:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for Kafka to be ready..."
+              until kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --list; do
+                echo "Kafka not ready yet, retrying in 5s..."
+                sleep 5
+              done
+
+              create_topic() {
+                local topic=$1
+                if kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --describe --topic "$topic" &>/dev/null; then
+                  echo "Topic '$topic' already exists."
+                else
+                  kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 \
+                    --create --topic "$topic" \
+                    --partitions 3 \
+                    --replication-factor 1
+                  echo "Topic '$topic' created."
+                fi
+              }
+
+              create_topic "order.created"
+              create_topic "inventory.updated"
+              # Debezium CDC topics (auto-create disabled, must be pre-created)
+              create_topic "ecom-connector.public.books"
+              create_topic "ecom-connector.public.orders"
+              create_topic "ecom-connector.public.order_items"
+              create_topic "inventory-connector.public.inventory"
+              echo "All topics ready."
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

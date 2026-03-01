@@ -52,10 +52,11 @@ kubectl apply -f "${REPO_ROOT}/infra/kafka/kafka.yaml"
 wait_deployment kafka infra
 
 info "Creating Kafka topics (Job)..."
-# If a previous kafka-topic-init job exists, delete it first (Jobs are immutable)
+# Apply topic-init Job separately — never re-apply kafka.yaml here because
+# that would reconfigure the Deployment and could restart Kafka mid-job.
 kubectl delete job kafka-topic-init -n infra --ignore-not-found
-kubectl apply -f "${REPO_ROOT}/infra/kafka/kafka.yaml"
-kubectl wait --for=condition=complete job/kafka-topic-init -n infra --timeout=120s
+kubectl apply -f "${REPO_ROOT}/infra/kafka/kafka-topics-init.yaml"
+kubectl wait --for=condition=complete job/kafka-topic-init -n infra --timeout=300s
 
 # ── 4. Debezium ─────────────────────────────────────────────────────────────
 info "Deploying Debezium..."

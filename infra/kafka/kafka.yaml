@@ -112,57 +112,5 @@ spec:
       targetPort: 9092
   type: ClusterIP
 
----
-# Job — pre-create required Kafka topics after Kafka is running.
-# Re-apply safe: Job names are unique; use a new Job for re-runs.
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: kafka-topic-init
-  namespace: infra
-spec:
-  backoffLimit: 5
-  template:
-    spec:
-      restartPolicy: OnFailure
-      containers:
-        - name: topic-creator
-          image: confluentinc/cp-kafka:latest
-          command:
-            - sh
-            - -c
-            - |
-              echo "Waiting for Kafka to be ready..."
-              until kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --list; do
-                echo "Kafka not ready yet, retrying in 5s..."
-                sleep 5
-              done
-
-              create_topic() {
-                local topic=$1
-                if kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --describe --topic "$topic" &>/dev/null; then
-                  echo "Topic '$topic' already exists."
-                else
-                  kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 \
-                    --create --topic "$topic" \
-                    --partitions 3 \
-                    --replication-factor 1
-                  echo "Topic '$topic' created."
-                fi
-              }
-
-              create_topic "order.created"
-              create_topic "inventory.updated"
-              # Debezium CDC topics (auto-create disabled, must be pre-created)
-              create_topic "ecom-connector.public.books"
-              create_topic "ecom-connector.public.orders"
-              create_topic "ecom-connector.public.order_items"
-              create_topic "inventory-connector.public.inventory"
-              echo "All topics ready."
-          resources:
-            requests:
-              cpu: 50m
-              memory: 128Mi
-            limits:
-              cpu: 200m
-              memory: 256Mi
+# kafka-topic-init Job is in a separate file: infra/kafka/kafka-topics-init.yaml
+# Apply it after this file + waiting for the Kafka deployment to be ready.
