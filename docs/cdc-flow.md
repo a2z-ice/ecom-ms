@@ -1,6 +1,9 @@
 # CDC Flow — Change Data Capture Pipeline
 
-This document explains how the CDC (Change Data Capture) pipeline works end to end: from a database row change in a source service, through Debezium and Kafka, to the analytics database — and ultimately to the Superset dashboards.
+> **Session 18 update:** The Python analytics consumer (`analytics/consumer/main.py`) was replaced
+> by **Apache Flink 1.20 SQL** in Session 18. This document has been updated to reflect the current
+> Flink-based architecture. For the full technical deep-dive see
+> [`docs/debezium-flink-cdc.md`](./debezium-flink-cdc.md).
 
 ---
 
@@ -8,124 +11,51 @@ This document explains how the CDC (Change Data Capture) pipeline works end to e
 
 ```
 ecom-db (PostgreSQL WAL)  ──┐
-                             ├──► Debezium (Kafka Connect) ──► Kafka Topics ──► analytics-consumer ──► analytics-db ──► Superset
-inventory-db (PostgreSQL WAL)┘
+                             ├──► Debezium (Kafka Connect) ──► Kafka Topics ──► Flink SQL ──► analytics-db ──► Superset
+inventory-db (PostgreSQL WAL)┘                                                  (4 jobs)      (star schema)   (3 dashboards)
 ```
 
 There are three distinct stages:
 
 | Stage | Component | Role |
 |-------|-----------|------|
-| 1 | Debezium | Reads PostgreSQL Write-Ahead Log (WAL) and publishes row changes to Kafka |
-| 2 | Kafka | Durable ordered log; decouples Debezium from the consumer |
-| 3 | `analytics/consumer/main.py` | Consumes CDC events from Kafka and upserts into analytics DB |
+| 1 | **Debezium 2.7.0** | Reads PostgreSQL Write-Ahead Log (WAL); publishes row changes to Kafka topics |
+| 2 | **Apache Kafka (KRaft)** | Durable ordered log; decouples producers from consumers |
+| 3 | **Apache Flink 1.20** | Streaming SQL jobs consume Kafka CDC events and upsert into analytics DB via JDBC |
 
 ---
 
 ## Stage 1 — Debezium: Reading the WAL
 
-### What Debezium Does
-
-Debezium runs as a **Kafka Connect worker** (`debezium/connect:2.7.0.Final`) inside the `infra` namespace. It does not query the source databases with `SELECT` statements. Instead, it acts as a **PostgreSQL logical replication client** — the same mechanism used for streaming replication — and reads the Write-Ahead Log (WAL) in real time.
-
-Every INSERT, UPDATE, and DELETE committed to the source PostgreSQL tables produces a record in the WAL. Debezium reads these records and converts them into structured JSON messages, then publishes each one to a dedicated Kafka topic.
+Debezium runs as a **Kafka Connect worker** (`debezium/connect:2.7.0.Final`) inside the `infra`
+namespace. It acts as a **PostgreSQL logical replication client** and reads the Write-Ahead Log in
+real time — no `SELECT` polling.
 
 ### PostgreSQL Prerequisites
 
-For Debezium to read the WAL, each source PostgreSQL instance must be configured with:
-
 ```
-wal_level = logical          # enables logical replication (default is 'replica')
-max_replication_slots = 10   # slots reserved for consumers
-max_wal_senders = 10         # max concurrent WAL streaming connections
+wal_level = logical          # enables logical replication
+max_replication_slots = 10
+max_wal_senders = 10
 ```
 
-These are set via `POSTGRES_INITDB_ARGS` in the PostgreSQL pod environment variables.
-
-### How Debezium is Deployed
-
-`infra/debezium/debezium.yaml` deploys a single Kafka Connect pod in the `infra` namespace with these key settings:
-
-```yaml
-env:
-  - name: BOOTSTRAP_SERVERS
-    value: "kafka.infra.svc.cluster.local:9092"   # where to publish CDC events
-  - name: GROUP_ID
-    value: "debezium-connect-cluster"              # identifies this connect cluster
-  - name: CONFIG_STORAGE_TOPIC
-    value: "debezium.configs"                      # connector configs stored here
-  - name: OFFSET_STORAGE_TOPIC
-    value: "debezium.offsets"                      # WAL read position stored here
-  - name: STATUS_STORAGE_TOPIC
-    value: "debezium.status"                       # connector health stored here
-  # Schemaless JSON — no Avro/Schema Registry needed
-  - name: CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE
-    value: "false"
-  - name: CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE
-    value: "false"
-  # Enables ${file:...} variable substitution for credentials
-  - name: CONNECT_CONFIG_PROVIDERS
-    value: "file"
-  - name: CONNECT_CONFIG_PROVIDERS_FILE_CLASS
-    value: "org.apache.kafka.common.config.provider.FileConfigProvider"
-```
-
-**Credentials are never hardcoded.** They are stored in a Kubernetes Secret (`debezium-db-credentials`) and mounted as files at `/opt/kafka/external-configuration/db-credentials/`. The connector JSON references them as:
-
-```json
-"database.user": "${file:/opt/kafka/external-configuration/db-credentials/ECOM_DB_USER}"
-```
-
-The `FileConfigProvider` resolves these at runtime by reading the mounted file content.
+Set via `POSTGRES_INITDB_ARGS` in each PostgreSQL pod.
 
 ### Connector Registration
 
-Debezium starts with no connectors. They are registered at runtime via the **Kafka Connect REST API** (`POST /connectors` or `PUT /connectors/{name}/config`). The script `infra/debezium/register-connectors.sh` does this:
+Connectors are registered at runtime via `infra/debezium/register-connectors.sh`. The script:
 
-```bash
-# Idempotent — uses PUT (create-or-update)
-curl -X PUT \
-  -H "Content-Type: application/json" \
-  --data "@infra/debezium/connectors/ecom-connector.json" \
-  "http://debezium-service:8083/connectors/ecom-connector/config"
-```
+1. Waits for Debezium's `/connectors` endpoint to respond
+2. Reads credentials from the `debezium-db-credentials` Kubernetes Secret
+3. PUTs each connector config (idempotent create-or-update)
+4. Polls until both connectors reach `RUNNING` state
 
-The script waits for Debezium's `/connectors` endpoint to respond before attempting registration, then polls each connector's status to confirm `RUNNING`.
-
-### The Two Connectors
-
-**`ecom-connector`** (`infra/debezium/connectors/ecom-connector.json`):
-
-```json
-{
-  "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
-  "plugin.name": "pgoutput",           // built-in PostgreSQL logical decoding plugin
-  "database.hostname": "ecom-db.ecom.svc.cluster.local",
-  "database.dbname": "ecomdb",
-  "table.include.list": "public.orders,public.order_items,public.books",
-  "topic.prefix": "ecom-connector",    // topics will be: ecom-connector.public.orders etc.
-  "slot.name": "debezium_ecom_slot",   // replication slot name (persists WAL position)
-  "publication.name": "debezium_ecom_pub",  // PostgreSQL publication (which tables to stream)
-  "snapshot.mode": "initial"           // on first connect, snapshot existing rows before streaming live changes
-}
-```
-
-**`inventory-connector`** (`infra/debezium/connectors/inventory-connector.json`):
-
-```json
-{
-  "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
-  "database.hostname": "inventory-db.inventory.svc.cluster.local",
-  "database.dbname": "inventorydb",
-  "table.include.list": "public.inventory",
-  "topic.prefix": "inventory-connector",
-  "slot.name": "debezium_inventory_slot"
-}
-```
+> **Important:** `${file:...}` FileConfigProvider syntax does NOT expand during PUT validation.
+> The script injects real credentials inline — never send literal `${file:...}` strings.
 
 ### Kafka Topic Naming
 
-Topic names follow the pattern: `<topic.prefix>.<schema>.<table>`
+Topic names follow: `<connector-name>.<schema>.<table>`
 
 | Source Table | Kafka Topic |
 |---|---|
@@ -136,147 +66,132 @@ Topic names follow the pattern: `<topic.prefix>.<schema>.<table>`
 
 ### Debezium Message Envelope
 
-Each Kafka message produced by Debezium wraps the row data in an **envelope**:
-
 ```json
 {
-  "op": "c",         // operation: c=create, u=update, d=delete, r=read(snapshot)
-  "before": null,    // row state BEFORE the change (null for inserts)
-  "after": {         // row state AFTER the change (null for deletes)
+  "op": "c",
+  "before": null,
+  "after": {
     "id": "uuid",
     "user_id": "keycloak-sub",
     "total": 39.98,
     "status": "CONFIRMED",
-    "created_at": 1234567890000
+    "created_at": "2026-02-26T18:58:09.811060Z"
   },
-  "source": {
-    "db": "ecomdb",
-    "table": "orders",
-    "lsn": 12345678  // WAL log sequence number
-  },
-  "ts_ms": 1234567890000
+  "source": { "db": "ecomdb", "table": "orders" },
+  "ts_ms": 1740592689811
 }
 ```
 
-Because `schemas.enable: false` is set on both connectors, **no Avro schema is embedded** in the message. The message is plain schemaless JSON. This is why the standard Debezium JDBC Sink Connector cannot be used here — it calls `valueSchema()` internally which throws a NullPointerException on schemaless messages. This is exactly why `analytics/consumer/main.py` exists.
+`schemas.enable: false` — plain schemaless JSON, no Avro/Schema Registry.
 
 ---
 
 ## Stage 2 — Kafka: Durable Event Bus
 
-Kafka (KRaft mode, no Zookeeper) acts as the buffer between Debezium and the analytics consumer. Key properties:
-
-- **Ordered delivery**: within a topic-partition, messages are strictly ordered (same row changes always come in order)
-- **Consumer group offset tracking**: the analytics consumer uses group ID `analytics-cdc-consumer`. Kafka tracks how far it has read. If the consumer restarts, it resumes from where it stopped (no data loss, no duplication)
-- **`auto_offset_reset: "earliest"`**: on first start (no committed offset yet), the consumer reads all historical messages from the beginning — this is how existing data is backfilled into the analytics DB
+- **KRaft mode** — no Zookeeper
+- **Ordered delivery** — per partition, all changes to the same row arrive in order
+- **Consumer group offset tracking** — Flink's consumer group `flink-analytics-consumer` resumes
+  from its committed offset on restart; no data loss or duplication
 
 ---
 
-## Stage 3 — `analytics/consumer/main.py`: The Analytics Writer
+## Stage 3 — Apache Flink SQL: Streaming Pipeline
 
-### Why It Exists
+Flink replaces the former Python analytics consumer. It processes CDC events using 4 continuous
+`INSERT INTO` SQL statements, running as a **Flink Session Cluster** in the `analytics` namespace.
 
-The Debezium **JDBC Sink Connector** (the standard solution) throws a `NullPointerException` when the source connector uses `schemas.enable: false` (schemaless JSON). It calls `record.valueSchema()` internally, which returns `null`, and crashes. Since all connectors in this project deliberately use schemaless JSON (simpler, no Schema Registry needed), the JDBC sink is unusable.
+### Why Flink (not the Python consumer)
 
-`analytics/consumer/main.py` is a **custom Python Kafka consumer** that handles schemaless Debezium envelopes correctly.
+The previous Python consumer (`analytics/consumer/main.py`) handled schemaless Debezium envelopes
+manually via `INSERT ... ON CONFLICT DO UPDATE`. It was replaced by Flink because:
 
-### What It Does
+- **Exactly-once** — Flink checkpoints + Kafka offset atomicity prevent any duplicate rows; the
+  Python consumer offered only at-least-once (idempotent upserts as mitigation)
+- **Scalability** — Flink TaskManagers scale horizontally; the Python consumer was single-threaded
+- **Native CDC support** — `plain json` format + `after ROW<...>` field extraction is idiomatic SQL;
+  no custom envelope parsing code required
+- **State management** — PVC-backed checkpoints at `/opt/flink/checkpoints` survive pod restarts
 
-The consumer runs as a long-lived Python process (`bookstore/analytics-consumer:latest`) deployed to the `analytics` namespace. It:
+### Flink SQL Format
 
-1. **Connects to Kafka** — subscribes to all 4 CDC topics simultaneously under one consumer group
-2. **Connects to analytics DB** — single persistent PostgreSQL connection
-3. **Processes each Kafka message** — extracts the `after` field from the Debezium envelope
-4. **Upserts into the analytics table** — using `INSERT ... ON CONFLICT DO UPDATE`
-
-### Topic-to-Table Routing
-
-The `TOPIC_CONFIG` dictionary is the core routing table:
-
-```python
-TOPIC_CONFIG = {
-    "ecom-connector.public.orders": (
-        "fact_orders",          # analytics table to write into
-        "id",                   # primary key column (for ON CONFLICT)
-        ["id", "user_id", "total", "status", "created_at"]  # columns to write
-    ),
-    "ecom-connector.public.order_items": (
-        "fact_order_items",
-        "id",
-        ["id", "order_id", "book_id", "quantity", "price_at_purchase"]
-    ),
-    "ecom-connector.public.books": (
-        "dim_books",
-        "id",
-        ["id", "title", "author", "price", "description", "cover_url",
-         "isbn", "genre", "published_year", "created_at"]
-    ),
-    "inventory-connector.public.inventory": (
-        "fact_inventory",
-        "book_id",              # inventory PK is book_id, not id
-        ["book_id", "quantity", "reserved", "updated_at"]
-    ),
-}
-```
-
-### Envelope Parsing Logic
-
-```python
-if "after" in value:
-    after = value["after"]   # Debezium CDC envelope — extract the row
-    op = value.get("op", "r")
-    if after is None or op == "d":
-        continue             # skip deletes — analytics is append-only
-else:
-    after = value            # flat record (snapshot mode or legacy format)
-```
-
-### The Upsert
+The pipeline uses plain `json` format (NOT `debezium-json`). This avoids the `REPLICA IDENTITY FULL`
+requirement on source tables. Each source table defines an `after ROW<...>` field matching the
+Debezium envelope:
 
 ```sql
-INSERT INTO fact_orders (id, user_id, total, status, created_at)
-VALUES (%s, %s, %s, %s, %s)
-ON CONFLICT (id) DO UPDATE SET
-    user_id    = EXCLUDED.user_id,
-    total      = EXCLUDED.total,
-    status     = EXCLUDED.status,
-    created_at = EXCLUDED.created_at
+CREATE TABLE kafka_orders (
+  op    STRING,
+  after ROW<
+    id         STRING,
+    user_id    STRING,
+    total      DOUBLE,
+    status     STRING,
+    created_at STRING   -- ISO-8601 from Debezium; converted via CAST(REPLACE(...))
+  >
+) WITH (
+  'connector'                    = 'kafka',
+  'topic'                        = 'ecom-connector.public.orders',
+  'properties.bootstrap.servers' = 'kafka.infra.svc.cluster.local:9092',
+  'properties.group.id'          = 'flink-analytics-consumer',
+  'format'                       = 'json',
+  'scan.startup.mode'            = 'earliest-offset'
+);
 ```
 
-`ON CONFLICT DO UPDATE` makes every write **idempotent** — replaying the same message twice produces the same result. This is critical because Kafka's `at-least-once` delivery guarantee means a message can be delivered more than once (e.g., on consumer restart before offset commit).
+Timestamp conversion (Debezium ISO-8601 → SQL TIMESTAMP):
 
-### Resilience
+```sql
+CAST(REPLACE(REPLACE(o.after.created_at, 'T', ' '), 'Z', '') AS TIMESTAMP(3))
+```
 
-- **DB reconnect loop**: if the analytics DB connection drops, the consumer reconnects and retries the failed upsert
-- **Kafka reconnect loop**: if Kafka is unavailable at startup, the consumer retries every 5 seconds
-- **No FK constraints on analytics tables**: because CDC delivery order across topics is not guaranteed (an `order_item` might arrive before its `order`), the analytics schema has no foreign key constraints — rows just coexist
+JDBC sink uses `?stringtype=unspecified` in the URL for implicit `varchar → uuid` casts.
+
+### Exactly-Once
+
+```
+Checkpoint interval: 30s
+Mode: EXACTLY_ONCE
+Storage: filesystem at /opt/flink/checkpoints (PVC: flink-checkpoints-pvc)
+```
 
 ---
 
 ## Analytics Database Schema
 
-Tables in `analytics-db` (`analytics` namespace):
-
 ```
-dim_books          — book catalogue mirror (from ecom-connector.public.books)
-fact_orders        — order header mirror (from ecom-connector.public.orders)
-fact_order_items   — order line items (from ecom-connector.public.order_items)
-fact_inventory     — current stock levels (from inventory-connector.public.inventory)
+dim_books          — book catalogue mirror (4 fact/dim tables total)
+fact_orders        — order header
+fact_order_items   — order line items
+fact_inventory     — current stock levels
 ```
 
-Two views are created on top for Superset:
+10 views created on top for Superset:
 
-```sql
--- Product Sales Volume (bar chart): units sold per book
-vw_product_sales_volume
-  → JOIN fact_order_items + dim_books + fact_orders (WHERE status != 'CANCELLED')
-  → SUM(quantity) AS units_sold, SUM(quantity * price) AS revenue
-
--- Sales Over Time (trend chart): daily revenue
-vw_sales_over_time
-  → GROUP BY DATE(created_at)
-  → COUNT(orders), SUM(total) AS daily_revenue
 ```
+vw_product_sales_volume    vw_sales_over_time         vw_revenue_by_author
+vw_revenue_by_genre        vw_order_status_distribution  vw_inventory_health
+vw_avg_order_value         vw_top_books_by_revenue    vw_inventory_turnover
+vw_book_price_distribution
+```
+
+---
+
+## Superset Dashboards
+
+Three dashboards are auto-created by a Kubernetes bootstrap Job
+(`infra/superset/bootstrap-job.yaml`) on first cluster startup. The Job runs inside the Superset
+pod using the built-in venv Python — no pip install required.
+
+| Dashboard | Charts |
+|-----------|--------|
+| **Book Store Analytics** | Product Sales Volume · Sales Over Time · Revenue by Author · Top Books by Revenue · Book Price Distribution |
+| **Sales & Revenue Analytics** | Total Revenue KPI · Total Orders KPI · Avg Order Value KPI · Order Status Distribution · Avg Order Value Over Time |
+| **Inventory Analytics** | Inventory Health Table · Stock vs Reserved · Inventory Turnover Rate · Revenue by Genre · Stock Status Distribution · Revenue Share by Genre |
+
+**Bootstrap bug fixed:** Superset `table` chart `order_by_cols` format requires each element to be
+a JSON-encoded `[column, is_descending]` string (e.g. `'["available", false]'`). The `upsert_chart`
+PUT also requires `slice_name` + `datasource_type` in the request body; previously missing fields
+caused silent HTTP 500 and prevented chart updates on re-runs.
 
 ---
 
@@ -297,31 +212,31 @@ flowchart TD
     end
 
     subgraph infra_ns["infra namespace"]
-        DEB["Debezium\n(Kafka Connect 2.7)\ndebezium/connect"]
-        KAFKA["Kafka\n(KRaft, no Zookeeper)\nport 9092"]
+        DEB["Debezium 2.7\n(Kafka Connect)"]
+        KAFKA["Kafka (KRaft)\nport 9092"]
 
-        ECOMDB -- "WAL logical replication\n(pgoutput plugin)\nslot: debezium_ecom_slot" --> DEB
-        INVDB  -- "WAL logical replication\n(pgoutput plugin)\nslot: debezium_inventory_slot" --> DEB
+        ECOMDB -- "WAL pg_logical\nslot: debezium_ecom_slot" --> DEB
+        INVDB  -- "WAL pg_logical\nslot: debezium_inventory_slot" --> DEB
 
-        DEB -- "ecom-connector.public.orders\necom-connector.public.order_items\necom-connector.public.books" --> KAFKA
+        DEB -- "ecom-connector.public.*\n(orders / order_items / books)" --> KAFKA
         DEB -- "inventory-connector.public.inventory" --> KAFKA
     end
 
     subgraph analytics_ns["analytics namespace"]
-        AC["analytics-consumer\nmain.py\nkafka-python-ng"]
+        FM["Apache Flink 1.20\nJobManager + TaskManager\n4 streaming SQL jobs"]
         ANALYTICSDB[("analytics-db\nPostgreSQL\n• dim_books\n• fact_orders\n• fact_order_items\n• fact_inventory")]
-        VIEWS["SQL Views\n• vw_product_sales_volume\n• vw_sales_over_time"]
-        SUP["Apache Superset\nport 32000"]
+        VIEWS["10 SQL Views\nvw_product_sales_volume\nvw_sales_over_time\n+ 8 more"]
+        SUP["Apache Superset\n3 dashboards · 16 charts\nport 32000"]
 
-        KAFKA -- "subscribe: all 4 topics\ngroup: analytics-cdc-consumer\nauto_offset_reset: earliest" --> AC
-        AC -- "extract 'after' field\nINSERT ... ON CONFLICT DO UPDATE" --> ANALYTICSDB
+        KAFKA -- "plain json format\nafter ROW extraction\ngroup: flink-analytics-consumer" --> FM
+        FM -- "JDBC upsert\nINSERT ... ON CONFLICT DO UPDATE\n?stringtype=unspecified" --> ANALYTICSDB
         ANALYTICSDB --> VIEWS
         VIEWS -- "dataset queries" --> SUP
     end
 
-    subgraph reg["Connector Registration (one-time)"]
+    subgraph reg["Connector Registration"]
         SCRIPT["infra/debezium/register-connectors.sh\nPUT /connectors/{name}/config"]
-        SCRIPT -. "registers ecom-connector\n& inventory-connector" .-> DEB
+        SCRIPT -. "ecom-connector\n& inventory-connector" .-> DEB
     end
 
     style ecom_ns fill:#dbeafe,stroke:#3b82f6
@@ -335,26 +250,32 @@ flowchart TD
 
 ## End-to-End Walkthrough: A User Places an Order
 
-To make the flow concrete, here is what happens when a user checks out:
+1. **User submits checkout** → `ecom-service` calls `inventoryClient.reserve()` (mTLS), creates
+   order rows in `ecom-db.orders` and `ecom-db.order_items`
 
-1. **User submits checkout** → `ecom-service` calls `inventoryClient.reserve()` (mTLS to inventory-service), then creates an order row in `ecom-db.orders` and rows in `ecom-db.order_items`
+2. **PostgreSQL writes to WAL** → committed INSERT recorded with a Log Sequence Number
 
-2. **PostgreSQL writes to WAL** → the committed INSERT is recorded in the Write-Ahead Log with a Log Sequence Number (LSN)
+3. **Debezium reads the WAL** → `ecom-connector` picks up new records via logical replication slot
+   within milliseconds
 
-3. **Debezium reads the WAL** → `ecom-connector` is subscribed to `public.orders` and `public.order_items` via logical replication slot `debezium_ecom_slot`. It reads the new WAL records within milliseconds
-
-4. **Debezium produces to Kafka** → two messages are published:
-   - `ecom-connector.public.orders` — the order header
+4. **Debezium produces to Kafka** → two messages published:
+   - `ecom-connector.public.orders` — order header
    - `ecom-connector.public.order_items` — one message per line item
 
-5. **inventory-service deducts stock** → when the Kafka consumer in inventory-service processes the `order.created` event (published separately by ecom-service), it updates `inventory-db.public.inventory`. Debezium's `inventory-connector` immediately picks this up and publishes to `inventory-connector.public.inventory`
+5. **Inventory stock deducted** → `inventory-service` processes `order.created` from Kafka,
+   updates `inventory-db.inventory`. `inventory-connector` publishes to
+   `inventory-connector.public.inventory`
 
-6. **`analytics/consumer/main.py` receives all 3 events** → for each message it:
-   - Parses the Debezium envelope (`value["after"]`)
-   - Looks up the target table and columns from `TOPIC_CONFIG`
-   - Executes `INSERT ... ON CONFLICT DO UPDATE` into the correct analytics table
+6. **Flink SQL jobs receive all events** → each job:
+   - Reads from its Kafka source table using plain `json` format
+   - Extracts the `after` ROW field (`WHERE after IS NOT NULL` skips deletes)
+   - Converts timestamps via `CAST(REPLACE(REPLACE(...,'T',' '),'Z','') AS TIMESTAMP(3))`
+   - Executes JDBC upsert via `INSERT INTO sink_* SELECT ... FROM kafka_*`
 
-7. **Superset queries the views** → `vw_product_sales_volume` and `vw_sales_over_time` now reflect the new order. The bar chart and trend chart in the "Book Store Analytics" dashboard update on next refresh
+7. **Superset queries views** → `vw_product_sales_volume`, `vw_sales_over_time` and 8 other views
+   reflect the new order. All three dashboards update on next page refresh
+
+Total end-to-end latency: **< 5 seconds**
 
 ---
 
@@ -363,8 +284,12 @@ To make the flow concrete, here is what happens when a user checks out:
 | Task | Command |
 |------|---------|
 | Register connectors | `bash infra/debezium/register-connectors.sh` |
-| Check connector status | `curl http://localhost:8083/connectors/ecom-connector/status` |
-| Check consumer lag | `kubectl exec -n infra deploy/kafka -- kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group analytics-cdc-consumer` |
-| Verify CDC end-to-end | `bash scripts/verify-cdc.sh` (inserts a test row, polls analytics DB for 30s) |
-| Restart analytics consumer | `kubectl rollout restart deployment/analytics-consumer -n analytics` |
-| View consumer logs | `kubectl logs -n analytics deployment/analytics-consumer -f` |
+| Check connector status | `curl http://localhost:32300/connectors/ecom-connector/status` |
+| List Flink jobs | `curl http://localhost:32200/jobs` |
+| Check Flink checkpoints | `curl http://localhost:32200/jobs/<id>/checkpoints` |
+| Verify CDC end-to-end | `bash scripts/verify-cdc.sh` |
+| Flink Web UI | `http://localhost:32200` |
+| Debezium REST API | `http://localhost:32300` |
+| Re-run Superset bootstrap | `kubectl delete job superset-bootstrap -n analytics && kubectl apply -f infra/superset/bootstrap-job.yaml` |
+| View Flink logs | `kubectl logs -n analytics deploy/flink-jobmanager -f` |
+| View Debezium logs | `kubectl logs -n infra deploy/debezium -f` |

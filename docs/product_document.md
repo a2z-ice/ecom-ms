@@ -1,7 +1,7 @@
 # Book Store — Complete Product Documentation
 
-> **Generated:** 2026-02-27 · **E2E Tests:** 36/36 passed · **Screenshots:** 90+ images
-> **Stack:** React 19.2 · Spring Boot 4.0 · FastAPI · Kafka KRaft · Debezium · Superset · Keycloak 26.5.4 · Istio Ambient Mesh
+> **Generated:** 2026-03-01 · **E2E Tests:** 89/89 passed · **Screenshots:** 90+ images
+> **Stack:** React 19.2 · Spring Boot 4.0 · FastAPI · Kafka KRaft · Debezium · Apache Flink 1.20 · Superset · Keycloak 26.5.4 · Istio Ambient Mesh
 
 ---
 
@@ -40,9 +40,9 @@ The platform runs on a local 3-node **kind** Kubernetes cluster with **Istio Amb
 | Identity Provider | Keycloak 26.5.4 | `identity` | `idp.keycloak.net:30000` |
 | Message Broker | Kafka KRaft (no Zookeeper) | `infra` | internal |
 | CDC Connector | Debezium 2.7.0.Final | `infra` | internal |
-| Analytics Consumer | Python kafka-python-ng | `analytics` | internal |
-| Analytics DB | PostgreSQL | `analytics` | internal |
-| Analytics Dashboard | Apache Superset latest | `analytics` | `localhost:32000` |
+| Analytics Pipeline | Apache Flink 1.20 (4 SQL streaming jobs) | `analytics` | `localhost:32200` (Flink UI) |
+| Analytics DB | PostgreSQL (star schema, 10 views) | `analytics` | internal |
+| Analytics Dashboard | Apache Superset (3 dashboards, 16 charts) | `analytics` | `localhost:32000` |
 | Service Mesh | Istio Ambient Mesh 1.28.4 | `istio-system` | — |
 | Gateway | Istio Gateway (k8s Gateway API) | `infra` | all :30000 routes |
 | Session / Rate-limit | Redis | `infra` | internal |
@@ -65,18 +65,23 @@ The animated diagram shows live events flowing through the CDC pipeline from use
 User places order
     │
     ▼  POST /ecom/checkout (< 100ms)
-E-Commerce API → publishes order.created to Kafka
+E-Commerce API → mTLS reserve call → Inventory Service
+               → publishes order.created to Kafka
     │
     ▼  Debezium WAL CDC (< 500ms)
-ecom-db.public.orders → Kafka topic: ecom-connector.public.orders
-ecom-db.public.order_items → Kafka topic: ecom-connector.public.order_items
+ecom-db.public.orders      → Kafka: ecom-connector.public.orders
+ecom-db.public.order_items → Kafka: ecom-connector.public.order_items
+inventory-db.public.inventory → Kafka: inventory-connector.public.inventory
     │
-    ▼  Analytics Consumer (< 1s)
-Kafka → Python consumer → INSERT INTO fact_orders / fact_order_items
+    ▼  Apache Flink SQL (< 2s) — 4 continuous streaming jobs
+Kafka (plain json, after ROW extraction) → JDBC upsert → analytics-db
+    • fact_orders · fact_order_items · dim_books · fact_inventory
     │
-    ▼  Superset SQL (on demand)
-SELECT * FROM vw_product_sales_volume  →  ECharts bar chart
-SELECT * FROM vw_sales_over_time       →  ECharts timeseries chart
+    ▼  Superset SQL (on demand) — 3 dashboards, 16 charts, 10 views
+SELECT * FROM vw_product_sales_volume   →  ECharts bar chart
+SELECT * FROM vw_inventory_health       →  Table (sorted by available)
+SELECT * FROM vw_book_price_distribution →  Pie chart
+... (10 views total)
 
 Total end-to-end latency: < 5 seconds
 ```
@@ -482,6 +487,9 @@ Cart cleared server-side after successful order:
 
 ## 10. CDC Pipeline — Analytics Sync
 
+> **Session 18 update:** The Python analytics consumer was replaced by **Apache Flink 1.20 SQL**.
+> Full technical details: [`docs/debezium-flink-cdc.md`](./debezium-flink-cdc.md)
+
 ### Architecture
 
 ```
@@ -492,15 +500,19 @@ ecom-db (PostgreSQL WAL)
 inventory-db (PostgreSQL WAL)
   └─[Debezium 2.7.0]─► Kafka topic: inventory-connector.public.inventory
 
-Kafka ─────────────────► Analytics Consumer (Python)
-                              │  INSERT ... ON CONFLICT DO UPDATE
+Kafka ─────────────────► Apache Flink 1.20 (4 streaming SQL jobs)
+                              │  plain json format · after ROW extraction
+                              │  JDBC upsert · exactly-once checkpoints
                               ▼
                          analytics-db
                            ├── fact_orders
                            ├── fact_order_items
                            ├── dim_books
                            └── fact_inventory
+                           └── 10 views (vw_*)
 ```
+
+Flink Web UI: `http://localhost:32200` · Debezium REST API: `http://localhost:32300`
 
 ### Live Data in Analytics DB (Feb 19–26)
 
@@ -576,7 +588,15 @@ Debezium snapshot replicates all books to analytics DB:
 
 ## 11. Analytics Dashboard — Apache Superset
 
-Superset at `http://localhost:32000` with the **Book Store Analytics** dashboard containing two ECharts visualisations backed by live data from `analytics-db`.
+Superset at `http://localhost:32000` with **3 dashboards and 16 charts** backed by live data from
+`analytics-db` (populated by the Flink CDC pipeline). Dashboards are auto-created on cluster startup
+by a Kubernetes bootstrap Job (`infra/superset/bootstrap-job.yaml`).
+
+| Dashboard | Charts |
+|-----------|--------|
+| **Book Store Analytics** | Product Sales Volume (bar) · Sales Over Time (line) · Revenue by Author (bar) · Top Books by Revenue (bar) · Book Price Distribution (pie) |
+| **Sales & Revenue Analytics** | Total Revenue KPI · Total Orders KPI · Avg Order Value KPI · Order Status Distribution (pie) · Avg Order Value Over Time (line) |
+| **Inventory Analytics** | Inventory Health Table · Stock vs Reserved (bar) · Inventory Turnover Rate (bar) · Revenue by Genre (bar) · Stock Status Distribution (pie) · Revenue Share by Genre (pie) |
 
 ### 11.1 Superset Login
 
@@ -596,35 +616,38 @@ Superset at `http://localhost:32000` with the **Book Store Analytics** dashboard
 
 ---
 
-### 11.4 Book Store Analytics Dashboard with Charts
+### 11.4 Book Store Analytics Dashboard
 
-Both ECharts visualisations render with live data (8 days, 10 books):
+Five charts render with live data: product sales volume, daily revenue trend, author revenue,
+top books by revenue, and book price distribution:
 
-![Dashboard with charts](../e2e/screenshots/superset-dashboard-with-charts.png)
-
----
-
-### 11.5 Product Sales Volume — ECharts Bar Chart
-
-`vw_product_sales_volume`: All 10 books with units sold, sorted descending:
-
-![Sales volume chart](../e2e/screenshots/superset-sales-volume-chart-explore.png)
+![Dashboard with charts](../e2e/screenshots/superset-09-bookstore-dashboard.png)
 
 ---
 
-### 11.6 Sales Over Time — ECharts Timeseries Line Chart
+### 11.5 Sales & Revenue Analytics Dashboard
 
-`vw_sales_over_time`: Daily revenue trend Feb 19–26:
+KPI big-number tiles, order status pie, and avg order value trend:
 
-![Sales over time chart](../e2e/screenshots/superset-sales-over-time-explore.png)
+![Revenue dashboard](../e2e/screenshots/superset-11-revenue-dashboard.png)
 
 ---
 
-### 11.7 Chart List
+### 11.6 Inventory Analytics Dashboard
 
-Both charts listed in Superset chart inventory:
+Table sorted by available stock, stock vs reserved bar, inventory turnover, revenue by genre, and
+two pie charts (stock status distribution, revenue share by genre). The table uses
+`order_by_cols: ['["available", false]']` for correct ascending sort.
 
-![Chart list](../e2e/screenshots/superset-chart-list-with-data.png)
+![Inventory dashboard](../e2e/screenshots/superset-13-inventory-dashboard.png)
+
+---
+
+### 11.7 Chart and Dataset List
+
+All 16 charts and 10 datasets listed in Superset inventory:
+
+![Chart list](../e2e/screenshots/superset-04-chart-list.png)
 
 ---
 
@@ -646,51 +669,39 @@ PgAdmin 4 at `http://localhost:31111` for direct database inspection.
 
 ## 13. E2E Test Suite Summary
 
-**36/36 tests passing — 0 failures**
+**89/89 tests passing — 0 failures**
 
 ```
 npm run test  (workers: 1, sequential, headless Chrome)
-Total duration: ~22s
+Total duration: ~1.2 min
 ```
 
-| # | File | Test | Area |
-|---|------|------|------|
-| 1 | auth.setup.ts | authenticate as user1 | Auth setup |
-| 2 | auth.spec.ts | tokens not in localStorage after login | Security |
-| 3 | auth.spec.ts | logout redirects to catalog and shows Login button | Auth |
-| 4 | auth.spec.ts | unauthenticated access to cart redirects to Keycloak | Auth |
-| 5 | cart.spec.ts | authenticated user can add a book to cart | Cart |
-| 6 | cart.spec.ts | cart shows total price | Cart |
-| 7 | cart.spec.ts | unauthenticated add-to-cart adds to guest cart (no login redirect) | Guest Cart |
-| 8 | catalog.spec.ts | loads book list without login | Catalog |
-| 9 | catalog.spec.ts | each book card shows title, author, and price | Catalog |
-| 10 | catalog.spec.ts | unauthenticated user sees Add to Cart buttons (guest cart enabled) | Guest Cart |
-| 11 | catalog.spec.ts | authenticated user sees Add to Cart buttons | Catalog |
-| 12 | cdc.spec.ts | order placed via UI appears in analytics DB within 30s | CDC |
-| 13 | cdc.spec.ts | books dim table is populated in analytics DB | CDC |
-| 14 | cdc.spec.ts | inventory table is synced to analytics DB | CDC |
-| 15 | checkout.spec.ts | complete checkout flow | Checkout |
-| 16 | checkout.spec.ts | cart is empty after successful checkout | Checkout |
-| 17 | guest-cart.spec.ts | guest can add items to cart without logging in | Guest Cart |
-| 18 | guest-cart.spec.ts | checkout button redirects unauthenticated guest to Keycloak | Guest Cart |
-| 19 | guest-cart.spec.ts | after login, guest cart items are preserved in authenticated cart | Guest Cart |
-| 20 | guest-cart.spec.ts | cart badge in navbar shows item count for guests | Guest Cart |
-| 21 | istio-gateway.spec.ts | UI route serves the React app | Infra |
-| 22 | istio-gateway.spec.ts | ecom /books route returns books JSON | Infra |
-| 23 | istio-gateway.spec.ts | inventory /health route returns ok | Infra |
-| 24 | istio-gateway.spec.ts | Keycloak OIDC discovery route is reachable | Infra |
-| 25 | istio-gateway.spec.ts | cart endpoint enforces JWT (mTLS proxy passes, JWT rejected) | Security |
-| 26 | istio-gateway.spec.ts | /inven/stock/{id} is publicly reachable through gateway | Infra |
-| 27 | kiali.spec.ts | Kiali login page or dashboard loads | Observability |
-| 28 | kiali.spec.ts | Kiali graph section is accessible | Observability |
-| 29 | kiali.spec.ts | Kiali can reach Prometheus (no error alert) | Observability |
-| 30 | search.spec.ts | finds books by title keyword | Search |
-| 31 | search.spec.ts | finds books by author name | Search |
-| 32 | search.spec.ts | shows zero results message for unknown query | Search |
-| 33 | superset.spec.ts | Book Store Analytics dashboard exists | Analytics |
-| 34 | superset.spec.ts | Product Sales Volume chart renders | Analytics |
-| 35 | superset.spec.ts | Sales Over Time chart renders | Analytics |
-| 36 | superset.spec.ts | dashboard loads with chart SVG/canvas elements | Analytics |
+| File | Tests | Area |
+|------|-------|------|
+| `auth.setup.ts` | 1 | Auth fixture |
+| `auth.spec.ts` | 3 | Security / OIDC |
+| `cart.spec.ts` | 3 | Cart |
+| `catalog.spec.ts` | 4 | Catalog |
+| `cdc.spec.ts` | 3 | CDC pipeline (Flink) |
+| `checkout.spec.ts` | 2 | Checkout |
+| `debezium-flink.spec.ts` | 29 | Debezium API · Flink UI · CDC E2E · Operational health |
+| `guest-cart.spec.ts` | 4 | Guest cart / merge on login |
+| `istio-gateway.spec.ts` | 6 | Routing / mTLS enforcement |
+| `kiali.spec.ts` | 3 | Kiali / Prometheus |
+| `mtls-enforcement.spec.ts` | 4 | mTLS / JWT enforcement |
+| `search.spec.ts` | 3 | Search |
+| `superset.spec.ts` | 17 | Superset API + UI (3 dashboards, 16 charts, 10 datasets) |
+| `ui-fixes.spec.ts` | 5 | Cart badge · minus button · logout styling |
+| **Total** | **89** | |
+
+Key test groups added since Session 14:
+- **`debezium-flink.spec.ts`** — 29 tests: Debezium REST API, Flink REST API, CDC end-to-end flow
+  (real DB inserts polled with 30 s timeout), operational health checks
+- **`superset.spec.ts`** — 17 tests: API checks for 3 dashboards / 16 charts / 10 datasets, UI
+  dashboard opens and renders without error alerts (incl. per-chart error detection), spot-checks
+  for all chart types (bar, line, pie, table, big_number_total)
+- **`mtls-enforcement.spec.ts`** — 4 tests: external POST /reserve blocked, checkout JWT 401,
+  end-to-end mTLS reserve call, reserved count side-effect
 
 ### Run Commands
 

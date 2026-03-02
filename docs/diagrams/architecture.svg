@@ -65,7 +65,7 @@
   <!-- Header -->
   <rect x="0" y="0" width="1400" height="72" fill="url(#headerGrad)"/>
   <text x="700" y="28" text-anchor="middle" font-size="22" font-weight="700" fill="white" letter-spacing="0.5">BookStore Platform — Infrastructure Architecture</text>
-  <text x="700" y="54" text-anchor="middle" font-size="13" fill="#93c5fd" letter-spacing="0.3">Kubernetes (kind) · Istio Ambient Mesh 1.28.4 · Istio Gateway (K8s Gateway API) · Production-Grade Microservices</text>
+  <text x="700" y="54" text-anchor="middle" font-size="13" fill="#93c5fd" letter-spacing="0.3">Kubernetes (kind) · Istio Ambient Mesh 1.28.4 · Istio Gateway (K8s Gateway API) · Flink SQL CDC · Superset (3 dashboards)</text>
 
   <!-- ═══ TIER LABELS (left axis) ═══ -->
   <rect x="12" y="90" width="60" height="86" rx="6" fill="#dbeafe"/>
@@ -151,17 +151,17 @@
   <text x="755" y="430" text-anchor="middle" font-size="10" fill="#9ca3af">Alembic migrations · JWT auth</text>
   <text x="755" y="444" text-anchor="middle" font-size="10" fill="#9ca3af">Consumes order.created → reserve</text>
 
-  <!-- Analytics Consumer card -->
+  <!-- Apache Flink card (replaced Python Analytics Consumer in Session 18) -->
   <rect x="920" y="316" width="215" height="136" rx="10" fill="white" stroke="#e9d5ff" stroke-width="2" filter="url(#shadow)"/>
   <rect x="920" y="316" width="215" height="36" rx="10" fill="url(#nodePurple)"/>
   <rect x="920" y="336" width="215" height="16" fill="url(#nodePurple)"/>
-  <text x="1027" y="339" text-anchor="middle" font-size="12" font-weight="700" fill="white">Analytics Consumer</text>
-  <text x="1027" y="368" text-anchor="middle" font-size="11" fill="#374151">Python / kafka-python-ng</text>
+  <text x="1027" y="339" text-anchor="middle" font-size="12" font-weight="700" fill="white">Apache Flink 1.20</text>
+  <text x="1027" y="368" text-anchor="middle" font-size="11" fill="#374151">Flink SQL Session Cluster</text>
   <text x="1027" y="385" text-anchor="middle" font-size="10" fill="#6b7280">analytics namespace</text>
   <rect x="936" y="396" width="183" height="18" rx="4" fill="#faf5ff"/>
-  <text x="1027" y="409" text-anchor="middle" font-size="10" fill="#7c3aed">Kafka events → analytics-db</text>
-  <text x="1027" y="430" text-anchor="middle" font-size="10" fill="#9ca3af">order.created + inventory.updated</text>
-  <text x="1027" y="444" text-anchor="middle" font-size="10" fill="#9ca3af">Star schema population</text>
+  <text x="1027" y="409" text-anchor="middle" font-size="10" fill="#7c3aed">4 SQL streaming jobs (JDBC sink)</text>
+  <text x="1027" y="430" text-anchor="middle" font-size="10" fill="#9ca3af">Exactly-once · PVC checkpoints</text>
+  <text x="1027" y="444" text-anchor="middle" font-size="10" fill="#9ca3af">host:32200 (Flink Web UI)</text>
 
   <!-- ═══ TIER 4: DATA AND MESSAGING ═══ -->
   <rect x="84" y="484" width="1304" height="186" rx="10" fill="url(#tierBg)" stroke="#e9d5ff" stroke-width="1.5" filter="url(#shadowCard)"/>
@@ -249,20 +249,20 @@
   <text x="200" y="828" text-anchor="middle" font-size="10" fill="#6b7280">fact_inventory</text>
   <rect x="114" y="840" width="172" height="18" rx="4" fill="#faf5ff"/>
   <text x="200" y="853" text-anchor="middle" font-size="10" fill="#7c3aed">analytics namespace</text>
-  <text x="200" y="898" text-anchor="middle" font-size="10" fill="#9ca3af">Views: vw_product_sales_volume</text>
-  <text x="200" y="912" text-anchor="middle" font-size="10" fill="#9ca3af">vw_sales_over_time</text>
+  <text x="200" y="898" text-anchor="middle" font-size="10" fill="#9ca3af">10 views (vw_product_sales_volume,</text>
+  <text x="200" y="912" text-anchor="middle" font-size="10" fill="#9ca3af">vw_sales_over_time, + 8 more)</text>
 
-  <!-- Apache Superset -->
+  <!-- Apache Superset (3 dashboards · 16 charts after Session 18 + bootstrap fix) -->
   <rect x="320" y="714" width="200" height="170" rx="10" fill="white" stroke="#bae6fd" stroke-width="2" filter="url(#shadow)"/>
   <rect x="320" y="714" width="200" height="36" rx="10" fill="url(#nodeTeal)"/>
   <rect x="320" y="734" width="200" height="16" fill="url(#nodeTeal)"/>
   <text x="420" y="737" text-anchor="middle" font-size="11" font-weight="700" fill="white">Apache Superset</text>
   <text x="420" y="766" text-anchor="middle" font-size="11" fill="#374151">Business Intelligence</text>
-  <text x="420" y="783" text-anchor="middle" font-size="10" fill="#6b7280">Product Sales Volume (Bar)</text>
-  <text x="420" y="798" text-anchor="middle" font-size="10" fill="#6b7280">Sales Over Time (Line)</text>
+  <text x="420" y="783" text-anchor="middle" font-size="10" fill="#6b7280">3 dashboards · 16 charts</text>
+  <text x="420" y="798" text-anchor="middle" font-size="10" fill="#6b7280">10 datasets (vw_* views)</text>
   <rect x="334" y="810" width="172" height="18" rx="4" fill="#e0f2fe"/>
   <text x="420" y="823" text-anchor="middle" font-size="10" fill="#0e7490">localhost:32000</text>
-  <text x="420" y="864" text-anchor="middle" font-size="10" fill="#9ca3af">ECharts rendering</text>
+  <text x="420" y="864" text-anchor="middle" font-size="10" fill="#9ca3af">ECharts / Table / Big Number</text>
   <text x="420" y="878" text-anchor="middle" font-size="10" fill="#9ca3af">analytics namespace</text>
 
   <!-- Prometheus -->
@@ -366,11 +366,11 @@
   <path d="M 870 452 L 870 480 L 868 480 L 868 516" fill="none" stroke="#ea580c" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowOrange)"/>
   <text x="910" y="490" text-anchor="middle" font-size="9" fill="#ea580c">inv.updated</text>
 
-  <!-- Kafka → Analytics Consumer (consume) -->
+  <!-- Kafka → Apache Flink SQL (4 streaming jobs) -->
   <path d="M 868 516 L 868 476 L 1027 476 L 1027 452" fill="none" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrowPurple)"/>
-  <text x="970" y="472" text-anchor="middle" font-size="9" fill="#8b5cf6" font-weight="600">consume events</text>
+  <text x="970" y="472" text-anchor="middle" font-size="9" fill="#8b5cf6" font-weight="600">Flink SQL jobs</text>
 
-  <!-- Analytics Consumer → analytics-db -->
+  <!-- Flink JDBC sink → analytics-db -->
   <path d="M 1027 452 L 1027 692 L 200 692 L 200 714" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arrowPurple)"/>
 
   <!-- analytics-db → Superset -->
@@ -394,7 +394,7 @@
   <line x1="330" y1="906" x2="370" y2="906" stroke="#ea580c" stroke-width="2.5" marker-end="url(#arrowOrange)"/>
   <text x="455" y="910" text-anchor="middle" font-size="10" fill="#374151">Kafka event stream</text>
   <line x1="330" y1="928" x2="370" y2="928" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arrowPurple)"/>
-  <text x="455" y="932" text-anchor="middle" font-size="10" fill="#374151">CDC data pipeline</text>
+  <text x="455" y="932" text-anchor="middle" font-size="10" fill="#374151">CDC / Flink SQL pipeline</text>
   <line x1="540" y1="906" x2="580" y2="906" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowRed)"/>
   <text x="650" y="910" text-anchor="middle" font-size="10" fill="#374151">Session / CSRF</text>
   <line x1="540" y1="928" x2="580" y2="928" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowOrange)"/>

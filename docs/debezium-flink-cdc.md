@@ -653,15 +653,66 @@ vw_revenue_by_genre         Revenue grouped by genre        Dashboard 3 (bar cha
 ├─────────────────────────────────────────────────────────────────┤
 │  Inventory Health Table                                         │
 │  (table: title, author, stock_qty, reserved, available, status) │
+│  sorted by available ASC — order_by_cols: ['["available",false]']│
 ├─────────────────────────────────┬───────────────────────────────┤
 │  Stock vs Reserved              │  Inventory Turnover Rate      │
 │  (Grouped bar: qty + reserved)  │  (Bar: title × turnover_pct)  │
 ├─────────────────────────────────┴───────────────────────────────┤
 │  Revenue by Genre (Bar: genre × revenue)                        │
-└─────────────────────────────────────────────────────────────────┘
+├─────────────────────────────────┬───────────────────────────────┤
+│  Stock Status Distribution      │  Revenue Share by Genre       │
+│  (Pie: stock_status × qty)      │  (Pie: genre × revenue)       │
+└─────────────────────────────────┴───────────────────────────────┘
 ```
 
 **Screenshot:** `e2e/screenshots/superset-13-inventory-dashboard.png`
+
+### 8.4 Superset Bootstrap — Known Bugs Fixed
+
+The bootstrap Job (`infra/superset/bootstrap-job.yaml`) pre-populates all three dashboards. Two
+bugs were discovered and fixed that previously caused silent chart-update failures and a dashboard
+render error:
+
+#### Bug 1 — `order_by_cols` wrong format (Inventory Health Table)
+
+The Superset `table` viz type requires `order_by_cols` to be a list where each element is a
+**JSON-encoded `[column, is_descending]` string**. Passing a bare column name caused
+"Unexpected error: Found invalid orderby options" on dashboard load.
+
+```python
+# ❌ Wrong (bare column name — fails with "Found invalid orderby options")
+"order_by_cols": ["available"]
+
+# ✅ Correct (JSON-encoded [col, bool] string)
+"order_by_cols": ['["available", false]']
+```
+
+#### Bug 2 — `upsert_chart` PUT was silently 500-ing
+
+The `upsert_chart` helper sent `PUT /api/v1/chart/{id}` without `slice_name` or `datasource_type`
+in the request body. Superset returns HTTP 500 for such requests. Because `raise_for_status()` was
+not called, the error was swallowed — existing charts were never updated on idempotent re-runs.
+
+```python
+# ❌ Before fix — missing required fields, no error check
+s.put(url, json={"viz_type": viz_type, "datasource_id": ds_id, "params": ...}, headers=h)
+
+# ✅ After fix — all required fields + raise_for_status()
+r = s.put(url, json={
+    "slice_name": name, "viz_type": viz_type,
+    "datasource_id": ds_id, "datasource_type": "table",
+    "params": json.dumps(params)}, headers=h)
+r.raise_for_status()
+```
+
+#### Re-applying the bootstrap to a live cluster
+
+```bash
+kubectl delete job superset-bootstrap -n analytics --ignore-not-found
+kubectl apply -f infra/superset/bootstrap-job.yaml
+kubectl wait --for=condition=complete job/superset-bootstrap -n analytics --timeout=120s
+kubectl logs -n analytics job/superset-bootstrap
+```
 
 ---
 

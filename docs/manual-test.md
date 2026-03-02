@@ -439,7 +439,7 @@ bash /Volumes/Other/rand/llm/microservice/scripts/verify-routes.sh
 
 **E2E coverage:** `cdc.spec.ts` test 1 — "order placed via UI appears in analytics DB within 30s"
 
-**Goal:** A placed order propagates through Debezium → Kafka → analytics-consumer → analytics-db within 30 seconds.
+**Goal:** A placed order propagates through Debezium → Kafka → Apache Flink SQL → analytics-db within 30 seconds.
 
 **Prerequisites:** Note the order ID from MT-14 (visible in the URL).
 
@@ -471,8 +471,8 @@ bash /Volumes/Other/rand/llm/microservice/scripts/verify-routes.sh
 kubectl exec -n infra deployment/debezium -- \
   curl -s localhost:8083/connectors/ecom-connector/status | python3 -m json.tool
 
-# Check analytics consumer logs
-kubectl logs -n analytics deployment/analytics-consumer --tail=50
+# Check Flink JobManager logs (replaced Python analytics-consumer in Session 18)
+kubectl logs -n analytics deployment/flink-jobmanager --tail=50
 ```
 
 ---

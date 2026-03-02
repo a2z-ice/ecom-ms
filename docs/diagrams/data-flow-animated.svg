@@ -118,7 +118,7 @@
 
   <!-- Title -->
   <text x="700" y="38" text-anchor="middle" font-size="22" font-weight="700" fill="white" filter="url(#glow)">BookStore Platform — Live Data Flow</text>
-  <text x="700" y="62" text-anchor="middle" font-size="12" fill="#60a5fa">Animated request paths · mTLS mesh · CDC pipeline · Real-time analytics</text>
+  <text x="700" y="62" text-anchor="middle" font-size="12" fill="#60a5fa">Animated request paths · mTLS mesh · Debezium→Kafka→Flink SQL CDC · Superset (3 dashboards · 16 charts)</text>
 
   <!-- ═══════════════════ LAYER LABELS ═══════════════════ -->
   <rect x="8" y="90" width="52" height="80" rx="6" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>
@@ -223,13 +223,13 @@
   <text x="1040" y="534" text-anchor="middle" font-size="10" fill="#fed7aa">KRaft · order.created</text>
   <text x="1040" y="542" text-anchor="middle" font-size="9" fill="#fdba74">inventory.updated</text>
 
-  <!-- ANALYTICS CONSUMER -->
+  <!-- APACHE FLINK (replaced Python Analytics Consumer in Session 18) -->
   <rect x="490" y="660" width="220" height="80" rx="14" fill="url(#gAnalytics)" filter="url(#glow)" opacity="0.92"/>
   <rect x="490" y="660" width="220" height="80" rx="14" fill="none" stroke="rgba(196,181,253,0.4)" stroke-width="1.5"/>
-  <text x="600" y="685" text-anchor="middle" font-size="16" fill="white">⚙️</text>
-  <text x="600" y="706" text-anchor="middle" font-size="12" font-weight="700" fill="white">Analytics Consumer</text>
-  <text x="600" y="722" text-anchor="middle" font-size="10" fill="#ddd6fe">Python · kafka-python-ng</text>
-  <text x="600" y="730" text-anchor="middle" font-size="9" fill="#c4b5fd">Kafka events → star schema</text>
+  <text x="600" y="685" text-anchor="middle" font-size="16" fill="white">⚡</text>
+  <text x="600" y="706" text-anchor="middle" font-size="12" font-weight="700" fill="white">Apache Flink 1.20</text>
+  <text x="600" y="722" text-anchor="middle" font-size="10" fill="#ddd6fe">Flink SQL · 4 streaming jobs</text>
+  <text x="600" y="730" text-anchor="middle" font-size="9" fill="#c4b5fd">Kafka → JDBC → analytics-db</text>
 
   <!-- ANALYTICS-DB -->
   <rect x="790" y="660" width="200" height="80" rx="14" fill="url(#gAnalytics)" filter="url(#glow)" opacity="0.92"/>
@@ -239,12 +239,12 @@
   <text x="890" y="722" text-anchor="middle" font-size="10" fill="#ddd6fe">PostgreSQL · Star Schema</text>
   <text x="890" y="730" text-anchor="middle" font-size="9" fill="#c4b5fd">fact_orders · dim_books</text>
 
-  <!-- SUPERSET -->
+  <!-- SUPERSET (3 dashboards · 16 charts after Session 18 + bootstrap fix) -->
   <rect x="1060" y="660" width="220" height="80" rx="14" fill="url(#gSuperset)" filter="url(#glow)" opacity="0.92"/>
   <rect x="1060" y="660" width="220" height="80" rx="14" fill="none" stroke="rgba(165,243,252,0.4)" stroke-width="1.5"/>
   <text x="1170" y="685" text-anchor="middle" font-size="16" fill="white">📈</text>
   <text x="1170" y="706" text-anchor="middle" font-size="12" font-weight="700" fill="white">Apache Superset</text>
-  <text x="1170" y="722" text-anchor="middle" font-size="10" fill="#cffafe">BI · ECharts dashboard</text>
+  <text x="1170" y="722" text-anchor="middle" font-size="10" fill="#cffafe">3 dashboards · 16 charts</text>
   <text x="1170" y="730" text-anchor="middle" font-size="9" fill="#a5f3fc">localhost:32000</text>
 
   <!-- ═══════════════════ STATIC CONNECTION PATHS ═══════════════════ -->
@@ -306,13 +306,13 @@
   <path d="M 1000 364 L 1000 440 L 1060 440 L 1060 472" fill="none" stroke="#ea580c" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowKafka)"/>
   <text x="1100" y="436" text-anchor="middle" font-size="9" fill="#fdba74">inv.updated</text>
 
-  <!-- Kafka → Analytics Consumer -->
+  <!-- Kafka → Apache Flink SQL (4 streaming jobs) -->
   <path d="M 1040 552 L 1040 630 L 710 630 L 710 660" fill="none" stroke="#8b5cf6" stroke-width="2.5" marker-end="url(#arrowPurple)"/>
-  <text x="875" y="626" text-anchor="middle" font-size="9" fill="#c4b5fd" font-weight="600">consume events</text>
+  <text x="875" y="626" text-anchor="middle" font-size="9" fill="#c4b5fd" font-weight="600">Flink SQL jobs</text>
 
-  <!-- Analytics Consumer → analytics-db -->
+  <!-- Flink JDBC sink → analytics-db -->
   <line x1="710" y1="700" x2="790" y2="700" stroke="#8b5cf6" stroke-width="2.5" marker-end="url(#arrowPurple)"/>
-  <text x="750" y="693" text-anchor="middle" font-size="9" fill="#c4b5fd">INSERT</text>
+  <text x="750" y="693" text-anchor="middle" font-size="9" fill="#c4b5fd">JDBC</text>
 
   <!-- analytics-db → Superset -->
   <line x1="990" y1="700" x2="1060" y2="700" stroke="#0891b2" stroke-width="2.5" marker-end="url(#arrowTeal)"/>
@@ -365,14 +365,14 @@
     </animateMotion>
   </circle>
 
-  <!-- Flow 7: Kafka → Analytics Consumer (Purple, 5s) -->
+  <!-- Flow 7: Kafka → Apache Flink SQL (Purple, 5s) -->
   <circle r="5" fill="#a78bfa" filter="url(#glow)" opacity="0.9">
     <animateMotion dur="5s" repeatCount="indefinite" begin="0.2s">
       <mpath href="#path-kafka-to-consumer"/>
     </animateMotion>
   </circle>
 
-  <!-- Flow 8: Consumer → analytics-db (Purple, 2.5s) -->
+  <!-- Flow 8: Flink JDBC sink → analytics-db (Purple, 2.5s) -->
   <circle r="4" fill="#c4b5fd" filter="url(#glow)" opacity="0.85">
     <animateMotion dur="2.5s" repeatCount="indefinite" begin="3s">
       <mpath href="#path-consumer-to-analyticsdb"/>
@@ -420,10 +420,10 @@
     <!-- Debezium → Kafka -->
     <path id="path-debezium-to-kafka" d="M 850 512 L 940 512"/>
 
-    <!-- Kafka → Analytics Consumer -->
+    <!-- Kafka → Apache Flink SQL jobs -->
     <path id="path-kafka-to-consumer" d="M 1040 552 L 1040 630 L 710 630 L 710 660"/>
 
-    <!-- Consumer → analytics-db -->
+    <!-- Flink JDBC sink → analytics-db -->
     <path id="path-consumer-to-analyticsdb" d="M 710 700 L 790 700"/>
 
     <!-- analytics-db → Superset -->
@@ -460,5 +460,5 @@
   </circle>
 
   <!-- Footer -->
-  <text x="700" y="814" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.3)">BookStore Platform · Istio Ambient Mesh · All inter-service traffic encrypted via mTLS</text>
+  <text x="700" y="814" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.3)">BookStore Platform · Istio Ambient Mesh · mTLS everywhere · Flink SQL CDC (4 jobs) · Superset (3 dashboards, 16 charts)</text>
 </svg>
