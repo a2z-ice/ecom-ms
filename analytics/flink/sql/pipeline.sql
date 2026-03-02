@@ -24,13 +24,14 @@ CREATE TABLE kafka_orders (
   >,
   op STRING
 ) WITH (
-  'connector'                    = 'kafka',
-  'topic'                        = 'ecom-connector.public.orders',
-  'properties.bootstrap.servers' = 'kafka.infra.svc.cluster.local:9092',
-  'properties.group.id'          = 'flink-analytics-consumer',
-  'format'                       = 'json',
-  'json.ignore-parse-errors'     = 'true',
-  'scan.startup.mode'            = 'earliest-offset'
+  'connector'                              = 'kafka',
+  'topic'                                  = 'ecom-connector.public.orders',
+  'properties.bootstrap.servers'           = 'kafka.infra.svc.cluster.local:9092',
+  'properties.group.id'                    = 'flink-analytics-consumer',
+  'format'                                 = 'json',
+  'json.ignore-parse-errors'               = 'true',
+  'scan.startup.mode'                      = 'earliest-offset',
+  'scan.topic-partition-discovery.interval' = '0'
 );
 
 CREATE TABLE kafka_order_items (
@@ -43,13 +44,14 @@ CREATE TABLE kafka_order_items (
   >,
   op STRING
 ) WITH (
-  'connector'                    = 'kafka',
-  'topic'                        = 'ecom-connector.public.order_items',
-  'properties.bootstrap.servers' = 'kafka.infra.svc.cluster.local:9092',
-  'properties.group.id'          = 'flink-analytics-consumer',
-  'format'                       = 'json',
-  'json.ignore-parse-errors'     = 'true',
-  'scan.startup.mode'            = 'earliest-offset'
+  'connector'                              = 'kafka',
+  'topic'                                  = 'ecom-connector.public.order_items',
+  'properties.bootstrap.servers'           = 'kafka.infra.svc.cluster.local:9092',
+  'properties.group.id'                    = 'flink-analytics-consumer',
+  'format'                                 = 'json',
+  'json.ignore-parse-errors'               = 'true',
+  'scan.startup.mode'                      = 'earliest-offset',
+  'scan.topic-partition-discovery.interval' = '0'
 );
 
 CREATE TABLE kafka_books (
@@ -67,13 +69,14 @@ CREATE TABLE kafka_books (
   >,
   op STRING
 ) WITH (
-  'connector'                    = 'kafka',
-  'topic'                        = 'ecom-connector.public.books',
-  'properties.bootstrap.servers' = 'kafka.infra.svc.cluster.local:9092',
-  'properties.group.id'          = 'flink-analytics-consumer',
-  'format'                       = 'json',
-  'json.ignore-parse-errors'     = 'true',
-  'scan.startup.mode'            = 'earliest-offset'
+  'connector'                              = 'kafka',
+  'topic'                                  = 'ecom-connector.public.books',
+  'properties.bootstrap.servers'           = 'kafka.infra.svc.cluster.local:9092',
+  'properties.group.id'                    = 'flink-analytics-consumer',
+  'format'                                 = 'json',
+  'json.ignore-parse-errors'               = 'true',
+  'scan.startup.mode'                      = 'earliest-offset',
+  'scan.topic-partition-discovery.interval' = '0'
 );
 
 CREATE TABLE kafka_inventory (
@@ -85,13 +88,14 @@ CREATE TABLE kafka_inventory (
   >,
   op STRING
 ) WITH (
-  'connector'                    = 'kafka',
-  'topic'                        = 'inventory-connector.public.inventory',
-  'properties.bootstrap.servers' = 'kafka.infra.svc.cluster.local:9092',
-  'properties.group.id'          = 'flink-analytics-consumer',
-  'format'                       = 'json',
-  'json.ignore-parse-errors'     = 'true',
-  'scan.startup.mode'            = 'earliest-offset'
+  'connector'                              = 'kafka',
+  'topic'                                  = 'inventory-connector.public.inventory',
+  'properties.bootstrap.servers'           = 'kafka.infra.svc.cluster.local:9092',
+  'properties.group.id'                    = 'flink-analytics-consumer',
+  'format'                                 = 'json',
+  'json.ignore-parse-errors'               = 'true',
+  'scan.startup.mode'                      = 'earliest-offset',
+  'scan.topic-partition-discovery.interval' = '0'
 );
 
 -- ─────────────────────────────────────────────────────────────────────────────

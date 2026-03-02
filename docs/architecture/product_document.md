@@ -28,7 +28,7 @@
 
 The platform runs on a local 3-node **kind** Kubernetes cluster with **Istio Ambient Mesh** for mTLS encryption across all services.
 
-![Infrastructure Architecture Diagram](../e2e/screenshots/diagram-architecture.png)
+![Infrastructure Architecture Diagram](../../e2e/screenshots/diagram-architecture.png)
 
 ### Key Components
 
@@ -55,7 +55,7 @@ The platform runs on a local 3-node **kind** Kubernetes cluster with **Istio Amb
 
 The animated diagram shows live events flowing through the CDC pipeline from user order placement to Superset analytics.
 
-![Animated Data Flow](../e2e/screenshots/diagram-data-flow.png)
+![Animated Data Flow](../../e2e/screenshots/diagram-data-flow.png)
 
 > The SVG source at `docs/diagrams/data-flow-animated.svg` contains CSS animations. Open it in a browser to see packets animate along each path.
 
@@ -95,7 +95,7 @@ Kiali is exposed via **NodePort 32100** — accessible at **`http://localhost:32
 
 ### 3.1 Kiali Overview
 
-![Kiali Overview](../e2e/screenshots/kiali-01-overview.png)
+![Kiali Overview](../../e2e/screenshots/kiali-01-overview.png)
 
 ---
 
@@ -103,7 +103,7 @@ Kiali is exposed via **NodePort 32100** — accessible at **`http://localhost:32
 
 The graph view shows inter-service traffic with mTLS padlock icons on all connections.
 
-![Kiali Traffic Graph](../e2e/screenshots/kiali-02-traffic-graph.png)
+![Kiali Traffic Graph](../../e2e/screenshots/kiali-02-traffic-graph.png)
 
 ---
 
@@ -111,7 +111,7 @@ The graph view shows inter-service traffic with mTLS padlock icons on all connec
 
 All deployments across namespaces (`ecom`, `inventory`, `analytics`, `identity`, `infra`) are listed with health status.
 
-![Kiali Workloads](../e2e/screenshots/kiali-03-ecom-workloads.png)
+![Kiali Workloads](../../e2e/screenshots/kiali-03-ecom-workloads.png)
 
 ---
 
@@ -119,7 +119,7 @@ All deployments across namespaces (`ecom`, `inventory`, `analytics`, `identity`,
 
 All Kubernetes Services with mTLS status indicators.
 
-![Kiali Services](../e2e/screenshots/kiali-04-services.png)
+![Kiali Services](../../e2e/screenshots/kiali-04-services.png)
 
 ---
 
@@ -127,7 +127,7 @@ All Kubernetes Services with mTLS status indicators.
 
 Full ambient mesh topology showing ztunnel data plane and control plane interconnections.
 
-![Kiali Mesh Topology](../e2e/screenshots/kiali-05-mesh-topology.png)
+![Kiali Mesh Topology](../../e2e/screenshots/kiali-05-mesh-topology.png)
 
 **Accessing Kiali:**
 
@@ -156,13 +156,13 @@ docker run -d --name kiali-proxy \
 
 ### 4.1 Keycloak Admin Login
 
-![Keycloak Admin Login](../e2e/screenshots/keycloak-01-admin-login-page.png)
+![Keycloak Admin Login](../../e2e/screenshots/keycloak-01-admin-login-page.png)
 
 ---
 
 ### 4.2 Keycloak Admin Console
 
-![Keycloak Admin Console](../e2e/screenshots/keycloak-02-admin-master-console.png)
+![Keycloak Admin Console](../../e2e/screenshots/keycloak-02-admin-master-console.png)
 
 ---
 
@@ -170,7 +170,7 @@ docker run -d --name kiali-proxy \
 
 The `bookstore` realm contains all OIDC configuration for the Book Store platform.
 
-![Keycloak Realm Settings](../e2e/screenshots/keycloak-04-realm-settings.png)
+![Keycloak Realm Settings](../../e2e/screenshots/keycloak-04-realm-settings.png)
 
 ---
 
@@ -178,7 +178,7 @@ The `bookstore` realm contains all OIDC configuration for the Book Store platfor
 
 Users `user1` (customer) and `admin1` (admin role) registered in the bookstore realm.
 
-![Keycloak Users](../e2e/screenshots/keycloak-05-users-list.png)
+![Keycloak Users](../../e2e/screenshots/keycloak-05-users-list.png)
 
 ---
 
@@ -186,7 +186,7 @@ Users `user1` (customer) and `admin1` (admin role) registered in the bookstore r
 
 The `ui-client` is configured with PKCE Authorization Code Flow.
 
-![Keycloak Clients](../e2e/screenshots/keycloak-06-clients.png)
+![Keycloak Clients](../../e2e/screenshots/keycloak-06-clients.png)
 
 ---
 
@@ -207,25 +207,25 @@ User clicks Login at myecom.net:30000
 
 **Step 1:** Unauthenticated homepage — Login button in navbar (shows `...` during initial auth check to prevent flash)
 
-![Homepage before login](../e2e/screenshots/auth-setup-01-homepage.png)
+![Homepage before login](../../e2e/screenshots/auth-setup-01-homepage.png)
 
 ---
 
 **Step 2:** Keycloak login form at `idp.keycloak.net:30000`
 
-![Keycloak login form](../e2e/screenshots/auth-setup-02-keycloak-login.png)
+![Keycloak login form](../../e2e/screenshots/auth-setup-02-keycloak-login.png)
 
 ---
 
 **Step 3:** Credentials entered
 
-![Credentials filled](../e2e/screenshots/auth-setup-03-credentials-filled.png)
+![Credentials filled](../../e2e/screenshots/auth-setup-03-credentials-filled.png)
 
 ---
 
 **Step 4:** Post-login — Logout button visible, tokens in sessionStorage only
 
-![Authenticated state](../e2e/screenshots/auth-setup-04-logged-in.png)
+![Authenticated state](../../e2e/screenshots/auth-setup-04-logged-in.png)
 
 ---
 
@@ -233,7 +233,7 @@ User clicks Login at myecom.net:30000
 
 Playwright verifies `localStorage` contains zero token-related keys:
 
-![No localStorage tokens](../e2e/screenshots/auth-01-logged-in-state.png)
+![No localStorage tokens](../../e2e/screenshots/auth-01-logged-in-state.png)
 
 ---
 
@@ -241,11 +241,11 @@ Playwright verifies `localStorage` contains zero token-related keys:
 
 Clicking Logout invokes Keycloak's end-session endpoint, clearing the SSO session:
 
-![Before logout](../e2e/screenshots/auth-03-before-logout.png)
+![Before logout](../../e2e/screenshots/auth-03-before-logout.png)
 
-![After logout redirect](../e2e/screenshots/auth-04-logout-redirect.png)
+![After logout redirect](../../e2e/screenshots/auth-04-logout-redirect.png)
 
-![Fresh session after logout](../e2e/screenshots/auth-05-logged-out-fresh-page.png)
+![Fresh session after logout](../../e2e/screenshots/auth-05-logged-out-fresh-page.png)
 
 ---
 
@@ -253,7 +253,7 @@ Clicking Logout invokes Keycloak's end-session endpoint, clearing the SSO sessio
 
 Visiting `/cart` without a session immediately redirects to Keycloak:
 
-![Unauth cart redirect](../e2e/screenshots/auth-06-unauth-cart-redirect.png)
+![Unauth cart redirect](../../e2e/screenshots/auth-06-unauth-cart-redirect.png)
 
 ---
 
@@ -263,7 +263,7 @@ Visiting `/cart` without a session immediately redirects to Keycloak:
 
 `GET http://api.service.net:30000/ecom/books` returns all 10 seeded books.
 
-![Books API response](../e2e/screenshots/api-01-books-response.png)
+![Books API response](../../e2e/screenshots/api-01-books-response.png)
 
 ---
 
@@ -271,7 +271,7 @@ Visiting `/cart` without a session immediately redirects to Keycloak:
 
 `GET http://idp.keycloak.net:30000/realms/bookstore/.well-known/openid-configuration`
 
-![Keycloak OpenID config](../e2e/screenshots/api-02-keycloak-openid-config.png)
+![Keycloak OpenID config](../../e2e/screenshots/api-02-keycloak-openid-config.png)
 
 ---
 
@@ -281,19 +281,19 @@ The catalog is publicly accessible — unauthenticated users can browse but not 
 
 ### 6.1 Homepage on Load
 
-![Catalog homepage](../e2e/screenshots/catalog-01-homepage-load.png)
+![Catalog homepage](../../e2e/screenshots/catalog-01-homepage-load.png)
 
 ---
 
 ### 6.2 Books Grid — 10 Seeded Books
 
-![Books grid](../e2e/screenshots/catalog-02-books-grid.png)
+![Books grid](../../e2e/screenshots/catalog-02-books-grid.png)
 
 ---
 
 ### 6.3 Book Card Details (Title · Author · Price)
 
-![Book card details](../e2e/screenshots/catalog-03-book-card-details.png)
+![Book card details](../../e2e/screenshots/catalog-03-book-card-details.png)
 
 ---
 
@@ -301,7 +301,7 @@ The catalog is publicly accessible — unauthenticated users can browse but not 
 
 Session 14 introduced a **guest cart** backed by `localStorage`. All users — authenticated or not — see **"Add to Cart"** buttons. Unauthenticated users' items are stored in `localStorage` under key `bookstore_guest_cart` and merged into the server cart on login.
 
-![Unauthenticated Add to Cart](../e2e/screenshots/catalog-04-unauthenticated-add-to-cart.png)
+![Unauthenticated Add to Cart](../../e2e/screenshots/catalog-04-unauthenticated-add-to-cart.png)
 
 ---
 
@@ -309,7 +309,7 @@ Session 14 introduced a **guest cart** backed by `localStorage`. All users — a
 
 After OIDC login, book cards show the "Add to Cart" action (identical button, but POSTs to the server cart instead of localStorage):
 
-![Add to Cart buttons](../e2e/screenshots/catalog-05-authenticated-add-to-cart.png)
+![Add to Cart buttons](../../e2e/screenshots/catalog-05-authenticated-add-to-cart.png)
 
 ---
 
@@ -317,19 +317,19 @@ After OIDC login, book cards show the "Add to Cart" action (identical button, bu
 
 ### 7.1 Search Page (Empty State)
 
-![Empty search page](../e2e/screenshots/search-01-empty-search-page.png)
+![Empty search page](../../e2e/screenshots/search-01-empty-search-page.png)
 
 ---
 
 ### 7.2 Search by Title — "Python"
 
-![Search by title results](../e2e/screenshots/search-02-results-by-title.png)
+![Search by title results](../../e2e/screenshots/search-02-results-by-title.png)
 
 ---
 
 ### 7.3 Search by Author Query Entered
 
-![Author search query](../e2e/screenshots/search-03-author-query-entered.png)
+![Author search query](../../e2e/screenshots/search-03-author-query-entered.png)
 
 ---
 
@@ -337,7 +337,7 @@ After OIDC login, book cards show the "Add to Cart" action (identical button, bu
 
 Returns *Designing Data-Intensive Applications*:
 
-![Search by author results](../e2e/screenshots/search-04-results-by-author.png)
+![Search by author results](../../e2e/screenshots/search-04-results-by-author.png)
 
 ---
 
@@ -345,7 +345,7 @@ Returns *Designing Data-Intensive Applications*:
 
 Query: `xyznotabook9999` → "0 results" message:
 
-![Zero results](../e2e/screenshots/search-05-no-results.png)
+![Zero results](../../e2e/screenshots/search-05-no-results.png)
 
 ---
 
@@ -355,7 +355,7 @@ The cart has two modes: **guest** (localStorage, no auth required) and **authent
 
 ### 8.1 Catalog Before Adding (Authenticated)
 
-![Catalog before add](../e2e/screenshots/cart-01-catalog-before-add.png)
+![Catalog before add](../../e2e/screenshots/cart-01-catalog-before-add.png)
 
 ---
 
@@ -363,7 +363,7 @@ The cart has two modes: **guest** (localStorage, no auth required) and **authent
 
 Button transitions through "Adding..." → "Add to Cart" confirming API success via `POST /ecom/cart`:
 
-![After add to cart](../e2e/screenshots/cart-02-after-add-to-cart.png)
+![After add to cart](../../e2e/screenshots/cart-02-after-add-to-cart.png)
 
 ---
 
@@ -371,7 +371,7 @@ Button transitions through "Adding..." → "Add to Cart" confirming API success 
 
 `/cart` — authenticated view: book title, quantity controls, unit price, subtotal in table:
 
-![Cart with items](../e2e/screenshots/cart-03-cart-with-items.png)
+![Cart with items](../../e2e/screenshots/cart-03-cart-with-items.png)
 
 ---
 
@@ -379,7 +379,7 @@ Button transitions through "Adding..." → "Add to Cart" confirming API success 
 
 `Total: $XX.XX` calculated from server cart items:
 
-![Cart total](../e2e/screenshots/cart-04-total-price.png)
+![Cart total](../../e2e/screenshots/cart-04-total-price.png)
 
 ---
 
@@ -387,7 +387,7 @@ Button transitions through "Adding..." → "Add to Cart" confirming API success 
 
 Guest users see the same "Add to Cart" buttons. Items go to `localStorage`:
 
-![Unauthenticated catalog](../e2e/screenshots/cart-05-unauthenticated-catalog.png)
+![Unauthenticated catalog](../../e2e/screenshots/cart-05-unauthenticated-catalog.png)
 
 ---
 
@@ -395,7 +395,7 @@ Guest users see the same "Add to Cart" buttons. Items go to `localStorage`:
 
 Clicking "Add to Cart" as a guest shows a toast and stays on the catalog — no login redirect:
 
-![Guest add to cart toast](../e2e/screenshots/cart-06-unauthenticated-guest-add-to-cart.png)
+![Guest add to cart toast](../../e2e/screenshots/cart-06-unauthenticated-guest-add-to-cart.png)
 
 ---
 
@@ -403,7 +403,7 @@ Clicking "Add to Cart" as a guest shows a toast and stays on the catalog — no 
 
 `/cart` (unauthenticated) — shows "Browsing as guest" banner with localStorage items and a "Login to Checkout" button:
 
-![Guest cart page](../e2e/screenshots/guest-cart-03-guest-cart-page.png)
+![Guest cart page](../../e2e/screenshots/guest-cart-03-guest-cart-page.png)
 
 ---
 
@@ -411,7 +411,7 @@ Clicking "Add to Cart" as a guest shows a toast and stays on the catalog — no 
 
 The navbar Cart link shows a badge with the current guest cart count (updated every 500 ms):
 
-![Cart badge](../e2e/screenshots/guest-cart-08-cart-badge.png)
+![Cart badge](../../e2e/screenshots/guest-cart-08-cart-badge.png)
 
 ---
 
@@ -419,7 +419,7 @@ The navbar Cart link shows a badge with the current guest cart count (updated ev
 
 Clicking "Login to Checkout" from `localhost:30000` (secure context) triggers OIDC and redirects to Keycloak:
 
-![Login to Checkout redirect](../e2e/screenshots/guest-cart-04-login-to-checkout.png)
+![Login to Checkout redirect](../../e2e/screenshots/guest-cart-04-login-to-checkout.png)
 
 ---
 
@@ -427,7 +427,7 @@ Clicking "Login to Checkout" from `localhost:30000` (secure context) triggers OI
 
 After login, `CallbackPage.tsx` reads `bookstore_guest_cart`, POSTs each item to `/ecom/cart`, clears localStorage, and navigates to `/cart`:
 
-![Cart after merge](../e2e/screenshots/guest-cart-06-cart-after-login.png)
+![Cart after merge](../../e2e/screenshots/guest-cart-06-cart-after-login.png)
 
 ---
 
@@ -435,25 +435,25 @@ After login, `CallbackPage.tsx` reads `bookstore_guest_cart`, POSTs each item to
 
 ### 9.1 Catalog — Select Book
 
-![Checkout step 1](../e2e/screenshots/checkout-01-catalog.png)
+![Checkout step 1](../../e2e/screenshots/checkout-01-catalog.png)
 
 ---
 
 ### 9.2 Book Added (POST /ecom/cart response awaited)
 
-![Book added](../e2e/screenshots/checkout-02-item-added.png)
+![Book added](../../e2e/screenshots/checkout-02-item-added.png)
 
 ---
 
 ### 9.3 Cart Ready for Checkout
 
-![Cart ready](../e2e/screenshots/checkout-03-cart-ready.png)
+![Cart ready](../../e2e/screenshots/checkout-03-cart-ready.png)
 
 ---
 
 ### 9.4 Checkout Button
 
-![Checkout button](../e2e/screenshots/checkout-04-checkout-button.png)
+![Checkout button](../../e2e/screenshots/checkout-04-checkout-button.png)
 
 ---
 
@@ -461,19 +461,19 @@ After login, `CallbackPage.tsx` reads `bookstore_guest_cart`, POSTs each item to
 
 `POST /ecom/checkout` publishes `order.created` to Kafka and returns Order ID:
 
-![Order confirmation](../e2e/screenshots/checkout-05-order-confirmation.png)
+![Order confirmation](../../e2e/screenshots/checkout-05-order-confirmation.png)
 
 ---
 
 ### 9.6 Second Order — Cart Before Checkout
 
-![Second checkout](../e2e/screenshots/checkout-06-cart-before-final-checkout.png)
+![Second checkout](../../e2e/screenshots/checkout-06-cart-before-final-checkout.png)
 
 ---
 
 ### 9.7 Second Order Confirmed
 
-![Second order confirmed](../e2e/screenshots/checkout-07-second-order-confirmed.png)
+![Second order confirmed](../../e2e/screenshots/checkout-07-second-order-confirmed.png)
 
 ---
 
@@ -481,7 +481,7 @@ After login, `CallbackPage.tsx` reads `bookstore_guest_cart`, POSTs each item to
 
 Cart cleared server-side after successful order:
 
-![Empty cart after checkout](../e2e/screenshots/checkout-08-empty-cart-after-checkout.png)
+![Empty cart after checkout](../../e2e/screenshots/checkout-08-empty-cart-after-checkout.png)
 
 ---
 
@@ -538,19 +538,19 @@ vw_sales_over_time:
 
 ### 10.1 CDC Test — Order Placed
 
-![CDC catalog](../e2e/screenshots/cdc-01-catalog-before-order.png)
+![CDC catalog](../../e2e/screenshots/cdc-01-catalog-before-order.png)
 
 ---
 
 ### 10.2 Cart Before CDC Test Checkout
 
-![CDC cart](../e2e/screenshots/cdc-02-cart-before-checkout.png)
+![CDC cart](../../e2e/screenshots/cdc-02-cart-before-checkout.png)
 
 ---
 
 ### 10.3 Order Confirmation — Order ID Captured
 
-![CDC order confirmation](../e2e/screenshots/cdc-03-order-confirmation.png)
+![CDC order confirmation](../../e2e/screenshots/cdc-03-order-confirmation.png)
 
 ---
 
@@ -558,7 +558,7 @@ vw_sales_over_time:
 
 Poll: `SELECT id FROM fact_orders WHERE id = $1` → found within timeout:
 
-![Analytics DB synced](../e2e/screenshots/cdc-04-analytics-db-synced.png)
+![Analytics DB synced](../../e2e/screenshots/cdc-04-analytics-db-synced.png)
 
 ---
 
@@ -566,7 +566,7 @@ Poll: `SELECT id FROM fact_orders WHERE id = $1` → found within timeout:
 
 `fact_order_items` verified:
 
-![Order items synced](../e2e/screenshots/cdc-05-order-items-synced.png)
+![Order items synced](../../e2e/screenshots/cdc-05-order-items-synced.png)
 
 ---
 
@@ -574,7 +574,7 @@ Poll: `SELECT id FROM fact_orders WHERE id = $1` → found within timeout:
 
 Debezium snapshot replicates all books to analytics DB:
 
-![dim_books populated](../e2e/screenshots/cdc-07-dim-books-populated.png)
+![dim_books populated](../../e2e/screenshots/cdc-07-dim-books-populated.png)
 
 ---
 
@@ -582,7 +582,7 @@ Debezium snapshot replicates all books to analytics DB:
 
 `fact_inventory` reflects current stock levels:
 
-![Inventory synced](../e2e/screenshots/cdc-08-inventory-synced.png)
+![Inventory synced](../../e2e/screenshots/cdc-08-inventory-synced.png)
 
 ---
 
@@ -600,19 +600,19 @@ by a Kubernetes bootstrap Job (`infra/superset/bootstrap-job.yaml`).
 
 ### 11.1 Superset Login
 
-![Superset login](../e2e/screenshots/superset-00-login-page.png)
+![Superset login](../../e2e/screenshots/superset-00-login-page.png)
 
 ---
 
 ### 11.2 Superset Welcome Screen
 
-![Superset welcome](../e2e/screenshots/superset-01-welcome.png)
+![Superset welcome](../../e2e/screenshots/superset-01-welcome.png)
 
 ---
 
 ### 11.3 Dashboard List
 
-![Dashboard list](../e2e/screenshots/superset-dashboard-list-data.png)
+![Dashboard list](../../e2e/screenshots/superset-dashboard-list-data.png)
 
 ---
 
@@ -621,7 +621,7 @@ by a Kubernetes bootstrap Job (`infra/superset/bootstrap-job.yaml`).
 Five charts render with live data: product sales volume, daily revenue trend, author revenue,
 top books by revenue, and book price distribution:
 
-![Dashboard with charts](../e2e/screenshots/superset-09-bookstore-dashboard.png)
+![Dashboard with charts](../../e2e/screenshots/superset-09-bookstore-dashboard.png)
 
 ---
 
@@ -629,7 +629,7 @@ top books by revenue, and book price distribution:
 
 KPI big-number tiles, order status pie, and avg order value trend:
 
-![Revenue dashboard](../e2e/screenshots/superset-11-revenue-dashboard.png)
+![Revenue dashboard](../../e2e/screenshots/superset-11-revenue-dashboard.png)
 
 ---
 
@@ -639,7 +639,7 @@ Table sorted by available stock, stock vs reserved bar, inventory turnover, reve
 two pie charts (stock status distribution, revenue share by genre). The table uses
 `order_by_cols: ['["available", false]']` for correct ascending sort.
 
-![Inventory dashboard](../e2e/screenshots/superset-13-inventory-dashboard.png)
+![Inventory dashboard](../../e2e/screenshots/superset-13-inventory-dashboard.png)
 
 ---
 
@@ -647,7 +647,7 @@ two pie charts (stock status distribution, revenue share by genre). The table us
 
 All 16 charts and 10 datasets listed in Superset inventory:
 
-![Chart list](../e2e/screenshots/superset-04-chart-list.png)
+![Chart list](../../e2e/screenshots/superset-04-chart-list.png)
 
 ---
 
@@ -657,13 +657,13 @@ PgAdmin 4 at `http://localhost:31111` for direct database inspection.
 
 ### 12.1 PgAdmin Login
 
-![PgAdmin login](../e2e/screenshots/pgadmin-01-login.png)
+![PgAdmin login](../../e2e/screenshots/pgadmin-01-login.png)
 
 ---
 
 ### 12.2 PgAdmin Dashboard
 
-![PgAdmin dashboard](../e2e/screenshots/pgadmin-02-dashboard.png)
+![PgAdmin dashboard](../../e2e/screenshots/pgadmin-02-dashboard.png)
 
 ---
 

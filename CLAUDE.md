@@ -97,7 +97,7 @@ This handles all root causes automatically:
 2. **Pod rolling restart (all pods)** — After ztunnel restart, existing pods lose HBONE registration; every pod must restart in dependency order (DBs first, then apps)
 3. **Debezium connector re-registration** — Kafka topics (including `debezium.configs`) are lost on Kafka restart; connectors must be re-registered
 
-See `docs/restart-app.md` for the full explanation and root cause analysis.
+See `docs/operations/restart-app.md` for the full explanation and root cause analysis.
 
 **Important Debezium re-registration caveat:** The `${file:...}` FileConfigProvider syntax does NOT expand during Kafka Connect connector validation (only at task startup). `register-connectors.sh` reads real credentials from the K8s secret and injects them directly — do NOT send `${file:...}` literals during PUT.
 
@@ -612,7 +612,7 @@ All 6 ports are declared in `infra/kind/cluster.yaml` under `extraPortMappings` 
 - **Python consumer deleted**: `analytics/consumer/main.py`, `Dockerfile`, `requirements.txt`, `infra/analytics/analytics-consumer.yaml` removed
 - **NodePort services**: Flink Web Dashboard at NodePort 32200 (`flink-jobmanager-nodeport` service) + Debezium REST API at NodePort 32300 (`debezium-nodeport` service). Both exposed directly via kind `extraPortMappings` — no proxy containers.
 - **E2E coverage**: `e2e/superset.spec.ts` expanded to 17 tests (API + UI: 3 dashboards, 14 charts, 10 datasets); `e2e/debezium-flink.spec.ts` (NEW) — 29 tests covering Debezium API, Flink dashboard, CDC end-to-end flow, operational health.
-- **Documentation**: `docs/debezium-flink-cdc.md` — comprehensive guide with architecture diagrams, per-component deep dives, data flow walkthrough, REST API reference, and E2E test coverage index.
+- **Documentation**: `docs/cdc/debezium-flink-cdc.md` — comprehensive guide with architecture diagrams, per-component deep dives, data flow walkthrough, REST API reference, and E2E test coverage index.
 
 ### Flink CDC Architecture
 
@@ -630,7 +630,11 @@ Debezium → Kafka (4 topics) → Flink SQL (plain json format, after field extr
 
 **JDBC sink**: Uses `TIMESTAMP(3)` (NOT `TIMESTAMP_LTZ(3)` — JDBC connector does not support it). `?stringtype=unspecified` in JDBC URL allows implicit `varchar → uuid` casts in PostgreSQL.
 
-**Exactly-once**: Flink checkpoints at `/opt/flink/checkpoints` (PVC-backed, `filesystem` state backend). Interval: 30s, mode: `EXACTLY_ONCE`.
+**Exactly-once**: Flink checkpoints at `/opt/flink/checkpoints` (PVC-backed, `hashmap` state backend). Interval: 30s, mode: `EXACTLY_ONCE`.
+
+**Partition discovery disabled**: All 4 Kafka source tables set `'scan.topic-partition-discovery.interval' = '0'`. This prevents the `KafkaSourceEnumerator` from firing a periodic `AdminClient.describeTopics()` every 5 minutes. Without this, Kafka's transient reconnect in a kind cluster causes `UnknownTopicOrPartitionException` → job failover every 5 min. Our topics are pre-created and static — initial discovery at startup is sufficient.
+
+**Deprecated config keys fixed**: `state.backend.type: hashmap` (was `state.backend: filesystem`); `execution.checkpointing.dir` (was `state.checkpoints.dir`). Config comes from `FLINK_PROPERTIES` env var in `flink-cluster.yaml` — the `flink-config.yaml` ConfigMap is NOT mounted and is kept for reference only.
 
 ### Fresh Bootstrap Fixes (2026-03-01)
 
@@ -663,11 +667,26 @@ These bugs were found and fixed during a full `up.sh --fresh --data` rebuild:
 - `echarts_pie` → `pie` (echarts_pie not registered in apache/superset:latest)
 - Container command changed to use `/app/.venv/bin/python` (Superset's venv, has requests built-in — no pip install, no network dependency)
 
+### Persistence — Fully Implemented
+
+All stateful services are backed by PVCs → PVs → host `data/` directory:
+
+| Service | PVC | PV hostPath | Survives restart |
+|---|---|---|---|
+| ecom-db | `ecom-db-pvc` | `data/ecom-db` | ✓ |
+| inventory-db | `inventory-db-pvc` | `data/inventory-db` | ✓ |
+| analytics-db | `analytics-db-pvc` | `data/analytics-db` | ✓ |
+| keycloak-db | `keycloak-db-pvc` | `data/keycloak-db` | ✓ |
+| kafka | `kafka-pvc` | `data/kafka` | ✓ |
+| redis | `redis-pvc` | `data/redis` | ✓ |
+| flink | `flink-checkpoints-pvc` | `data/flink` | ✓ |
+| superset | `superset-pvc` | `data/superset` | ✓ |
+
+`cluster-up.sh` creates all `data/` subdirectories before `kind create cluster`. The `cluster.yaml` mounts `DATA_DIR/<name>` → `/data/<name>` on all 3 nodes. `restart-after-docker.sh` checks connector status and only re-registers if not RUNNING (Kafka PVC data intact = auto-restore from `connect-configs` + `connect-offsets` internal topics).
+
 ### NEXT SESSION — Start Here
 
-**All 18 sessions complete + UI bug fixes + fresh-cluster bootstrap fully validated + bootstrap optimized.** Outstanding items:
-- DB data persistence — mount all 4 PostgreSQL DBs to host `data/` folder (PVs exist, but cluster.yaml and PV/PVC wiring needed)
-- Kafka persistence — topics lost on pod restart; add PVC or recreate on startup
+**All 18 sessions complete + UI bug fixes + fresh-cluster bootstrap fully validated + bootstrap optimized + all persistence confirmed.** No outstanding items — see `docs/architecture/review-and-proposed-architecture.md` for the enhancement roadmap.
 
 ---
 

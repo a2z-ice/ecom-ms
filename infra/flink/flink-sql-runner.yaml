@@ -28,13 +28,14 @@ data:
       >,
       op STRING
     ) WITH (
-      'connector'                    = 'kafka',
-      'topic'                        = 'ecom-connector.public.orders',
-      'properties.bootstrap.servers' = 'kafka.infra.svc.cluster.local:9092',
-      'properties.group.id'          = 'flink-analytics-consumer',
-      'format'                       = 'json',
-      'json.ignore-parse-errors'     = 'true',
-      'scan.startup.mode'            = 'earliest-offset'
+      'connector'                               = 'kafka',
+      'topic'                                   = 'ecom-connector.public.orders',
+      'properties.bootstrap.servers'            = 'kafka.infra.svc.cluster.local:9092',
+      'properties.group.id'                     = 'flink-analytics-consumer',
+      'format'                                  = 'json',
+      'json.ignore-parse-errors'                = 'true',
+      'scan.startup.mode'                       = 'earliest-offset',
+      'scan.topic-partition-discovery.interval' = '0'
     );
 
     CREATE TABLE kafka_order_items (
@@ -47,13 +48,14 @@ data:
       >,
       op STRING
     ) WITH (
-      'connector'                    = 'kafka',
-      'topic'                        = 'ecom-connector.public.order_items',
-      'properties.bootstrap.servers' = 'kafka.infra.svc.cluster.local:9092',
-      'properties.group.id'          = 'flink-analytics-consumer',
-      'format'                       = 'json',
-      'json.ignore-parse-errors'     = 'true',
-      'scan.startup.mode'            = 'earliest-offset'
+      'connector'                               = 'kafka',
+      'topic'                                   = 'ecom-connector.public.order_items',
+      'properties.bootstrap.servers'            = 'kafka.infra.svc.cluster.local:9092',
+      'properties.group.id'                     = 'flink-analytics-consumer',
+      'format'                                  = 'json',
+      'json.ignore-parse-errors'                = 'true',
+      'scan.startup.mode'                       = 'earliest-offset',
+      'scan.topic-partition-discovery.interval' = '0'
     );
 
     CREATE TABLE kafka_books (
@@ -71,13 +73,14 @@ data:
       >,
       op STRING
     ) WITH (
-      'connector'                    = 'kafka',
-      'topic'                        = 'ecom-connector.public.books',
-      'properties.bootstrap.servers' = 'kafka.infra.svc.cluster.local:9092',
-      'properties.group.id'          = 'flink-analytics-consumer',
-      'format'                       = 'json',
-      'json.ignore-parse-errors'     = 'true',
-      'scan.startup.mode'            = 'earliest-offset'
+      'connector'                               = 'kafka',
+      'topic'                                   = 'ecom-connector.public.books',
+      'properties.bootstrap.servers'            = 'kafka.infra.svc.cluster.local:9092',
+      'properties.group.id'                     = 'flink-analytics-consumer',
+      'format'                                  = 'json',
+      'json.ignore-parse-errors'                = 'true',
+      'scan.startup.mode'                       = 'earliest-offset',
+      'scan.topic-partition-discovery.interval' = '0'
     );
 
     CREATE TABLE kafka_inventory (
@@ -89,13 +92,14 @@ data:
       >,
       op STRING
     ) WITH (
-      'connector'                    = 'kafka',
-      'topic'                        = 'inventory-connector.public.inventory',
-      'properties.bootstrap.servers' = 'kafka.infra.svc.cluster.local:9092',
-      'properties.group.id'          = 'flink-analytics-consumer',
-      'format'                       = 'json',
-      'json.ignore-parse-errors'     = 'true',
-      'scan.startup.mode'            = 'earliest-offset'
+      'connector'                               = 'kafka',
+      'topic'                                   = 'inventory-connector.public.inventory',
+      'properties.bootstrap.servers'            = 'kafka.infra.svc.cluster.local:9092',
+      'properties.group.id'                     = 'flink-analytics-consumer',
+      'format'                                  = 'json',
+      'json.ignore-parse-errors'                = 'true',
+      'scan.startup.mode'                       = 'earliest-offset',
+      'scan.topic-partition-discovery.interval' = '0'
     );
 
     -- SINK TABLES (JDBC -> PostgreSQL analytics-db)
