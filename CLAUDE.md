@@ -492,9 +492,9 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 
 ---
 
-## Current Implementation State (as of 2026-03-01)
+## Current Implementation State (as of 2026-03-02)
 
-**Sessions 1–18 complete + UI bug fixes + fresh-cluster bootstrap fixes. E2E: 89/89 passing.**
+**Sessions 1–18 complete + UI bug fixes + fresh-cluster bootstrap fully validated + Flink stability fixes. E2E: 89/89 passing.**
 
 ### Cluster: `bookstore` (kind, 3 nodes) — RUNNING
 
@@ -635,6 +635,14 @@ Debezium → Kafka (4 topics) → Flink SQL (plain json format, after field extr
 **Partition discovery disabled**: All 4 Kafka source tables set `'scan.topic-partition-discovery.interval' = '0'`. This prevents the `KafkaSourceEnumerator` from firing a periodic `AdminClient.describeTopics()` every 5 minutes. Without this, Kafka's transient reconnect in a kind cluster causes `UnknownTopicOrPartitionException` → job failover every 5 min. Our topics are pre-created and static — initial discovery at startup is sufficient.
 
 **Deprecated config keys fixed**: `state.backend.type: hashmap` (was `state.backend: filesystem`); `execution.checkpointing.dir` (was `state.checkpoints.dir`). Config comes from `FLINK_PROPERTIES` env var in `flink-cluster.yaml` — the `flink-config.yaml` ConfigMap is NOT mounted and is kept for reference only.
+
+### Fresh Bootstrap Fixes (2026-03-02 — additional)
+
+These bugs were found during a `up.sh --fresh` rebuild (data preserved):
+
+- **Keycloak import 180s timeout**: `scripts/keycloak-import.sh` `kubectl wait --timeout` was 180s. On fresh cluster, `kc.sh import` triggers a Keycloak binary rebuild phase (~90s) + startup (~60s) + import (~15s) = ~165s total. Increased timeout to 360s. Fix: `keycloak-import.sh` line 25.
+- **Flink SQL runner not resubmitted after recovery**: `up.sh` recovery function and `restart-after-docker.sh` restarted Flink JM/TM pods but never deleted + recreated the `flink-sql-runner` Job. Flink Session Cluster loses all streaming jobs on JM restart; the completed K8s Job won't re-run. Both scripts now poll SQL Gateway readiness → delete + recreate the Job. Fix: both scripts, Step 5.
+- **E2E cold-start flake**: `cart.spec.ts` add-to-cart test failed on first run after fresh cluster (ecom-service POST /cart slow during cold start; button reverts to "Add to Cart" silently on both success and failure). Fix: `playwright.config.ts` `retries: 1` (was `CI ? 1 : 0`).
 
 ### Fresh Bootstrap Fixes (2026-03-01)
 

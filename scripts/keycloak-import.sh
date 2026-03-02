@@ -22,8 +22,9 @@ info "Running realm import Job..."
 kubectl apply -f "${REPO_ROOT}/infra/keycloak/import-job.yaml"
 
 info "Waiting for import Job to complete..."
+# 360s: fresh installs trigger Keycloak binary rebuild (~90s) + startup (~60s) + import (~15s)
 kubectl wait --for=condition=complete job/keycloak-realm-import \
-  -n identity --timeout=180s
+  -n identity --timeout=360s
 
 echo ""
 echo -e "${GREEN}✔ Keycloak realm 'bookstore' imported successfully.${NC}"

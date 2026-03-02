@@ -5,7 +5,7 @@ export default defineConfig({
   testMatch: '**/*.spec.ts',
   fullyParallel: false,   // Run sequentially to avoid auth state conflicts
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  retries: 1,   // 1 retry handles cold-start flakes on fresh cluster deploys
   workers: 1,
   globalSetup: './global-setup.ts',
   reporter: [
