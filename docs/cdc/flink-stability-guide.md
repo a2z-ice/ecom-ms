@@ -54,92 +54,119 @@ FlinkException: Global failure triggered by OperatorCoordinator for 'Source: kaf
 
 ### Root Cause
 
-**Flink's `KafkaSourceEnumerator` runs periodic partition discovery every 5 minutes by default.**
+`KafkaSourceEnumerator` creates a new `AdminClient` and calls `AdminClient.describeTopics()` every `scan.topic-partition-discovery.interval` ms (default: 300,000 ms = 5 min). Between calls, the AdminClient connection sits **idle** in the network stack.
 
-When `scan.topic-partition-discovery.interval` is not set in the Kafka source table DDL, the connector falls back to `KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS` which **defaults to 300000ms (5 minutes)**.
-
-Every 5 minutes, Flink creates a new `AdminClient` and calls `AdminClient.describeTopics()` to check if new partitions were added. This AdminClient reconnects to `bootstrap.servers` from scratch. In a local kind cluster with Confluent Platform KRaft Kafka, this reconnection is unstable — the broker transiently returns `UnknownTopicOrPartitionException` during the metadata exchange.
-
-The sequence:
+In kind's NAT networking, the idle connection goes stale:
 
 ```
-t=0m   → Flink starts, initial partition discovery OK (3 partitions each topic)
-t=5m   → Periodic discovery fires → AdminClient reconnects → Node -1 disconnected
-         → describeTopics() fails → UnknownTopicOrPartitionException
-         → KafkaSourceEnumerator.checkPartitionChanges() throws
-         → SourceCoordinatorContext.handleUncaughtExceptionFromAsyncCall()
-         → Global failure → job restarts
-t=10m  → Same cycle repeats
+t=0min   AdminClient connects to Kafka broker → initial discovery OK
+t=0-5min AdminClient connection sits IDLE in NAT
+          ↓ NAT table entry may expire silently (kind NAT has unpredictable idle TTL)
+t=5min   Discovery fires → AdminClient tries to USE the idle connection
+          ↓ Packet sent, but NAT has no entry → broker never sees it
+          ↓ AdminClient sees no response → "Node -1 disconnected"
+          ↓ AdminClient tries to reconnect → race condition during KRaft metadata exchange
+          ↓ describeTopics() returns UnknownTopicOrPartitionException
+          ↓ KafkaSourceEnumerator throws → GlobalFailure → all 4 jobs restart
 ```
 
-**Why `Node -1`?** In Kafka clients, "Node -1" is a virtual bootstrap node used only during initial connection. If the AdminClient reconnects but fails to complete bootstrap before the request times out, it keeps reporting "Node -1 disconnected" — indicating a transient TCP-level connection failure during metadata exchange.
+**Why `Node -1`?** In Kafka clients, "Node -1" is a virtual bootstrap node used during initial metadata exchange. When the AdminClient's reconnect fails mid-handshake (due to the stale NAT entry), it reports "Node -1 disconnected" — a TCP-level failure during the metadata bootstrap phase.
 
-**Why does this happen in kind?** The kind cluster's NAT networking adds latency and can drop TCP connections during idle periods. The AdminClient's connection is idle for 5 minutes between discovery cycles, and the broker's connection idle timeout (`connections.max.idle.ms` = 9 min by default) may or may not have cleaned it up. The reconnect attempt hits a race condition in Kafka's KRaft metadata propagation.
+**This is an AdminClient idle-connection management problem, not a partition discovery problem.** Disabling partition discovery (`= '0'`) hides the symptom but removes a production-required feature. The correct fix is to prevent the stale connection from forming.
 
 ### Fix
 
-Disable periodic partition discovery entirely. Our CDC topics are pre-created with fixed partitions — we never dynamically add partitions to running topics. The initial partition discovery at startup (which always runs) is sufficient.
+Set `properties.connections.max.idle.ms` to **less than** the discovery interval. The AdminClient then **proactively closes** its connection while idle — before the NAT entry can expire — so each discovery cycle opens a **fresh** connection with no stale NAT state.
+
+```
+discovery interval      = 300,000 ms (5 min)
+connections.max.idle.ms = 180,000 ms (3 min)  ← must be < discovery interval
+
+t=0min   AdminClient connects → discovery runs → connection goes IDLE
+t=3min   connections.max.idle.ms fires → AdminClient closes connection CLEANLY
+t=5min   Discovery fires → AdminClient opens a FRESH connection (no stale NAT state)
+          → describeTopics() succeeds → no crash → no restart
+```
+
+This is the standard approach documented by AWS for MSK behind VPC NAT and by Confluent for cloud deployments behind NAT gateways.
 
 **In `analytics/flink/sql/pipeline.sql` and the ConfigMap in `infra/flink/flink-sql-runner.yaml`:**
 
-Add to every Kafka source table's `WITH` clause:
-
-```sql
-'scan.topic-partition-discovery.interval' = '0'
-```
-
-Setting this to `0` makes `Duration::toMillis()` return `0`, and since the scheduling check is `if (partitionDiscoveryIntervalMs > 0)`, the periodic task is never scheduled.
-
-**Before (broken — fires every 5 min):**
+**Before (shortcut — disables partition discovery; hides the root cause):**
 
 ```sql
 CREATE TABLE kafka_orders ( ... ) WITH (
-  'connector'                    = 'kafka',
-  'topic'                        = 'ecom-connector.public.orders',
-  'properties.bootstrap.servers' = 'kafka.infra.svc.cluster.local:9092',
-  'properties.group.id'          = 'flink-analytics-consumer',
-  'format'                       = 'json',
-  'json.ignore-parse-errors'     = 'true',
-  'scan.startup.mode'            = 'earliest-offset'
-  -- no scan.topic-partition-discovery.interval → defaults to 300000ms
-);
-```
-
-**After (fixed — partition discovery only at startup):**
-
-```sql
-CREATE TABLE kafka_orders ( ... ) WITH (
-  'connector'                               = 'kafka',
-  'topic'                                   = 'ecom-connector.public.orders',
-  'properties.bootstrap.servers'            = 'kafka.infra.svc.cluster.local:9092',
-  'properties.group.id'                     = 'flink-analytics-consumer',
-  'format'                                  = 'json',
-  'json.ignore-parse-errors'                = 'true',
+  -- ...
   'scan.startup.mode'                       = 'earliest-offset',
-  'scan.topic-partition-discovery.interval' = '0'   -- disables periodic AdminClient calls
+  'scan.topic-partition-discovery.interval' = '0'   -- WRONG: removes Kafka scaling feature
 );
+```
+
+**After (production-grade — re-enables discovery, fixes the connection management):**
+
+```sql
+CREATE TABLE kafka_orders ( ... ) WITH (
+  -- ...
+  'scan.startup.mode'                                 = 'earliest-offset',
+
+  -- Partition discovery: ENABLED (required for Kafka topic scaling in production)
+  -- New TABLES still require a SQL change + job resubmit — partition discovery only
+  -- auto-detects new partitions on existing topics.
+  'scan.topic-partition-discovery.interval'           = '300000',
+
+  -- AdminClient connection resilience: proactively close before NAT can expire the entry.
+  -- Each discovery cycle opens a fresh connection → no stale NAT state → no crash.
+  'properties.connections.max.idle.ms'                = '180000',
+  'properties.reconnect.backoff.ms'                   = '1000',
+  'properties.reconnect.backoff.max.ms'               = '10000',
+  'properties.request.timeout.ms'                     = '30000',
+  'properties.socket.connection.setup.timeout.ms'     = '10000',
+  'properties.socket.connection.setup.timeout.max.ms' = '30000',
+  'properties.metadata.max.age.ms'                    = '300000'
+);
+```
+
+Apply to all 4 source tables: `kafka_orders`, `kafka_order_items`, `kafka_books`, `kafka_inventory`.
+
+**Kafka broker settings added to `infra/kafka/kafka.yaml`:**
+
+```yaml
+- name: KAFKA_CONNECTIONS_MAX_IDLE_MS
+  value: "600000"   # 10 min broker timeout; clients close at 3 min → clients always first
+- name: KAFKA_SOCKET_KEEPALIVE_ENABLE
+  value: "true"     # TCP keepalive for legitimate long-lived consumer connections
 ```
 
 ### Verification
 
-Check the JobManager log — it must say `without periodic partition discovery`:
+Check the JobManager log — it must say `with partition discovery interval of 300000 ms`:
 
 ```bash
 kubectl logs -n analytics deploy/flink-jobmanager --container jobmanager | grep "KafkaSourceEnumerator"
 ```
 
-Expected output (fixed):
+**Expected output (fixed — discovery enabled, connection management correct):**
 ```
 INFO KafkaSourceEnumerator - Starting the KafkaSourceEnumerator for consumer group
-  flink-analytics-consumer without periodic partition discovery.
+  flink-analytics-consumer with partition discovery interval of 300000 ms.
 INFO KafkaSourceEnumerator - Discovered new partitions: [ecom-connector.public.orders-0,
   ecom-connector.public.orders-1, ecom-connector.public.orders-2]
 ```
 
-Old broken output:
-```
-INFO KafkaSourceEnumerator - Starting the KafkaSourceEnumerator for consumer group
-  flink-analytics-consumer with partition discovery interval of 300000 ms.
+**10-minute stability test** — wait for the first discovery cycle to fire, then check for zero exceptions:
+
+```bash
+curl -s http://localhost:32200/jobs | python3 -c "
+import sys, json, urllib.request
+jobs = json.load(sys.stdin)['jobs']
+for j in jobs:
+    r = urllib.request.urlopen(f'http://localhost:32200/jobs/{j[\"id\"]}/exceptions')
+    exc = json.loads(r.read())
+    history = exc.get('exceptionHistory', {}).get('entries', [])
+    status = 'CLEAN' if not history else f'{len(history)} EXCEPTIONS'
+    print(f'Job {j[\"id\"][:8]} ({j[\"status\"]}): {status}')
+"
+# Expected: all 4 RUNNING, CLEAN
 ```
 
 ---

@@ -30,8 +30,26 @@ CREATE TABLE kafka_orders (
   'properties.group.id'                    = 'flink-analytics-consumer',
   'format'                                 = 'json',
   'json.ignore-parse-errors'               = 'true',
-  'scan.startup.mode'                      = 'earliest-offset',
-  'scan.topic-partition-discovery.interval' = '0'
+  'scan.startup.mode'                                 = 'earliest-offset',
+
+  -- Partition discovery: ENABLED (required for Kafka scaling; correct production behavior)
+  -- New TABLES still require a SQL change + job resubmit; partition discovery only
+  -- auto-detects new partitions on existing topics (e.g. Kafka throughput scaling).
+  'scan.topic-partition-discovery.interval'           = '300000',
+
+  -- AdminClient connection resilience: fixes NAT idle connection issue in kind.
+  -- Root cause: AdminClient connection sits idle for 5 min between discovery calls;
+  -- NAT entry expires silently; reconnect hits a race condition in KRaft metadata.
+  -- Fix: set idle timeout (180s) < discovery interval (300s) so AdminClient proactively
+  -- closes the connection before NAT can expire it. Each discovery cycle opens a fresh
+  -- connection → no stale NAT state → no UnknownTopicOrPartitionException.
+  'properties.connections.max.idle.ms'                = '180000',
+  'properties.reconnect.backoff.ms'                   = '1000',
+  'properties.reconnect.backoff.max.ms'               = '10000',
+  'properties.request.timeout.ms'                     = '30000',
+  'properties.socket.connection.setup.timeout.ms'     = '10000',
+  'properties.socket.connection.setup.timeout.max.ms' = '30000',
+  'properties.metadata.max.age.ms'                    = '300000'
 );
 
 CREATE TABLE kafka_order_items (
@@ -50,8 +68,26 @@ CREATE TABLE kafka_order_items (
   'properties.group.id'                    = 'flink-analytics-consumer',
   'format'                                 = 'json',
   'json.ignore-parse-errors'               = 'true',
-  'scan.startup.mode'                      = 'earliest-offset',
-  'scan.topic-partition-discovery.interval' = '0'
+  'scan.startup.mode'                                 = 'earliest-offset',
+
+  -- Partition discovery: ENABLED (required for Kafka scaling; correct production behavior)
+  -- New TABLES still require a SQL change + job resubmit; partition discovery only
+  -- auto-detects new partitions on existing topics (e.g. Kafka throughput scaling).
+  'scan.topic-partition-discovery.interval'           = '300000',
+
+  -- AdminClient connection resilience: fixes NAT idle connection issue in kind.
+  -- Root cause: AdminClient connection sits idle for 5 min between discovery calls;
+  -- NAT entry expires silently; reconnect hits a race condition in KRaft metadata.
+  -- Fix: set idle timeout (180s) < discovery interval (300s) so AdminClient proactively
+  -- closes the connection before NAT can expire it. Each discovery cycle opens a fresh
+  -- connection → no stale NAT state → no UnknownTopicOrPartitionException.
+  'properties.connections.max.idle.ms'                = '180000',
+  'properties.reconnect.backoff.ms'                   = '1000',
+  'properties.reconnect.backoff.max.ms'               = '10000',
+  'properties.request.timeout.ms'                     = '30000',
+  'properties.socket.connection.setup.timeout.ms'     = '10000',
+  'properties.socket.connection.setup.timeout.max.ms' = '30000',
+  'properties.metadata.max.age.ms'                    = '300000'
 );
 
 CREATE TABLE kafka_books (
@@ -75,8 +111,26 @@ CREATE TABLE kafka_books (
   'properties.group.id'                    = 'flink-analytics-consumer',
   'format'                                 = 'json',
   'json.ignore-parse-errors'               = 'true',
-  'scan.startup.mode'                      = 'earliest-offset',
-  'scan.topic-partition-discovery.interval' = '0'
+  'scan.startup.mode'                                 = 'earliest-offset',
+
+  -- Partition discovery: ENABLED (required for Kafka scaling; correct production behavior)
+  -- New TABLES still require a SQL change + job resubmit; partition discovery only
+  -- auto-detects new partitions on existing topics (e.g. Kafka throughput scaling).
+  'scan.topic-partition-discovery.interval'           = '300000',
+
+  -- AdminClient connection resilience: fixes NAT idle connection issue in kind.
+  -- Root cause: AdminClient connection sits idle for 5 min between discovery calls;
+  -- NAT entry expires silently; reconnect hits a race condition in KRaft metadata.
+  -- Fix: set idle timeout (180s) < discovery interval (300s) so AdminClient proactively
+  -- closes the connection before NAT can expire it. Each discovery cycle opens a fresh
+  -- connection → no stale NAT state → no UnknownTopicOrPartitionException.
+  'properties.connections.max.idle.ms'                = '180000',
+  'properties.reconnect.backoff.ms'                   = '1000',
+  'properties.reconnect.backoff.max.ms'               = '10000',
+  'properties.request.timeout.ms'                     = '30000',
+  'properties.socket.connection.setup.timeout.ms'     = '10000',
+  'properties.socket.connection.setup.timeout.max.ms' = '30000',
+  'properties.metadata.max.age.ms'                    = '300000'
 );
 
 CREATE TABLE kafka_inventory (
@@ -94,8 +148,26 @@ CREATE TABLE kafka_inventory (
   'properties.group.id'                    = 'flink-analytics-consumer',
   'format'                                 = 'json',
   'json.ignore-parse-errors'               = 'true',
-  'scan.startup.mode'                      = 'earliest-offset',
-  'scan.topic-partition-discovery.interval' = '0'
+  'scan.startup.mode'                                 = 'earliest-offset',
+
+  -- Partition discovery: ENABLED (required for Kafka scaling; correct production behavior)
+  -- New TABLES still require a SQL change + job resubmit; partition discovery only
+  -- auto-detects new partitions on existing topics (e.g. Kafka throughput scaling).
+  'scan.topic-partition-discovery.interval'           = '300000',
+
+  -- AdminClient connection resilience: fixes NAT idle connection issue in kind.
+  -- Root cause: AdminClient connection sits idle for 5 min between discovery calls;
+  -- NAT entry expires silently; reconnect hits a race condition in KRaft metadata.
+  -- Fix: set idle timeout (180s) < discovery interval (300s) so AdminClient proactively
+  -- closes the connection before NAT can expire it. Each discovery cycle opens a fresh
+  -- connection → no stale NAT state → no UnknownTopicOrPartitionException.
+  'properties.connections.max.idle.ms'                = '180000',
+  'properties.reconnect.backoff.ms'                   = '1000',
+  'properties.reconnect.backoff.max.ms'               = '10000',
+  'properties.request.timeout.ms'                     = '30000',
+  'properties.socket.connection.setup.timeout.ms'     = '10000',
+  'properties.socket.connection.setup.timeout.max.ms' = '30000',
+  'properties.metadata.max.age.ms'                    = '300000'
 );
 
 -- ─────────────────────────────────────────────────────────────────────────────

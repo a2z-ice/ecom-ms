@@ -632,7 +632,18 @@ Debezium → Kafka (4 topics) → Flink SQL (plain json format, after field extr
 
 **Exactly-once**: Flink checkpoints at `/opt/flink/checkpoints` (PVC-backed, `hashmap` state backend). Interval: 30s, mode: `EXACTLY_ONCE`.
 
-**Partition discovery disabled**: All 4 Kafka source tables set `'scan.topic-partition-discovery.interval' = '0'`. This prevents the `KafkaSourceEnumerator` from firing a periodic `AdminClient.describeTopics()` every 5 minutes. Without this, Kafka's transient reconnect in a kind cluster causes `UnknownTopicOrPartitionException` → job failover every 5 min. Our topics are pre-created and static — initial discovery at startup is sufficient.
+**Partition discovery**: All 4 Kafka source tables set `'scan.topic-partition-discovery.interval' = '300000'` (5 min, enabled). This is the **production-grade setting** required for Kafka topic scaling (auto-detects new partitions). New TABLES always require a SQL change + job resubmit regardless.
+
+**AdminClient connection resilience** (production-grade fix for NAT idle-connection crash): All 4 source tables also set:
+- `'properties.connections.max.idle.ms' = '180000'` — AdminClient proactively closes idle connection after 3 min (< 5 min discovery interval). Each discovery cycle opens a fresh connection → no stale NAT state → no `UnknownTopicOrPartitionException`.
+- `'properties.reconnect.backoff.ms' = '1000'`, `'properties.reconnect.backoff.max.ms' = '10000'`, `'properties.request.timeout.ms' = '30000'`, `'properties.socket.connection.setup.timeout.ms' = '10000'`, `'properties.socket.connection.setup.timeout.max.ms' = '30000'`, `'properties.metadata.max.age.ms' = '300000'`.
+
+**Adding a new table** (production procedure — partition discovery does NOT automate this):
+1. Add migration (Liquibase/Alembic) in the source service
+2. Update Debezium connector `table.include.list` via REST PUT
+3. Add DDL to `analytics/schema/analytics-ddl.sql`
+4. Add Kafka source table + JDBC sink table + `INSERT INTO` pipeline to `analytics/flink/sql/pipeline.sql` AND `infra/flink/flink-sql-runner.yaml` ConfigMap (copy the full WITH clause template including all 8 connection properties)
+5. Resubmit: `kubectl apply -f infra/flink/flink-sql-runner.yaml && kubectl delete job flink-sql-runner -n analytics --ignore-not-found && kubectl apply -f infra/flink/flink-sql-runner.yaml && kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeout=120s`
 
 **Deprecated config keys fixed**: `state.backend.type: hashmap` (was `state.backend: filesystem`); `execution.checkpointing.dir` (was `state.checkpoints.dir`). Config comes from `FLINK_PROPERTIES` env var in `flink-cluster.yaml` — the `flink-config.yaml` ConfigMap is NOT mounted and is kept for reference only.
 
@@ -690,11 +701,13 @@ All stateful services are backed by PVCs → PVs → host `data/` directory:
 | flink | `flink-checkpoints-pvc` | `data/flink` | ✓ |
 | superset | `superset-pvc` | `data/superset` | ✓ |
 
-`cluster-up.sh` creates all `data/` subdirectories before `kind create cluster`. The `cluster.yaml` mounts `DATA_DIR/<name>` → `/data/<name>` on all 3 nodes. `restart-after-docker.sh` checks connector status and only re-registers if not RUNNING (Kafka PVC data intact = auto-restore from `connect-configs` + `connect-offsets` internal topics).
+`cluster-up.sh` creates all `data/` subdirectories before `kind create cluster`. The `cluster.yaml` mounts `DATA_DIR/<name>` → `/data/<name>` on all 3 nodes.
+
+**Kafka PVC mount fix (Session 19)**: `confluentinc/cp-kafka` declares `VOLUME /var/lib/kafka/data` in its Dockerfile. Docker auto-creates an anonymous volume at that path that shadows any parent bind mount. Fix: mount the PVC at `/var/lib/kafka/data` (exact VOLUME path) so the bind mount takes precedence. The PVC is now at `volumeMounts.mountPath: /var/lib/kafka/data` in `infra/kafka/kafka.yaml`. After this fix, KRaft cluster metadata persists across pod restarts. CDC topics (`ecom-connector.public.*`) still require `kafka-topics-init.yaml` + `register-connectors.sh` after each Kafka restart (since `connect-offsets` topic is lost when Kafka resets).
 
 ### NEXT SESSION — Start Here
 
-**All 18 sessions complete + UI bug fixes + fresh-cluster bootstrap fully validated + bootstrap optimized + all persistence confirmed.** No outstanding items — see `docs/architecture/review-and-proposed-architecture.md` for the enhancement roadmap.
+**Sessions 1–19 complete.** No outstanding items. See `docs/architecture/review-and-proposed-architecture.md` for the enhancement roadmap.
 
 ---
 

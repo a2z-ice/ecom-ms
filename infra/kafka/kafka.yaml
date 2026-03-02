@@ -68,15 +68,32 @@ spec:
               value: "1"
             - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
               value: "false"
+            # IMPORTANT: Mount PVC directly at /var/lib/kafka/data (not parent /var/lib/kafka).
+            # confluentinc/cp-kafka declares VOLUME /var/lib/kafka/data in its Dockerfile.
+            # Docker auto-creates an anonymous volume at that path which shadows any bind mount
+            # at a parent directory. Mounting the PVC at the exact VOLUME path overrides it.
             - name: KAFKA_LOG_DIRS
               value: /var/lib/kafka/data
             # Cap JVM heap so the process stays within the container memory limit.
             # Without this, Confluent Kafka defaults can exceed 1Gi and OOMKill.
             - name: KAFKA_HEAP_OPTS
               value: "-Xmx512m -Xms256m"
+            # Connection management: broker closes idle connections after 10 min (explicit default).
+            # Client-side AdminClient (Flink) is set to 3 min < 10 min → clients always
+            # proactively close the idle connection before the broker silently drops it.
+            # This prevents stale NAT table entries from causing reconnect race conditions.
+            - name: KAFKA_CONNECTIONS_MAX_IDLE_MS
+              value: "600000"
+            # TCP keepalive: sends periodic probes on idle connections.
+            # Keeps NAT table entries alive for legitimate long-lived connections (consumer fetch loop).
+            - name: KAFKA_SOCKET_KEEPALIVE_ENABLE
+              value: "true"
           volumeMounts:
+            # Mount directly at /var/lib/kafka/data (the Docker VOLUME path) so the
+            # PVC bind mount overrides the anonymous Docker volume Docker would otherwise
+            # create at /var/lib/kafka/data (shadowing any parent bind mount).
             - name: data
-              mountPath: /var/lib/kafka
+              mountPath: /var/lib/kafka/data
           resources:
             requests:
               cpu: 250m

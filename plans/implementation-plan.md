@@ -667,6 +667,52 @@ kubectl wait --for=condition=complete job/superset-bootstrap -n analytics --time
 
 ---
 
+## Session 19 — Production-Grade Flink Kafka Connectivity
+
+**Goal:** Replace the `'scan.topic-partition-discovery.interval' = '0'` shortcut with the correct production fix: re-enable partition discovery and resolve the root cause (stale idle AdminClient connections in NAT networking) by setting `properties.connections.max.idle.ms` below the discovery interval. Document the "add a new table" workflow for future schema growth.
+
+### Deliverables
+
+| File | Change |
+|---|---|
+| `analytics/flink/sql/pipeline.sql` | Re-enable `scan.topic-partition-discovery.interval = '300000'`; add 7 AdminClient connection properties to all 4 source tables |
+| `infra/flink/flink-sql-runner.yaml` | Same changes in ConfigMap (runtime source used by sql-runner Job) |
+| `infra/kafka/kafka.yaml` | Add `KAFKA_CONNECTIONS_MAX_IDLE_MS=600000`, `KAFKA_SOCKET_KEEPALIVE_ENABLE=true` |
+| `docs/operations/stability-issues-and-fixes.md` | Update Issue 1 with proper root-cause fix (replace shortcut description) |
+| `docs/cdc/flink-stability-guide.md` | Update with correct AdminClient connection fix |
+| `docs/cdc/cdc-setup-manual.md` | Update Flink source table template |
+| `CLAUDE.md` | Update Flink CDC section; add "adding a new table" workflow |
+| `plans/session-19-flink-kafka-production-grade-connectivity.md` | Session plan |
+
+### Acceptance Criteria
+
+- [ ] `'scan.topic-partition-discovery.interval' = '0'` removed from all files
+- [ ] `'scan.topic-partition-discovery.interval' = '300000'` in all 4 source tables
+- [ ] `'properties.connections.max.idle.ms' = '180000'` (+ 6 other connection properties) in all 4 source tables
+- [ ] Flink JM logs say `with partition discovery interval of 300000 ms` (NOT `without`)
+- [ ] After 10+ minutes: all 4 jobs still RUNNING, zero exceptions in exception history
+- [ ] Smoke test: 23/23 passing
+- [ ] E2E tests: 89/89 passing
+- [ ] `docs/` updated with correct root-cause explanation and "add new table" procedure
+
+### Build & Deploy
+
+```bash
+# No Docker rebuild — SQL changes are ConfigMap-only
+kubectl apply -f infra/kafka/kafka.yaml
+kubectl apply -f infra/flink/flink-sql-runner.yaml
+kubectl rollout restart deploy/flink-jobmanager deploy/flink-taskmanager -n analytics
+kubectl rollout status deploy/flink-jobmanager deploy/flink-taskmanager -n analytics --timeout=180s
+# Wait for SQL Gateway, then:
+kubectl delete job flink-sql-runner -n analytics --ignore-not-found
+kubectl apply -f infra/flink/flink-sql-runner.yaml
+kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeout=120s
+```
+
+### Status: Not started
+
+---
+
 ## Cross-Session Rules
 
 These apply to every session:

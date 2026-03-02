@@ -17,6 +17,7 @@ This document is a complete record of every stability issue found in the BookSto
 9. [E2E Tests — Cold-Start Flakiness](#issue-9-e2e-tests--cold-start-flakiness-on-fresh-cluster)
 10. [Recovery — Debezium Connectors Lost After Kafka Restart](#issue-10-recovery--debezium-connectors-lost-after-kafka-pod-restart)
 11. [Recovery — Istio HBONE Mesh Breaks After Docker Restart](#issue-11-recovery--istio-hbone-mesh-breaks-after-docker-desktop-restart)
+12. [Kafka Persistence — Docker VOLUME Shadows PVC Mount](#issue-12-kafka-persistence--docker-volume-declaration-shadows-pvc-mount)
 
 ---
 
@@ -56,7 +57,7 @@ for j in jobs:
     print(j['status'], j['id'][:8])
 "
 
-# Check exception history
+# Check exception history for each job
 curl -s http://localhost:32200/jobs | python3 -c "
 import sys, json, urllib.request
 jobs = json.load(sys.stdin)['jobs']
@@ -64,87 +65,138 @@ for j in jobs:
     r = urllib.request.urlopen(f'http://localhost:32200/jobs/{j[\"id\"]}/exceptions')
     exc = json.loads(r.read())
     history = exc.get('exceptionHistory', {}).get('entries', [])
-    print(f'Job {j[\"id\"][:8]}: {len(history)} exceptions in history')
+    status = 'CLEAN' if not history else f'{len(history)} exceptions'
+    print(f'Job {j[\"id\"][:8]} ({j[\"status\"]}): {status}')
 "
 
-# Check if partition discovery is enabled (should say "without")
+# Check partition discovery interval in logs
 kubectl logs -n analytics deploy/flink-jobmanager -c jobmanager | \
   grep "KafkaSourceEnumerator" | head -5
 ```
 
-**Broken output (partition discovery enabled):**
+**Broken output (stale NAT connection — crashes at every discovery cycle):**
 ```
 INFO KafkaSourceEnumerator - Starting the KafkaSourceEnumerator for consumer group
   flink-analytics-consumer with partition discovery interval of 300000 ms.
 ```
+followed by the `UnknownTopicOrPartitionException` every 5 minutes.
 
 ### Root Cause
 
-`KafkaSourceEnumerator` fires a background task every 300,000 ms (5 minutes) by default to check for new partitions. This task creates a new `AdminClient`, reconnects to Kafka's bootstrap servers, and calls `AdminClient.describeTopics()`.
+`KafkaSourceEnumerator` creates a new `AdminClient` and calls `AdminClient.describeTopics()` every `scan.topic-partition-discovery.interval` ms (default: 300,000 ms = 5 min). Between calls the AdminClient connection sits **idle** in the network stack.
 
-In kind's NAT networking, this periodic reconnect is unstable:
-- The AdminClient connection sits idle for 5 minutes between calls
-- Kafka may close the idle connection (broker default `connections.max.idle.ms` = 9 min)
-- The reconnect attempt hits a race condition in Kafka KRaft metadata propagation
-- `Node -1` (Kafka's bootstrap pseudo-node) disconnects during metadata exchange
-- `describeTopics()` gets `UnknownTopicOrPartitionException` (topics exist but metadata lookup fails transiently)
-- `KafkaSourceEnumerator.checkPartitionChanges()` throws `FlinkRuntimeException`
-- This triggers a global failure → all 4 streaming jobs restart
+In kind's NAT networking the idle connection goes stale:
 
-Since our CDC topics are pre-created with fixed partitions (never dynamically changed), periodic partition discovery is completely unnecessary.
+```
+t=0min   AdminClient connects to Kafka broker → initial discovery OK
+t=0-5min AdminClient connection sits IDLE in NAT
+          ↓ NAT table entry may expire silently (kind NAT has unpredictable idle TTL)
+t=5min   Discovery fires → AdminClient tries to USE the idle connection
+          ↓ Packet sent, but NAT has no entry → broker never sees it
+          ↓ AdminClient sees no response → "Node -1 disconnected"
+          ↓ AdminClient tries to reconnect → race condition during KRaft metadata exchange
+          ↓ describeTopics() returns UnknownTopicOrPartitionException
+          ↓ KafkaSourceEnumerator throws → GlobalFailure → all 4 jobs restart
+```
+
+**This is an AdminClient idle-connection management problem, not a partition discovery problem.**
+Disabling partition discovery (`= '0'`) hides the symptom but removes a production-required feature (Kafka topic scaling needs partition discovery to auto-detect new partitions). The correct fix is to prevent stale connections from forming in the first place.
 
 ### Fix
 
-Add `'scan.topic-partition-discovery.interval' = '0'` to every Kafka source table `WITH` clause.
+Set `properties.connections.max.idle.ms` to **less than** the discovery interval. The AdminClient then **proactively closes** its connection while idle — before the NAT entry can expire — so each discovery cycle opens a **fresh** connection with no stale NAT state.
+
+```
+discovery interval  = 300,000 ms (5 min)
+connections.max.idle.ms = 180,000 ms (3 min)  ← must be < discovery interval
+
+t=0min   AdminClient connects → discovery runs → connection goes IDLE
+t=3min   connections.max.idle.ms fires → AdminClient closes connection CLEANLY
+t=5min   Discovery fires → AdminClient opens a FRESH connection (no stale NAT state)
+          → describeTopics() succeeds immediately → no crash → no restart
+```
 
 **Files changed:**
 - `analytics/flink/sql/pipeline.sql` (canonical source)
 - `infra/flink/flink-sql-runner.yaml` (ConfigMap — actual runtime source)
+- `infra/kafka/kafka.yaml` (broker-side explicit settings)
 
-**Before:**
+**Before (shortcut — disables partition discovery entirely):**
 ```sql
 CREATE TABLE kafka_orders ( ... ) WITH (
-  'connector'                    = 'kafka',
-  'topic'                        = 'ecom-connector.public.orders',
-  'properties.bootstrap.servers' = 'kafka.infra.svc.cluster.local:9092',
-  'properties.group.id'          = 'flink-analytics-consumer',
-  'format'                       = 'json',
-  'json.ignore-parse-errors'     = 'true',
-  'scan.startup.mode'            = 'earliest-offset'
-  -- missing → defaults to 300000ms periodic discovery
+  -- ...
+  'scan.startup.mode'                       = 'earliest-offset',
+  'scan.topic-partition-discovery.interval' = '0'   -- WRONG: hides root cause, breaks Kafka scaling
 );
 ```
 
-**After:**
+**After (production-grade — re-enables discovery, fixes the connection management):**
 ```sql
 CREATE TABLE kafka_orders ( ... ) WITH (
-  'connector'                               = 'kafka',
-  'topic'                                   = 'ecom-connector.public.orders',
-  'properties.bootstrap.servers'            = 'kafka.infra.svc.cluster.local:9092',
-  'properties.group.id'                     = 'flink-analytics-consumer',
-  'format'                                  = 'json',
-  'json.ignore-parse-errors'                = 'true',
-  'scan.startup.mode'                       = 'earliest-offset',
-  'scan.topic-partition-discovery.interval' = '0'   -- disables periodic AdminClient calls
+  -- ...
+  'scan.startup.mode'                                 = 'earliest-offset',
+
+  -- Partition discovery: ENABLED (correct for production; allows Kafka topic scaling)
+  'scan.topic-partition-discovery.interval'           = '300000',
+
+  -- AdminClient connection resilience: proactively close before NAT can expire the entry
+  'properties.connections.max.idle.ms'                = '180000',
+  'properties.reconnect.backoff.ms'                   = '1000',
+  'properties.reconnect.backoff.max.ms'               = '10000',
+  'properties.request.timeout.ms'                     = '30000',
+  'properties.socket.connection.setup.timeout.ms'     = '10000',
+  'properties.socket.connection.setup.timeout.max.ms' = '30000',
+  'properties.metadata.max.age.ms'                    = '300000'
 );
+```
+
+**Kafka broker settings added to `infra/kafka/kafka.yaml`:**
+```yaml
+# Broker idle timeout (10 min explicit default).
+# Clients close at 3 min < broker 10 min → clients always close first.
+- name: KAFKA_CONNECTIONS_MAX_IDLE_MS
+  value: "600000"
+# TCP keepalive: keeps NAT entries alive for legitimate long-lived consumer connections.
+- name: KAFKA_SOCKET_KEEPALIVE_ENABLE
+  value: "true"
 ```
 
 Apply to all 4 source tables: `kafka_orders`, `kafka_order_items`, `kafka_books`, `kafka_inventory`.
 
+> **Why not disable partition discovery entirely?**
+>
+> | Scenario | `= '0'` (disabled) | `= '300000'` + connection fix |
+> |---|---|---|
+> | Add partitions to existing topic | Flink misses new partitions until job restart | Auto-detected within 5 min ✓ |
+> | Scale Kafka for higher throughput | Manual job restart required | Transparent, no downtime ✓ |
+> | Add a new TABLE | Requires SQL change + resubmit (same either way) | Requires SQL change + resubmit |
+> | NAT stale connection crash | Avoided (but feature disabled) | Avoided (root cause fixed) ✓ |
+>
+> Disabling partition discovery gives **no benefit** for adding new tables (Flink SQL schemas are statically typed — new tables always require new DDL + resubmit). It only removes a feature needed for Kafka scaling.
+
 ### Apply the Fix
 
 ```bash
-# 1. Changes are already in manifests — restart Flink to pick them up
-kubectl rollout restart deploy/flink-jobmanager deploy/flink-taskmanager -n analytics
-kubectl rollout status deploy/flink-jobmanager deploy/flink-taskmanager -n analytics --timeout=180s
+# 1. Apply updated manifests (kafka.yaml + flink-sql-runner.yaml ConfigMap)
+kubectl apply -f infra/kafka/kafka.yaml
+kubectl apply -f infra/flink/flink-sql-runner.yaml   # updates ConfigMap
 
-# 2. Wait for SQL Gateway
+# 2. Restart Kafka to pick up broker settings
+kubectl rollout restart deploy/kafka -n infra
+kubectl rollout status deploy/kafka -n infra --timeout=120s
+
+# 3. Restart Flink to pick up ConfigMap changes
+kubectl rollout restart deploy/flink-jobmanager deploy/flink-taskmanager -n analytics
+kubectl rollout status deploy/flink-jobmanager -n analytics --timeout=180s
+kubectl rollout status deploy/flink-taskmanager -n analytics --timeout=180s
+
+# 4. Wait for SQL Gateway
 until kubectl exec -n analytics deploy/flink-jobmanager -c sql-gateway -- \
   curl -sf http://localhost:9091/v1/info > /dev/null 2>&1; do
   echo "SQL Gateway not ready, retrying in 5s..."; sleep 5
 done
 
-# 3. Resubmit pipeline
+# 5. Resubmit pipeline
 kubectl delete job flink-sql-runner -n analytics --ignore-not-found
 kubectl apply -f infra/flink/flink-sql-runner.yaml
 kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeout=120s
@@ -153,19 +205,37 @@ kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeou
 ### Verify the Fix
 
 ```bash
-# Must say "without periodic partition discovery"
+# Step 1: Confirm partition discovery is ENABLED (must say "with partition discovery interval")
 kubectl logs -n analytics deploy/flink-jobmanager -c jobmanager | \
   grep "KafkaSourceEnumerator"
 ```
 
-**Expected fixed output:**
+**Expected output (fixed — discovery enabled, connection management correct):**
 ```
 INFO KafkaSourceEnumerator - Starting the KafkaSourceEnumerator for consumer group
-  flink-analytics-consumer without periodic partition discovery.
+  flink-analytics-consumer with partition discovery interval of 300000 ms.
 INFO KafkaSourceEnumerator - Discovered new partitions: [ecom-connector.public.orders-0, ...]
 ```
 
-Wait 10 minutes and confirm jobs are still RUNNING with zero new exceptions.
+```bash
+# Step 2: 10-minute stability test — wait for the first discovery cycle to fire
+# Monitor every 30s for 10 minutes
+watch -n 30 'kubectl logs -n analytics deploy/flink-jobmanager -c jobmanager --since=5m | \
+  grep -E "KafkaSourceEnumerator|FlinkRuntimeException|GlobalFailure|RUNNING|FAILED" | tail -10'
+
+# Step 3: After 10 min, confirm all 4 jobs RUNNING with zero exceptions
+curl -s http://localhost:32200/jobs | python3 -c "
+import sys, json, urllib.request
+jobs = json.load(sys.stdin)['jobs']
+for j in jobs:
+    r = urllib.request.urlopen(f'http://localhost:32200/jobs/{j[\"id\"]}/exceptions')
+    exc = json.loads(r.read())
+    history = exc.get('exceptionHistory', {}).get('entries', [])
+    status = 'CLEAN' if not history else f'{len(history)} EXCEPTIONS'
+    print(f'Job {j[\"id\"][:8]} ({j[\"status\"]}): {status}')
+"
+# Expected after 10 min: all 4 jobs RUNNING, CLEAN
+```
 
 ---
 
@@ -992,6 +1062,7 @@ import sys,json; books=json.load(sys.stdin); print(f'{len(books)} books OK')
 | 9 | E2E cold-start flakiness | Tests | Low — false failure on fresh cluster | Fixed ✓ |
 | 10 | Debezium connectors lost after Kafka restart | Debezium | High — CDC stops | Fixed ✓ |
 | 11 | Istio HBONE breaks after Docker restart | Istio | Critical — entire stack 503 | Fixed ✓ |
+| 12 | Kafka topics lost on pod restart (Docker VOLUME shadow) | Kafka | High — CDC stops | Fixed ✓ |
 
 ---
 
@@ -999,8 +1070,9 @@ import sys,json; books=json.load(sys.stdin); print(f'{len(books)} books OK')
 
 | File | Issues Fixed |
 |---|---|
-| `analytics/flink/sql/pipeline.sql` | #1 — partition discovery interval |
-| `infra/flink/flink-sql-runner.yaml` | #1 — partition discovery interval (ConfigMap) |
+| `analytics/flink/sql/pipeline.sql` | #1 — AdminClient connection resilience + re-enable partition discovery |
+| `infra/flink/flink-sql-runner.yaml` | #1 — same (ConfigMap) |
+| `infra/kafka/kafka.yaml` | #1 — broker connection settings; #12 — PVC mount at `/var/lib/kafka/data` |
 | `infra/flink/flink-cluster.yaml` | #2 — deprecated config keys (JM + TM) |
 | `infra/flink/flink-config.yaml` | #2 — deprecated config keys (reference file) |
 | `scripts/up.sh` | #3, #6, #7, #8, #10 — recovery + bootstrap fixes |
@@ -1009,6 +1081,138 @@ import sys,json; books=json.load(sys.stdin); print(f'{len(books)} books OK')
 | `infra/istio/security/peer-auth.yaml` | #5 — portLevelMtls PERMISSIVE per workload |
 | `infra/debezium/register-connectors.sh` | #10 — credential injection + poll loop |
 | `e2e/playwright.config.ts` | #9 — retries: 1 |
+
+---
+
+## Issue 12: Kafka Persistence — Docker VOLUME Declaration Shadows PVC Mount
+
+### Severity: High (CDC stops on every Kafka pod restart)
+
+### Symptom
+
+All Kafka CDC topics (`ecom-connector.public.orders`, `ecom-connector.public.books`, etc.) disappear every time the Kafka pod restarts. Only internal Kafka topics (`__consumer_offsets`) survive.
+
+After Kafka pod restart:
+```bash
+kubectl exec -n infra deploy/kafka -- kafka-topics --bootstrap-server localhost:9092 --list
+# Output: only __consumer_offsets
+# Expected: also ecom-connector.public.*, inventory-connector.public.inventory, etc.
+```
+
+### How to Diagnose
+
+```bash
+# Check what filesystem /var/lib/kafka/data is mounted from inside the container
+kubectl exec -n infra deploy/kafka -- cat /proc/mounts | grep kafka
+```
+
+**Broken output (anonymous Docker volume — ephemeral):**
+```
+/dev/vda1 /var/lib/kafka/data ext4 rw,relatime,discard 0 0
+```
+`/dev/vda1` is the Docker VM's ephemeral disk. Data written here is lost on pod restart.
+
+**Fixed output (host filesystem — persistent):**
+```
+/run/host_mark/Volumes /var/lib/kafka/data fakeowner rw,relatime,fakeowner 0 0
+```
+`/run/host_mark/Volumes` is Docker Desktop's gRPC FUSE bridge to the Mac host filesystem. Data persists across pod restarts.
+
+### Root Cause
+
+`confluentinc/cp-kafka` declares `VOLUME /var/lib/kafka/data` in its Dockerfile. When a Docker container is created:
+
+1. Docker sees the `VOLUME /var/lib/kafka/data` instruction
+2. Docker creates an **anonymous volume** (stored on `/dev/vda1`, the VM's ephemeral disk) at that path
+3. If the container's PVC is mounted at the **parent** path (`/var/lib/kafka`), Docker still creates the anonymous volume at the child path
+4. The anonymous volume **shadows** the parent bind mount at the child path
+5. Kafka's `KAFKA_LOG_DIRS = /var/lib/kafka/data` writes to the anonymous volume, NOT to the PVC
+
+Result: all Kafka topic data is written to an ephemeral anonymous Docker volume. On pod restart, a new anonymous volume is created (empty), and all topic data is lost.
+
+```
+PVC mounted at:          /var/lib/kafka         → host filesystem (persistent)
+Docker VOLUME at:        /var/lib/kafka/data    → anonymous Docker volume (ephemeral, SHADOWS PVC)
+KAFKA_LOG_DIRS points to: /var/lib/kafka/data   → writes to ephemeral anonymous volume ← BUG
+```
+
+### Fix
+
+Mount the PVC **directly** at `/var/lib/kafka/data` (the exact VOLUME path). Docker bind mounts at the **exact** VOLUME path take precedence over the anonymous volume declaration.
+
+**Files changed:** `infra/kafka/kafka.yaml`
+
+**Before:**
+```yaml
+- name: KAFKA_LOG_DIRS
+  value: /var/lib/kafka/data
+# ...
+volumeMounts:
+  - name: data
+    mountPath: /var/lib/kafka   # Parent path → anonymous VOLUME at child shadows it
+```
+
+**After:**
+```yaml
+- name: KAFKA_LOG_DIRS
+  value: /var/lib/kafka/data
+# ...
+volumeMounts:
+  # Mount directly at the Docker VOLUME path — bind mount wins over anonymous VOLUME
+  - name: data
+    mountPath: /var/lib/kafka/data
+```
+
+When a bind mount is at the EXACT path of a `VOLUME` instruction, Docker uses the bind mount and does NOT create an anonymous volume. Data is now written to the PVC → persisted to host filesystem.
+
+### Apply the Fix
+
+```bash
+# 1. Apply updated kafka.yaml
+kubectl apply -f infra/kafka/kafka.yaml
+
+# 2. Scale Kafka down COMPLETELY (avoid two pods fighting over the same PVC)
+kubectl scale deploy/kafka -n infra --replicas=0
+kubectl wait --for=delete pod -l app=kafka -n infra --timeout=30s
+
+# 3. IMPORTANT: If the PVC has a spurious 'data/' subdirectory from the old mount, remove it
+# (The old mount at /var/lib/kafka would create /var/lib/kafka/data/ which shows as
+#  'data/' at the root of the PVC. The new mount treats this as an invalid topic directory.)
+rm -rf data/kafka/data   # run from repo root; only if this directory exists and is empty
+
+# 4. Scale Kafka back up
+kubectl scale deploy/kafka -n infra --replicas=1
+kubectl rollout status deploy/kafka -n infra --timeout=120s
+
+# 5. Recreate CDC topics (lost during Kafka reset)
+kubectl delete job kafka-topic-init -n infra --ignore-not-found
+kubectl apply -f infra/kafka/kafka-topics-init.yaml
+kubectl wait --for=condition=complete job/kafka-topic-init -n infra --timeout=300s
+
+# 6. Restart Debezium (its internal topics are lost too; needs clean reconnect)
+kubectl rollout restart deploy/debezium -n infra
+kubectl rollout status deploy/debezium -n infra --timeout=120s
+
+# 7. Re-register connectors
+bash infra/debezium/register-connectors.sh
+```
+
+### Verify the Fix
+
+```bash
+# 1. Confirm data is on the host filesystem (not ephemeral Docker volume)
+kubectl exec -n infra deploy/kafka -- cat /proc/mounts | grep "kafka/data"
+# Expected: /run/host_mark/Volumes /var/lib/kafka/data fakeowner ...
+
+# 2. Confirm topics persist across pod restart
+kubectl rollout restart deploy/kafka -n infra
+kubectl rollout status deploy/kafka -n infra --timeout=120s
+kubectl exec -n infra deploy/kafka -- kafka-topics --bootstrap-server localhost:9092 --list
+# Expected: __cluster_metadata-0, __consumer_offsets-*, AND ecom-connector.public.*, inventory-connector.*
+# (only internal topics persist; CDC topics recreated by kafka-topics-init or Debezium)
+```
+
+> **Note on CDC topics after Kafka restart:** CDC topics (`ecom-connector.public.*`) are still recreated by `kafka-topics-init.yaml` + `register-connectors.sh` after each Kafka restart, because `KAFKA_AUTO_CREATE_TOPICS_ENABLE=false` and the Debezium connector's internal topics (`connect-configs`, `connect-offsets`, `connect-status`) are also lost. The KRaft cluster metadata (broker identity, consumer group offsets) IS now persistent.
 
 ---
 
