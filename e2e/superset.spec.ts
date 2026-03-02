@@ -224,9 +224,15 @@ test.describe('Superset Analytics', () => {
       // Wait for chart containers to appear (Superset may never reach networkidle)
       const visuals = page.locator('.chart-container, canvas, svg')
       await expect(visuals.first()).toBeVisible({ timeout: 30_000 })
+      // Give charts time to finish rendering or surface per-chart errors
+      await page.waitForTimeout(5_000)
       await page.screenshot({ path: `screenshots/${dash.screenshot}.png`, fullPage: true })
 
-      const errorAlerts = page.locator('[data-test="error-alert"], .ant-notification-notice-error')
+      // Check banner-level AND per-chart error elements
+      const errorAlerts = page.locator(
+        '[data-test="error-alert"], .ant-notification-notice-error, ' +
+        '[data-test="chart-error"], .chart-container .ant-alert-error'
+      )
       const errorCount = await errorAlerts.count()
       expect(errorCount, `Dashboard '${dash.name}' has unexpected error alerts`).toBe(0)
     }

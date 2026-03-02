@@ -77,9 +77,11 @@ data:
         existing = s.get(f"{SUPERSET_URL}/api/v1/chart/", headers=h(t,c)).json()
         for ch in existing.get("result", []):
             if ch["slice_name"] == name:
-                s.put(f"{SUPERSET_URL}/api/v1/chart/{ch['id']}", json={
-                    "viz_type": viz_type, "datasource_id": ds_id,
+                r = s.put(f"{SUPERSET_URL}/api/v1/chart/{ch['id']}", json={
+                    "slice_name": name, "viz_type": viz_type,
+                    "datasource_id": ds_id, "datasource_type": "table",
                     "params": json.dumps(params)}, headers=h(t,c))
+                r.raise_for_status()
                 return ch["id"]
         r = s.post(f"{SUPERSET_URL}/api/v1/chart/", json={
             "slice_name": name, "viz_type": viz_type,
@@ -159,7 +161,7 @@ data:
             {"metrics": [metric("avg_order_value")], "groupby": [], "x_axis": "sale_date", "row_limit": 365, "color_scheme": "supersetColors"})
         inv_table = upsert_chart(s, t, c, "Inventory Health Table", "table", ds["vw_inventory_health"],
             {"all_columns": ["title","author","stock_quantity","reserved","available","stock_status"],
-             "order_by_cols": ["available"], "row_limit": 50})
+             "order_by_cols": ['["available", false]'], "row_limit": 50})
         stock_res = upsert_chart(s, t, c, "Stock vs Reserved", "echarts_timeseries_bar", ds["vw_inventory_health"],
             {"metrics": [metric("stock_quantity","INTEGER"), metric("reserved","INTEGER")],
              "groupby": [], "x_axis": "title", "row_limit": 20, "color_scheme": "supersetColors"})

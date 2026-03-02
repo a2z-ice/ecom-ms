@@ -2,7 +2,7 @@
   "cookies": [
     {
       "name": "AUTH_SESSION_ID",
-      "value": "bzJaaGFtR2dGN0l3LTJKcGJfUHV3VkdzLkNVUXBfYWsyZXhVVVBaX1ZLNjh0cGZhS0phbXZ5SFBNUk5tNXI1QnhjRGZhaWFFeno0dzJKeDRtRUxfSFVCbXpfMWpLU29TUTdUXzR2NUxrTDVvNW93.keycloak-6fcbc9ff95-nfskj-59607",
+      "value": "a2xGSTFuWDNCNFVaS0lqNV9MRG1DTUNFLk45OUZKM0ZPRkFPbUVINmQ2aFZhcVNjTDdra3hzd0EyZ2FtTnZlY1lsUl9aa1pTYjRkUWhaeVRDbTF2SXR0YWVyMUhHNnlrNzBEd043TnROMVVmbndn.keycloak-6fcbc9ff95-nfskj-59607",
       "domain": "idp.keycloak.net",
       "path": "/realms/bookstore/",
       "expires": -1,
@@ -12,17 +12,17 @@
     },
     {
       "name": "KC_AUTH_SESSION_HASH",
-      "value": "\"vBG5aMjAqzw/6JFQALMIPYvxUn9SNxqXipFNufF8+4g\"",
+      "value": "ysJ6sGfB9WxaxGcVWU2fazzMGbWXG2XKWI4uWBbzxio",
       "domain": "idp.keycloak.net",
       "path": "/realms/bookstore/",
-      "expires": 1772401341.830616,
+      "expires": 1772418279.826846,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
     },
     {
       "name": "KEYCLOAK_IDENTITY",
-      "value": "eyJhbGciOiJIUzUxMiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI1ZDdkZTQ4ZS05NzU5LTQ1NGItYTc3ZS01M2JlODk5YzlmODgifQ.eyJleHAiOjE3NzI0MzcyODIsImlhdCI6MTc3MjQwMTI4MiwianRpIjoiNzg1OWIzMTQtZDYxYy1mZDFhLWQzOGItYzU4NmI2NTc0ZjdiIiwiaXNzIjoiaHR0cDovL2lkcC5rZXljbG9hay5uZXQ6MzAwMDAvcmVhbG1zL2Jvb2tzdG9yZSIsInN1YiI6IjY2OGI3MmM3LWE2NjgtNDIyOS05YzM1LThhMThkMTVmZTYwYyIsInR5cCI6IlNlcmlhbGl6ZWQtSUQiLCJzaWQiOiJvMlpoYW1HZ0Y3SXctMkpwYl9QdXdWR3MiLCJzdGF0ZV9jaGVja2VyIjoiYlZPNjRuTXJFX0huSlJoblY1clIxYUdVSXRaSWVuaHN1V01CRE9GVlNWZyJ9.zNCVMCR3An68MAQQ36Jrnrdtog6S2B8ajHYAiDZyADFaTHhRQsvAKqS-muyGfkvur7ABg2n9HkJ5JDgugmYGAg",
+      "value": "eyJhbGciOiJIUzUxMiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI1ZDdkZTQ4ZS05NzU5LTQ1NGItYTc3ZS01M2JlODk5YzlmODgifQ.eyJleHAiOjE3NzI0NTQyMjAsImlhdCI6MTc3MjQxODIyMCwianRpIjoiOTY2MDAyNzItOWU3ZS02MzM5LTJlNDQtOTIxNWIzNzdlZDU0IiwiaXNzIjoiaHR0cDovL2lkcC5rZXljbG9hay5uZXQ6MzAwMDAvcmVhbG1zL2Jvb2tzdG9yZSIsInN1YiI6IjY2OGI3MmM3LWE2NjgtNDIyOS05YzM1LThhMThkMTVmZTYwYyIsInR5cCI6IlNlcmlhbGl6ZWQtSUQiLCJzaWQiOiJrbEZJMW5YM0I0VVpLSWo1X0xEbUNNQ0UiLCJzdGF0ZV9jaGVja2VyIjoiTm9ZU2R3N2xmQWpWS2JETVlBb0E3WXQ4Y2pWWDlFT1huWGVnVTc2aGEtYyJ9.mNQF4CRrL_xoU_0eAPQcIPXxtWWfWD8BtJwH8rd4n6-gmmCdv26WJH0sg8GWArrCsZeqvDy69igb6WoPggt7Fw",
       "domain": "idp.keycloak.net",
       "path": "/realms/bookstore/",
       "expires": -1,
@@ -32,10 +32,10 @@
     },
     {
       "name": "KEYCLOAK_SESSION",
-      "value": "vBG5aMjAqzw_6JFQALMIPYvxUn9SNxqXipFNufF8-4g",
+      "value": "ysJ6sGfB9WxaxGcVWU2fazzMGbWXG2XKWI4uWBbzxio",
       "domain": "idp.keycloak.net",
       "path": "/realms/bookstore/",
-      "expires": 1772437282.061769,
+      "expires": 1772454220.056953,
       "httpOnly": false,
       "secure": false,
       "sameSite": "Lax"
