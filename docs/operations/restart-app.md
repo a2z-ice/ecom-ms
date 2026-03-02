@@ -8,7 +8,7 @@ After restarting Docker Desktop, the entire stack fails with Istio's error:
 upstream connect error or disconnect/reset before headers. reset reason: connection termination
 ```
 
-All HTTP routes (API, UI, Keycloak) return 503 or time out. This is not a code bug — it is three independent infrastructure failures that must all be resolved together.
+All HTTP routes (API, UI, Keycloak) return 503 or time out. This is not a code bug — it is four independent infrastructure failures that must all be resolved together.
 
 ---
 
@@ -47,6 +47,16 @@ FATAL: password authentication failed for user "${file:/opt/kafka/...}"
 ```
 
 **Fix:** At re-registration time, extract actual credentials from the Kubernetes secret and inject them inline. Use `PUT /connectors/{name}/config` with only the config object (no outer wrapper). The credentials are stored in the Kafka config topic; FileConfigProvider continues to work for running tasks that read from mounted secret files.
+
+### Root Cause 4: Flink SQL streaming jobs lost on JobManager restart
+
+**What happens:** Flink runs as a Session Cluster (not Application mode). In a Session Cluster, submitted streaming jobs are held in the JobManager's in-memory job graph. When the JobManager pod restarts, **all streaming jobs are lost**. Flink's checkpoint PVC only helps with task failover (the same job recovering from a checkpoint) — it does not auto-resubmit lost session jobs after a pod restart.
+
+The `flink-sql-runner` Kubernetes Job already completed (status `Completed`) and will not re-run automatically.
+
+**Symptom:** `GET http://localhost:32200/jobs` returns `[]` (empty jobs list) or all jobs show `FAILED` state. The analytics DB tables stop receiving new CDC events.
+
+**Fix:** Delete and recreate the `flink-sql-runner` Kubernetes Job to resubmit all 4 streaming pipelines to the SQL Gateway. The SQL Gateway must be ready (it starts as a sidecar on the JobManager pod after the REST API is up) before the runner can connect.
 
 ---
 
@@ -112,7 +122,7 @@ kubectl rollout status deploy/kafka -n infra --timeout=120s
 kubectl rollout status deploy/debezium -n infra --timeout=180s
 ```
 
-### Step 4 — Re-register Debezium connectors
+### Step 4 — Re-register Debezium connectors (if needed)
 
 ```bash
 # Wait for Debezium REST API (NodePort 32300)
@@ -143,7 +153,35 @@ print(json.dumps(c['config']))
 done
 ```
 
-### Step 5 — Smoke test
+### Step 5 — Resubmit Flink SQL pipeline
+
+```bash
+# Wait for SQL Gateway sidecar (polls every 5s, max 2 min)
+until kubectl exec -n analytics deploy/flink-jobmanager -c sql-gateway -- \
+  curl -sf http://localhost:9091/v1/info > /dev/null 2>&1; do
+  echo "SQL Gateway not ready, retrying in 5s..."
+  sleep 5
+done
+
+# Delete completed Job and recreate to resubmit SQL pipeline
+kubectl delete job flink-sql-runner -n analytics --ignore-not-found
+kubectl apply -f infra/flink/flink-sql-runner.yaml
+
+# Wait for runner to complete (up to 2 min)
+kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeout=120s
+
+# Verify 4 streaming jobs are RUNNING
+curl -s http://localhost:32200/jobs | python3 -c "
+import sys, json
+jobs = json.load(sys.stdin)['jobs']
+running = [j for j in jobs if j['status'] == 'RUNNING']
+print(f'{len(running)}/{len(jobs)} jobs RUNNING')
+for j in running:
+    print(f\"  RUNNING: {j['id']}\")
+"
+```
+
+### Step 6 — Smoke test
 
 ```bash
 bash scripts/smoke-test.sh

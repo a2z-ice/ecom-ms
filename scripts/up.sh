@@ -397,9 +397,33 @@ recovery() {
   wait_deploy ecom-service ecom
   wait_deploy inventory-service inventory
   wait_deploy debezium infra
+  wait_deploy flink-jobmanager analytics
+  wait_deploy flink-taskmanager analytics
 
   section "Re-registering Debezium CDC connectors"
   bash "${REPO_ROOT}/infra/debezium/register-connectors.sh"
+
+  # ── Resubmit Flink SQL pipeline ─────────────────────────────────────────────
+  # Flink Session Cluster loses all streaming jobs when the JobManager pod
+  # restarts — the JM does not auto-recover session jobs from checkpoints on
+  # pod restart (only during task failover). The sql-runner Job is a one-shot
+  # K8s Job (backoffLimit:0) that already completed; delete + recreate to rerun.
+  section "Resubmitting Flink SQL pipeline"
+  info "Waiting for Flink SQL Gateway to be ready..."
+  _gw_i=0
+  until kubectl exec -n analytics deploy/flink-jobmanager -c sql-gateway -- \
+    curl -sf http://localhost:9091/v1/info > /dev/null 2>&1; do
+    ((_gw_i++)) && [[ $_gw_i -ge 24 ]] && { warn "SQL Gateway not ready after 2m — skipping sql-runner"; break; }
+    echo "  SQL Gateway not ready, retrying in 5s..."
+    sleep 5
+  done
+  if [[ $_gw_i -lt 24 ]]; then
+    kubectl delete job flink-sql-runner -n analytics --ignore-not-found
+    kubectl apply -f "${REPO_ROOT}/infra/flink/flink-sql-runner.yaml"
+    kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeout=120s || \
+      warn "flink-sql-runner did not complete — check: kubectl logs -n analytics -l job-name=flink-sql-runner"
+    info "Flink SQL pipeline resubmitted."
+  fi
 
   section "Smoke test"
   bash "${REPO_ROOT}/scripts/smoke-test.sh"

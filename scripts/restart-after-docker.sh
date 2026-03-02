@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # scripts/restart-after-docker.sh
 # Recovery after Docker Desktop restarts.
-# Fixes two root causes (see docs/restart-app.md for full explanation):
+# Fixes three root causes (see docs/restart-app.md for full explanation):
 #   1. Istio ztunnel HBONE plumbing breaks — must restart ztunnel then all pods
 #   2. Debezium connector re-registration — only needed if Kafka PVC data was lost
 #      (e.g. after `down.sh --data`). With Kafka PVC intact, Kafka internal topics
 #      (connect-configs, connect-offsets, connect-status) survive pod restarts and
 #      Debezium auto-restores both connectors from Kafka state. The script checks
 #      connector state and skips re-registration if already RUNNING.
+#   3. Flink SQL pipeline resubmission — Flink Session Cluster loses all streaming
+#      jobs when the JobManager pod restarts. The flink-sql-runner K8s Job already
+#      completed and won't re-run; must delete + recreate it to resubmit.
 #
 # Usage: ./scripts/restart-after-docker.sh
 
@@ -65,6 +68,8 @@ wait_deploy keycloak identity
 wait_deploy ecom-service ecom
 wait_deploy inventory-service inventory
 wait_deploy debezium infra
+wait_deploy flink-jobmanager analytics
+wait_deploy flink-taskmanager analytics
 
 # ── Step 4: Re-register Debezium CDC connectors (only if needed) ─────────────
 # With Kafka PVC-backed storage, Kafka internal topics (connect-configs,
@@ -103,6 +108,26 @@ else
   bash "${REPO_ROOT}/infra/debezium/register-connectors.sh"
 fi
 
-# ── Step 5: Smoke test ────────────────────────────────────────────────────────
+# ── Step 5: Resubmit Flink SQL pipeline ──────────────────────────────────────
+# Flink Session Cluster loses all streaming jobs when JM pod restarts.
+# The flink-sql-runner K8s Job already completed — must delete + recreate to resubmit.
+section "Resubmitting Flink SQL pipeline"
+info "Waiting for Flink SQL Gateway to be ready..."
+_gw_i=0
+until kubectl exec -n analytics deploy/flink-jobmanager -c sql-gateway -- \
+  curl -sf http://localhost:9091/v1/info > /dev/null 2>&1; do
+  ((_gw_i++)) && [[ $_gw_i -ge 24 ]] && { echo "  WARNING: SQL Gateway not ready after 2m — skipping sql-runner"; break; }
+  echo "  SQL Gateway not ready, retrying in 5s..."
+  sleep 5
+done
+if [[ $_gw_i -lt 24 ]]; then
+  kubectl delete job flink-sql-runner -n analytics --ignore-not-found
+  kubectl apply -f "${REPO_ROOT}/infra/flink/flink-sql-runner.yaml"
+  kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeout=120s || \
+    echo "  WARNING: flink-sql-runner did not complete — check: kubectl logs -n analytics -l job-name=flink-sql-runner"
+  info "Flink SQL pipeline resubmitted."
+fi
+
+# ── Step 6: Smoke test ────────────────────────────────────────────────────────
 section "Smoke test"
 bash "${REPO_ROOT}/scripts/smoke-test.sh"
