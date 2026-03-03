@@ -1,0 +1,2 @@
+please update the flink to 2.2.1 version and install debezium server 3.4. Please implement debezium server in the kind cluster and expose the server using nodeport and map
+  it to the host port also configure the connector from it and do the e2e test to makesure sure everything working as expected also change the corresponding document as needed 
