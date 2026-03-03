@@ -28,14 +28,30 @@ export default defineConfig({
       name: 'auth-setup',
       testMatch: /fixtures\/auth\.setup\.ts/,
     },
-    // All other tests — depend on auth setup
+    // Admin auth setup — runs after auth-setup, saves admin1 state
+    {
+      name: 'admin-setup',
+      testMatch: /fixtures\/admin\.setup\.ts/,
+      dependencies: ['auth-setup'],
+    },
+    // All non-admin tests — depend on auth setup
     {
       name: 'tests',
-      testMatch: /(?<!setup)\.spec\.ts/,
+      testMatch: /(?<!admin)(?<!setup)\.spec\.ts/,
       dependencies: ['auth-setup'],
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'fixtures/user1.json',
+      },
+    },
+    // Admin tests — depend on admin auth setup
+    {
+      name: 'admin-tests',
+      testMatch: /admin\.spec\.ts/,
+      dependencies: ['admin-setup'],
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'fixtures/admin1.json',
       },
     },
   ],

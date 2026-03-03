@@ -11,6 +11,7 @@ import { userManager } from './oidcConfig'
 interface AuthContextValue {
   user: User | null
   isLoading: boolean
+  isAdmin: boolean
   login: (returnPath?: string) => void
   logout: () => Promise<void>
   getAccessToken: () => string | null
@@ -23,10 +24,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    userManager.getUser().then(u => {
+    // Check for cross-origin auth relay: token passed in URL hash from localhost login flow.
+    // When login starts at http://myecom.net:30000 (no crypto.subtle), PKCE runs at
+    // localhost:30000/callback, then the token is relayed here via #auth=<encoded-user>.
+    const rawHash = window.location.hash
+    const hashRelay = rawHash.startsWith('#auth=') ? rawHash.slice('#auth='.length) : null
+
+    ;(async () => {
+      if (hashRelay) {
+        try {
+          const relayedUser = User.fromStorageString(decodeURIComponent(hashRelay))
+          // Clear the hash immediately — token must not stay in browser history.
+          window.history.replaceState(null, '', window.location.pathname + window.location.search)
+          await userManager.storeUser(relayedUser)
+          setUser(relayedUser)
+          setIsLoading(false)
+          return
+        } catch (e) {
+          console.error('Auth relay restore failed:', e)
+          // Fall through to normal load
+        }
+      }
+      const u = await userManager.getUser()
       setUser(u)
       setIsLoading(false)
-    })
+    })()
 
     const handleUserLoaded = (u: User) => setUser(u)
     const handleUserUnloaded = () => setUser(null)
@@ -42,30 +64,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = useCallback((returnPath?: string) => {
-    const resolvedPath = returnPath ?? (window.location.pathname + window.location.search)
-
-    // PKCE requires crypto.subtle — only available in secure contexts.
-    // localhost is always secure; http://myecom.net:30000 is not.
-    if (window.location.hostname !== 'localhost') {
+    // PKCE (S256) requires crypto.subtle, available only in secure contexts.
+    // localhost is always secure. http://myecom.net:30000 resolves to 127.0.0.1 via
+    // /etc/hosts — browsers that check the resolved IP (Chrome) treat it as secure too,
+    // so crypto.subtle IS available there. Fall back to the localhost relay only if
+    // crypto.subtle is genuinely absent (strict non-secure context).
+    if (typeof crypto === 'undefined' || !crypto.subtle) {
       window.location.href =
-        `http://localhost:30000/login?return=${encodeURIComponent(resolvedPath)}`
+        `http://localhost:30000/login?return=${encodeURIComponent(window.location.href)}`
       return
     }
 
+    const resolvedPath = returnPath ?? (window.location.pathname + window.location.search)
     userManager.signinRedirect({ state: { returnUrl: resolvedPath } }).catch(err => {
       console.error('signinRedirect failed:', err)
     })
   }, [])
 
-  const logout = useCallback(
-    () => userManager.signoutRedirect({ post_logout_redirect_uri: window.location.origin }),
-    [],
-  )
+  const logout = useCallback(async () => {
+    // Remove user from local storage first so the app shows the public view
+    // immediately if the Keycloak redirect is slow.
+    await userManager.removeUser()
+    setUser(null)
+    // Redirect to Keycloak end_session_endpoint, then back to the catalog root.
+    // Trailing slash is required so it matches the whitelisted pattern (http://localhost:30000/).
+    await userManager.signoutRedirect({
+      post_logout_redirect_uri: window.location.origin + '/',
+    })
+  }, [])
 
   const getAccessToken = useCallback(() => user?.access_token ?? null, [user])
 
+  // Decode the access token (no verification — authorization is still server-side)
+  // to determine if the logged-in user has the admin realm role.
+  const isAdmin = (() => {
+    if (!user?.access_token) return false
+    try {
+      const payload = JSON.parse(atob(user.access_token.split('.')[1]))
+      const roles: string[] = payload.roles ?? []
+      return roles.includes('admin')
+    } catch {
+      return false
+    }
+  })()
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, getAccessToken }}>
+    <AuthContext.Provider value={{ user, isLoading, isAdmin, login, logout, getAccessToken }}>
       {children}
     </AuthContext.Provider>
   )

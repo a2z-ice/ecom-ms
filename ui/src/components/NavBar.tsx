@@ -5,7 +5,7 @@ import { cartApi } from '../api/cart'
 import { guestCartCount } from '../hooks/useGuestCart'
 
 export default function NavBar() {
-  const { user, isLoading, login, logout } = useAuth()
+  const { user, isLoading, isAdmin, login, logout } = useAuth()
   const [cartCount, setCartCount] = useState(0)
 
   // Authenticated: fetch cart count from server and listen for cartUpdated events
@@ -50,6 +50,9 @@ export default function NavBar() {
           <span className="nav-cart-count">{cartCount}</span>
         )}
       </Link>
+      {isAdmin && (
+        <Link to="/admin" className="nav-link" style={{ color: '#fbd38d' }}>Admin</Link>
+      )}
       <div className="nav-spacer" />
       {isLoading ? (
         <span className="nav-user" style={{ opacity: 0.4 }}>...</span>

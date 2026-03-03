@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/smoke-test.sh
-# Full-stack smoke test for Session 13.
-# Tests every endpoint, verifies Kafka consumer lag, checks all pods Running.
+# Full-stack smoke test. Tests every endpoint, verifies Kafka consumer lag,
+# checks all pods Running, and validates admin API access control.
 # Exits 0 only if all checks pass.
 set -euo pipefail
 
@@ -17,6 +17,29 @@ http_check() {
   local code
   code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null || echo "000")
   [[ "$code" == "$expected" ]] && ok "[$label] $url → $code" || fail "[$label] $url → expected=$expected actual=$code"
+}
+
+# Check a URL with a Bearer token; accepts a space-separated list of valid codes.
+http_check_bearer() {
+  local label=$1 url=$2 token=$3 expected_codes=${4:-200}
+  local code
+  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+    -H "Authorization: Bearer $token" "$url" 2>/dev/null || echo "000")
+  for exp in $expected_codes; do
+    [[ "$code" == "$exp" ]] && { ok "[$label] $url → $code"; return; }
+  done
+  fail "[$label] $url → expected=$expected_codes actual=$code"
+}
+
+# Check a URL that should return one of a set of valid status codes (no token).
+http_check_any() {
+  local label=$1 url=$2 expected_codes=$3
+  local code
+  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null || echo "000")
+  for exp in $expected_codes; do
+    [[ "$code" == "$exp" ]] && { ok "[$label] $url → $code"; return; }
+  done
+  fail "[$label] $url → expected=$expected_codes actual=$code"
 }
 
 pod_check() {
@@ -80,6 +103,51 @@ for connector in ecom-connector inventory-connector; do
     | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['connector']['state'])" 2>/dev/null || echo "UNKNOWN")
   [[ "$STATUS" == "RUNNING" ]] && ok "[Debezium] $connector=RUNNING" || fail "[Debezium] $connector=$STATUS"
 done
+
+echo ""
+# ── 5. Admin API access control ──────────────────────────────────────────────
+# Verifies: unauthenticated requests are rejected, admin token grants access,
+# customer token is denied. Depends on Keycloak realm having admin1 + admin role.
+info "Checking admin API access control..."
+
+# No-token requests must be rejected
+http_check "ecom admin no-token→401"  "http://api.service.net:30000/ecom/admin/books" "401"
+# FastAPI HTTPBearer returns 403 (not 401) when Authorization header is absent
+http_check_any "inven admin no-token→401/403" \
+  "http://api.service.net:30000/inven/admin/stock" "401 403"
+
+# Fetch admin token via Resource Owner Password grant (directAccessGrantsEnabled=true on ui-client)
+ADMIN_TOKEN=$(curl -s --max-time 15 -X POST \
+  "http://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password&client_id=ui-client&username=admin1&password=CHANGE_ME" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))" 2>/dev/null || echo "")
+
+if [[ -n "$ADMIN_TOKEN" ]]; then
+  ok "[Admin token] Fetched admin1 token from Keycloak"
+  http_check_bearer "ecom admin GET /books→200"  \
+    "http://api.service.net:30000/ecom/admin/books" "$ADMIN_TOKEN" "200"
+  http_check_bearer "inven admin GET /stock→200" \
+    "http://api.service.net:30000/inven/admin/stock" "$ADMIN_TOKEN" "200"
+else
+  fail "[Admin token] Could not fetch admin1 token — check Keycloak realm import"
+fi
+
+# Customer token must be denied on admin endpoints (role enforcement)
+CUSTOMER_TOKEN=$(curl -s --max-time 15 -X POST \
+  "http://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password&client_id=ui-client&username=user1&password=CHANGE_ME" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))" 2>/dev/null || echo "")
+
+if [[ -n "$CUSTOMER_TOKEN" ]]; then
+  http_check_bearer "ecom admin customer→403"  \
+    "http://api.service.net:30000/ecom/admin/books" "$CUSTOMER_TOKEN" "403"
+  http_check_bearer "inven admin customer→403" \
+    "http://api.service.net:30000/inven/admin/stock" "$CUSTOMER_TOKEN" "403"
+else
+  fail "[Customer token] Could not fetch user1 token — check Keycloak realm import"
+fi
 
 echo ""
 echo "==============================="

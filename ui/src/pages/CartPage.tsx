@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { cartApi, CartItem } from '../api/cart'
+import { booksApi, StockResponse } from '../api/books'
 import { useAuth } from '../auth/AuthContext'
 import {
   getGuestCart,
@@ -9,6 +10,7 @@ import {
   GuestCartItem,
 } from '../hooks/useGuestCart'
 import { Toast } from '../components/Toast'
+import { StockBadge } from '../components/StockBadge'
 
 export default function CartPage() {
   const { user, isLoading, login } = useAuth()
@@ -18,14 +20,29 @@ export default function CartPage() {
   const [loading, setLoading] = useState(true)
   const [checking, setChecking] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [stockMap, setStockMap] = useState<Record<string, StockResponse>>({})
+  const [stockLoading, setStockLoading] = useState(false)
 
   useEffect(() => {
     if (isLoading) return
 
     if (!user) {
       // Guest mode — read from localStorage
-      setGuestItems(getGuestCart())
+      const items = getGuestCart()
+      setGuestItems(items)
       setLoading(false)
+      // Fetch stock for guest items
+      if (items.length > 0) {
+        setStockLoading(true)
+        Promise.all(items.map(i => booksApi.getStock(i.bookId)))
+          .then(stocks => {
+            const map: Record<string, StockResponse> = {}
+            for (const s of stocks) map[s.book_id] = s
+            setStockMap(map)
+          })
+          .catch(() => { /* graceful degradation */ })
+          .finally(() => setStockLoading(false))
+      }
       return
     }
 
@@ -41,6 +58,18 @@ export default function CartPage() {
       const items = await cartApi.get()
       setServerItems(items)
       setLoading(false)
+      // Fetch stock for server cart items
+      if (items.length > 0) {
+        setStockLoading(true)
+        Promise.all(items.map(i => booksApi.getStock(i.book.id)))
+          .then(stocks => {
+            const map: Record<string, StockResponse> = {}
+            for (const s of stocks) map[s.book_id] = s
+            setStockMap(map)
+          })
+          .catch(() => { /* graceful degradation */ })
+          .finally(() => setStockLoading(false))
+      }
     }
     syncAndLoad().catch(() => setLoading(false))
   }, [user, isLoading])
@@ -64,6 +93,16 @@ export default function CartPage() {
     const updated = await cartApi.get()
     setServerItems(updated)
     window.dispatchEvent(new Event('cartUpdated'))
+    // Refresh stock for updated cart
+    if (updated.length > 0) {
+      Promise.all(updated.map(i => booksApi.getStock(i.book.id)))
+        .then(stocks => {
+          const map: Record<string, StockResponse> = {}
+          for (const s of stocks) map[s.book_id] = s
+          setStockMap(map)
+        })
+        .catch(() => {})
+    }
   }
 
   const handleLoginToCheckout = () => {
@@ -105,26 +144,41 @@ export default function CartPage() {
               <thead>
                 <tr>
                   <th>Book</th>
+                  <th>Availability</th>
                   <th>Qty</th>
                   <th style={{ textAlign: 'right' }}>Price</th>
                   <th style={{ textAlign: 'right' }}>Subtotal</th>
                 </tr>
               </thead>
               <tbody>
-                {guestItems.map(item => (
-                  <tr key={item.bookId}>
-                    <td className="book-title">{item.title}</td>
-                    <td>
-                      <div className="qty-ctrl">
-                        <button className="qty-btn" onClick={() => handleGuestQty(item.bookId, -1)}>−</button>
-                        <span>{item.quantity}</span>
-                        <button className="qty-btn" onClick={() => handleGuestQty(item.bookId, 1)}>+</button>
-                      </div>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>${item.price.toFixed(2)}</td>
-                    <td style={{ textAlign: 'right' }}>${(item.price * item.quantity).toFixed(2)}</td>
-                  </tr>
-                ))}
+                {guestItems.map(item => {
+                  const stock = stockMap[item.bookId]
+                  return (
+                    <tr key={item.bookId}>
+                      <td className="book-title">{item.title}</td>
+                      <td>
+                        <StockBadge
+                          available={stock !== undefined ? stock.available : Infinity}
+                          loading={stockLoading && stock === undefined}
+                        />
+                        {stock !== undefined && item.quantity > stock.available && stock.available > 0 && (
+                          <div style={{ fontSize: '0.75rem', color: '#c05621', marginTop: '2px' }}>
+                            ⚠ Only {stock.available} available
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <div className="qty-ctrl">
+                          <button className="qty-btn" onClick={() => handleGuestQty(item.bookId, -1)}>−</button>
+                          <span>{item.quantity}</span>
+                          <button className="qty-btn" onClick={() => handleGuestQty(item.bookId, 1)}>+</button>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>${item.price.toFixed(2)}</td>
+                      <td style={{ textAlign: 'right' }}>${(item.price * item.quantity).toFixed(2)}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
             <div className="cart-total">Total: ${total.toFixed(2)}</div>
@@ -142,6 +196,12 @@ export default function CartPage() {
 
   // ── Authenticated cart view ─────────────────────────────────────────────
   const total = serverItems.reduce((s, i) => s + i.book.price * i.quantity, 0)
+
+  const checkoutBlocked = serverItems.some(item => {
+    const stock = stockMap[item.book.id]
+    return stock !== undefined && (stock.available === 0 || item.quantity > stock.available)
+  })
+
   return (
     <div className="page">
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
@@ -157,35 +217,63 @@ export default function CartPage() {
             <thead>
               <tr>
                 <th>Book</th>
+                <th>Availability</th>
                 <th>Qty</th>
                 <th style={{ textAlign: 'right' }}>Price</th>
                 <th style={{ textAlign: 'right' }}>Subtotal</th>
               </tr>
             </thead>
             <tbody>
-              {serverItems.map(item => (
-                <tr key={item.id}>
-                  <td className="book-title">{item.book.title}</td>
-                  <td>
-                    <div className="qty-ctrl">
-                      <button className="qty-btn" onClick={() => handleServerQty(item, -1)}>−</button>
-                      <span>{item.quantity}</span>
-                      <button className="qty-btn" onClick={() => handleServerQty(item, 1)}>+</button>
-                    </div>
-                  </td>
-                  <td style={{ textAlign: 'right' }}>${item.book.price.toFixed(2)}</td>
-                  <td style={{ textAlign: 'right' }}>${(item.book.price * item.quantity).toFixed(2)}</td>
-                </tr>
-              ))}
+              {serverItems.map(item => {
+                const stock = stockMap[item.book.id]
+                return (
+                  <tr key={item.id}>
+                    <td className="book-title">{item.book.title}</td>
+                    <td>
+                      <StockBadge
+                        available={stock !== undefined ? stock.available : Infinity}
+                        loading={stockLoading && stock === undefined}
+                      />
+                      {stock !== undefined && item.quantity > stock.available && stock.available > 0 && (
+                        <div style={{ fontSize: '0.75rem', color: '#c05621', marginTop: '2px' }}>
+                          ⚠ Only {stock.available} available
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <div className="qty-ctrl">
+                        <button className="qty-btn" onClick={() => handleServerQty(item, -1)}>−</button>
+                        <span>{item.quantity}</span>
+                        <button className="qty-btn" onClick={() => handleServerQty(item, 1)}>+</button>
+                      </div>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>${item.book.price.toFixed(2)}</td>
+                    <td style={{ textAlign: 'right' }}>${(item.book.price * item.quantity).toFixed(2)}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
           <div className="cart-total">Total: ${total.toFixed(2)}</div>
+          {checkoutBlocked && (
+            <div style={{
+              margin: '0.75rem 0',
+              padding: '0.75rem 1rem',
+              background: '#fff5f5',
+              border: '1px solid #fed7d7',
+              borderRadius: '6px',
+              color: '#c53030',
+              fontSize: '0.875rem',
+            }}>
+              One or more items in your cart have insufficient stock. Please update quantities or remove unavailable items.
+            </div>
+          )}
           <div className="cart-actions">
             <a href="/" className="btn btn-ghost">Continue Shopping</a>
             <button
               className="btn btn-primary btn-lg"
               onClick={handleCheckout}
-              disabled={checking}
+              disabled={checking || checkoutBlocked}
             >
               {checking ? 'Processing...' : 'Checkout'}
             </button>

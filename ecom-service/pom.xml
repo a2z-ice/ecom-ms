@@ -103,6 +103,13 @@
       <optional>true</optional>
     </dependency>
 
+    <!-- OpenAPI / Swagger UI (SpringDoc 3.x — Spring Boot 4.x compatible) -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+      <version>3.0.2</version>
+    </dependency>
+
     <!-- Test -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

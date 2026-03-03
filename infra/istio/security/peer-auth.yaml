@@ -77,6 +77,24 @@ spec:
     mode: STRICT
 
 ---
+# Keycloak: NodePort 32400 receives plaintext from kind hostPort — allow on app port 8080.
+# portLevelMtls requires a selector (cannot be used on namespace-wide policies).
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: keycloak-nodeport-permissive
+  namespace: identity
+spec:
+  selector:
+    matchLabels:
+      app: keycloak
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "8080":
+      mode: PERMISSIVE
+
+---
 apiVersion: security.istio.io/v1
 kind: PeerAuthentication
 metadata:

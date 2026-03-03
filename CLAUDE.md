@@ -529,7 +529,7 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 - Superset: 3 dashboards, 16 charts (Book Store Analytics, Sales & Revenue Analytics, Inventory Analytics) ✓
 - Analytics DB: 10 views (`\dv vw_*`) ✓
 - Kiali: traffic graph populated (10 nodes, 12 edges for ecom+inventory), Prometheus scraping ztunnel + istiod ✓
-- **E2E tests: 89/89 passing** ✓ (45 existing + 19 Superset + 25 Debezium-Flink CDC tests)
+- **E2E tests: 128/128 passing** ✓ (Sessions 1–21 + post-session fixes complete)
 - ecom-service → inventory-service synchronous mTLS reserve call on checkout ✓
 - All Istio AuthorizationPolicies L4-only (ztunnel-compatible) ✓
 
@@ -705,9 +705,54 @@ All stateful services are backed by PVCs → PVs → host `data/` directory:
 
 **Kafka PVC mount fix (Session 19)**: `confluentinc/cp-kafka` declares `VOLUME /var/lib/kafka/data` in its Dockerfile. Docker auto-creates an anonymous volume at that path that shadows any parent bind mount. Fix: mount the PVC at `/var/lib/kafka/data` (exact VOLUME path) so the bind mount takes precedence. The PVC is now at `volumeMounts.mountPath: /var/lib/kafka/data` in `infra/kafka/kafka.yaml`. After this fix, KRaft cluster metadata persists across pod restarts. CDC topics (`ecom-connector.public.*`) still require `kafka-topics-init.yaml` + `register-connectors.sh` after each Kafka restart (since `connect-offsets` topic is lost when Kafka resets).
 
+### Session 20 — Completed (Stock Management UI)
+
+- `GET /inven/stock/bulk?book_ids=...` endpoint (returns `list[StockResponse]`, before `/{book_id}` route)
+- `StockBadge.tsx` component (gray loading, red OOS, orange low, green in-stock)
+- `CatalogPage.tsx`: bulk stock fetch; badges; OOS button disabled
+- `SearchPage.tsx`: Availability column; OOS buttons disabled
+- `CartPage.tsx`: Availability column; per-item badges; checkout blocked when OOS
+- `e2e/stock-management.spec.ts`: 9 tests covering API structure + UI behavior
+
+### Session 21 — Completed (Admin Panel)
+
+- **Keycloak**: `admin1` user has both `customer` + `admin` realm roles. `ui-client` has `directAccessGrantsEnabled: true` (needed for curl-based token tests and API reference docs)
+- **ecom-service admin API** (`/admin/books`, `/admin/orders`):
+  - `AdminBookController.java`: GET/POST/PUT/DELETE at `/admin/books` — `@PreAuthorize("hasRole('ADMIN')")`
+  - `AdminOrderController.java`: GET all orders at `/admin/orders` — admin only
+  - `BookRequest.java` DTO, `AdminOrderResponse.java` DTO
+  - `BookService.java` updated with create/update/delete
+- **inventory-service admin API** (`/admin/stock`):
+  - `api/admin.py`: GET (list all), PUT (set absolute qty), POST (adjust by delta)
+  - All endpoints: `require_role("admin")` dependency
+- **Gateway**: `inven-route.yaml` exposes `/inven/admin/**` (PathPrefix, all methods)
+- **UI**:
+  - `AuthContext.tsx`: `isAdmin` (decodes access token to check roles)
+  - `AdminRoute.tsx`: not-logged-in → redirects to login; not-admin → shows "Access Denied"
+  - `NavBar.tsx`: gold "Admin" link visible only when `isAdmin`
+  - `api/admin.ts`: admin API client (books, orders, stock)
+  - `pages/admin/`: `AdminDashboard.tsx`, `AdminBooksPage.tsx`, `AdminEditBookPage.tsx`, `AdminStockPage.tsx`, `AdminOrdersPage.tsx`
+  - `App.tsx`: `/admin`, `/admin/books`, `/admin/books/new`, `/admin/books/:id`, `/admin/stock`, `/admin/orders` routes
+- **E2E**: `admin.spec.ts` (21 tests: API access control, book CRUD, stock management, UI), `fixtures/admin.setup.ts`, `fixtures/admin-base.ts`, `fixtures/admin1.json`
+- **E2E tests: 128/128 passing** (8 new: 2 myecom.net redirect + 6 Keycloak admin console tests)
+
+### Post-Session-21 Fixes — Complete (2026-03-02)
+
+- **Admin logout**: Fixed `AuthContext.tsx` `logout()` — `removeUser()` + `setUser(null)` before redirect; trailing `/` in `post_logout_redirect_uri` to match `http://localhost:30000/*` wildcard
+- **realm-export.json**: Added `"postLogoutRedirectUris": ["+"]` to `ui-client` config
+- **Keycloak admin NodePort**: `infra/keycloak/keycloak-nodeport.yaml` (NodePort 32400); `cluster.yaml` updated with `extraPortMappings`; `keycloak-nodeport-permissive` PeerAuthentication added to `peer-auth.yaml`
+- **smoke-test.sh**: Section 5 admin API access control (7 checks); `http_check_bearer` and `http_check_any` helpers
+- **docs/guides/admin-feature.md**: Comprehensive admin panel guide with screenshots and API examples
+- **myecom.net redirect fix** (direct PKCE, updated 2026-03-03):
+  - `oidcConfig.ts`: `redirect_uri = ${window.location.origin}/callback` (dynamic — uses current origin, not baked VITE_REDIRECT_URI)
+  - `AuthContext.tsx` `login()`: checks `!crypto?.subtle` (not hostname). Chrome treats `http://myecom.net:30000` as secure context (loopback DNS → 127.0.0.1), so PKCE runs directly there
+  - `CallbackPage.tsx`: hash relay retained as fallback for `isAbsolute` returnUrl (when crypto.subtle unavailable)
+  - E2E: `auth.spec.ts` myecom.net tests — screenshot moved after logout assertion; 30s timeout for admin test
+- **docs/api/api-reference.md**: Keycloak Admin URLs added to URL Quick Reference table
+
 ### NEXT SESSION — Start Here
 
-**Sessions 1–19 complete.** No outstanding items. See `docs/architecture/review-and-proposed-architecture.md` for the enhancement roadmap.
+**Sessions 1–21 + post-session fixes complete.** No outstanding items. See `docs/architecture/review-and-proposed-architecture.md` for the enhancement roadmap.
 
 ---
 

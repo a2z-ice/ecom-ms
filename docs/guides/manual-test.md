@@ -1,6 +1,22 @@
 # BookStore Platform — Manual Testing Guideline
 
-Complete step-by-step testing instructions for all features of the BookStore e-commerce platform, covering every scenario exercised by the 36-test Playwright E2E suite. Tests are organised thematically; run them in order as later tests depend on state set up by earlier ones.
+Complete step-by-step testing instructions for all features of the BookStore e-commerce platform. Tests are organised thematically; run them in order as later tests depend on state set up by earlier ones.
+
+> **E2E Tests: 99/99 passing** — Updated 2026-03-02 to include Session 20 (Stock Management) and API Documentation.
+
+---
+
+## Quick Links — Interactive API Docs
+
+Test the APIs directly in your browser — no curl or Postman needed:
+
+| Service | Swagger UI | Description |
+|---------|-----------|-------------|
+| **E-Commerce API** | [`http://api.service.net:30000/ecom/swagger-ui/index.html`](http://api.service.net:30000/ecom/swagger-ui/index.html) | Books, Cart, Checkout |
+| **Inventory API** | [`http://api.service.net:30000/inven/docs`](http://api.service.net:30000/inven/docs) | Stock levels |
+| **Inventory API (ReDoc)** | [`http://api.service.net:30000/inven/redoc`](http://api.service.net:30000/inven/redoc) | Read-only docs |
+
+Jump to [MT-API-01 — Swagger UI Testing](#mt-api-01--e-commerce-swagger-ui) for step-by-step instructions.
 
 ---
 
@@ -841,3 +857,251 @@ Manual testing should be performed when:
 - After significant infrastructure changes (cluster recreation, cert rotation)
 - Before release sign-off
 - When investigating issues not caught by automated tests
+
+---
+
+## MT-API-01 — E-Commerce Swagger UI
+
+**URL:** `http://api.service.net:30000/ecom/swagger-ui/index.html`
+
+**Goal:** Verify the Swagger UI loads, all endpoint groups are visible, public endpoints are testable without auth, and protected endpoints work after authorization.
+
+### Step 1 — Open Swagger UI
+1. Navigate to `http://api.service.net:30000/ecom/swagger-ui/index.html`
+2. Verify the page title shows **"BookStore E-Commerce API"**
+3. Verify three tag sections are visible: **Catalog**, **Cart**, **Checkout**
+4. Verify the **Authorize** button is visible in the top right
+
+### Step 2 — Test public endpoint (no auth)
+1. Expand the **Catalog** section
+2. Click `GET /books`
+3. Click **Try it out**
+4. Leave `page=0`, `size=5`, click **Execute**
+5. Verify response code **200** and a JSON body with `content` array of 5 books
+
+**Expected response structure:**
+```json
+{
+  "content": [{"id":"...","title":"...","price":...}],
+  "totalElements": 10,
+  "totalPages": 2
+}
+```
+
+### Step 3 — Test search
+1. Expand `GET /books/search`
+2. Click **Try it out**
+3. Enter `q = tolkien`
+4. Click **Execute**
+5. Verify 200 response with matching books
+
+### Step 4 — Authorize with Bearer token
+1. Get a token:
+   ```bash
+   TOKEN=$(curl -s -X POST http://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token \
+     -d "grant_type=password&client_id=ui-client&username=user1&password=CHANGE_ME" \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+   echo "Bearer $TOKEN"
+   ```
+2. In Swagger UI, click **Authorize**
+3. Paste `Bearer <token>` into the **BearerAuth** field
+4. Click **Authorize**, then **Close**
+
+### Step 5 — Test protected cart endpoint
+1. Expand the **Cart** section → `GET /cart`
+2. Click **Try it out** → **Execute**
+3. Verify **200** response (list of cart items, may be empty `[]`)
+
+**Fail indicators if not authorized:** `401 Unauthorized` with `{"error":"Unauthorized"}`
+
+### Step 6 — Add to cart via Swagger
+1. Expand `POST /cart`
+2. Click **Try it out**
+3. Replace the example request body with:
+   ```json
+   {"bookId": "00000000-0000-0000-0000-000000000001", "quantity": 1}
+   ```
+4. Click **Execute**
+5. Verify **200** response with the created CartItem
+
+### Step 7 — Place an order via Swagger
+1. Expand **Checkout** → `POST /checkout`
+2. Click **Try it out** → **Execute**
+3. Verify **200** response with `{"id":"...","total":...,"status":"PENDING"}`
+
+---
+
+## MT-API-02 — Inventory Swagger UI (FastAPI)
+
+**URL:** `http://api.service.net:30000/inven/docs`
+
+**Goal:** Verify the FastAPI Swagger UI loads, public endpoints are testable, and documentation is accurate.
+
+### Step 1 — Open Swagger UI
+1. Navigate to `http://api.service.net:30000/inven/docs`
+2. Verify the page title shows **"Inventory Service API"**
+3. Verify three tag sections: **stock**, **reserve**, **health**
+4. Note: No Authorize button needed — stock endpoints are public
+
+### Step 2 — Test bulk stock endpoint
+1. Expand **stock** → `GET /stock/bulk`
+2. Click **Try it out**
+3. Enter `book_ids = 00000000-0000-0000-0000-000000000001,00000000-0000-0000-0000-000000000002`
+4. Click **Execute**
+5. Verify **200** response with an array of 2 stock objects
+
+**Expected response:**
+```json
+[
+  {
+    "book_id": "00000000-0000-0000-0000-000000000001",
+    "quantity": 50,
+    "reserved": 5,
+    "available": 45,
+    "updated_at": "2026-03-02T..."
+  }
+]
+```
+
+### Step 3 — Test single book stock
+1. Expand `GET /stock/{book_id}`
+2. Click **Try it out**
+3. Enter `book_id = 00000000-0000-0000-0000-000000000003`
+4. Click **Execute**
+5. Verify **200** response with stock for that book
+
+### Step 4 — Test unknown book ID (404 behavior)
+1. In `GET /stock/{book_id}`, enter `book_id = 00000000-0000-0000-0000-999999999999`
+2. Click **Execute**
+3. Verify **404** response: `{"detail":"Book not found in inventory"}`
+
+### Step 5 — Test edge cases for bulk endpoint
+1. In `GET /stock/bulk`, enter `book_ids = 00000000-0000-0000-0000-999999999999`
+2. Execute — verify **200** with `[]` (unknown ID silently omitted)
+3. Enter `book_ids = not-a-uuid` — verify **200** with `[]` (invalid UUID silently skipped)
+
+### Step 6 — Verify internal endpoint documentation
+1. Expand **reserve** → `POST /stock/reserve`
+2. Read the description — it should explain that this endpoint is mTLS-only
+3. **Do NOT execute** this — it's blocked at the gateway (would return 404)
+
+### Step 7 — Test health endpoint
+1. Expand **health** → `GET /health`
+2. Click **Try it out** → **Execute**
+3. Verify **200**: `{"status": "ok"}`
+
+---
+
+## MT-API-03 — Inventory ReDoc
+
+**URL:** `http://api.service.net:30000/inven/redoc`
+
+**Goal:** Verify ReDoc renders the API documentation correctly (read-only — no Try it out).
+
+**Steps:**
+1. Navigate to `http://api.service.net:30000/inven/redoc`
+2. Verify a styled documentation page loads with sidebar navigation
+3. Click through **stock**, **reserve**, **health** in the sidebar
+4. Verify schemas are rendered for `StockResponse`, `ReserveRequest`, `ReserveResponse`
+
+---
+
+## MT-API-04 — OpenAPI Spec Download
+
+**Goal:** Verify raw OpenAPI JSON specs are downloadable and valid.
+
+```bash
+# E-Commerce service OpenAPI spec
+curl -s "http://api.service.net:30000/ecom/v3/api-docs" | python3 -m json.tool | head -20
+
+# Inventory service OpenAPI spec
+curl -s "http://api.service.net:30000/inven/openapi.json" | python3 -m json.tool | head -20
+```
+
+**Expected for ecom:**
+```json
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BookStore E-Commerce API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/books": {...},
+    "/cart": {...},
+    "/checkout": {...}
+  }
+}
+```
+
+**Expected for inven:**
+```json
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Inventory Service API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/stock/bulk": {...},
+    "/stock/{book_id}": {...},
+    "/stock/reserve": {...}
+  }
+}
+```
+
+---
+
+## MT-API-05 — Security Verification for Docs Endpoints
+
+**Goal:** Confirm the API docs themselves are accessible without a JWT (public), but protected API endpoints still require auth.
+
+```bash
+# Docs must be accessible without auth — these must return 200
+curl -o /dev/null -w "%{http_code}" "http://api.service.net:30000/ecom/swagger-ui/index.html"
+# → 200
+
+curl -o /dev/null -w "%{http_code}" "http://api.service.net:30000/ecom/v3/api-docs"
+# → 200
+
+curl -o /dev/null -w "%{http_code}" "http://api.service.net:30000/inven/docs"
+# → 200
+
+# Protected API endpoints must still require auth — these must return 401
+curl -o /dev/null -w "%{http_code}" "http://api.service.net:30000/ecom/cart"
+# → 401
+
+curl -o /dev/null -w "%{http_code}" -X POST "http://api.service.net:30000/ecom/checkout"
+# → 401
+```
+
+---
+
+## MT-API-06 — Stock Management UI
+
+**Goal:** Verify the stock badge system works on all three pages.
+
+**Catalog page (`http://localhost:30000`):**
+1. Navigate to the catalog — books load first
+2. Within 1–2 seconds, green **"In Stock"** badges appear below each price
+3. While badges are loading: a subtle gray `···` skeleton is visible
+
+**Search page (`http://localhost:30000/search?q=the`):**
+1. Results load, then an **"Availability"** column appears
+2. Each result row shows a colored stock badge
+
+**Cart page (`http://localhost:30000/cart`):**
+1. Add a book to cart first, then navigate to `/cart`
+2. An **"Availability"** column appears in the cart table
+3. Each item shows a stock badge
+4. Checkout button is enabled (all books have stock in test env)
+
+**Simulate Out of Stock:**
+```bash
+kubectl exec -n inventory deploy/inventory-db -- psql -U inventory -d inventory \
+  -c "UPDATE inventory SET reserved = quantity WHERE book_id = '00000000-0000-0000-0000-000000000001';"
+```
+- Refresh catalog → red **"Out of Stock"** badge, button disabled
+- Navigate to cart → if this book is in cart, checkout button is disabled
+- Restore: `UPDATE inventory SET reserved = 0 WHERE book_id = '...'`

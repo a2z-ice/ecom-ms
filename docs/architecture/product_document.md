@@ -1,6 +1,6 @@
 # Book Store — Complete Product Documentation
 
-> **Generated:** 2026-03-01 · **E2E Tests:** 89/89 passed · **Screenshots:** 90+ images
+> **Generated:** 2026-03-02 · **E2E Tests:** 99/99 passed · **Screenshots:** 90+ images
 > **Stack:** React 19.2 · Spring Boot 4.0 · FastAPI · Kafka KRaft · Debezium · Apache Flink 1.20 · Superset · Keycloak 26.5.4 · Istio Ambient Mesh
 
 ---
@@ -11,16 +11,18 @@
 2. [Animated Data Flow](#2-animated-data-flow)
 3. [Kiali — Service Mesh Visualisation](#3-kiali--service-mesh-visualisation)
 4. [Authentication & Security (Keycloak)](#4-authentication--security-keycloak)
-5. [API Endpoints](#5-api-endpoints)
-6. [Book Catalog](#6-book-catalog)
-7. [Search](#7-search)
-8. [Shopping Cart — Guest & Authenticated](#8-shopping-cart--guest--authenticated)
-9. [Checkout & Order Placement](#9-checkout--order-placement)
-10. [CDC Pipeline — Analytics Sync](#10-cdc-pipeline--analytics-sync)
-11. [Analytics Dashboard — Apache Superset](#11-analytics-dashboard--apache-superset)
-12. [Database Administration — PgAdmin](#12-database-administration--pgadmin)
-13. [E2E Test Suite Summary](#13-e2e-test-suite-summary)
-14. [Manual Test Guideline](#14-manual-test-guideline)
+5. [Interactive API Documentation (Swagger UI)](#5-interactive-api-documentation-swagger-ui)
+6. [API Endpoints Reference](#6-api-endpoints-reference)
+7. [Book Catalog](#7-book-catalog)
+8. [Search](#8-search)
+9. [Shopping Cart — Guest & Authenticated](#9-shopping-cart--guest--authenticated)
+10. [Checkout & Order Placement](#10-checkout--order-placement)
+11. [Stock / Inventory Status](#11-stock--inventory-status)
+12. [CDC Pipeline — Analytics Sync](#12-cdc-pipeline--analytics-sync)
+13. [Analytics Dashboard — Apache Superset](#13-analytics-dashboard--apache-superset)
+14. [Database Administration — PgAdmin](#14-database-administration--pgadmin)
+15. [E2E Test Suite Summary](#15-e2e-test-suite-summary)
+16. [Manual Test Guideline](#16-manual-test-guideline)
 
 ---
 
@@ -257,7 +259,59 @@ Visiting `/cart` without a session immediately redirects to Keycloak:
 
 ---
 
-## 5. API Endpoints
+## 5. Interactive API Documentation (Swagger UI)
+
+Both microservices expose a **live, interactive Swagger UI** — browse endpoints, read schema documentation, and execute real HTTP requests directly from the browser.
+
+### Access URLs
+
+| Service | Swagger UI | OpenAPI JSON |
+|---------|-----------|--------------|
+| **E-Commerce API** | [`http://api.service.net:30000/ecom/swagger-ui/index.html`](http://api.service.net:30000/ecom/swagger-ui/index.html) | [`/ecom/v3/api-docs`](http://api.service.net:30000/ecom/v3/api-docs) |
+| **Inventory API** | [`http://api.service.net:30000/inven/docs`](http://api.service.net:30000/inven/docs) | [`/inven/openapi.json`](http://api.service.net:30000/inven/openapi.json) |
+| **Inventory API (ReDoc)** | [`http://api.service.net:30000/inven/redoc`](http://api.service.net:30000/inven/redoc) | — |
+
+### How to authenticate in Swagger UI
+
+1. Get a JWT token via curl:
+   ```bash
+   TOKEN=$(curl -s -X POST http://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token \
+     -d "grant_type=password&client_id=ui-client&username=user1&password=CHANGE_ME" \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+   echo $TOKEN
+   ```
+2. Open the Swagger UI for the E-Commerce service
+3. Click **Authorize** (top right)
+4. Enter `Bearer <paste_token_here>` in the **BearerAuth** field
+5. Click **Authorize** — all protected endpoints now include the token automatically
+
+### Swagger UI — E-Commerce Service
+
+The E-Commerce Swagger UI groups endpoints into three **tags**:
+
+| Tag | Endpoints | Auth |
+|-----|-----------|------|
+| **Catalog** | `GET /books`, `GET /books/search`, `GET /books/{id}` | Public |
+| **Cart** | `GET /cart`, `POST /cart`, `PUT /cart/{itemId}`, `DELETE /cart/{itemId}` | Bearer JWT |
+| **Checkout** | `POST /checkout` | Bearer JWT |
+
+### Swagger UI — Inventory Service
+
+The Inventory Swagger UI groups endpoints into three **tags**:
+
+| Tag | Endpoints | Auth |
+|-----|-----------|------|
+| **stock** | `GET /stock/bulk`, `GET /stock/{book_id}` | Public |
+| **reserve** | `POST /stock/reserve` | mTLS (internal only — not testable externally) |
+| **health** | `GET /health` | Public |
+
+> **Full API reference** (all endpoints, request/response schemas, error codes, curl examples):
+> `docs/api/api-reference.md`
+
+---
+
+## 6. API Endpoints Reference
 
 ### 5.1 Books API (Public)
 

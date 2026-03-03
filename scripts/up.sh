@@ -194,6 +194,7 @@ bootstrap_fresh() {
   kubectl apply -f "${REPO_ROOT}/infra/pgadmin/pgadmin.yaml"
   # Apply Keycloak manifests now so it starts pulling images while we wait for Debezium
   kubectl apply -f "${REPO_ROOT}/infra/keycloak/keycloak.yaml"
+  kubectl apply -f "${REPO_ROOT}/infra/keycloak/keycloak-nodeport.yaml"
   # Only wait for Debezium — PgAdmin and Keycloak continue in background
   wait_deploy debezium infra
 
@@ -449,15 +450,21 @@ ensure_connectors() {
 _print_endpoints() {
   echo ""
   echo "  Service endpoints:"
-  echo "    UI:        http://myecom.net:30000"
-  echo "    API:       http://api.service.net:30000/ecom/books"
-  echo "    Keycloak:  http://idp.keycloak.net:30000"
-  echo "    PgAdmin:   http://localhost:31111"
-  echo "    Superset:  http://localhost:32000"
-  echo "    Kiali:     http://localhost:32100/kiali"
-  echo "    Flink:     http://localhost:32200"
-  echo "    Debezium:  http://localhost:32300/connectors"
+  echo "    UI:            http://localhost:30000"
+  echo "    Admin Panel:   http://localhost:30000/admin  (login: admin1 / CHANGE_ME)"
+  echo "    API (ecom):    http://api.service.net:30000/ecom/books"
+  echo "    API (inven):   http://api.service.net:30000/inven/health"
+  echo "    Swagger UI:    http://api.service.net:30000/ecom/swagger-ui/index.html"
+  echo "    Keycloak:      http://idp.keycloak.net:30000"
+  echo "    KC Admin:      http://localhost:32400/admin  (admin / CHANGE_ME) [direct NodePort]"
+  echo "                   http://idp.keycloak.net:30000/admin  [via gateway — works now]"
+  echo "    PgAdmin:       http://localhost:31111"
+  echo "    Superset:      http://localhost:32000"
+  echo "    Kiali:         http://localhost:32100/kiali"
+  echo "    Flink:         http://localhost:32200"
+  echo "    Debezium:      http://localhost:32300/connectors"
   echo ""
+  echo "  Credentials:  user1 / CHANGE_ME (customer)   admin1 / CHANGE_ME (admin)"
   echo "  All ports served directly via kind NodePort (no proxy containers needed)."
 }
 

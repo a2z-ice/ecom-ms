@@ -1,0 +1,26 @@
+---
+# Dedicated NodePort for direct Keycloak access (bypasses the Istio gateway).
+# Useful for realm administration, import jobs, and bootstrap scripts.
+#
+# Access (requires port 32400 in kind extraPortMappings):
+#   Admin console:  http://localhost:32400/admin  (admin / CHANGE_ME)
+#   Realm config:   http://localhost:32400/realms/bookstore/.well-known/openid-configuration
+#   Token endpoint: http://localhost:32400/realms/bookstore/protocol/openid-connect/token
+#
+# NOTE: The Istio gateway at idp.keycloak.net:30000 also routes all Keycloak traffic,
+# so http://idp.keycloak.net:30000/admin is available without this NodePort.
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak-nodeport
+  namespace: identity
+spec:
+  type: NodePort
+  selector:
+    app: keycloak
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      nodePort: 32400
+      protocol: TCP

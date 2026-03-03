@@ -65,6 +65,20 @@ management:
       prometheus:
         enabled: true
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operationsSorter: alpha
+    tagsSorter: alpha
+    display-request-duration: true
+    try-it-out-enabled: true
+    persist-authorization: true
+  show-actuator: false
+
 logging:
   level:
     root: INFO

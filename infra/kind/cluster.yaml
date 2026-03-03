@@ -29,6 +29,9 @@ nodes:
       - containerPort: 32300   # Debezium (Kafka Connect) REST API
         hostPort: 32300
         protocol: TCP
+      - containerPort: 32400   # Keycloak Admin Console (direct, bypasses gateway)
+        hostPort: 32400
+        protocol: TCP
     # DATA_DIR is substituted by stack-up.sh / cluster-up.sh at runtime via sed.
     # Do not hardcode an absolute path here — it varies per developer machine.
     extraMounts:
