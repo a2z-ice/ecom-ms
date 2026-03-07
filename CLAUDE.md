@@ -301,8 +301,9 @@ kgateway/               gateway.yaml + HTTPRoutes per service
 keycloak/               keycloak.yaml, import-job.yaml, realm-export.json
 postgres/               ecom-db.yaml, inventory-db.yaml, analytics-db.yaml (each with PVC)
 kafka/                  kafka.yaml (KRaft), zookeeper.yaml (intentionally EMPTY placeholder)
-debezium/               debezium.yaml, register-connectors.sh, connectors/*.json
-                        Connector credentials loaded via mounted Secret files, not hardcoded
+debezium/               debezium-server-ecom.yaml, debezium-server-inventory.yaml
+                        register-connectors.sh (health-poll script — no REST registration)
+                        Credentials read directly from ecom-db-secret / inventory-db-secret via secretKeyRef
 istio/security/         peer-auth.yaml, request-auth.yaml, authz-policies/
 observability/          prometheus/, kiali/ (nodeport + config-patch + prometheus-alias),
                         otel-collector.yaml
@@ -416,25 +417,29 @@ Applied in this order per namespace:
 apiVersion: security.istio.io/v1
 kind: PeerAuthentication
 metadata:
-  name: debezium-nodeport-permissive
+  name: debezium-ecom-nodeport-permissive
   namespace: infra
 spec:
   selector:
     matchLabels:
-      app: debezium
+      app: debezium-server-ecom
   mtls:
     mode: STRICT
   portLevelMtls:
-    "8083":
+    "8080":
       mode: PERMISSIVE
 ```
 
-### CDC / Debezium Pattern
+### CDC / Debezium Server Pattern (Session 22)
 
 - PostgreSQL must have `wal_level=logical` (set via `POSTGRES_INITDB_ARGS` or ConfigMap)
-- Debezium connector registered via REST POST to `http://debezium-service:8083/connectors`
-- Topic format: `<connector-name>.<schema>.<table>` (e.g., `ecom-connector.public.orders`)
-- Sink: Kafka JDBC Sink Connector writes from CDC topics into analytics DB tables
+- **Debezium Server** (not Kafka Connect): one pod per source DB; config in `application.properties` ConfigMap
+- Health check: `GET /q/health` at port 8080 → `{"status":"UP"}` when running
+- Offset storage: `KafkaOffsetBackingStore` — topics `debezium.ecom.offsets` and `debezium.inventory.offsets` in Kafka
+- No REST registration needed: Debezium Server reads config on startup and auto-connects
+- On pod restart: auto-resumes from Kafka offset topics (no re-registration required)
+- Topic format unchanged: `<prefix>.<schema>.<table>` (e.g., `ecom-connector.public.orders`)
+- Flink SQL pipeline unchanged (same Kafka topics, same Debezium JSON envelope)
 
 ### Playwright Test Pattern
 
@@ -492,9 +497,9 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 
 ---
 
-## Current Implementation State (as of 2026-03-02)
+## Current Implementation State (as of 2026-03-06)
 
-**Sessions 1–18 complete + UI bug fixes + fresh-cluster bootstrap fully validated + Flink stability fixes. E2E: 89/89 passing.**
+**Sessions 1–22 complete. E2E: 130/130 passing.**
 
 ### Cluster: `bookstore` (kind, 3 nodes) — RUNNING
 
@@ -509,7 +514,8 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 | identity | keycloak-db | Running ✓ |
 | identity | keycloak-realm-import | Completed ✓ |
 | infra | kafka (KRaft) | Running ✓ |
-| infra | debezium | Running ✓ (CDC connectors registered) |
+| infra | debezium-server-ecom | Running ✓ (Debezium Server 3.4, health at :32300/q/health) |
+| infra | debezium-server-inventory | Running ✓ (Debezium Server 3.4, health at :32301/q/health) |
 | infra | redis | Running ✓ |
 | infra | pgadmin | Running ✓ |
 | analytics | analytics-db | Running ✓ |
@@ -522,14 +528,15 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 ### Verified
 - `GET http://api.service.net:30000/ecom/books` → 200 with 10 seeded books ✓
 - Keycloak realm `bookstore` imported ✓, JWT validation working ✓
-- CDC pipeline: Debezium → Kafka → Flink SQL → analytics-db ✓ (replaces Python consumer)
+- CDC pipeline: Debezium Server → Kafka → Flink SQL → analytics-db ✓
 - Flink REST API `/jobs` shows 4 streaming jobs in RUNNING state ✓
 - Flink Web Dashboard: `http://localhost:32200` (kind hostPort, NodePort 32200) ✓
-- Debezium REST API: `http://localhost:32300` (kind hostPort, NodePort 32300) ✓
+- Debezium ecom health: `http://localhost:32300/q/health` → `{"status":"UP"}` ✓
+- Debezium inventory health: `http://localhost:32301/q/health` → `{"status":"UP"}` ✓
 - Superset: 3 dashboards, 16 charts (Book Store Analytics, Sales & Revenue Analytics, Inventory Analytics) ✓
 - Analytics DB: 10 views (`\dv vw_*`) ✓
 - Kiali: traffic graph populated (10 nodes, 12 edges for ecom+inventory), Prometheus scraping ztunnel + istiod ✓
-- **E2E tests: 128/128 passing** ✓ (Sessions 1–21 + post-session fixes complete)
+- **E2E tests: 130/130 passing** ✓ (Sessions 1–22 complete)
 - ecom-service → inventory-service synchronous mTLS reserve call on checkout ✓
 - All Istio AuthorizationPolicies L4-only (ztunnel-compatible) ✓
 
@@ -544,9 +551,11 @@ All ports are exposed directly via kind `extraPortMappings` on the control-plane
 | Superset | 32000 | `http://localhost:32000` |
 | Kiali | 32100 | `http://localhost:32100/kiali` |
 | Flink | 32200 | `http://localhost:32200` |
-| Debezium | 32300 | `http://localhost:32300` |
+| Debezium ecom | 32300 | `http://localhost:32300/q/health` |
+| Debezium inventory | 32301 | `http://localhost:32301/q/health` |
+| Keycloak Admin | 32400 | `http://localhost:32400/admin` |
 
-All 6 ports are declared in `infra/kind/cluster.yaml` under `extraPortMappings` on the `control-plane` role node. kind binds them directly from host to the container port — no socat or proxy containers required.
+All 8 ports are declared in `infra/kind/cluster.yaml` under `extraPortMappings` on the `control-plane` role node. kind binds them directly from host to the container port — no socat or proxy containers required.
 
 ### UI Bug Fixes — Completed (Post Session 15)
 
@@ -610,17 +619,25 @@ All 6 ports are declared in `infra/kind/cluster.yaml` under `extraPortMappings` 
   - **Working viz types** (confirmed in `apache/superset:latest`): `echarts_timeseries_bar`, `echarts_timeseries_line`, `pie`, `table`, `big_number_total`
   - `echarts_bar` and `echarts_pie` are NOT registered — do not use them
 - **Python consumer deleted**: `analytics/consumer/main.py`, `Dockerfile`, `requirements.txt`, `infra/analytics/analytics-consumer.yaml` removed
-- **NodePort services**: Flink Web Dashboard at NodePort 32200 (`flink-jobmanager-nodeport` service) + Debezium REST API at NodePort 32300 (`debezium-nodeport` service). Both exposed directly via kind `extraPortMappings` — no proxy containers.
+- **NodePort services**: Flink Web Dashboard at NodePort 32200 (`flink-jobmanager-nodeport` service) + Debezium health at NodePort 32300 (`debezium-nodeport` service, later replaced by `debezium-server-ecom-nodeport` in Session 22). Both exposed directly via kind `extraPortMappings` — no proxy containers.
 - **E2E coverage**: `e2e/superset.spec.ts` expanded to 17 tests (API + UI: 3 dashboards, 14 charts, 10 datasets); `e2e/debezium-flink.spec.ts` (NEW) — 29 tests covering Debezium API, Flink dashboard, CDC end-to-end flow, operational health.
 - **Documentation**: `docs/cdc/debezium-flink-cdc.md` — comprehensive guide with architecture diagrams, per-component deep dives, data flow walkthrough, REST API reference, and E2E test coverage index.
 
-### Flink CDC Architecture
+### Flink CDC Architecture (Session 22 — updated versions)
 
 ```
-Debezium → Kafka (4 topics) → Flink SQL (plain json format, after field extraction) → JDBC → analytics-db
-                                                                                               ↓
-                                                                                    Superset (3 dashboards, 16 charts)
+Debezium Server 3.4 → Kafka (4 topics) → Flink 2.2.0 SQL (plain json, after field extraction) → JDBC → analytics-db
+(2 pods: ecom + inv)                                                                                       ↓
+                                                                                              Superset (3 dashboards, 16 charts)
 ```
+
+**Versions (Session 22):**
+- Flink: `2.2.0-scala_2.12-java17`
+- flink-connector-kafka: `4.0.1-2.0`
+- flink-connector-jdbc: `4.0.0-2.0`
+- kafka-clients: `3.9.2`
+- postgresql JDBC: `42.7.10`
+- Debezium Server: `3.4.1.Final` (replaces Kafka Connect `2.7.0.Final`)
 
 **Flink SQL format choice**: Uses plain `json` format (NOT `debezium-json`). Reason: `debezium-json` requires `REPLICA IDENTITY FULL` on source tables for UPDATE events (the "before" field must be non-null). Plain `json` format parses the Debezium envelope directly and extracts the `after` ROW field — works regardless of REPLICA IDENTITY setting.
 
@@ -640,7 +657,7 @@ Debezium → Kafka (4 topics) → Flink SQL (plain json format, after field extr
 
 **Adding a new table** (production procedure — partition discovery does NOT automate this):
 1. Add migration (Liquibase/Alembic) in the source service
-2. Update Debezium connector `table.include.list` via REST PUT
+2. Update Debezium Server `table.include.list` in the appropriate ConfigMap (`debezium-server-ecom-config` or `debezium-server-inventory-config`) and restart the pod
 3. Add DDL to `analytics/schema/analytics-ddl.sql`
 4. Add Kafka source table + JDBC sink table + `INSERT INTO` pipeline to `analytics/flink/sql/pipeline.sql` AND `infra/flink/flink-sql-runner.yaml` ConfigMap (copy the full WITH clause template including all 8 connection properties)
 5. Resubmit: `kubectl apply -f infra/flink/flink-sql-runner.yaml && kubectl delete job flink-sql-runner -n analytics --ignore-not-found && kubectl apply -f infra/flink/flink-sql-runner.yaml && kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeout=120s`
@@ -750,9 +767,23 @@ All stateful services are backed by PVCs → PVs → host `data/` directory:
   - E2E: `auth.spec.ts` myecom.net tests — screenshot moved after logout assertion; 30s timeout for admin test
 - **docs/api/api-reference.md**: Keycloak Admin URLs added to URL Quick Reference table
 
+### Session 22 — Completed (2026-03-06)
+
+- **Flink connector update**: Updated `analytics/flink/Dockerfile` connector JARs (kafka 3.4.0-1.20→kept at 1.20, jdbc 3.3.0-1.20→kept at 1.20, kafka-clients 3.9.2, postgresql 42.7.10). NOTE: Flink base image stays at 1.20 — `flink-connector-jdbc` has no Flink 2.x release on Maven Central yet (latest is 3.3.0-1.20 for 1.20)
+- **Debezium Kafka Connect → Debezium Server 3.4**: Replaced single Kafka Connect pod with two Debezium Server pods (one per source DB). Config via `application.properties` ConfigMap. No REST registration — auto-starts on pod launch.
+- **New manifests**: `debezium-server-ecom.yaml` (NodePort 32300) + `debezium-server-inventory.yaml` (NodePort 32301)
+- **Removed**: `debezium.yaml`, `connectors/*.json` — replaced by ConfigMap-based config
+- **New Kafka topics**: `debezium.ecom.offsets` + `debezium.inventory.offsets` (Debezium Server offset storage)
+- **PeerAuthentication**: Replaced `debezium-nodeport-permissive` (port 8083) with two entries for port 8080
+- **kind cluster.yaml**: Added port 32301 to `extraPortMappings` (requires `--fresh`)
+- **`register-connectors.sh`**: Now a health-poll script (`/q/health`) — no REST connector registration
+- **Scripts updated**: `up.sh`, `infra-up.sh`, `restart-after-docker.sh`, `smoke-test.sh`
+- **E2E**: Suite 1 in `debezium-flink.spec.ts` fully rewritten for Debezium Server health API; Suite 4 updated for 2 pods + 2 NodePorts
+- **Flink SQL pipeline unchanged**: Same Kafka topics, same Debezium JSON envelope format
+
 ### NEXT SESSION — Start Here
 
-**Sessions 1–21 + post-session fixes complete.** No outstanding items. See `docs/architecture/review-and-proposed-architecture.md` for the enhancement roadmap.
+**Sessions 1–22 complete.** No outstanding items. See `docs/architecture/review-and-proposed-architecture.md` for the enhancement roadmap.
 
 ---
 

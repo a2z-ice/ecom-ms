@@ -1,25 +1,22 @@
 /**
- * Debezium + Flink CDC Pipeline E2E Tests
+ * Debezium Server + Flink CDC Pipeline E2E Tests
  *
  * Covers:
- *   1. Debezium REST API health and connector status (localhost:32300)
+ *   1. Debezium Server health API (localhost:32300 ecom, localhost:32301 inventory)
  *   2. Flink Web Dashboard health and streaming job status (localhost:32200)
- *   3. End-to-end CDC data flow: ecom-db → Debezium → Kafka → Flink → analytics-db
+ *   3. End-to-end CDC data flow: ecom-db → Debezium Server → Kafka → Flink → analytics-db
  *   4. All analytics views populated correctly
  *
- * Prerequisites:
- *   - docker proxy containers running:
- *       docker run -d --name flink-proxy --network kind -p 32200:32200 \
- *         alpine/socat TCP-LISTEN:32200,fork,reuseaddr TCP:<CTRL_IP>:32200
- *       docker run -d --name debezium-proxy --network kind -p 32300:32300 \
- *         alpine/socat TCP-LISTEN:32300,fork,reuseaddr TCP:<CTRL_IP>:32300
+ * Debezium Server replaces Kafka Connect: no REST connector management API.
+ * Config is in application.properties ConfigMap. Health check at /q/health.
  */
 import { test, expect } from '@playwright/test'
 import { execFileSync } from 'child_process'
 import { pollUntilFound, queryAnalyticsDb } from './helpers/db'
 
-const DEBEZIUM_URL = 'http://localhost:32300'
-const FLINK_URL    = 'http://localhost:32200'
+const DEBEZIUM_ECM_URL = 'http://localhost:32300'
+const DEBEZIUM_INV_URL = 'http://localhost:32301'
+const FLINK_URL        = 'http://localhost:32200'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -38,94 +35,80 @@ function kubectlExec(namespace: string, deployment: string, cmd: string[]): stri
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Suite 1 — Debezium REST API
+// Suite 1 — Debezium Server Health API
 // ═══════════════════════════════════════════════════════════════════════════
-test.describe('Debezium REST API (localhost:32300)', () => {
+test.describe('Debezium Server Health API', () => {
 
-  test('Debezium API root is accessible and returns version info', async ({ request, page }) => {
-    const body = await apiGet(request, `${DEBEZIUM_URL}/`)
-    expect(body).toMatchObject({
-      version: expect.any(String),
-    })
-    // Screenshot placeholder — captures test runner context
+  test('Debezium ecom server /q/health is accessible (port 32300)', async ({ request, page }) => {
+    const resp = await request.get(`${DEBEZIUM_ECM_URL}/q/health`)
+    expect(resp.ok(), `GET ${DEBEZIUM_ECM_URL}/q/health → ${resp.status()}`).toBeTruthy()
+    const body = await resp.json()
+    expect(body).toHaveProperty('status')
     await page.goto('about:blank')
-    await page.screenshot({ path: 'screenshots/debezium-01-api-accessible.png' })
+    await page.screenshot({ path: 'screenshots/debezium-01-ecom-health-accessible.png' })
   })
 
-  test('GET /connectors lists both CDC connectors', async ({ request }) => {
-    const connectors: string[] = await apiGet(request, `${DEBEZIUM_URL}/connectors`)
-    expect(connectors).toContain('ecom-connector')
-    expect(connectors).toContain('inventory-connector')
-    expect(connectors).toHaveLength(2)
-  })
-
-  test('ecom-connector is in RUNNING state', async ({ request, page }) => {
-    const status = await apiGet(request, `${DEBEZIUM_URL}/connectors/ecom-connector/status`)
-    expect(status.connector.state).toBe('RUNNING')
-    // All tasks must also be RUNNING
-    const tasks: Array<{ state: string }> = status.tasks
-    expect(tasks.length).toBeGreaterThan(0)
-    tasks.forEach(t => expect(t.state).toBe('RUNNING'))
+  test('Debezium inventory server /q/health is accessible (port 32301)', async ({ request, page }) => {
+    const resp = await request.get(`${DEBEZIUM_INV_URL}/q/health`)
+    expect(resp.ok(), `GET ${DEBEZIUM_INV_URL}/q/health → ${resp.status()}`).toBeTruthy()
+    const body = await resp.json()
+    expect(body).toHaveProperty('status')
     await page.goto('about:blank')
-    await page.screenshot({ path: 'screenshots/debezium-02-ecom-connector-running.png' })
+    await page.screenshot({ path: 'screenshots/debezium-02-inventory-health-accessible.png' })
   })
 
-  test('inventory-connector is in RUNNING state', async ({ request, page }) => {
-    const status = await apiGet(request, `${DEBEZIUM_URL}/connectors/inventory-connector/status`)
-    expect(status.connector.state).toBe('RUNNING')
-    const tasks: Array<{ state: string }> = status.tasks
-    expect(tasks.length).toBeGreaterThan(0)
-    tasks.forEach(t => expect(t.state).toBe('RUNNING'))
+  test('Debezium ecom server reports status UP', async ({ request, page }) => {
+    const body = await apiGet(request, `${DEBEZIUM_ECM_URL}/q/health`)
+    expect(body.status).toBe('UP')
     await page.goto('about:blank')
-    await page.screenshot({ path: 'screenshots/debezium-03-inventory-connector-running.png' })
+    await page.screenshot({ path: 'screenshots/debezium-03-ecom-server-up.png' })
   })
 
-  test('ecom-connector config monitors correct tables', async ({ request }) => {
-    const config = await apiGet(request, `${DEBEZIUM_URL}/connectors/ecom-connector/config`)
-    expect(config['table.include.list']).toContain('public.orders')
-    expect(config['table.include.list']).toContain('public.order_items')
-    expect(config['table.include.list']).toContain('public.books')
-    expect(config['database.dbname']).toBe('ecomdb')
-    expect(config['connector.class']).toContain('PostgresConnector')
-  })
-
-  test('inventory-connector config monitors inventory table', async ({ request }) => {
-    const config = await apiGet(request, `${DEBEZIUM_URL}/connectors/inventory-connector/config`)
-    expect(config['table.include.list']).toBe('public.inventory')
-    expect(config['database.dbname']).toBe('inventorydb')
-    expect(config['connector.class']).toContain('PostgresConnector')
-  })
-
-  test('ecom-connector has produced Kafka topics', async ({ request, page }) => {
-    const topics = await apiGet(request, `${DEBEZIUM_URL}/connectors/ecom-connector/topics`)
-    // Debezium returns topics as array: {"ecom-connector":{"topics":["topic1","topic2"]}}
-    const topicsValue = topics['ecom-connector']?.topics ?? topics
-    const topicList: string[] = Array.isArray(topicsValue)
-      ? topicsValue
-      : Object.keys(topicsValue)
-    // At minimum the orders and books topics should exist after initial snapshot
-    const hasOrdersTopic = topicList.some(t => t.includes('orders'))
-    const hasBooksTopic  = topicList.some(t => t.includes('books'))
-    expect(hasOrdersTopic || hasBooksTopic).toBeTruthy()
+  test('Debezium inventory server reports status UP', async ({ request, page }) => {
+    const body = await apiGet(request, `${DEBEZIUM_INV_URL}/q/health`)
+    expect(body.status).toBe('UP')
     await page.goto('about:blank')
-    await page.screenshot({ path: 'screenshots/debezium-04-connector-topics.png' })
+    await page.screenshot({ path: 'screenshots/debezium-04-inventory-server-up.png' })
   })
 
-  test('inventory-connector has produced inventory Kafka topic', async ({ request }) => {
-    const topics = await apiGet(request, `${DEBEZIUM_URL}/connectors/inventory-connector/topics`)
-    // Debezium returns topics as array: {"inventory-connector":{"topics":["topic1"]}}
-    const topicsValue = topics['inventory-connector']?.topics ?? topics
-    const topicList: string[] = Array.isArray(topicsValue)
-      ? topicsValue
-      : Object.keys(topicsValue)
-    const hasInventoryTopic = topicList.some(t => t.includes('inventory'))
-    expect(hasInventoryTopic).toBeTruthy()
+  test('Debezium ecom server /q/health/ready reports UP', async ({ request }) => {
+    const body = await apiGet(request, `${DEBEZIUM_ECM_URL}/q/health/ready`)
+    expect(body.status).toBe('UP')
   })
 
-  test('GET /connector-plugins lists PostgreSQL connector plugin', async ({ request }) => {
-    const plugins: Array<{ class: string }> = await apiGet(request, `${DEBEZIUM_URL}/connector-plugins`)
-    const pgPlugin = plugins.find(p => p.class.includes('PostgresConnector'))
-    expect(pgPlugin).toBeDefined()
+  test('Debezium inventory server /q/health/ready reports UP', async ({ request }) => {
+    const body = await apiGet(request, `${DEBEZIUM_INV_URL}/q/health/ready`)
+    expect(body.status).toBe('UP')
+  })
+
+  test('Debezium ecom server /q/health/live reports UP', async ({ request }) => {
+    const body = await apiGet(request, `${DEBEZIUM_ECM_URL}/q/health/live`)
+    expect(body.status).toBe('UP')
+  })
+
+  test('Debezium inventory server /q/health/live reports UP', async ({ request }) => {
+    const body = await apiGet(request, `${DEBEZIUM_INV_URL}/q/health/live`)
+    expect(body.status).toBe('UP')
+  })
+
+  test('Debezium ecom NodePort service exists at port 32300', async ({ page }) => {
+    const output = execFileSync('kubectl', [
+      'get', 'svc', 'debezium-server-ecom-nodeport', '-n', 'infra',
+      '-o', 'jsonpath={.spec.ports[0].nodePort}',
+    ], { encoding: 'utf-8' }).trim()
+    expect(output).toBe('32300')
+    await page.goto('about:blank')
+    await page.screenshot({ path: 'screenshots/debezium-05-ecom-nodeport.png' })
+  })
+
+  test('Debezium inventory NodePort service exists at port 32301', async ({ page }) => {
+    const output = execFileSync('kubectl', [
+      'get', 'svc', 'debezium-server-inventory-nodeport', '-n', 'infra',
+      '-o', 'jsonpath={.spec.ports[0].nodePort}',
+    ], { encoding: 'utf-8' }).trim()
+    expect(output).toBe('32301')
+    await page.goto('about:blank')
+    await page.screenshot({ path: 'screenshots/debezium-06-inventory-nodeport.png' })
   })
 })
 
@@ -378,14 +361,24 @@ test.describe('CDC End-to-End Data Flow', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 test.describe('Operational Health', () => {
 
-  test('Debezium pod is Running (via kubectl)', async ({ page }) => {
+  test('Debezium Server ecom pod is Running (via kubectl)', async ({ page }) => {
     const output = execFileSync('kubectl', [
-      'get', 'pod', '-n', 'infra', '-l', 'app=debezium',
+      'get', 'pod', '-n', 'infra', '-l', 'app=debezium-server-ecom',
       '-o', 'jsonpath={.items[0].status.phase}',
     ], { encoding: 'utf-8' }).trim()
     expect(output).toBe('Running')
     await page.goto('about:blank')
-    await page.screenshot({ path: 'screenshots/health-01-debezium-pod-running.png' })
+    await page.screenshot({ path: 'screenshots/health-01-debezium-ecom-pod-running.png' })
+  })
+
+  test('Debezium Server inventory pod is Running (via kubectl)', async ({ page }) => {
+    const output = execFileSync('kubectl', [
+      'get', 'pod', '-n', 'infra', '-l', 'app=debezium-server-inventory',
+      '-o', 'jsonpath={.items[0].status.phase}',
+    ], { encoding: 'utf-8' }).trim()
+    expect(output).toBe('Running')
+    await page.goto('about:blank')
+    await page.screenshot({ path: 'screenshots/health-01b-debezium-inventory-pod-running.png' })
   })
 
   test('Flink JobManager pod is Running (via kubectl)', async ({ page }) => {
@@ -408,14 +401,24 @@ test.describe('Operational Health', () => {
     await page.screenshot({ path: 'screenshots/health-03-flink-tm-pod-running.png' })
   })
 
-  test('Debezium NodePort service exists at port 32300', async ({ page }) => {
+  test('Debezium Server ecom NodePort service exists at port 32300', async ({ page }) => {
     const output = execFileSync('kubectl', [
-      'get', 'svc', 'debezium-nodeport', '-n', 'infra',
+      'get', 'svc', 'debezium-server-ecom-nodeport', '-n', 'infra',
       '-o', 'jsonpath={.spec.ports[0].nodePort}',
     ], { encoding: 'utf-8' }).trim()
     expect(output).toBe('32300')
     await page.goto('about:blank')
-    await page.screenshot({ path: 'screenshots/health-04-debezium-nodeport.png' })
+    await page.screenshot({ path: 'screenshots/health-04-debezium-ecom-nodeport.png' })
+  })
+
+  test('Debezium Server inventory NodePort service exists at port 32301', async ({ page }) => {
+    const output = execFileSync('kubectl', [
+      'get', 'svc', 'debezium-server-inventory-nodeport', '-n', 'infra',
+      '-o', 'jsonpath={.spec.ports[0].nodePort}',
+    ], { encoding: 'utf-8' }).trim()
+    expect(output).toBe('32301')
+    await page.goto('about:blank')
+    await page.screenshot({ path: 'screenshots/health-04b-debezium-inventory-nodeport.png' })
   })
 
   test('Flink NodePort service exists at port 32200', async ({ page }) => {

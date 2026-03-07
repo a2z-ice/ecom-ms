@@ -58,10 +58,24 @@ kubectl delete job kafka-topic-init -n infra --ignore-not-found
 kubectl apply -f "${REPO_ROOT}/infra/kafka/kafka-topics-init.yaml"
 kubectl wait --for=condition=complete job/kafka-topic-init -n infra --timeout=300s
 
-# ── 4. Debezium ─────────────────────────────────────────────────────────────
-info "Deploying Debezium..."
-kubectl apply -f "${REPO_ROOT}/infra/debezium/debezium.yaml"
-wait_deployment debezium infra
+# ── 4. Debezium Server (replaces Kafka Connect) ──────────────────────────────
+info "Deploying Debezium Server (ecom + inventory)..."
+# Debezium Server runs in `infra` namespace; DB secrets are in `ecom`/`inventory`.
+# Copy credentials into infra namespace (secrets are namespace-scoped in Kubernetes).
+ECOM_USER=$(kubectl get secret -n ecom ecom-db-secret -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)
+ECOM_PASS=$(kubectl get secret -n ecom ecom-db-secret -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d)
+INV_USER=$(kubectl get secret -n inventory inventory-db-secret -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)
+INV_PASS=$(kubectl get secret -n inventory inventory-db-secret -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d)
+kubectl create secret generic debezium-db-credentials -n infra \
+  --from-literal=ECOM_DB_USER="$ECOM_USER" \
+  --from-literal=ECOM_DB_PASSWORD="$ECOM_PASS" \
+  --from-literal=INVENTORY_DB_USER="$INV_USER" \
+  --from-literal=INVENTORY_DB_PASSWORD="$INV_PASS" \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -f "${REPO_ROOT}/infra/debezium/debezium-server-ecom.yaml"
+kubectl apply -f "${REPO_ROOT}/infra/debezium/debezium-server-inventory.yaml"
+wait_deployment debezium-server-ecom infra
+wait_deployment debezium-server-inventory infra
 
 # ── 5. PgAdmin ──────────────────────────────────────────────────────────────
 info "Deploying PgAdmin..."
@@ -98,7 +112,7 @@ echo "Acceptance checks:"
 echo "  kubectl get pods -n ecom         # ecom-db Running"
 echo "  kubectl get pods -n inventory    # inventory-db Running"
 echo "  kubectl get pods -n analytics    # analytics-db, flink-jobmanager, flink-taskmanager Running"
-echo "  kubectl get pods -n infra        # redis, kafka, zookeeper, debezium, pgadmin"
+echo "  kubectl get pods -n infra        # redis, kafka, debezium-server-ecom, debezium-server-inventory, pgadmin"
 echo "  curl http://localhost:31111      # PgAdmin UI"
 echo ""
 echo "Verify Flink jobs running:"

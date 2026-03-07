@@ -105,20 +105,37 @@ spec:
     mode: STRICT
 
 ---
-# Debezium: NodePort 32300 receives plaintext from kind hostPort — allow on app port 8083.
+# Debezium Server ecom: NodePort 32300 receives plaintext from kind hostPort — allow on port 8080.
 apiVersion: security.istio.io/v1
 kind: PeerAuthentication
 metadata:
-  name: debezium-nodeport-permissive
+  name: debezium-ecom-nodeport-permissive
   namespace: infra
 spec:
   selector:
     matchLabels:
-      app: debezium
+      app: debezium-server-ecom
   mtls:
     mode: STRICT
   portLevelMtls:
-    "8083":
+    "8080":
+      mode: PERMISSIVE
+
+---
+# Debezium Server inventory: NodePort 32301 receives plaintext from kind hostPort — allow on port 8080.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: debezium-inventory-nodeport-permissive
+  namespace: infra
+spec:
+  selector:
+    matchLabels:
+      app: debezium-server-inventory
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "8080":
       mode: PERMISSIVE
 
 ---

@@ -64,7 +64,8 @@ pod_check "analytics-db" analytics "app=analytics-db"
 pod_check "keycloak" identity "app=keycloak"
 pod_check "redis" infra "app=redis"
 pod_check "kafka" infra "app=kafka"
-pod_check "debezium" infra "app=debezium"
+pod_check "debezium-server-ecom" infra "app=debezium-server-ecom"
+pod_check "debezium-server-inventory" infra "app=debezium-server-inventory"
 pod_check "pgadmin" infra "app=pgadmin"
 pod_check "superset" analytics "app=superset"
 pod_check "ui-service" ecom "app=ui-service"
@@ -96,12 +97,15 @@ else
 fi
 
 echo ""
-# ── 4. Debezium connector status ─────────────────────────────────────────────
-info "Checking Debezium connectors..."
-for connector in ecom-connector inventory-connector; do
-  STATUS=$(curl -s --max-time 10 "http://localhost:32300/connectors/${connector}/status" 2>/dev/null \
-    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['connector']['state'])" 2>/dev/null || echo "UNKNOWN")
-  [[ "$STATUS" == "RUNNING" ]] && ok "[Debezium] $connector=RUNNING" || fail "[Debezium] $connector=$STATUS"
+# ── 4. Debezium Server health ─────────────────────────────────────────────────
+info "Checking Debezium Server health..."
+for pair in "ecom:http://localhost:32300" "inventory:http://localhost:32301"; do
+  name="${pair%%:*}"
+  url="${pair#*:}"
+  STATUS=$(curl -s --max-time 10 "${url}/q/health" 2>/dev/null \
+    | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','UNKNOWN'))" 2>/dev/null \
+    || echo "UNKNOWN")
+  [[ "$STATUS" == "UP" ]] && ok "[Debezium Server] ${name}=UP" || fail "[Debezium Server] ${name}=${STATUS}"
 done
 
 echo ""

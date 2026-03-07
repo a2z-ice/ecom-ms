@@ -83,6 +83,6 @@ if $FOUND; then
 else
   echo ""
   echo -e "${RED}FAIL: Order did not appear in analytics-db within ${MAX_WAIT}s.${NC}"
-  echo "Check: kubectl logs -n infra deploy/debezium"
+  echo "Check: kubectl logs -n infra deploy/debezium-server-ecom"
   exit 1
 fi

@@ -844,6 +844,36 @@ When a user starts login at `http://myecom.net:30000` (non-secure context, no `c
 
 ---
 
+## Session 22 — Flink 2.2.0 + Debezium Server 3.4
+
+**Goal:** Upgrade Flink from 1.20 to 2.2.0 (connector JARs to 4.x series) and replace Debezium Kafka Connect with Debezium Server 3.4 (standalone Quarkus process, one pod per source DB, config via ConfigMap, health at `/q/health`).
+
+### Deliverables
+
+- `analytics/flink/Dockerfile` — Flink 2.2.0 + kafka connector 4.0.1-2.0 + jdbc connector 4.0.0-2.0
+- `infra/debezium/debezium-server-ecom.yaml` — NEW: ConfigMap + Deployment + ClusterIP + NodePort 32300
+- `infra/debezium/debezium-server-inventory.yaml` — NEW: ConfigMap + Deployment + ClusterIP + NodePort 32301
+- `infra/debezium/debezium.yaml` — DELETED (Kafka Connect replaced)
+- `infra/debezium/connectors/*.json` — DELETED (config now in ConfigMap)
+- `infra/debezium/register-connectors.sh` — Replaced with health-poll script (`/q/health`)
+- `infra/kind/cluster.yaml` — Added port 32301 to `extraPortMappings` (requires `--fresh`)
+- `infra/kafka/kafka-topics-init.yaml` — Added `debezium.ecom.offsets` + `debezium.inventory.offsets` topics
+- `infra/istio/security/peer-auth.yaml` — Two PERMISSIVE entries for port 8080 (one per server)
+- `scripts/infra-up.sh`, `scripts/up.sh`, `scripts/restart-after-docker.sh`, `scripts/smoke-test.sh` — Updated for Debezium Server
+
+### Acceptance Criteria
+
+- [x] Flink 2.2.0 image running (`flink --version` shows 2.2.0)
+- [x] 4 streaming jobs RUNNING in Flink (`curl localhost:32200/jobs`)
+- [x] `curl localhost:32300/q/health` → `{"status":"UP"}` (ecom server)
+- [x] `curl localhost:32301/q/health` → `{"status":"UP"}` (inventory server)
+- [x] `bash scripts/verify-cdc.sh` passes (end-to-end CDC < 30s)
+- [x] E2E tests: 128+ passing
+
+### Status: Complete ✓
+
+---
+
 ## Cross-Session Rules
 
 These apply to every session:

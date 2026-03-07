@@ -5,23 +5,24 @@ RUN apk add --no-cache curl
 
 WORKDIR /jars
 
-# Flink Kafka connector (matches Flink 1.20)
+# Flink Kafka connector (for Flink 1.20)
 RUN curl -fsSL -o flink-connector-kafka-3.4.0-1.20.jar \
   "https://repo1.maven.org/maven2/org/apache/flink/flink-connector-kafka/3.4.0-1.20/flink-connector-kafka-3.4.0-1.20.jar"
 
-# Flink JDBC connector (matches Flink 1.20)
+# Flink JDBC connector (for Flink 1.20)
 RUN curl -fsSL -o flink-connector-jdbc-3.3.0-1.20.jar \
   "https://repo1.maven.org/maven2/org/apache/flink/flink-connector-jdbc/3.3.0-1.20/flink-connector-jdbc-3.3.0-1.20.jar"
 
 # PostgreSQL JDBC driver
-RUN curl -fsSL -o postgresql-42.7.4.jar \
-  "https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.4/postgresql-42.7.4.jar"
+RUN curl -fsSL -o postgresql-42.7.10.jar \
+  "https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.10/postgresql-42.7.10.jar"
 
 # Kafka clients (required by Flink Kafka connector at runtime)
-RUN curl -fsSL -o kafka-clients-3.7.0.jar \
-  "https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.7.0/kafka-clients-3.7.0.jar"
+RUN curl -fsSL -o kafka-clients-3.9.2.jar \
+  "https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.9.2/kafka-clients-3.9.2.jar"
 
 # Stage 2: Flink runtime image with connectors baked in
+# NOTE: flink-connector-jdbc has no Flink 2.x release yet; staying on Flink 1.20
 FROM flink:1.20-scala_2.12-java17
 
 # The base flink image already runs as non-root user 'flink' (UID 9999)

@@ -178,8 +178,10 @@ bootstrap_fresh() {
   kubectl apply -f "${REPO_ROOT}/infra/kafka/kafka-topics-init.yaml"
   kubectl wait --for=condition=complete job/kafka-topic-init -n infra --timeout=300s
 
-  # ── 6. Debezium + PgAdmin (apply both; only Debezium blocks connectors later) ─
-  section "Deploying Debezium (Kafka Connect) + PgAdmin"
+  # ── 6. Debezium Server + PgAdmin ─────────────────────────────────────────────
+  section "Deploying Debezium Server (ecom + inventory) + PgAdmin"
+  # Debezium Server pods run in `infra` namespace; DB secrets live in `ecom`/`inventory`.
+  # Kubernetes secrets are namespace-scoped — copy credentials into infra namespace.
   ECOM_USER=$(kubectl get secret -n ecom ecom-db-secret -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)
   ECOM_PASS=$(kubectl get secret -n ecom ecom-db-secret -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d)
   INV_USER=$(kubectl get secret -n inventory inventory-db-secret -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)
@@ -190,13 +192,15 @@ bootstrap_fresh() {
     --from-literal=INVENTORY_DB_USER="$INV_USER" \
     --from-literal=INVENTORY_DB_PASSWORD="$INV_PASS" \
     --dry-run=client -o yaml | kubectl apply -f -
-  kubectl apply -f "${REPO_ROOT}/infra/debezium/debezium.yaml"
+  kubectl apply -f "${REPO_ROOT}/infra/debezium/debezium-server-ecom.yaml"
+  kubectl apply -f "${REPO_ROOT}/infra/debezium/debezium-server-inventory.yaml"
   kubectl apply -f "${REPO_ROOT}/infra/pgadmin/pgadmin.yaml"
   # Apply Keycloak manifests now so it starts pulling images while we wait for Debezium
   kubectl apply -f "${REPO_ROOT}/infra/keycloak/keycloak.yaml"
   kubectl apply -f "${REPO_ROOT}/infra/keycloak/keycloak-nodeport.yaml"
-  # Only wait for Debezium — PgAdmin and Keycloak continue in background
-  wait_deploy debezium infra
+  # Wait for both Debezium Server instances (PgAdmin + Keycloak continue in background)
+  wait_deploy debezium-server-ecom infra
+  wait_deploy debezium-server-inventory infra
 
   # ── 7. Wait for Docker builds, then kind load ────────────────────────────────
   # Must happen BEFORE deploying Flink or app services (they use custom images).
@@ -338,8 +342,8 @@ bootstrap_fresh() {
   kubectl rollout restart deployment/kiali -n istio-system
   kubectl rollout status deployment/kiali -n istio-system --timeout=120s
 
-  # ── 14. Debezium connectors ───────────────────────────────────────────────────
-  section "Registering Debezium CDC connectors"
+  # ── 14. Wait for Debezium Server health ───────────────────────────────────────
+  section "Waiting for Debezium Server health"
   bash "${REPO_ROOT}/infra/debezium/register-connectors.sh"
 
   # ── 15. Verify Flink SQL runner completed ─────────────────────────────────────
@@ -384,7 +388,8 @@ recovery() {
   kubectl rollout restart deploy/ecom-service -n ecom
   kubectl rollout restart deploy/inventory-service -n inventory
   kubectl rollout restart deploy/ui-service -n ecom
-  kubectl rollout restart deploy/debezium -n infra
+  kubectl rollout restart deploy/debezium-server-ecom -n infra
+  kubectl rollout restart deploy/debezium-server-inventory -n infra
   kubectl rollout restart deploy/pgadmin -n infra
   kubectl rollout restart deploy/flink-jobmanager -n analytics
   kubectl rollout restart deploy/flink-taskmanager -n analytics
@@ -397,11 +402,12 @@ recovery() {
   wait_deploy keycloak identity
   wait_deploy ecom-service ecom
   wait_deploy inventory-service inventory
-  wait_deploy debezium infra
+  wait_deploy debezium-server-ecom infra
+  wait_deploy debezium-server-inventory infra
   wait_deploy flink-jobmanager analytics
   wait_deploy flink-taskmanager analytics
 
-  section "Re-registering Debezium CDC connectors"
+  section "Waiting for Debezium Server health"
   bash "${REPO_ROOT}/infra/debezium/register-connectors.sh"
 
   # ── Resubmit Flink SQL pipeline ─────────────────────────────────────────────
@@ -434,15 +440,18 @@ recovery() {
   _print_endpoints
 }
 
-# ── Ensure connectors registered (healthy cluster, connectors may be missing) ─
+# ── Ensure Debezium Server instances are healthy (healthy cluster check) ──────
 ensure_connectors() {
-  local connectors
-  connectors=$(curl -s --max-time 10 "http://localhost:32300/connectors" 2>/dev/null || echo "[]")
-  if [[ "$connectors" == "[]" ]] || [[ "$connectors" == "" ]]; then
-    info "No connectors registered — re-registering..."
-    bash "${REPO_ROOT}/infra/debezium/register-connectors.sh"
+  local ecom_status inv_status
+  ecom_status=$(curl -sf --max-time 10 "http://localhost:32300/q/health" \
+    | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
+  inv_status=$(curl -sf --max-time 10 "http://localhost:32301/q/health" \
+    | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
+  if [[ "$ecom_status" == "UP" ]] && [[ "$inv_status" == "UP" ]]; then
+    info "Both Debezium Server instances healthy (ecom=UP, inventory=UP)"
   else
-    info "Debezium connectors already registered: $connectors"
+    info "Debezium Server not fully healthy (ecom='${ecom_status}', inventory='${inv_status}') — waiting..."
+    bash "${REPO_ROOT}/infra/debezium/register-connectors.sh"
   fi
 }
 
@@ -462,7 +471,8 @@ _print_endpoints() {
   echo "    Superset:      http://localhost:32000"
   echo "    Kiali:         http://localhost:32100/kiali"
   echo "    Flink:         http://localhost:32200"
-  echo "    Debezium:      http://localhost:32300/connectors"
+  echo "    Debezium ecom: http://localhost:32300/q/health"
+  echo "    Debezium inv:  http://localhost:32301/q/health"
   echo ""
   echo "  Credentials:  user1 / CHANGE_ME (customer)   admin1 / CHANGE_ME (admin)"
   echo "  All ports served directly via kind NodePort (no proxy containers needed)."

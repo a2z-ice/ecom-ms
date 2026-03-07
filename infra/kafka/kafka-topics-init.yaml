@@ -56,6 +56,9 @@ spec:
               create_topic "ecom-connector.public.orders"
               create_topic "ecom-connector.public.order_items"
               create_topic "inventory-connector.public.inventory"
+              # Debezium Server offset storage topics (KafkaOffsetBackingStore)
+              create_topic "debezium.ecom.offsets"
+              create_topic "debezium.inventory.offsets"
               echo "All topics ready."
           resources:
             requests:

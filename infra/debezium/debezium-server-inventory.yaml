@@ -1,0 +1,160 @@
+---
+# ConfigMap — Debezium Server inventory configuration
+# Mounted into the pod at /debezium/conf/application.properties
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: debezium-server-inventory-config
+  namespace: infra
+data:
+  application.properties: |
+    # Source: PostgreSQL inventory-db
+    debezium.source.connector.class=io.debezium.connector.postgresql.PostgresConnector
+    debezium.source.database.hostname=inventory-db.inventory.svc.cluster.local
+    debezium.source.database.port=5432
+    debezium.source.database.user=${INVENTORY_DB_USER}
+    debezium.source.database.password=${INVENTORY_DB_PASSWORD}
+    debezium.source.database.dbname=inventorydb
+    debezium.source.topic.prefix=inventory-connector
+    debezium.source.table.include.list=public.inventory
+    debezium.source.plugin.name=pgoutput
+    debezium.source.slot.name=debezium_inventory_slot
+    debezium.source.publication.name=debezium_inventory_pub
+    debezium.source.snapshot.mode=initial
+    debezium.source.decimal.handling.mode=double
+    debezium.source.time.precision.mode=connect
+
+    # Offset storage: file-backed (survives pod restarts via mounted data volume)
+    debezium.source.offset.storage=org.apache.kafka.connect.storage.FileOffsetBackingStore
+    debezium.source.offset.storage.file.filename=/debezium/data/offsets.dat
+    debezium.source.offset.flush.interval.ms=5000
+
+    # Sink: Kafka (same broker — produces CDC events to Kafka topics)
+    debezium.sink.type=kafka
+    debezium.sink.kafka.producer.bootstrap.servers=kafka.infra.svc.cluster.local:9092
+    debezium.sink.kafka.producer.key.serializer=org.apache.kafka.common.serialization.StringSerializer
+    debezium.sink.kafka.producer.value.serializer=org.apache.kafka.common.serialization.StringSerializer
+
+    # JSON format — no schema wrapper (matches existing Flink SQL pipeline)
+    debezium.format.value=json
+    debezium.format.key=json
+    debezium.format.value.schemas.enable=false
+    debezium.format.key.schemas.enable=false
+
+    # HTTP port (Quarkus health API)
+    quarkus.http.port=8080
+
+---
+# Deployment — Debezium Server inventory instance
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: debezium-server-inventory
+  namespace: infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: debezium-server-inventory
+  template:
+    metadata:
+      labels:
+        app: debezium-server-inventory
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: debezium-server
+          image: quay.io/debezium/server:3.4.1.Final
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: INVENTORY_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: debezium-db-credentials
+                  key: INVENTORY_DB_USER
+            - name: INVENTORY_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: debezium-db-credentials
+                  key: INVENTORY_DB_PASSWORD
+          volumeMounts:
+            - name: config
+              mountPath: /debezium/config/application.properties
+              subPath: application.properties
+              readOnly: true
+            - name: data
+              mountPath: /debezium/data
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 15
+          securityContext:
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: config
+          configMap:
+            name: debezium-server-inventory-config
+        - name: data
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+
+---
+# ClusterIP Service — internal access
+apiVersion: v1
+kind: Service
+metadata:
+  name: debezium-server-inventory
+  namespace: infra
+spec:
+  selector:
+    app: debezium-server-inventory
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP
+
+---
+# NodePort Service — external health check at host:32301
+apiVersion: v1
+kind: Service
+metadata:
+  name: debezium-server-inventory-nodeport
+  namespace: infra
+  labels:
+    app: debezium-server-inventory
+spec:
+  type: NodePort
+  selector:
+    app: debezium-server-inventory
+  ports:
+    - name: health
+      port: 8080
+      targetPort: 8080
+      nodePort: 32301

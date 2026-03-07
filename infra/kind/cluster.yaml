@@ -26,8 +26,11 @@ nodes:
       - containerPort: 32200   # Flink Web Dashboard
         hostPort: 32200
         protocol: TCP
-      - containerPort: 32300   # Debezium (Kafka Connect) REST API
+      - containerPort: 32300   # Debezium Server ecom health API
         hostPort: 32300
+        protocol: TCP
+      - containerPort: 32301   # Debezium Server inventory health API
+        hostPort: 32301
         protocol: TCP
       - containerPort: 32400   # Keycloak Admin Console (direct, bypasses gateway)
         hostPort: 32400

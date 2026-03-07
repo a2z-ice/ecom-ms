@@ -55,7 +55,8 @@ kubectl rollout restart deploy/keycloak -n identity
 kubectl rollout restart deploy/ecom-service -n ecom
 kubectl rollout restart deploy/inventory-service -n inventory
 kubectl rollout restart deploy/ui-service -n ecom
-kubectl rollout restart deploy/debezium -n infra
+kubectl rollout restart deploy/debezium-server-ecom -n infra
+kubectl rollout restart deploy/debezium-server-inventory -n infra
 kubectl rollout restart deploy/pgadmin -n infra
 kubectl rollout restart deploy/flink-jobmanager -n analytics
 kubectl rollout restart deploy/flink-taskmanager -n analytics
@@ -67,46 +68,17 @@ wait_deploy kafka infra
 wait_deploy keycloak identity
 wait_deploy ecom-service ecom
 wait_deploy inventory-service inventory
-wait_deploy debezium infra
+wait_deploy debezium-server-ecom infra
+wait_deploy debezium-server-inventory infra
 wait_deploy flink-jobmanager analytics
 wait_deploy flink-taskmanager analytics
 
-# ── Step 4: Re-register Debezium CDC connectors (only if needed) ─────────────
-# With Kafka PVC-backed storage, Kafka internal topics (connect-configs,
-# connect-offsets, connect-status) survive pod restarts. Debezium reads these
-# topics on startup and auto-restores connectors from the last committed WAL
-# offset — no manual re-registration required in that case.
-# We check connector state first and only re-register if not already RUNNING.
-section "Checking Debezium CDC connector state"
-
-DEBEZIUM_URL="${DEBEZIUM_URL:-http://localhost:32300}"
-
-info "Waiting for Debezium REST API at ${DEBEZIUM_URL}..."
-_deb_i=0
-until curl -sf "${DEBEZIUM_URL}/connectors" > /dev/null 2>&1; do
-  ((_deb_i++)) && [[ $_deb_i -ge 24 ]] && { echo "ERROR: Debezium not ready after 2m"; exit 1; }
-  echo "  Not ready yet, retrying in 5s..."
-  sleep 5
-done
-info "Debezium is ready."
-
-# Return 0 (true) if the named connector is currently RUNNING
-_connector_running() {
-  local name=$1
-  local state
-  state=$(curl -sf "${DEBEZIUM_URL}/connectors/${name}/status" 2>/dev/null \
-    | python3 -c "import sys,json; print(json.load(sys.stdin)['connector']['state'])" 2>/dev/null \
-    || echo "MISSING")
-  echo "  ${name}: ${state}"
-  [[ "$state" == "RUNNING" ]]
-}
-
-if _connector_running "ecom-connector" && _connector_running "inventory-connector"; then
-  info "Both connectors already RUNNING — Kafka PVC data intact, skipping re-registration."
-else
-  info "One or more connectors not RUNNING — re-registering..."
-  bash "${REPO_ROOT}/infra/debezium/register-connectors.sh"
-fi
+# ── Step 4: Wait for Debezium Server health ──────────────────────────────────
+# Debezium Server auto-resumes CDC from Kafka-backed offset storage on restart
+# (debezium.ecom.offsets and debezium.inventory.offsets topics in Kafka).
+# No re-registration needed — just poll /q/health until both instances are UP.
+section "Waiting for Debezium Server health (auto-resumes from Kafka offsets)"
+bash "${REPO_ROOT}/infra/debezium/register-connectors.sh"
 
 # ── Step 5: Resubmit Flink SQL pipeline ──────────────────────────────────────
 # Flink Session Cluster loses all streaming jobs when JM pod restarts.
