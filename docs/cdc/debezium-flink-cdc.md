@@ -2,7 +2,9 @@
 
 **Book Store Analytics Platform — Technical Deep Dive**
 
-This document explains how change data capture (CDC) flows from the operational PostgreSQL databases through Debezium, Kafka, Apache Flink SQL, and into the analytics database that powers Superset dashboards.
+This document explains how change data capture (CDC) flows from the operational PostgreSQL databases through Debezium Server, Kafka, Apache Flink SQL, and into the analytics database that powers Superset dashboards.
+
+> **Session 22 update:** Debezium Kafka Connect was replaced by Debezium Server 3.4 (two standalone pods, one per source DB). Configuration moved from REST-registered JSON connectors to `application.properties` ConfigMaps. See `docs/cdc/step-by-step-flink-upgrade-and-debezium-server-migration.md` for the full migration log.
 
 ---
 
@@ -47,7 +49,8 @@ Operational DBs ──► Debezium ──► Kafka ──► Flink SQL ──►
 |-----------|------|-----------|------|
 | **ecom-db** | Source DB: orders, books, cart | `ecom` | 5432 (internal) |
 | **inventory-db** | Source DB: inventory stock | `inventory` | 5432 (internal) |
-| **Debezium** | CDC agent: reads PostgreSQL WAL, publishes to Kafka | `infra` | 8083 → host:32300 |
+| **debezium-server-ecom** | CDC agent for ecom-db: streams orders, books, order_items | `infra` | 8080 → host:32300 |
+| **debezium-server-inventory** | CDC agent for inventory-db: streams inventory | `infra` | 8080 → host:32301 |
 | **Kafka (KRaft)** | Event bus: durable topic storage | `infra` | 9092 (internal) |
 | **Flink JobManager** | Coordinates streaming SQL jobs | `analytics` | 8081 → host:32200 |
 | **Flink TaskManager** | Executes SQL operators | `analytics` | 6122 (internal) |
@@ -119,7 +122,7 @@ Operational DBs ──► Debezium ──► Kafka ──► Flink SQL ──►
 ║  │  PROCESSING TIER  (analytics ns)                                        │   ║
 ║  │                                                                         │   ║
 ║  │  ┌──────────────────────────────────────────────────────────────────┐   │   ║
-║  │  │              APACHE FLINK 1.20 (Session Cluster)                 │   │   ║
+║  │  │         APACHE FLINK 1.20 (Session Cluster — connector updates)  │   │   ║
 ║  │  │                                                                  │   │   ║
 ║  │  │   JobManager (:8081)          TaskManager                        │   │   ║
 ║  │  │   ┌────────────────┐          ┌──────────────────────────────┐   │   │   ║
@@ -269,36 +272,46 @@ PostgreSQL ecom-db
 
 ### 4.2 Connector Configuration
 
-**ecom-connector** (`infra/debezium/connectors/ecom-connector.json`):
+> **Session 22:** Config moved from REST-registered JSON to `application.properties` ConfigMaps. The JSON connector files (`connectors/ecom-connector.json`, `connectors/inventory-connector.json`) have been deleted. Each Debezium Server pod reads its config from a mounted ConfigMap at startup.
 
-```json
-{
-  "connector.class":      "io.debezium.connector.postgresql.PostgresConnector",
-  "plugin.name":          "pgoutput",          ← built-in to PostgreSQL 10+
-  "database.dbname":      "ecomdb",
-  "table.include.list":   "public.orders,public.order_items,public.books",
-  "slot.name":            "debezium_ecom_slot", ← replication slot name
-  "publication.name":     "debezium_ecom_pub",  ← publication name
-  "decimal.handling.mode":"double",             ← NUMERIC → DOUBLE PRECISION
-  "time.precision.mode":  "connect",            ← timestamps → epoch milliseconds
-  "snapshot.mode":        "initial"             ← reads existing rows on first start
-}
+**debezium-server-ecom** (`infra/debezium/debezium-server-ecom.yaml` → ConfigMap):
+
+```properties
+# Source: PostgreSQL ecom-db
+debezium.source.connector.class=io.debezium.connector.postgresql.PostgresConnector
+debezium.source.database.hostname=ecom-db.ecom.svc.cluster.local
+debezium.source.database.user=${ECOM_DB_USER}      # injected from Secret
+debezium.source.database.password=${ECOM_DB_PASSWORD}
+debezium.source.database.dbname=ecomdb
+debezium.source.topic.prefix=ecom-connector
+debezium.source.table.include.list=public.orders,public.order_items,public.books
+debezium.source.plugin.name=pgoutput
+debezium.source.slot.name=debezium_ecom_slot
+debezium.source.publication.name=debezium_ecom_pub
+debezium.source.snapshot.mode=initial
+debezium.source.decimal.handling.mode=double
+debezium.source.time.precision.mode=connect
+
+# Offset storage (WAL position tracking)
+debezium.source.offset.storage=org.apache.kafka.connect.storage.FileOffsetBackingStore
+debezium.source.offset.storage.file.filename=/debezium/data/offsets.dat
+debezium.source.offset.flush.interval.ms=5000
+
+# Sink: Kafka
+debezium.sink.type=kafka
+debezium.sink.kafka.producer.bootstrap.servers=kafka.infra.svc.cluster.local:9092
+debezium.sink.kafka.producer.key.serializer=org.apache.kafka.common.serialization.StringSerializer
+debezium.sink.kafka.producer.value.serializer=org.apache.kafka.common.serialization.StringSerializer
+
+# JSON format (no schema registry)
+debezium.format.value=json
+debezium.format.key=json
+debezium.format.value.schemas.enable=false
+debezium.format.key.schemas.enable=false
+quarkus.http.port=8080
 ```
 
-**inventory-connector** (`infra/debezium/connectors/inventory-connector.json`):
-
-```json
-{
-  "connector.class":      "io.debezium.connector.postgresql.PostgresConnector",
-  "database.dbname":      "inventorydb",
-  "table.include.list":   "public.inventory",
-  "slot.name":            "debezium_inventory_slot",
-  "publication.name":     "debezium_inventory_pub",
-  "decimal.handling.mode":"double",
-  "time.precision.mode":  "connect",
-  "snapshot.mode":        "initial"
-}
-```
+**debezium-server-inventory** (`infra/debezium/debezium-server-inventory.yaml` → ConfigMap): Same structure, with `inventorydb`, `inventory-connector` prefix, and `public.inventory` table.
 
 ### 4.3 Debezium Envelope Format
 
@@ -316,7 +329,7 @@ Every message published to Kafka has this structure (schemas disabled):
     "created_at": 1709123456789
   },
   "source": {
-    "version":  "2.7.0.Final",
+    "version":  "3.4.1.Final",   ← Debezium Server version
     "connector":"postgresql",
     "name":     "ecom-connector",
     "ts_ms":    1709123456790,
@@ -329,7 +342,7 @@ Every message published to Kafka has this structure (schemas disabled):
 }
 ```
 
-> **Key design decision:** `schemas.enable: false` is set so Kafka messages are plain JSON (no schema registry). This is why the Kafka Connect JDBC Sink connector could NOT be used directly (it requires schemas). Flink's `debezium-json` format handles schemaless envelopes natively.
+> **Key design decision:** `schemas.enable: false` produces plain JSON messages (no schema registry wrapper). The Flink SQL pipeline uses plain `json` format (not `debezium-json`) with explicit `after ROW<...>` field extraction — this avoids the requirement for `REPLICA IDENTITY FULL` that `debezium-json` format imposes for UPDATE events.
 
 ### 4.4 Initial Snapshot Behaviour
 
@@ -724,57 +737,48 @@ kubectl logs -n analytics job/superset-bootstrap
 |---------|-----|-------|
 | Superset Dashboards | `http://localhost:32000` | Credentials: admin / CHANGE_ME |
 | Flink Web Dashboard | `http://localhost:32200` | Shows running jobs, checkpoints, task managers |
-| Debezium REST API | `http://localhost:32300` | JSON REST API for connector management |
+| Debezium ecom health | `http://localhost:32300/q/health` | Quarkus health API — reports `{"status":"UP"}` |
+| Debezium inventory health | `http://localhost:32301/q/health` | Quarkus health API — reports `{"status":"UP"}` |
 
-### 9.2 Setting Up Docker Proxy Containers (one-time per cluster recreation)
+### 9.2 Port Mapping (kind extraPortMappings)
 
-For services exposed via NodePort on the kind node, a docker socat proxy is needed to forward from the host:
+All ports are bound directly at cluster creation via `infra/kind/cluster.yaml` `extraPortMappings` — **no proxy containers needed**. The ports are mapped from `localhost` on the host machine to NodePort services on the kind control-plane node:
 
-```bash
-# Get the kind control-plane node IP
-CTRL_IP=$(kubectl get node bookstore-control-plane \
-  -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}')
+| Port | Service | NodePort Service Name |
+|------|---------|----------------------|
+| 32200 | Flink Web Dashboard | `flink-jobmanager-nodeport` |
+| 32300 | Debezium ecom `/q/health` | `debezium-server-ecom-nodeport` |
+| 32301 | Debezium inventory `/q/health` | `debezium-server-inventory-nodeport` |
 
-# Flink Dashboard → localhost:32200
-docker rm -f flink-proxy 2>/dev/null || true
-docker run -d --name flink-proxy \
-  --network kind --restart unless-stopped \
-  -p 32200:32200 \
-  alpine/socat TCP-LISTEN:32200,fork,reuseaddr TCP:${CTRL_IP}:32200
+> **Note:** Port 32301 was added in Session 22. If your cluster was created before this session, you must run `up.sh --fresh` to recreate the cluster with port 32301 in `extraPortMappings`.
 
-# Debezium REST API → localhost:32300
-docker rm -f debezium-proxy 2>/dev/null || true
-docker run -d --name debezium-proxy \
-  --network kind --restart unless-stopped \
-  -p 32300:32300 \
-  alpine/socat TCP-LISTEN:32300,fork,reuseaddr TCP:${CTRL_IP}:32300
-```
+### 9.3 Debezium Server Health API Quick Reference
 
-### 9.3 Debezium REST API Quick Reference
+Debezium Server exposes a Quarkus standard health API — there is no REST management endpoint. Configuration changes require editing the ConfigMap and restarting the pod.
 
 ```bash
-# List all connectors
-curl http://localhost:32300/connectors
+# Combined health (liveness + readiness)
+curl http://localhost:32300/q/health | python3 -m json.tool
+curl http://localhost:32301/q/health | python3 -m json.tool
 
-# Get connector status (RUNNING, PAUSED, FAILED)
-curl http://localhost:32300/connectors/ecom-connector/status | python3 -m json.tool
-curl http://localhost:32300/connectors/inventory-connector/status | python3 -m json.tool
+# Liveness only (is the process alive?)
+curl http://localhost:32300/q/health/live
+curl http://localhost:32301/q/health/live
 
-# Get connector configuration
-curl http://localhost:32300/connectors/ecom-connector/config | python3 -m json.tool
+# Readiness only (connector connected and streaming?)
+curl http://localhost:32300/q/health/ready
+curl http://localhost:32301/q/health/ready
 
-# List topics written by a connector
-curl http://localhost:32300/connectors/ecom-connector/topics | python3 -m json.tool
+# Expected response when healthy:
+# { "status": "UP", "checks": [{ "name": "debezium", "status": "UP" }] }
 
-# Restart a failed connector
-curl -X POST http://localhost:32300/connectors/ecom-connector/restart
+# Restart a server (config change or recovery)
+kubectl rollout restart deployment/debezium-server-ecom -n infra
+kubectl rollout restart deployment/debezium-server-inventory -n infra
 
-# Pause / Resume
-curl -X PUT http://localhost:32300/connectors/ecom-connector/pause
-curl -X PUT http://localhost:32300/connectors/ecom-connector/resume
-
-# List available connector plugins
-curl http://localhost:32300/connector-plugins | python3 -m json.tool
+# View server logs
+kubectl logs -n infra deploy/debezium-server-ecom --tail=50
+kubectl logs -n infra deploy/debezium-server-inventory --tail=50
 ```
 
 ### 9.4 Flink REST API Quick Reference
@@ -890,9 +894,12 @@ Next time Superset loads vw_sales_over_time:
 ### 11.1 Check CDC Pipeline Health
 
 ```bash
-# 1. Debezium connectors running?
-curl -s http://localhost:32300/connectors/ecom-connector/status | \
-  python3 -c "import sys,json; s=json.load(sys.stdin); print('State:', s['connector']['state'])"
+# 1. Debezium Server healthy?
+curl -s http://localhost:32300/q/health | \
+  python3 -c "import sys,json; d=json.load(sys.stdin); print('ecom:', d['status'])"
+curl -s http://localhost:32301/q/health | \
+  python3 -c "import sys,json; d=json.load(sys.stdin); print('inventory:', d['status'])"
+# Expected: ecom: UP / inventory: UP
 
 # 2. Flink jobs running?
 curl -s http://localhost:32200/jobs | \
@@ -923,12 +930,22 @@ kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeou
 curl http://localhost:32200/jobs | python3 -m json.tool
 ```
 
-### 11.3 Re-register Debezium Connectors
+### 11.3 Wait for Debezium Server Health
 
-If connectors are missing (e.g., after Kafka topic wipe):
+Debezium Server auto-starts CDC on launch — no manual connector registration needed. If a server is restarting, wait for it to become healthy:
 
 ```bash
 bash infra/debezium/register-connectors.sh
+# This script now polls /q/health on both servers until status=UP.
+# It does NOT make any REST calls or register connectors.
+```
+
+To force a restart (e.g. after a config change):
+```bash
+kubectl rollout restart deployment/debezium-server-ecom -n infra
+kubectl rollout restart deployment/debezium-server-inventory -n infra
+kubectl rollout status deployment/debezium-server-ecom -n infra --timeout=120s
+kubectl rollout status deployment/debezium-server-inventory -n infra --timeout=120s
 ```
 
 ### 11.4 Rebuild Superset Dashboards
@@ -958,8 +975,9 @@ cd e2e && npm run test -- superset.spec.ts
 ### 11.6 View Logs
 
 ```bash
-# Debezium logs
-kubectl logs -n infra deploy/debezium --tail=50
+# Debezium Server logs
+kubectl logs -n infra deploy/debezium-server-ecom --tail=50
+kubectl logs -n infra deploy/debezium-server-inventory --tail=50
 
 # Flink JobManager logs
 kubectl logs -n analytics deploy/flink-jobmanager --tail=50
@@ -980,17 +998,20 @@ kubectl logs -n analytics deploy/analytics-db --tail=20
 
 ### 12.1 `e2e/debezium-flink.spec.ts` (29 tests)
 
+> **Session 22 update:** Suite 1 was completely rewritten. Kafka Connect REST checks replaced with Debezium Server `/q/health` checks. Suite 4 updated for two pods and two NodePorts.
+
 ```
-Suite: Debezium REST API (localhost:32300)
-  ✓ API root is accessible and returns version info
-  ✓ GET /connectors lists both CDC connectors
-  ✓ ecom-connector is in RUNNING state
-  ✓ inventory-connector is in RUNNING state
-  ✓ ecom-connector config monitors correct tables
-  ✓ inventory-connector config monitors inventory table
-  ✓ ecom-connector has produced Kafka topics
-  ✓ inventory-connector has produced inventory Kafka topic
-  ✓ GET /connector-plugins lists PostgreSQL connector plugin
+Suite: Debezium Server Health API
+  ✓ ecom server health endpoint is accessible (localhost:32300/q/health)
+  ✓ ecom server reports status UP
+  ✓ ecom server readiness endpoint returns UP (/q/health/ready)
+  ✓ ecom server liveness endpoint returns UP (/q/health/live)
+  ✓ inventory server health endpoint is accessible (localhost:32301/q/health)
+  ✓ inventory server reports status UP
+  ✓ inventory server readiness endpoint returns UP
+  ✓ inventory server liveness endpoint returns UP
+  ✓ ecom NodePort service exists at port 32300 (kubectl)
+  ✓ inventory NodePort service exists at port 32301 (kubectl)
 
 Suite: Flink Web Dashboard (localhost:32200)
   ✓ REST API /overview is accessible
@@ -1014,10 +1035,12 @@ Suite: CDC End-to-End Data Flow
   ✓ CDC real-time flow: insert into ecom-db appears in analytics-db via Flink
 
 Suite: Operational Health
-  ✓ Debezium pod is Running (via kubectl)
+  ✓ debezium-server-ecom pod is Running (via kubectl)
+  ✓ debezium-server-inventory pod is Running (via kubectl)
   ✓ Flink JobManager pod is Running (via kubectl)
   ✓ Flink TaskManager pod is Running (via kubectl)
-  ✓ Debezium NodePort service exists at port 32300
+  ✓ Debezium ecom NodePort service exists at port 32300
+  ✓ Debezium inventory NodePort service exists at port 32301
   ✓ Flink NodePort service exists at port 32200
   ✓ Flink checkpoint storage PVC is bound
   ✓ analytics-db has all 4 fact/dim tables
@@ -1060,10 +1083,10 @@ Screenshots are captured during E2E test runs and saved to `e2e/screenshots/`.
 
 | File | Content |
 |------|---------|
-| `debezium-01-api-accessible.png` | Debezium REST API root response |
-| `debezium-02-ecom-connector-running.png` | ecom-connector RUNNING state |
-| `debezium-03-inventory-connector-running.png` | inventory-connector RUNNING state |
-| `debezium-04-connector-topics.png` | Topics produced by ecom-connector |
+| `debezium-01-ecom-health.png` | Debezium ecom server `/q/health` response |
+| `debezium-02-ecom-health-up.png` | ecom server status=UP |
+| `debezium-03-inventory-health.png` | Debezium inventory server `/q/health` response |
+| `debezium-04-inventory-health-up.png` | inventory server status=UP |
 | `flink-01-overview-api.png` | Flink cluster overview API response |
 | `flink-02-running-jobs.png` | Flink /jobs API response |
 | `flink-03-four-jobs-running.png` | All 4 streaming jobs in RUNNING state |
@@ -1073,7 +1096,8 @@ Screenshots are captured during E2E test runs and saved to `e2e/screenshots/`.
 | `cdc-flink-02-fact-inventory-populated.png` | fact_inventory rows from snapshot |
 | `cdc-flink-05-view-inventory-health.png` | vw_inventory_health with status labels |
 | `cdc-flink-09-order-in-analytics.png` | Test order visible in analytics-db |
-| `health-01-debezium-pod-running.png` | kubectl get pod output for Debezium |
+| `health-01-debezium-ecom-pod-running.png` | kubectl get pod output for debezium-server-ecom |
+| `health-01b-debezium-inv-pod-running.png` | kubectl get pod output for debezium-server-inventory |
 | `health-02-flink-jm-pod-running.png` | kubectl get pod output for JobManager |
 | `health-06-flink-pvc-bound.png` | PVC bound status |
 | `superset-09-bookstore-dashboard.png` | Book Store Analytics dashboard |
@@ -1087,4 +1111,4 @@ cd e2e && npm run test -- --reporter=html
 
 ---
 
-*Generated by Claude Code — Session 18 (Flink CDC Pipeline & Superset Analytics)*
+*Generated by Claude Code — Sessions 18 + 22 (Flink CDC Pipeline, Superset Analytics, Debezium Server migration)*

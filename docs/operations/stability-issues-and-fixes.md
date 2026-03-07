@@ -18,6 +18,11 @@ This document is a complete record of every stability issue found in the BookSto
 10. [Recovery — Debezium Connectors Lost After Kafka Restart](#issue-10-recovery--debezium-connectors-lost-after-kafka-pod-restart)
 11. [Recovery — Istio HBONE Mesh Breaks After Docker Restart](#issue-11-recovery--istio-hbone-mesh-breaks-after-docker-desktop-restart)
 12. [Kafka Persistence — Docker VOLUME Shadows PVC Mount](#issue-12-kafka-persistence--docker-volume-declaration-shadows-pvc-mount)
+13. [Debezium Server — Cross-Namespace Secret Reference](#issue-13-debezium-server--cross-namespace-secret-reference)
+14. [Debezium Server — Wrong Config Mount Path](#issue-14-debezium-server--wrong-config-mount-path)
+15. [Debezium Server — KafkaOffsetBackingStore Configuration](#issue-15-debezium-server--kafkaoffsetbackingstore-configuration)
+16. [Debezium Server — ByteArraySerializer Incompatible with JSON Format](#issue-16-debezium-server--bytearrayserializer-incompatible-with-json-format)
+17. [Flink 2.x — JDBC Connector SinkFunction API Removed](#issue-17-flink-2x--jdbc-connector-sinkfunction-api-removed)
 
 ---
 
@@ -1307,3 +1312,316 @@ WARN JobMaster - filesystem state backend has been deprecated.
 # Problem: Issue 3 — jobs gone after restart
 # (no error — just GET /jobs returns [] or FAILED status)
 ```
+
+---
+
+## Issue 13: Debezium Server — Cross-Namespace Secret Reference
+
+### Session: 22 | Severity: Critical (pods never start)
+
+### Symptom
+
+Both Debezium Server pods entered `CreateContainerConfigError` immediately after deployment:
+
+```bash
+kubectl get pods -n infra
+# NAME                                   READY   STATUS
+# debezium-server-ecom-xxx               0/1     CreateContainerConfigError
+# debezium-server-inventory-xxx          0/1     CreateContainerConfigError
+
+kubectl describe pod -n infra debezium-server-ecom-xxx | grep Warning
+# Warning  Failed  ...  Error: secret "ecom-db-secret" not found
+```
+
+### Root Cause
+
+The initial Deployment manifests referenced secrets from the source-service namespaces:
+
+```yaml
+# WRONG — pod is in 'infra' namespace, secret is in 'ecom' namespace
+env:
+  - name: ECOM_DB_USER
+    valueFrom:
+      secretKeyRef:
+        name: ecom-db-secret    # does not exist in infra namespace
+        key: POSTGRES_USER
+```
+
+Kubernetes Secrets are namespace-scoped. A pod in `infra` cannot reference a Secret from `ecom`. The lookup fails at scheduling time with no way to override it at the pod level.
+
+### Fix
+
+Create a combined `debezium-db-credentials` secret in the `infra` namespace by reading from the source-namespace secrets and re-creating them locally. This is done in `scripts/infra-up.sh` and `scripts/up.sh`:
+
+```bash
+ECOM_USER=$(kubectl get secret -n ecom ecom-db-secret -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)
+ECOM_PASS=$(kubectl get secret -n ecom ecom-db-secret -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d)
+INV_USER=$(kubectl get secret -n inventory inventory-db-secret -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)
+INV_PASS=$(kubectl get secret -n inventory inventory-db-secret -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d)
+
+kubectl create secret generic debezium-db-credentials -n infra \
+  --from-literal=ECOM_DB_USER="$ECOM_USER" \
+  --from-literal=ECOM_DB_PASSWORD="$ECOM_PASS" \
+  --from-literal=INVENTORY_DB_USER="$INV_USER" \
+  --from-literal=INVENTORY_DB_PASSWORD="$INV_PASS" \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+Deployment manifests then use:
+```yaml
+env:
+  - name: ECOM_DB_USER
+    valueFrom:
+      secretKeyRef:
+        name: debezium-db-credentials    # exists in infra namespace
+        key: ECOM_DB_USER
+```
+
+### Verify Fix
+
+```bash
+kubectl get secret -n infra debezium-db-credentials
+# NAME                      TYPE     DATA   AGE
+# debezium-db-credentials   Opaque   4      Xs
+kubectl get pods -n infra | grep debezium
+# Both should be Running
+```
+
+---
+
+## Issue 14: Debezium Server — Wrong Config Mount Path
+
+### Session: 22 | Severity: Critical (server starts but ignores all config)
+
+### Symptom
+
+Pods started successfully but the server crashed during initialization:
+
+```
+ERROR  Failed to load mandatory config value 'debezium.sink.type'
+```
+
+The server appeared to start, but could not read any configuration at all — as if the properties file was missing entirely.
+
+### Diagnosis
+
+A debug pod was run using the Debezium Server image to discover the actual config path:
+
+```bash
+kubectl run dbz-debug --image=quay.io/debezium/server:3.4.1.Final \
+  --restart=Never -n infra -- sleep 3600
+
+kubectl exec -n infra dbz-debug -- find /debezium -type f | sort
+# /debezium/config/application.properties.example  ← correct path
+# /debezium/conf/                                   ← empty directory
+```
+
+### Root Cause
+
+The ConfigMap was mounted at `/debezium/conf/application.properties` — but Debezium Server reads from `/debezium/config/application.properties`. The directory names differ: `conf` vs. `config`.
+
+This is not prominent in the Debezium Server documentation. The correct path was confirmed by reading the bundled example file inside the container image.
+
+### Fix
+
+Updated `volumeMounts` in both Deployment manifests:
+
+```yaml
+# WRONG
+volumeMounts:
+  - name: config
+    mountPath: /debezium/conf/application.properties   # ← wrong
+    subPath: application.properties
+
+# CORRECT
+volumeMounts:
+  - name: config
+    mountPath: /debezium/config/application.properties  # ← correct
+    subPath: application.properties
+```
+
+### Verify Fix
+
+```bash
+kubectl exec -n infra deploy/debezium-server-ecom -- \
+  cat /debezium/config/application.properties | head -5
+# Should print the properties content (not empty)
+```
+
+---
+
+## Issue 15: Debezium Server — KafkaOffsetBackingStore Configuration
+
+### Session: 22 | Severity: Critical (server crashes on startup)
+
+### Symptom
+
+After fixing the mount path, the server started but crashed immediately with:
+
+```
+ERROR  Cannot initialize Kafka offset storage,
+       mandatory configuration option 'bootstrap.servers' is missing.
+```
+
+### Root Cause and Investigation
+
+The design used `KafkaOffsetBackingStore` to store WAL offsets in a Kafka topic for durability across pod restarts. Two property name variants were attempted:
+
+```properties
+# Attempt 1
+debezium.source.offset.storage=org.apache.kafka.connect.storage.KafkaOffsetBackingStore
+debezium.source.offset.storage.kafka.bootstrap.servers=kafka.infra.svc.cluster.local:9092
+
+# Attempt 2
+debezium.source.offset.storage=org.apache.kafka.connect.storage.KafkaOffsetBackingStore
+debezium.source.offset.storage.bootstrap.servers=kafka.infra.svc.cluster.local:9092
+```
+
+Both failed with the same error. `KafkaOffsetBackingStore` inherits from the Kafka Connect internal SPI and its configuration key resolution differs between Kafka Connect and Debezium Server. The correct prefix in Debezium Server context is not documented clearly.
+
+### Fix
+
+Switched to `FileOffsetBackingStore`, which is what the official Debezium Server example config uses and has straightforward, documented configuration:
+
+```properties
+debezium.source.offset.storage=org.apache.kafka.connect.storage.FileOffsetBackingStore
+debezium.source.offset.storage.file.filename=/debezium/data/offsets.dat
+debezium.source.offset.flush.interval.ms=5000
+```
+
+Added a `data` emptyDir volume for the offset file:
+
+```yaml
+volumeMounts:
+  - name: data
+    mountPath: /debezium/data
+volumes:
+  - name: data
+    emptyDir: {}
+```
+
+**Trade-off:** The offset file is on an emptyDir — it is lost when the pod is deleted. On pod restart, Debezium re-runs the initial snapshot. This is benign because Flink's JDBC sink uses `INSERT ... ON CONFLICT DO UPDATE` (upsert), so re-published rows overwrite correctly without data corruption.
+
+### Verify Fix
+
+```bash
+kubectl logs -n infra deploy/debezium-server-ecom | grep -i "offset\|snapshot"
+# Should see: "Starting snapshot" followed by "Snapshot completed" followed by "Starting streaming"
+```
+
+---
+
+## Issue 16: Debezium Server — ByteArraySerializer Incompatible with JSON Format
+
+### Session: 22 | Severity: Critical (no messages reach Kafka)
+
+### Symptom
+
+Both servers started and completed the initial snapshot successfully. Logs showed rows being processed. But no messages appeared in the Kafka CDC topics — the snapshot completed silently with 0 messages published:
+
+```
+ERROR  Can't convert key of class java.lang.String to class
+       org.apache.kafka.common.serialization.ByteArraySerializer
+       specified in key.serializer
+```
+
+### Root Cause
+
+The initial Kafka producer configuration used `ByteArraySerializer`:
+
+```properties
+debezium.sink.kafka.producer.key.serializer=org.apache.kafka.common.serialization.ByteArraySerializer
+debezium.sink.kafka.producer.value.serializer=org.apache.kafka.common.serialization.ByteArraySerializer
+```
+
+When `debezium.format.key=json` and `debezium.format.value=json` are set, Debezium Server formats the key and value as JSON **strings** (Java type `java.lang.String`). The Kafka producer receives these strings and passes them to `ByteArraySerializer`, which only accepts `byte[]`. The resulting `ClassCastException` causes every message to be dropped silently.
+
+In Kafka Connect (the old architecture), the producer is managed internally by the Connect framework, which selects serializers transparently. In Debezium Server, you configure the producer directly.
+
+**Serializer-to-format mapping:**
+
+| Format | Output type | Required serializer |
+|--------|-------------|---------------------|
+| `json` | `java.lang.String` | `StringSerializer` |
+| `avro` | `byte[]` | `ByteArraySerializer` |
+| `protobuf` | `byte[]` | `ByteArraySerializer` |
+| `cloudevents` | `java.lang.String` | `StringSerializer` |
+
+### Fix
+
+```properties
+# CORRECT for json format
+debezium.sink.kafka.producer.key.serializer=org.apache.kafka.common.serialization.StringSerializer
+debezium.sink.kafka.producer.value.serializer=org.apache.kafka.common.serialization.StringSerializer
+```
+
+### Verify Fix
+
+```bash
+kubectl exec -n infra deploy/kafka -- kafka-console-consumer \
+  --bootstrap-server localhost:9092 \
+  --topic ecom-connector.public.orders \
+  --from-beginning --max-messages 1 --timeout-ms 5000
+# Should print a JSON Debezium envelope
+```
+
+---
+
+## Issue 17: Flink 2.x — JDBC Connector SinkFunction API Removed
+
+### Session: 22 | Severity: Blocker for Flink 2.x upgrade (downgraded to enhancement)
+
+### Symptom
+
+When attempting to upgrade the Flink base image to `flink:2.2.0-scala_2.12-java17` with `flink-connector-jdbc:3.3.0-1.20`, the SQL pipeline submission failed:
+
+```
+[ERROR] Could not execute SQL statement. Reason:
+java.lang.ClassNotFoundException: org.apache.flink.streaming.api.functions.sink.SinkFunction
+```
+
+The `INSERT INTO sink_fact_orders` statement caused a `ClassNotFoundException` at parse/plan time.
+
+### Root Cause
+
+Flink 2.0 removed the `SinkFunction` interface from its public API as part of FLIP-200 (Unified Sink API redesign). The JDBC connector `3.3.0-1.20` was built against Flink 1.x and internally implements `SinkFunction`. When loaded into a Flink 2.x JVM, the class is absent and the connector fails to initialize.
+
+The Kafka connector published a new `4.x` series for Flink 2.x (`flink-connector-kafka:4.0.1-2.0`), but the JDBC connector team has not yet released a Flink 2.x version. Confirmed by checking Maven Central:
+
+```bash
+curl -s "https://repo1.maven.org/maven2/org/apache/flink/flink-connector-jdbc/maven-metadata.xml" | grep version | tail -3
+# <version>3.3.0-1.19</version>
+# <version>3.3.0-1.20</version>   ← latest — no 2.x version exists
+```
+
+### Resolution
+
+Flink base image reverted to `1.20`. Dependency versions updated to their latest `1.20`-compatible releases:
+
+| Dependency | Old | New |
+|---|---|---|
+| `flink-connector-kafka` | `3.4.0-1.20` | `3.4.0-1.20` (no change) |
+| `flink-connector-jdbc` | `3.3.0-1.20` | `3.3.0-1.20` (no change) |
+| `kafka-clients` | `3.7.0` | `3.9.2` |
+| `postgresql` driver | `42.7.4` | `42.7.10` |
+
+### How to Retry the Upgrade
+
+Monitor `https://repo1.maven.org/maven2/org/apache/flink/flink-connector-jdbc/` for a version with a `2.x` suffix (e.g. `4.0.0-2.0`). When it appears:
+
+```bash
+# Update analytics/flink/Dockerfile:
+# FROM flink:2.2.0-scala_2.12-java17
+# flink-connector-kafka-4.0.1-2.0.jar
+# flink-connector-jdbc-<new-2x-version>.jar
+
+docker build -t bookstore/flink:latest ./analytics/flink
+kind load docker-image bookstore/flink:latest --name bookstore
+kubectl rollout restart deployment/flink-jobmanager deployment/flink-taskmanager -n analytics
+kubectl rollout status deployment/flink-jobmanager -n analytics --timeout=120s
+kubectl delete job flink-sql-runner -n analytics --ignore-not-found
+kubectl apply -f infra/flink/flink-sql-runner.yaml
+kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeout=180s
+# Verify: curl http://localhost:32200/jobs — all 4 RUNNING
+```
+

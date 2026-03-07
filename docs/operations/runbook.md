@@ -38,9 +38,10 @@ kubectl apply -f infra/kgateway/routes/
 kubectl exec -n analytics deploy/analytics-db -- \
   psql -U $POSTGRES_USER -d $POSTGRES_DB -f /analytics-ddl.sql
 
-# 9. Register Debezium CDC connectors
-DEBEZIUM_URL=$(kubectl get svc debezium -n infra -o jsonpath='{.spec.clusterIP}'):8083
-./infra/debezium/register-connectors.sh
+# 9. Wait for Debezium Server health
+# (No connector registration needed — Debezium Server auto-starts CDC on launch)
+# The register-connectors.sh script now polls /q/health until both servers report UP.
+bash infra/debezium/register-connectors.sh
 
 # 10. Deploy Superset and bootstrap dashboards
 kubectl apply -f infra/superset/superset.yaml
@@ -67,13 +68,36 @@ kubectl apply -f infra/observability/prometheus/prometheus.yaml
 ./scripts/smoke-test.sh
 ```
 
-## Re-register Debezium Connectors
+## Debezium Server Operations
+
+Debezium Server uses no REST API. Configuration is in `application.properties` ConfigMaps. All operations are via `kubectl`.
 
 ```bash
-# Port-forward Debezium (exception — only for admin ops, not application traffic)
-# Or use the register script which calls via cluster-internal URL:
-DEBEZIUM_URL=http://debezium.infra.svc.cluster.local:8083 \
-  ./infra/debezium/register-connectors.sh
+# Check health of both servers
+curl -s http://localhost:32300/q/health | python3 -c "import sys,json; print('ecom:', json.load(sys.stdin)['status'])"
+curl -s http://localhost:32301/q/health | python3 -c "import sys,json; print('inventory:', json.load(sys.stdin)['status'])"
+
+# Wait for both servers to be healthy (used by up.sh)
+bash infra/debezium/register-connectors.sh
+
+# Restart a server (e.g. after config change)
+kubectl rollout restart deployment/debezium-server-ecom -n infra
+kubectl rollout restart deployment/debezium-server-inventory -n infra
+
+# View logs
+kubectl logs -n infra deploy/debezium-server-ecom --tail=50
+kubectl logs -n infra deploy/debezium-server-inventory --tail=50
+
+# Update credentials (if DB passwords change)
+ECOM_USER=$(kubectl get secret -n ecom ecom-db-secret -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)
+ECOM_PASS=$(kubectl get secret -n ecom ecom-db-secret -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d)
+INV_USER=$(kubectl get secret -n inventory inventory-db-secret -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)
+INV_PASS=$(kubectl get secret -n inventory inventory-db-secret -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d)
+kubectl create secret generic debezium-db-credentials -n infra \
+  --from-literal=ECOM_DB_USER="$ECOM_USER" --from-literal=ECOM_DB_PASSWORD="$ECOM_PASS" \
+  --from-literal=INVENTORY_DB_USER="$INV_USER" --from-literal=INVENTORY_DB_PASSWORD="$INV_PASS" \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl rollout restart deployment/debezium-server-ecom deployment/debezium-server-inventory -n infra
 ```
 
 ## Reset Keycloak
