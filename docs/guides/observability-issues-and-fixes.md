@@ -627,3 +627,68 @@ cd e2e
 npx playwright test otel-loki.spec.ts --reporter=list
 # Expected: 43 passed
 ```
+
+---
+
+## Issue 9: Security Hardening — Observability Stack
+
+### Symptom
+
+Security audit revealed that the `otel` namespace had **no NetworkPolicies** (any pod in any namespace could reach OTel Collector, Loki, and Tempo on any port), and both `otel` and `observability` namespaces used namespace-wide PERMISSIVE mTLS. Loki and Tempo also ran as root.
+
+### Root Cause
+
+The observability stack was deployed for functionality without security hardening. Specific gaps:
+
+1. **No NetworkPolicy in otel namespace** — any compromised pod could intercept traces/logs
+2. **No AuthorizationPolicy for otel/observability** — no Istio L4 access control
+3. **Namespace-wide PERMISSIVE mTLS** — all traffic allowed as plaintext
+4. **Loki and Tempo ran as root** — container escape risk
+5. **Overly broad Prometheus NetworkPolicy** — all namespaces could query metrics
+6. **Missing ecom-service egress to OTel** — OTLP export could be blocked
+
+### Key Discovery: `ambient.istio.io/redirection: disabled` Is Overridden
+
+Despite the `ambient.istio.io/redirection: disabled` annotation on OTel Collector, Loki, and Tempo, **Istio CNI overrides the annotation** and captures all pod traffic through ztunnel. This means:
+
+1. All inter-pod communication in otel namespace uses HBONE tunneling (port 15008)
+2. Port 15008 MUST be allowed in NetworkPolicy rules alongside application ports
+3. The otel namespace MUST use PERMISSIVE PeerAuthentication — ztunnel captures traffic but the annotation prevents proper HBONE listener setup on the destination side, so plaintext fallback is required
+
+With STRICT mTLS on the otel namespace, all connections timed out with:
+```
+error="connection timed out, maybe a NetworkPolicy is blocking HBONE port 15008: deadline has elapsed"
+```
+
+### Fixes Applied — 8 Files
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `infra/kubernetes/network-policies/otel-netpol.yaml` (NEW) | Default deny all + explicit allow for OTel Collector, Loki, Tempo with HBONE port 15008 |
+| 2 | `infra/kubernetes/network-policies/observability-netpol.yaml` | Tightened: Prometheus ingress restricted to Grafana + Kiali only; removed redundant Grafana rule |
+| 3 | `infra/kubernetes/network-policies/ecom-netpol.yaml` | Added ecom-service egress to OTel Collector (ports 4317/4318) |
+| 4 | `infra/istio/security/authz-policies/otel-policy.yaml` (NEW) | Defense-in-depth AuthorizationPolicy for OTel Collector, Loki, Tempo |
+| 5 | `infra/istio/security/authz-policies/observability-policy.yaml` (NEW) | AuthorizationPolicy for Prometheus, Grafana, kube-state-metrics |
+| 6 | `infra/istio/security/peer-auth.yaml` | otel: PERMISSIVE (required); observability: STRICT (enforced) |
+| 7 | `infra/observability/loki/loki.yaml` | `runAsNonRoot: true`, `runAsUser: 10001` |
+| 8 | `infra/observability/tempo/tempo.yaml` | `runAsNonRoot: true`, `runAsUser: 10001` |
+
+### Security Posture After Hardening
+
+| Namespace | PeerAuth | NetworkPolicy | AuthorizationPolicy | Notes |
+|-----------|----------|---------------|---------------------|-------|
+| otel | PERMISSIVE | default-deny-all + explicit allow | Defense-in-depth (ztunnel overridden) | NetworkPolicy is primary defense |
+| observability | STRICT | default-deny-ingress + explicit allow | Enforced for Prometheus | Grafana uses port-level PERMISSIVE for NodePort |
+
+### Why otel Must Stay PERMISSIVE
+
+The `ambient.istio.io/redirection: disabled` annotation creates an asymmetry:
+- **Source ztunnel**: Still captures outbound traffic and attempts HBONE
+- **Destination ztunnel**: Does NOT set up HBONE listener (annotation disables inbound capture)
+
+With STRICT, the source ztunnel requires mTLS but the destination can't complete the handshake → timeout. With PERMISSIVE, ztunnel falls back to plaintext when HBONE fails → works.
+
+The real security boundary is the **NetworkPolicy** which restricts:
+- OTel Collector: only ecom + inventory (OTLP), observability (Prometheus metrics)
+- Loki: only OTel Collector (log push), Grafana (queries)
+- Tempo: only OTel Collector (trace push), Grafana (queries)

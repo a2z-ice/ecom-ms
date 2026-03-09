@@ -564,3 +564,39 @@ Loki's `reject_old_samples_max_age` is 168h (7 days). If system clocks are skewe
 | Prometheus | observability | 9090 | Internal only |
 | kube-state-metrics | observability | 8080 | Internal only |
 | Kiali | istio-system | 32100 | http://localhost:32100/kiali |
+
+---
+
+## Security Hardening
+
+The observability stack is protected by layered security:
+
+### otel namespace (OTel Collector, Loki, Tempo)
+
+| Layer | Policy | Notes |
+|-------|--------|-------|
+| **NetworkPolicy** | `default-deny-all` + explicit allow per pod | **Primary defense** — restricts who can reach each component |
+| **PeerAuthentication** | PERMISSIVE (namespace-wide) | Required — Istio CNI overrides the `disabled` annotation; STRICT causes connection timeouts |
+| **AuthorizationPolicy** | Defense-in-depth per workload | Not enforced by ztunnel (annotation override), but protects future pods |
+
+**Key constraint**: The `ambient.istio.io/redirection: disabled` annotation is **overridden by Istio CNI** in Ambient mode. Ztunnel still captures traffic, but the annotation prevents HBONE listener setup on the destination. PERMISSIVE mTLS allows plaintext fallback when HBONE handshake fails. With STRICT, all connections time out.
+
+### observability namespace (Prometheus, Grafana, kube-state-metrics)
+
+| Layer | Policy | Notes |
+|-------|--------|-------|
+| **NetworkPolicy** | `default-deny-ingress` + explicit allow per pod | Prometheus: only Grafana + Kiali; Grafana: NodePort only |
+| **PeerAuthentication** | STRICT (namespace-wide) + port-level PERMISSIVE for Grafana:3000 | Prometheus is mesh-enrolled; Grafana NodePort needs plaintext |
+| **AuthorizationPolicy** | Enforced for Prometheus (mesh-enrolled) | Grafana uses ALLOW-ALL (NodePort has no SPIFFE identity) |
+
+### What each pod can reach (NetworkPolicy enforced)
+
+```
+OTel Collector ← ecom (4317/4318), inventory (4317/4318), observability/Prometheus (8888/8889)
+Loki           ← OTel Collector (3100), observability/Grafana (3100)
+Tempo          ← OTel Collector (4317/4318), observability/Grafana (3200)
+Prometheus     ← observability/Grafana (9090), istio-system/Kiali (9090)
+Grafana        ← host NodePort (3000)
+```
+
+For the full security audit and all fixes, see `docs/guides/observability-issues-and-fixes.md`.

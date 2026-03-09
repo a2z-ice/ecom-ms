@@ -107,6 +107,10 @@ info "Deploying AlertManager..."
 kubectl apply -f "${REPO_ROOT}/infra/observability/alertmanager/alertmanager.yaml"
 wait_deployment alertmanager observability
 
+info "Deploying kube-state-metrics..."
+kubectl apply -f "${REPO_ROOT}/infra/observability/kube-state-metrics/kube-state-metrics.yaml"
+wait_deployment kube-state-metrics observability
+
 info "Deploying Grafana..."
 kubectl apply -f "${REPO_ROOT}/infra/observability/grafana/grafana.yaml"
 wait_deployment grafana observability

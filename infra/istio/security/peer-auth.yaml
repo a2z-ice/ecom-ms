@@ -140,8 +140,16 @@ spec:
       mode: PERMISSIVE
 
 ---
-# OTel namespace uses PERMISSIVE mTLS — OTel Collector, Tempo, and Loki communicate
-# via plain HTTP. Prometheus scrapes metrics from this namespace via plaintext.
+# OTel namespace — PERMISSIVE mTLS required.
+# Despite ambient.istio.io/redirection: disabled on OTel/Loki/Tempo pods, Istio CNI
+# overrides the annotation and captures traffic through ztunnel. However, the annotation
+# prevents ztunnel from setting up proper HBONE listeners on the destination side.
+# PERMISSIVE allows ztunnel to fall back to plaintext when HBONE handshake fails.
+# With STRICT, all connections to otel pods time out (no HBONE listener + no plaintext fallback).
+# Security is enforced by NetworkPolicy (otel-netpol.yaml) which restricts:
+#   - OTel Collector ingress: only ecom, inventory (OTLP), observability (Prometheus)
+#   - Loki ingress: only OTel Collector (push), observability/Grafana (query)
+#   - Tempo ingress: only OTel Collector (push), observability/Grafana (query)
 apiVersion: security.istio.io/v1
 kind: PeerAuthentication
 metadata:
@@ -152,16 +160,18 @@ spec:
     mode: PERMISSIVE
 
 ---
-# Observability namespace uses PERMISSIVE mTLS to allow Prometheus scraping
-# and inter-component plain HTTP communication.
+# Observability namespace — STRICT mTLS enforced at namespace level.
+# Prometheus is mesh-enrolled (no annotation) so ztunnel enforces STRICT on it.
+# Grafana has a port-level PERMISSIVE exception (below) for NodePort access.
+# kube-state-metrics has ambient.istio.io/redirection: disabled (bypasses ztunnel).
 apiVersion: security.istio.io/v1
 kind: PeerAuthentication
 metadata:
-  name: permissive-mtls
+  name: strict-mtls
   namespace: observability
 spec:
   mtls:
-    mode: PERMISSIVE
+    mode: STRICT
 
 ---
 # Grafana: NodePort 32500 receives plaintext from kind hostPort — allow on app port 3000.

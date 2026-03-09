@@ -65,7 +65,8 @@ spec:
         ambient.istio.io/redirection: disabled
     spec:
       securityContext:
-        runAsNonRoot: false
+        runAsNonRoot: true
+        runAsUser: 10001
         fsGroup: 10001
       containers:
         - name: loki
