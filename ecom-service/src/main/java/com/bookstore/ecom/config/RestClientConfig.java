@@ -7,6 +7,7 @@ import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 import java.net.http.HttpClient;
+import java.time.Duration;
 
 @Configuration
 public class RestClientConfig {
@@ -18,10 +19,13 @@ public class RestClientConfig {
         // 400 "Invalid HTTP request received" from FastAPI when running over plain HTTP.
         var httpClient = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
+            .connectTimeout(Duration.ofSeconds(5))
             .build();
+        var requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(Duration.ofSeconds(10));
         return RestClient.builder()
             .baseUrl(baseUrl)
-            .requestFactory(new JdkClientHttpRequestFactory(httpClient))
+            .requestFactory(requestFactory)
             .build();
     }
 }

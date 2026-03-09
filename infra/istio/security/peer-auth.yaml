@@ -139,6 +139,35 @@ spec:
       mode: PERMISSIVE
 
 ---
+# Observability namespace uses PERMISSIVE mTLS to allow OTel Collector → Tempo/Loki
+# plain HTTP communication. These are internal infra components, not user-facing.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: permissive-mtls
+  namespace: observability
+spec:
+  mtls:
+    mode: PERMISSIVE
+
+---
+# Grafana: NodePort 32500 receives plaintext from kind hostPort — allow on app port 3000.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: grafana-nodeport-permissive
+  namespace: observability
+spec:
+  selector:
+    matchLabels:
+      app: grafana
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "3000":
+      mode: PERMISSIVE
+
+---
 # PgAdmin: NodePort 31111 receives plaintext from kind hostPort — allow on app port 80.
 apiVersion: security.istio.io/v1
 kind: PeerAuthentication

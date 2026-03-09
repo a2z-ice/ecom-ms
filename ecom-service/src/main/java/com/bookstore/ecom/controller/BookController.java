@@ -13,10 +13,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/books")
@@ -38,7 +40,9 @@ public class BookController {
     public ResponseEntity<Page<Book>> listBooks(
             @Parameter(description = "Pagination and sorting. Example: `?page=0&size=20&sort=title`")
             @PageableDefault(size = 20, sort = "title") Pageable pageable) {
-        return ResponseEntity.ok(bookService.findAll(pageable));
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.maxAge(60, TimeUnit.SECONDS).cachePublic())
+            .body(bookService.findAll(pageable));
     }
 
     @Operation(
@@ -57,7 +61,9 @@ public class BookController {
             @RequestParam String q,
             @Parameter(description = "Pagination parameters")
             @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(bookService.search(q, pageable));
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.maxAge(60, TimeUnit.SECONDS).cachePublic())
+            .body(bookService.search(q, pageable));
     }
 
     @Operation(

@@ -58,6 +58,11 @@ kubectl delete job kafka-topic-init -n infra --ignore-not-found
 kubectl apply -f "${REPO_ROOT}/infra/kafka/kafka-topics-init.yaml"
 kubectl wait --for=condition=complete job/kafka-topic-init -n infra --timeout=300s
 
+# ── 3b. Schema Registry ───────────────────────────────────────────────────────
+info "Deploying Schema Registry..."
+kubectl apply -f "${REPO_ROOT}/infra/schema-registry/schema-registry.yaml"
+wait_deployment schema-registry infra
+
 # ── 4. Debezium Server (replaces Kafka Connect) ──────────────────────────────
 info "Deploying Debezium Server (ecom + inventory)..."
 # Debezium Server runs in `infra` namespace; DB secrets are in `ecom`/`inventory`.
@@ -97,13 +102,45 @@ kubectl apply -f "${REPO_ROOT}/infra/flink/flink-sql-runner.yaml"
 kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeout=180s || \
   info "Warning: flink-sql-runner did not complete in 180s — check pod logs"
 
-# ── 7. Summary ──────────────────────────────────────────────────────────────
+# ── 7. Observability — Grafana + AlertManager ──────────────────────────────
+info "Deploying AlertManager..."
+kubectl apply -f "${REPO_ROOT}/infra/observability/alertmanager/alertmanager.yaml"
+wait_deployment alertmanager observability
+
+info "Deploying Grafana..."
+kubectl apply -f "${REPO_ROOT}/infra/observability/grafana/grafana.yaml"
+wait_deployment grafana observability
+
+info "Deploying OTel stack (Tempo + Loki + OTel Collector) in otel namespace..."
+kubectl create ns otel 2>/dev/null || true
+kubectl label ns otel istio.io/dataplane-mode=ambient --overwrite 2>/dev/null
+kubectl label ns otel pod-security.kubernetes.io/enforce=baseline pod-security.kubernetes.io/enforce-version=latest --overwrite 2>/dev/null
+cat <<'OTEL_PA' | kubectl apply -f -
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: permissive-mtls
+  namespace: otel
+spec:
+  mtls:
+    mode: PERMISSIVE
+OTEL_PA
+kubectl apply -f "${REPO_ROOT}/infra/observability/otel-collector.yaml"
+kubectl apply -f "${REPO_ROOT}/infra/observability/tempo/tempo.yaml"
+kubectl apply -f "${REPO_ROOT}/infra/observability/loki/loki.yaml"
+wait_deployment otel-collector otel
+wait_deployment tempo otel
+wait_deployment loki otel
+
+# ── 8. Summary ──────────────────────────────────────────────────────────────
 echo ""
 info "Infrastructure pod status:"
 kubectl get pods -n ecom -l app=ecom-db
 kubectl get pods -n inventory -l app=inventory-db
 kubectl get pods -n analytics
 kubectl get pods -n infra
+kubectl get pods -n observability
+kubectl get pods -n otel
 
 echo ""
 echo -e "${GREEN}✔ Infrastructure up.${NC}"

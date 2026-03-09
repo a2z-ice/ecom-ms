@@ -1,0 +1,98 @@
+---
+# analytics namespace — default deny all ingress, then allow explicitly
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: analytics
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+
+---
+# Allow analytics-db ingress from infra (Flink JDBC writes, Debezium reads) and analytics (Superset)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: analytics-db-ingress
+  namespace: analytics
+spec:
+  podSelector:
+    matchLabels:
+      app: analytics-db
+  ingress:
+    # Flink taskmanager writes via JDBC from analytics namespace
+    - from:
+        - podSelector: {}
+      ports:
+        - port: 5432
+    # Flink JDBC connector runs in analytics namespace but connects from infra (Flink pods are in analytics)
+    # Debezium reads — from infra namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: infra
+      ports:
+        - port: 5432
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008
+
+---
+# Allow Flink ingress from infra (Kafka), analytics namespace (inter-Flink), and host NodePort
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: flink-ingress
+  namespace: analytics
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - flink-jobmanager
+          - flink-taskmanager
+  ingress:
+    # Inter-Flink communication (jobmanager <-> taskmanager) within analytics namespace
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - flink-jobmanager
+                  - flink-taskmanager
+    # Kafka consumer connections from infra namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: infra
+    # Host NodePort (Flink Web Dashboard at 32200)
+    - ports:
+        - port: 8081
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008
+
+---
+# Allow Superset ingress from host NodePort only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: superset-ingress
+  namespace: analytics
+spec:
+  podSelector:
+    matchLabels:
+      app: superset
+  ingress:
+    # Host NodePort (Superset Web UI at 32000)
+    - ports:
+        - port: 8088
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008

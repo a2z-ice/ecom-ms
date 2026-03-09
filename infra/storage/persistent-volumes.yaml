@@ -125,3 +125,19 @@ spec:
   hostPath:
     path: /data/flink
     type: DirectoryOrCreate
+
+---
+# grafana PV — Grafana dashboards and settings
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: grafana-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-hostpath
+  hostPath:
+    path: /data/grafana
+    type: DirectoryOrCreate

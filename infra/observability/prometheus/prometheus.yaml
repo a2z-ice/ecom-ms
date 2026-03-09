@@ -47,6 +47,14 @@ data:
       scrape_interval: 15s
       evaluation_interval: 15s
 
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: ['alertmanager.observability:9093']
+
+    rule_files:
+      - '/etc/prometheus/rules/*.yaml'
+
     scrape_configs:
       # Application metrics
       - job_name: 'ecom-service'
@@ -112,7 +120,10 @@ spec:
             - containerPort: 9090
           volumeMounts:
             - name: config
-              mountPath: /etc/prometheus
+              mountPath: /etc/prometheus/prometheus.yml
+              subPath: prometheus.yml
+            - name: rules
+              mountPath: /etc/prometheus/rules
             - name: data
               mountPath: /prometheus
           resources:
@@ -126,8 +137,52 @@ spec:
         - name: config
           configMap:
             name: prometheus-config
+        - name: rules
+          configMap:
+            name: prometheus-rules
         - name: data
           emptyDir: {}   # Replace with PVC for persistence
+
+---
+# Prometheus alert rules
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: observability
+data:
+  alerts.yaml: |
+    groups:
+      - name: service_alerts
+        rules:
+          - alert: HighErrorRate
+            expr: sum(rate(istio_requests_total{response_code=~"5.*"}[5m])) by (destination_service_name) / sum(rate(istio_requests_total[5m])) by (destination_service_name) > 0.05
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "High error rate on {{ $labels.destination_service_name }}"
+          - alert: PodRestartLoop
+            expr: increase(kube_pod_container_status_restarts_total[1h]) > 3
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Pod {{ $labels.pod }} restarting frequently"
+          - alert: HighLatency
+            expr: histogram_quantile(0.99, sum(rate(istio_request_duration_milliseconds_bucket[5m])) by (destination_service_name, le)) > 1000
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "p99 latency > 1s on {{ $labels.destination_service_name }}"
+          - alert: KafkaConsumerLag
+            expr: kafka_consumer_group_lag > 100
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Kafka consumer lag > 100"
 
 ---
 apiVersion: v1

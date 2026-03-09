@@ -1,0 +1,116 @@
+---
+# observability namespace — default deny all ingress, then allow explicitly
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: observability
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+
+---
+# Allow Prometheus ingress from all namespaces (it scrapes metrics from everything)
+# and from istio-system (Kiali queries Prometheus)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: prometheus-ingress
+  namespace: observability
+spec:
+  podSelector:
+    matchLabels:
+      app: prometheus
+  ingress:
+    # Kiali in istio-system queries Prometheus for traffic graph data
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - port: 9090
+    # All namespaces may need to push/pull metrics
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - port: 9090
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008
+
+---
+# Allow Grafana ingress from host (NodePort 32500) and from all namespaces
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grafana-ingress
+  namespace: observability
+spec:
+  podSelector:
+    matchLabels:
+      app: grafana
+  ingress:
+    # NodePort access from host + any namespace
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - port: 3000
+    # Allow all ingress on port 3000 (covers kind NodePort from host)
+    - from: []
+      ports:
+        - port: 3000
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008
+
+---
+# Allow OTel Collector ingress from ecom and inventory namespaces (trace export via gRPC)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: otel-collector-ingress
+  namespace: observability
+spec:
+  podSelector:
+    matchLabels:
+      app: otel-collector
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ecom
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: inventory
+      ports:
+        - port: 4317
+          protocol: TCP
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008
+
+---
+# Allow AlertManager ingress from Prometheus
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: alertmanager-ingress
+  namespace: observability
+spec:
+  podSelector:
+    matchLabels:
+      app: alertmanager
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - port: 9093
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008

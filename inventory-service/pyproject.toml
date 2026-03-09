@@ -17,11 +17,23 @@ httpx = "^0.27.0"
 aiokafka = "^0.11.0"
 pydantic = "^2.7.0"
 pydantic-settings = "^2.3.0"
+cachetools = "^5.3"
+python-json-logger = "^3.0"
+prometheus-fastapi-instrumentator = "^7.0"
+opentelemetry-api = "^1.28.0"
+opentelemetry-sdk = "^1.28.0"
+opentelemetry-exporter-otlp-proto-http = "^1.28.0"
+opentelemetry-instrumentation-fastapi = "^0.49b0"
+opentelemetry-instrumentation-sqlalchemy = "^0.49b0"
+opentelemetry-instrumentation-httpx = "^0.49b0"
+opentelemetry-instrumentation-aiohttp-client = "^0.49b0"
+setuptools = ">=70.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
 pytest-asyncio = "^0.23.0"
 httpx = "^0.27.0"
+testcontainers = "^4.0"
 
 [build-system]
 requires = ["poetry-core"]

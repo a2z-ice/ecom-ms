@@ -66,6 +66,21 @@ spec:
             # Istio ztunnel authenticates this pod as cluster.local/ns/ecom/sa/ecom-service.
             - name: INVENTORY_SERVICE_URL
               value: "http://inventory-service.inventory.svc.cluster.local:8000"
+            # JVM tuning flags
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -javaagent:/otel/opentelemetry-javaagent.jar"
+            - name: OTEL_SERVICE_NAME
+              value: "ecom-service"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.otel.svc.cluster.local:4318"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
+            - name: OTEL_TRACES_EXPORTER
+              value: "otlp"
+            - name: OTEL_METRICS_EXPORTER
+              value: "none"
+            - name: OTEL_LOGS_EXPORTER
+              value: "none"
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -82,18 +97,26 @@ spec:
             limits:
               cpu: 500m
               memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /ecom/actuator/health/liveness
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 30
           readinessProbe:
             httpGet:
               path: /ecom/actuator/health/readiness
               port: 8080
-            initialDelaySeconds: 30
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /ecom/actuator/health/liveness
               port: 8080
-            initialDelaySeconds: 60
             periodSeconds: 15
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "5"]
       volumes:
         - name: tmp
           emptyDir: {}

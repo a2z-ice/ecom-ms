@@ -35,6 +35,9 @@ nodes:
       - containerPort: 32400   # Keycloak Admin Console (direct, bypasses gateway)
         hostPort: 32400
         protocol: TCP
+      - containerPort: 32500   # Grafana Dashboard
+        hostPort: 32500
+        protocol: TCP
     # DATA_DIR is substituted by stack-up.sh / cluster-up.sh at runtime via sed.
     # Do not hardcode an absolute path here — it varies per developer machine.
     extraMounts:
@@ -54,6 +57,8 @@ nodes:
         containerPath: /data/redis
       - hostPath: DATA_DIR/flink
         containerPath: /data/flink
+      - hostPath: DATA_DIR/grafana
+        containerPath: /data/grafana
     kubeadmConfigPatches:
       - |
         kind: InitConfiguration
@@ -79,6 +84,8 @@ nodes:
         containerPath: /data/redis
       - hostPath: DATA_DIR/flink
         containerPath: /data/flink
+      - hostPath: DATA_DIR/grafana
+        containerPath: /data/grafana
 
   - role: worker
     extraMounts:
@@ -98,6 +105,8 @@ nodes:
         containerPath: /data/redis
       - hostPath: DATA_DIR/flink
         containerPath: /data/flink
+      - hostPath: DATA_DIR/grafana
+        containerPath: /data/grafana
 
 # Add host entries so that the domain names resolve to the kind node.
 # /etc/hosts on the HOST machine must also contain:

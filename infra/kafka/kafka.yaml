@@ -101,6 +101,12 @@ spec:
             limits:
               cpu: 1000m
               memory: 2Gi
+          livenessProbe:
+            tcpSocket:
+              port: 9092
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 4
           readinessProbe:
             # TCP check avoids the chicken-and-egg: kafka-topics follows advertised
             # listener DNS which resolves to the Service (no endpoints until Ready)

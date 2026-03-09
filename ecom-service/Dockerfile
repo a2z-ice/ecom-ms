@@ -16,6 +16,13 @@ RUN --mount=type=cache,target=/root/.m2 \
 # Extract layered JAR for optimal Docker layer caching
 RUN java -Djarmode=layertools -jar target/*.jar extract --destination /workspace/extracted
 
+RUN mkdir -p /otel && \
+    apk add --no-cache curl && \
+    curl -L -o /otel/opentelemetry-javaagent.jar \
+      https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.25.0/opentelemetry-javaagent.jar && \
+    test -s /otel/opentelemetry-javaagent.jar && \
+    ls -la /otel/opentelemetry-javaagent.jar
+
 # ── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM eclipse-temurin:21-jre-alpine
 
@@ -30,6 +37,8 @@ COPY --from=build /workspace/extracted/dependencies/ ./
 COPY --from=build /workspace/extracted/spring-boot-loader/ ./
 COPY --from=build /workspace/extracted/snapshot-dependencies/ ./
 COPY --from=build /workspace/extracted/application/ ./
+
+COPY --from=build /otel/opentelemetry-javaagent.jar /otel/opentelemetry-javaagent.jar
 
 USER app
 

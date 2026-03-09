@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { cartApi, CartItem } from '../api/cart'
 import { booksApi, StockResponse } from '../api/books'
 import { useAuth } from '../auth/AuthContext'
@@ -31,10 +31,10 @@ export default function CartPage() {
       const items = getGuestCart()
       setGuestItems(items)
       setLoading(false)
-      // Fetch stock for guest items
+      // Fetch stock for guest items (single bulk request)
       if (items.length > 0) {
         setStockLoading(true)
-        Promise.all(items.map(i => booksApi.getStock(i.bookId)))
+        booksApi.getBulkStock(items.map(i => i.bookId))
           .then(stocks => {
             const map: Record<string, StockResponse> = {}
             for (const s of stocks) map[s.book_id] = s
@@ -58,10 +58,10 @@ export default function CartPage() {
       const items = await cartApi.get()
       setServerItems(items)
       setLoading(false)
-      // Fetch stock for server cart items
+      // Fetch stock for server cart items (single bulk request)
       if (items.length > 0) {
         setStockLoading(true)
-        Promise.all(items.map(i => booksApi.getStock(i.book.id)))
+        booksApi.getBulkStock(items.map(i => i.book.id))
           .then(stocks => {
             const map: Record<string, StockResponse> = {}
             for (const s of stocks) map[s.book_id] = s
@@ -81,27 +81,31 @@ export default function CartPage() {
 
   // Auth qty controls
   const handleServerQty = async (item: CartItem, delta: number) => {
-    if (delta > 0) {
-      await cartApi.add(item.book.id, 1)
-    } else {
-      if (item.quantity <= 1) {
-        await cartApi.remove(item.id)
+    try {
+      if (delta > 0) {
+        await cartApi.add(item.book.id, 1)
       } else {
-        await cartApi.update(item.id, item.quantity - 1)
+        if (item.quantity <= 1) {
+          await cartApi.remove(item.id)
+        } else {
+          await cartApi.update(item.id, item.quantity - 1)
+        }
       }
-    }
-    const updated = await cartApi.get()
-    setServerItems(updated)
-    window.dispatchEvent(new Event('cartUpdated'))
-    // Refresh stock for updated cart
-    if (updated.length > 0) {
-      Promise.all(updated.map(i => booksApi.getStock(i.book.id)))
-        .then(stocks => {
-          const map: Record<string, StockResponse> = {}
-          for (const s of stocks) map[s.book_id] = s
-          setStockMap(map)
-        })
-        .catch(() => {})
+      const updated = await cartApi.get()
+      setServerItems(updated)
+      window.dispatchEvent(new Event('cartUpdated'))
+      // Refresh stock for updated cart
+      if (updated.length > 0) {
+        booksApi.getBulkStock(updated.map(i => i.book.id))
+          .then(stocks => {
+            const map: Record<string, StockResponse> = {}
+            for (const s of stocks) map[s.book_id] = s
+            setStockMap(map)
+          })
+          .catch(() => {})
+      }
+    } catch (e: any) {
+      setToast('Failed to update quantity: ' + (e.message || 'Unknown error'))
     }
   }
 
@@ -114,7 +118,9 @@ export default function CartPage() {
     try {
       const order = await cartApi.checkout()
       window.dispatchEvent(new Event('cartUpdated'))
-      navigate(`/order-confirmation?orderId=${order.id}&total=${order.total}`)
+      navigate(`/order-confirmation?orderId=${order.id}&total=${order.total}`, {
+        state: { orderId: order.id, total: order.total },
+      })
     } catch (e: any) {
       setToast('Checkout failed: ' + e.message)
     } finally {
@@ -135,7 +141,7 @@ export default function CartPage() {
         {guestItems.length === 0 ? (
           <div className="empty-state">
             <p>Your cart is empty.</p>
-            <a href="/" className="btn btn-outline" style={{ display: 'inline-block', marginTop: '1rem' }}>Browse Books</a>
+            <Link to="/" className="btn btn-outline" style={{ display: 'inline-block', marginTop: '1rem' }}>Browse Books</Link>
           </div>
         ) : (
           <>
@@ -183,7 +189,7 @@ export default function CartPage() {
             </table>
             <div className="cart-total">Total: ${total.toFixed(2)}</div>
             <div className="cart-actions">
-              <a href="/" className="btn btn-ghost">Continue Shopping</a>
+              <Link to="/" className="btn btn-ghost">Continue Shopping</Link>
               <button className="btn btn-primary btn-lg" onClick={handleLoginToCheckout}>
                 Login to Checkout
               </button>
@@ -209,7 +215,7 @@ export default function CartPage() {
       {serverItems.length === 0 ? (
         <div className="empty-state">
           <p>Your cart is empty.</p>
-          <a href="/" className="btn btn-outline" style={{ display: 'inline-block', marginTop: '1rem' }}>Browse Books</a>
+          <Link to="/" className="btn btn-outline" style={{ display: 'inline-block', marginTop: '1rem' }}>Browse Books</Link>
         </div>
       ) : (
         <>
@@ -269,7 +275,7 @@ export default function CartPage() {
             </div>
           )}
           <div className="cart-actions">
-            <a href="/" className="btn btn-ghost">Continue Shopping</a>
+            <Link to="/" className="btn btn-ghost">Continue Shopping</Link>
             <button
               className="btn btn-primary btn-lg"
               onClick={handleCheckout}

@@ -35,7 +35,7 @@ data:
     debezium.sink.kafka.producer.key.serializer=org.apache.kafka.common.serialization.StringSerializer
     debezium.sink.kafka.producer.value.serializer=org.apache.kafka.common.serialization.StringSerializer
 
-    # JSON format — no schema wrapper (matches existing Flink SQL pipeline)
+    # JSON format (no schema wrapper — Flink SQL uses plain json format)
     debezium.format.value=json
     debezium.format.key=json
     debezium.format.value.schemas.enable=false

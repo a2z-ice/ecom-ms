@@ -22,8 +22,10 @@ COPY --from=build /usr/local/lib/python3.12/site-packages /usr/local/lib/python3
 COPY --from=build /usr/local/bin/uvicorn /usr/local/bin/uvicorn
 COPY --from=build /app .
 
+RUN pip install --no-cache-dir "setuptools>=70.0"
+
 USER app
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--timeout-graceful-shutdown", "20"]

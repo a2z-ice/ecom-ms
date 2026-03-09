@@ -60,6 +60,13 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: "inventory-service"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.otel.svc.cluster.local:4318"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
           envFrom:
             - secretRef:
                 name: inventory-service-secret
@@ -78,18 +85,26 @@ spec:
             limits:
               cpu: 300m
               memory: 256Mi
-          readinessProbe:
+          startupProbe:
             httpGet:
               path: /inven/health
               port: 8000
-            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 20
+          readinessProbe:
+            httpGet:
+              path: /inven/health/ready
+              port: 8000
             periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /inven/health
               port: 8000
-            initialDelaySeconds: 30
             periodSeconds: 10
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "5"]
       volumes:
         - name: tmp
           emptyDir: {}

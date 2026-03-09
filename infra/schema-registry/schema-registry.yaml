@@ -1,0 +1,83 @@
+---
+# Confluent Schema Registry — manages Avro/JSON/Protobuf schemas for Kafka topics
+# Deployed in infra namespace alongside Kafka
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: schema-registry
+  namespace: infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: schema-registry
+  template:
+    metadata:
+      labels:
+        app: schema-registry
+    spec:
+      # Disable K8s service env injection — Confluent CP interprets SCHEMA_REGISTRY_*
+      # env vars injected by K8s service discovery as config properties, causing crashes.
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: schema-registry
+          image: confluentinc/cp-schema-registry:latest
+          ports:
+            - containerPort: 8081
+          env:
+            - name: SCHEMA_REGISTRY_HOST_NAME
+              value: "schema-registry"
+            - name: SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS
+              value: "PLAINTEXT://kafka.infra.svc.cluster.local:9092"
+            - name: SCHEMA_REGISTRY_LISTENERS
+              value: "http://0.0.0.0:8081"
+            # Cap JVM heap to stay within memory limits
+            - name: SCHEMA_REGISTRY_HEAP_OPTS
+              value: "-Xmx256m -Xms128m"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /subjects
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 4
+          securityContext:
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+
+---
+# ClusterIP Service — internal access at schema-registry.infra.svc.cluster.local:8081
+apiVersion: v1
+kind: Service
+metadata:
+  name: schema-registry
+  namespace: infra
+spec:
+  selector:
+    app: schema-registry
+  ports:
+    - name: http
+      port: 8081
+      targetPort: 8081
+  type: ClusterIP
