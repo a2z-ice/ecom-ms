@@ -4,6 +4,12 @@
 
 A production-grade microservices e-commerce bookstore deployed to Kubernetes, demonstrating real-world architecture patterns including zero-trust networking, event-driven data pipelines, and real-time analytics. Built as a proof of concept with production-aligned infrastructure — every component follows the same patterns used in large-scale distributed systems.
 
+## Infrastructure Architecture
+
+<p align="center">
+  <img src="../diagrams/architecture.gif" alt="BookStore Platform — Infrastructure Architecture" width="100%" />
+</p>
+
 ## Architecture at a Glance
 
 | Layer | Components | Technology |
@@ -43,6 +49,10 @@ RESTful APIs built with Spring Boot 4.0.3 (Java) and FastAPI (Python). Kubernete
 Prometheus scrapes Istio telemetry (istiod + ztunnel) and application metrics. Kiali provides real-time service mesh topology visualization with traffic flow. Apache Superset delivers business analytics across three dashboards with 16 charts covering sales, inventory, and revenue.
 
 ## Data Flow
+
+<p align="center">
+  <img src="../diagrams/data-flow.gif" alt="BookStore Platform — Live Data Flow (Animated)" width="100%" />
+</p>
 
 **User Request Flow:**
 ```
@@ -110,8 +120,12 @@ Source DBs → Debezium Server 3.4 → Kafka → Flink 2.2.0 SQL → analytics-d
 
 ## Diagrams
 
-- [Architecture Diagram](../diagrams/architecture.svg) — Infrastructure architecture overview
-- [Data Flow Diagram](../diagrams/data-flow-animated.svg) — Animated data flow with live request paths
+| Diagram | Format | Description |
+|---------|--------|-------------|
+| [Architecture (GIF)](../diagrams/architecture.gif) | GIF (231 KB) | Static infrastructure overview — shareable on LinkedIn |
+| [Architecture (SVG)](../diagrams/architecture.svg) | SVG (31 KB) | High-resolution vector version |
+| [Data Flow (GIF)](../diagrams/data-flow.gif) | GIF (4.7 MB) | Animated data flow with live request paths — shareable on LinkedIn |
+| [Data Flow (SVG)](../diagrams/data-flow-animated.svg) | SVG (24 KB) | Interactive animated version (open in browser) |
 
 ---
 
