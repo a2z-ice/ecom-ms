@@ -6,7 +6,7 @@ data/keycloak-db/
 data/superset/
 data/kafka/
 data/redis/
-data/grafanaXX/
+data/grafana/
 
 # Node modules
 node_modules/
