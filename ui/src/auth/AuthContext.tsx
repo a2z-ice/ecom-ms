@@ -82,15 +82,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const logout = useCallback(async () => {
-    // Remove user from local storage first so the app shows the public view
-    // immediately if the Keycloak redirect is slow.
+    // Back-channel logout: end the Keycloak SSO session via a direct POST
+    // (no browser redirect, no Keycloak UI interaction).
+    // Uses the OIDC RP-Initiated Logout spec with client_id + refresh_token.
+    const currentUser = await userManager.getUser()
+
+    if (currentUser?.refresh_token) {
+      const authority = userManager.settings.authority
+      try {
+        await fetch(`${authority}/protocol/openid-connect/logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: userManager.settings.client_id,
+            refresh_token: currentUser.refresh_token,
+          }),
+        })
+      } catch {
+        // Best-effort: even if Keycloak is unreachable, clear local state
+      }
+    }
+
+    // Clear local session (sessionStorage + React state)
     await userManager.removeUser()
     setUser(null)
-    // Redirect to Keycloak end_session_endpoint, then back to the catalog root.
-    // Trailing slash is required so it matches the whitelisted pattern (http://localhost:30000/).
-    await userManager.signoutRedirect({
-      post_logout_redirect_uri: window.location.origin + '/',
-    })
+
+    // Navigate to home — no Keycloak redirect needed
+    window.location.href = window.location.origin + '/'
   }, [])
 
   const getAccessToken = useCallback(() => user?.access_token ?? null, [user])

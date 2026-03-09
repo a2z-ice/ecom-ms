@@ -2,44 +2,12 @@
  * Checkout E2E Tests
  * Covers the complete checkout flow: add to cart → checkout → order confirmation,
  * and verifies the cart is cleared after a successful order.
+ *
+ * Cart clearing is handled automatically by the base fixture (fixtures/base.ts).
  */
 import { test, expect } from './fixtures/base'
-import * as fs from 'fs'
-import * as path from 'path'
-
-/** Read auth token from session file for API-level cart clearing */
-function getAuthToken(): string {
-  try {
-    const sessionData: Record<string, string> = JSON.parse(
-      fs.readFileSync(path.join(__dirname, 'fixtures/user1-session.json'), 'utf-8')
-    )
-    for (const [key, value] of Object.entries(sessionData)) {
-      if (key.startsWith('oidc.user:')) {
-        return JSON.parse(value).access_token
-      }
-    }
-  } catch { /* ignore */ }
-  return ''
-}
 
 test.describe('Checkout', () => {
-
-  // Clear server cart before each test to avoid cross-test state pollution
-  test.beforeEach(async ({ request }) => {
-    const token = getAuthToken()
-    if (!token) return
-    const resp = await request.get('http://localhost:30000/ecom/cart', {
-      headers: { 'Authorization': `Bearer ${token}` },
-    })
-    if (!resp.ok()) return
-    const items = await resp.json()
-    if (!Array.isArray(items)) return
-    for (const item of items) {
-      await request.delete(`http://localhost:30000/ecom/cart/${item.id}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      })
-    }
-  })
 
   test('complete checkout flow', async ({ page }) => {
     // ── Step 1: Add a book to cart ────────────────────────────────────────

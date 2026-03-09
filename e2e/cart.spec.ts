@@ -1,6 +1,9 @@
 /**
  * Cart E2E Tests
  * Covers adding items, viewing cart with totals, and unauthenticated redirect.
+ *
+ * Cart clearing is handled automatically by the base fixture (fixtures/base.ts).
+ * Each test is self-contained — does not depend on state from other tests.
  */
 import { test, expect } from './fixtures/base'
 
@@ -8,6 +11,7 @@ test.describe('Cart', () => {
 
   test('authenticated user can add a book to cart', async ({ page }) => {
     await page.goto('/')
+    await expect(page.getByText('In Stock').first()).toBeVisible({ timeout: 10000 })
     await page.screenshot({ path: 'screenshots/cart-01-catalog-before-add.png', fullPage: true })
 
     // Click the first "Add to Cart" button
@@ -29,6 +33,13 @@ test.describe('Cart', () => {
   })
 
   test('cart shows total price', async ({ page }) => {
+    // Add an item first (cart was cleared by fixture)
+    await page.goto('/')
+    await expect(page.getByText('In Stock').first()).toBeVisible({ timeout: 10000 })
+    const addBtn = page.getByRole('button', { name: /add to cart/i }).first()
+    await addBtn.click()
+    await expect(addBtn).not.toHaveText(/adding/i, { timeout: 5000 })
+
     await page.goto('/cart')
     // The cart page renders "Total: $XX.XX" as a paragraph
     await expect(page.getByText(/Total: \$\d+\.\d{2}/)).toBeVisible()

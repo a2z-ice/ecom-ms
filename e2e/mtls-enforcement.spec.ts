@@ -46,11 +46,11 @@ test.describe('mTLS Enforcement', () => {
     // Uses authenticated browser context (user1 via storageState).
     // The checkout flow triggers ecom-service → inventory-service reserve call over mTLS.
     // If mTLS reserve fails, checkout returns 4xx and the order confirmation page never loads.
-    await page.goto('/')
 
     // Add "The Pragmatic Programmer" (UUID 00000000-...-000000000001) to cart.
     // Search to locate it reliably regardless of display order.
     await page.goto('/search?q=Pragmatic')
+    await expect(page.getByRole('button', { name: /logout/i })).toBeVisible()
     await page.waitForResponse(r =>
       r.url().includes('/ecom/books') && r.request().method() === 'GET'
     )
@@ -68,7 +68,9 @@ test.describe('mTLS Enforcement', () => {
     // Checkout
     await page.goto('/cart')
     await expect(page.getByRole('heading', { name: /your cart/i })).toBeVisible()
-    await page.getByRole('button', { name: /checkout/i }).click()
+    const checkoutBtn = page.getByRole('button', { name: /checkout/i })
+    await expect(checkoutBtn).toBeEnabled({ timeout: 10000 })
+    await checkoutBtn.click()
 
     // Success: order confirmation confirms ecom-service reserved stock via mTLS and placed order
     await expect(page).toHaveURL(/order-confirmation/, { timeout: 15_000 })
@@ -84,6 +86,7 @@ test.describe('mTLS Enforcement', () => {
 
     // Add the same book to cart via search
     await page.goto('/search?q=Pragmatic')
+    await expect(page.getByRole('button', { name: /logout/i })).toBeVisible()
     await page.waitForResponse(r =>
       r.url().includes('/ecom/books') && r.request().method() === 'GET'
     )
@@ -100,7 +103,10 @@ test.describe('mTLS Enforcement', () => {
 
     // Checkout
     await page.goto('/cart')
-    await page.getByRole('button', { name: /checkout/i }).click()
+    await expect(page.getByRole('heading', { name: /your cart/i })).toBeVisible()
+    const checkoutBtn = page.getByRole('button', { name: /checkout/i })
+    await expect(checkoutBtn).toBeEnabled({ timeout: 10000 })
+    await checkoutBtn.click()
     await expect(page).toHaveURL(/order-confirmation/, { timeout: 15_000 })
 
     // Verify reserved count increased — confirms ecom-service made the mTLS reserve call

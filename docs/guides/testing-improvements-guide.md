@@ -4,6 +4,61 @@ This guide covers manual testing for all Session 23-24 production improvements.
 
 ---
 
+## E2E Test Stability & Back-Channel Logout (Latest)
+
+### What Changed
+
+**E2E Test Stability (155/155 tests passing, zero flaky):**
+- Added `e2e/global-setup.ts` — runs once before all tests:
+  - Resets inventory: `UPDATE inventory SET quantity = 50, reserved = 0`
+  - Clears cart items: `DELETE FROM cart_items`
+  - Uses `kubectl exec` to access DBs directly (bypasses API rate limits)
+- Rewrote `e2e/fixtures/base.ts` — per-test cart clearing via DB:
+  - `clearCartViaDb()` runs before every test (kubectl exec → psql DELETE)
+  - OIDC sessionStorage injection via `addInitScript` (reads `user1-session.json`)
+  - Replaced API-based cart clearing (caused HTTP 429 from Bucket4j rate limits)
+- All spec files hardened:
+  - Replaced `waitForTimeout()` with proper Playwright assertions
+  - Added auth wait guards (`logout` button visible)
+  - Added stock-loaded wait guards (`In Stock` badge visible)
+  - Used `waitForResponse` for POST /cart confirmation
+  - Made tests self-contained (each test adds its own items)
+
+**Back-Channel Logout:**
+- `ui/src/auth/AuthContext.tsx` — `logout()` rewritten:
+  - Gets current user from `userManager.getUser()`
+  - POSTs `client_id` + `refresh_token` to Keycloak's `/protocol/openid-connect/logout`
+  - This ends the Keycloak SSO session server-side (no browser redirect needed)
+  - Then clears local session: `removeUser()` + `setUser(null)`
+  - Navigates to home: `window.location.href = origin + '/'`
+  - No Keycloak UI interaction needed — single click logout
+- Previous approach (broken): `signoutRedirect()` after `removeUser()` stripped `id_token_hint` → Keycloak showed confirmation page requiring user action
+
+### New E2E Tests (3 tests in `auth.spec.ts`)
+1. **logout clears session without Keycloak redirect** — intercepts the POST, verifies `client_id=ui-client` and `refresh_token=` in body
+2. **after logout, SSO session is ended** — fresh browser context shows Login button (not auto-logged-in)
+3. **after logout, protected API returns 401** — unauthenticated GET /cart returns 401
+
+### How to Test
+```bash
+cd e2e && npm run test          # all 155 tests
+npx playwright test auth.spec.ts  # auth + logout tests only
+```
+
+### Key Files Modified
+- `e2e/global-setup.ts` (NEW)
+- `e2e/fixtures/base.ts` (rewritten)
+- `e2e/auth.spec.ts` (rewritten with 3 new back-channel logout tests)
+- `e2e/cart.spec.ts` (self-contained tests)
+- `e2e/checkout.spec.ts` (removed duplicate helpers)
+- `e2e/cdc.spec.ts` (added wait guards)
+- `e2e/stock-management.spec.ts` (replaced waitForTimeout, added guards)
+- `e2e/mtls-enforcement.spec.ts` (added wait guards)
+- `e2e/ui-fixes.spec.ts` (removed duplicate helpers)
+- `ui/src/auth/AuthContext.tsx` (back-channel logout)
+
+---
+
 ## Prerequisites
 
 ```bash
@@ -560,10 +615,10 @@ cd inventory-service && poetry run pytest -v
 # 21 tests: auth (6), consumer (5), health (3), stock (7)
 ```
 
-### E2E Tests (131+ tests)
+### E2E Tests (155 tests)
 ```bash
 cd e2e && npm run test
-# 131 original + production-improvements.spec.ts tests
+# 155 tests (includes production-improvements.spec.ts + back-channel logout tests)
 ```
 
 ### Quick Smoke Test

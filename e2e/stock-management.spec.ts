@@ -1,8 +1,10 @@
 /**
  * Stock Management E2E Tests
  * Covers stock badge display on catalog, search results, and cart pages.
- * All 10 seeded books have 50 units each — always "In Stock" in the test environment.
+ * Global setup resets all 10 seeded books to 50 units each before the test run.
  * OOS disabled-button behavior is tested via API structure verification only.
+ *
+ * Cart clearing is handled automatically by the base fixture (fixtures/base.ts).
  */
 import { test, expect } from './fixtures/base'
 
@@ -87,8 +89,8 @@ test.describe('Stock Management', () => {
     await page.goto('/search?q=the')
     await page.waitForSelector('.search-row', { timeout: 10000 })
 
-    // Wait for stock loading
-    await page.waitForTimeout(2000)
+    // Wait for stock badges to load
+    await expect(page.locator('span').filter({ hasText: /In Stock|Low Stock|Out of Stock|left/ }).first()).toBeVisible({ timeout: 10000 })
 
     const rows = page.locator('.search-row')
     const rowCount = await rows.count()
@@ -106,8 +108,8 @@ test.describe('Stock Management', () => {
     await page.goto('/search?q=the')
     await page.waitForSelector('.search-row', { timeout: 10000 })
 
-    // Wait for stock loading
-    await page.waitForTimeout(2000)
+    // Wait for stock badges to load
+    await expect(page.locator('span').filter({ hasText: /In Stock|Low Stock|Out of Stock|left/ }).first()).toBeVisible({ timeout: 10000 })
 
     const addBtns = page.getByRole('button', { name: /add to cart/i })
     const btnCount = await addBtns.count()
@@ -118,20 +120,28 @@ test.describe('Stock Management', () => {
   })
 
   test('cart page shows Availability column with per-item stock badges', async ({ page }) => {
-    // Add a book to cart first
+    // Add a book to cart first — wait for auth + stock to load
     await page.goto('/')
-    await page.waitForSelector('.book-card', { timeout: 10000 })
+    await expect(page.getByRole('button', { name: /logout/i })).toBeVisible()
+    await expect(page.getByText('In Stock').first()).toBeVisible({ timeout: 10000 })
     const addBtn = page.getByRole('button', { name: /add to cart/i }).first()
-    await expect(addBtn).toBeVisible()
-    await addBtn.click()
-    await expect(addBtn).not.toHaveText(/adding/i, { timeout: 5000 })
+    await expect(addBtn).toBeEnabled()
 
-    // Navigate to cart
+    // Wait for the POST /cart response to confirm the item was added
+    const [cartResp] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/ecom/cart') && r.request().method() === 'POST'),
+      addBtn.click(),
+    ])
+    expect(cartResp.status()).toBeLessThan(400)
+
+    // Navigate to cart — use waitForResponse to ensure cart data is fetched
+    const cartLoadPromise = page.waitForResponse(
+      r => r.url().includes('/ecom/cart') && r.request().method() === 'GET',
+    )
     await page.goto('/cart')
-    await page.waitForSelector('tbody tr', { timeout: 10000 })
-
-    // Wait for stock loading
-    await page.waitForTimeout(2000)
+    const cartLoadResp = await cartLoadPromise
+    expect(cartLoadResp.status()).toBeLessThan(400)
+    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 15000 })
 
     // Should show "Availability" header
     await expect(page.getByRole('columnheader', { name: /availability/i })).toBeVisible()
@@ -144,17 +154,19 @@ test.describe('Stock Management', () => {
   })
 
   test('cart checkout button is enabled when all items have sufficient stock', async ({ page }) => {
-    await page.goto('/cart')
-    await page.waitForSelector('.cart-actions', { timeout: 10000 })
+    // Add a book to ensure cart is not empty
+    await page.goto('/')
+    await expect(page.getByText('In Stock').first()).toBeVisible({ timeout: 10000 })
+    const addBtn = page.getByRole('button', { name: /add to cart/i }).first()
+    await addBtn.click()
+    await expect(addBtn).not.toHaveText(/adding/i, { timeout: 5000 })
 
-    // Wait for stock loading
-    await page.waitForTimeout(2000)
+    await page.goto('/cart')
+    await expect(page.getByRole('heading', { name: /your cart/i })).toBeVisible()
 
     // Checkout button should be enabled (all books have 50 units, cart qty = 1)
     const checkoutBtn = page.getByRole('button', { name: /checkout/i })
-    if (await checkoutBtn.count() > 0) {
-      await expect(checkoutBtn).toBeEnabled()
-    }
+    await expect(checkoutBtn).toBeEnabled({ timeout: 10000 })
 
     await page.screenshot({ path: 'screenshots/stock-04-cart-checkout-enabled.png', fullPage: true })
   })

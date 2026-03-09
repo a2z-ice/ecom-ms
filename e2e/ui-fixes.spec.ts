@@ -4,44 +4,12 @@
  * 1. Nav cart badge shows count for authenticated users
  * 2. Minus (−) button decrements cart item quantity via PUT /cart/{id}
  * 3. Logout button is visually distinct (white text on dark navbar)
+ *
+ * Cart clearing is handled automatically by the base fixture (fixtures/base.ts).
  */
 import { test, expect } from './fixtures/base'
-import * as fs from 'fs'
-import * as path from 'path'
-
-/** Read auth token from session file for API-level cart clearing */
-function getAuthToken(): string {
-  try {
-    const sessionData: Record<string, string> = JSON.parse(
-      fs.readFileSync(path.join(__dirname, 'fixtures/user1-session.json'), 'utf-8')
-    )
-    for (const [key, value] of Object.entries(sessionData)) {
-      if (key.startsWith('oidc.user:')) {
-        return JSON.parse(value).access_token
-      }
-    }
-  } catch { /* ignore */ }
-  return ''
-}
 
 test.describe('UI Fixes', () => {
-
-  // Clear server cart before each test to avoid cross-test state pollution
-  test.beforeEach(async ({ request }) => {
-    const token = getAuthToken()
-    if (!token) return
-    const resp = await request.get('http://localhost:30000/ecom/cart', {
-      headers: { 'Authorization': `Bearer ${token}` },
-    })
-    if (!resp.ok()) return
-    const items = await resp.json()
-    if (!Array.isArray(items)) return
-    for (const item of items) {
-      await request.delete(`http://localhost:30000/ecom/cart/${item.id}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      })
-    }
-  })
 
   test('authenticated nav cart badge shows count after adding a book', async ({ page }) => {
     await page.goto('http://localhost:30000/')

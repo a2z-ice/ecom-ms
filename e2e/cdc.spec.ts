@@ -11,15 +11,21 @@ test.describe('CDC Pipeline', () => {
   test('order placed via UI appears in analytics DB within 30s', async ({ page }) => {
     // ── 1. Place an order ────────────────────────────────────────────────
     await page.goto('/')
+    await expect(page.getByRole('button', { name: /logout/i })).toBeVisible()
+    await expect(page.getByText('In Stock').first()).toBeVisible({ timeout: 10000 })
     await page.screenshot({ path: 'screenshots/cdc-01-catalog-before-order.png', fullPage: true })
 
-    await page.getByRole('button', { name: /add to cart/i }).first().click()
-    await page.waitForTimeout(300)
+    const addBtn = page.getByRole('button', { name: /add to cart/i }).first()
+    await addBtn.click()
+    await expect(addBtn).not.toHaveText(/adding/i, { timeout: 5000 })
 
     await page.goto('/cart')
+    await expect(page.getByRole('heading', { name: /your cart/i })).toBeVisible()
     await page.screenshot({ path: 'screenshots/cdc-02-cart-before-checkout.png', fullPage: true })
 
-    await page.getByRole('button', { name: /checkout/i }).click()
+    const checkoutBtn = page.getByRole('button', { name: /checkout/i })
+    await expect(checkoutBtn).toBeEnabled({ timeout: 10000 })
+    await checkoutBtn.click()
     await expect(page).toHaveURL(/order-confirmation/)
     await page.screenshot({ path: 'screenshots/cdc-03-order-confirmation.png', fullPage: true })
 
