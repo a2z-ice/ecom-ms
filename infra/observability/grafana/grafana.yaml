@@ -23,11 +23,13 @@ data:
     datasources:
       - name: Prometheus
         type: prometheus
+        uid: prometheus
         url: http://prometheus.observability.svc.cluster.local:9090
         access: proxy
         isDefault: true
       - name: Tempo
         type: tempo
+        uid: tempo
         url: http://tempo.otel.svc.cluster.local:3200
         access: proxy
         jsonData:
@@ -84,19 +86,19 @@ data:
       "annotations": { "list": [] },
       "editable": true,
       "fiscalYearStartMonth": 0,
-      "graphTooltip": 0,
+      "graphTooltip": 1,
       "id": null,
       "links": [],
       "panels": [
         {
-          "title": "Request Rate by Service",
+          "title": "Request Rate (ecom-service)",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-          "datasource": { "type": "prometheus", "uid": "" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(rate(istio_requests_total[5m])) by (destination_service_name)",
-              "legendFormat": "{{ destination_service_name }}",
+              "expr": "sum(rate(http_server_requests_seconds_count{job=\"ecom-service\"}[5m])) by (uri)",
+              "legendFormat": "{{ uri }}",
               "refId": "A"
             }
           ],
@@ -109,27 +111,32 @@ data:
           }
         },
         {
-          "title": "Error Rate by Service (5xx)",
+          "title": "Error Rate (5xx)",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-          "datasource": { "type": "prometheus", "uid": "" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(rate(istio_requests_total{response_code=~\"5.*\"}[5m])) by (destination_service_name) / sum(rate(istio_requests_total[5m])) by (destination_service_name)",
-              "legendFormat": "{{ destination_service_name }}",
+              "expr": "sum(rate(http_server_requests_seconds_count{job=\"ecom-service\",status=~\"5..\"}[5m]))",
+              "legendFormat": "ecom-service 5xx",
               "refId": "A"
+            },
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{job=\"inventory-service\",status=~\"5..\"}[5m]))",
+              "legendFormat": "inventory-service 5xx",
+              "refId": "B"
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "percentunit",
+              "unit": "reqps",
               "custom": { "drawStyle": "line", "fillOpacity": 10 },
+              "color": { "mode": "palette-classic" },
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   { "color": "green", "value": null },
-                  { "color": "yellow", "value": 0.01 },
-                  { "color": "red", "value": 0.05 }
+                  { "color": "red", "value": 0.1 }
                 ]
               }
             },
@@ -137,40 +144,123 @@ data:
           }
         },
         {
-          "title": "p99 Latency by Service",
+          "title": "Avg Response Time (ecom-service)",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-          "datasource": { "type": "prometheus", "uid": "" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "histogram_quantile(0.99, sum(rate(istio_request_duration_milliseconds_bucket[5m])) by (destination_service_name, le))",
-              "legendFormat": "{{ destination_service_name }}",
+              "expr": "rate(http_server_requests_seconds_sum{job=\"ecom-service\"}[5m]) / rate(http_server_requests_seconds_count{job=\"ecom-service\"}[5m])",
+              "legendFormat": "{{ uri }}",
               "refId": "A"
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "ms",
+              "unit": "s",
               "custom": { "drawStyle": "line", "fillOpacity": 10 }
             },
             "overrides": []
           }
         },
         {
-          "title": "p50 Latency by Service",
+          "title": "Max Response Time",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-          "datasource": { "type": "prometheus", "uid": "" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "histogram_quantile(0.50, sum(rate(istio_request_duration_milliseconds_bucket[5m])) by (destination_service_name, le))",
-              "legendFormat": "{{ destination_service_name }}",
+              "expr": "http_server_requests_seconds_max{job=\"ecom-service\"}",
+              "legendFormat": "ecom {{ uri }}",
+              "refId": "A"
+            },
+            {
+              "expr": "http_server_requests_seconds_max{job=\"inventory-service\"}",
+              "legendFormat": "inventory {{ handler }}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Service Up Status",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 8, "x": 0, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "up{job=~\"ecom-service|inventory-service|otel-collector\"}",
+              "legendFormat": "{{ job }}",
               "refId": "A"
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "ms",
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Mesh TCP Connections (ztunnel)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(istio_tcp_connections_opened_total[5m])) by (pod)",
+              "legendFormat": "opened {{ pod }}",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(rate(istio_tcp_connections_closed_total[5m])) by (pod)",
+              "legendFormat": "closed {{ pod }}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cps",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Mesh TCP Throughput (ztunnel)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(istio_tcp_sent_bytes_total[5m]))",
+              "legendFormat": "sent",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(rate(istio_tcp_received_bytes_total[5m]))",
+              "legendFormat": "received",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps",
               "custom": { "drawStyle": "line", "fillOpacity": 10 }
             },
             "overrides": []
@@ -178,7 +268,7 @@ data:
         }
       ],
       "schemaVersion": 39,
-      "tags": ["istio", "service-mesh"],
+      "tags": ["service-health", "opentelemetry"],
       "templating": { "list": [] },
       "time": { "from": "now-1h", "to": "now" },
       "title": "Service Health",
@@ -189,7 +279,7 @@ data:
       "annotations": { "list": [] },
       "editable": true,
       "fiscalYearStartMonth": 0,
-      "graphTooltip": 0,
+      "graphTooltip": 1,
       "id": null,
       "links": [],
       "panels": [
@@ -197,10 +287,10 @@ data:
           "title": "Pods by Phase",
           "type": "piechart",
           "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
-          "datasource": { "type": "prometheus", "uid": "" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(kube_pod_status_phase) by (phase)",
+              "expr": "sum(kube_pod_status_phase{namespace=~\"ecom|inventory|identity|infra|analytics|otel|observability\"}) by (phase)",
               "legendFormat": "{{ phase }}",
               "refId": "A"
             }
@@ -211,10 +301,10 @@ data:
           "title": "Pod Restart Count (Top 10)",
           "type": "bargauge",
           "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
-          "datasource": { "type": "prometheus", "uid": "" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "topk(10, kube_pod_container_status_restarts_total)",
+              "expr": "topk(10, kube_pod_container_status_restarts_total{namespace=~\"ecom|inventory|identity|infra|analytics|otel|observability\"})",
               "legendFormat": "{{ namespace }}/{{ pod }}",
               "refId": "A"
             }
@@ -226,10 +316,10 @@ data:
           "title": "Running Pods by Namespace",
           "type": "bargauge",
           "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
-          "datasource": { "type": "prometheus", "uid": "" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(kube_pod_status_phase{phase=\"Running\"}) by (namespace)",
+              "expr": "sum(kube_pod_status_phase{phase=\"Running\", namespace=~\"ecom|inventory|identity|infra|analytics|otel|observability\"}) by (namespace)",
               "legendFormat": "{{ namespace }}",
               "refId": "A"
             }
@@ -241,10 +331,10 @@ data:
           "title": "CPU Usage by Container",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-          "datasource": { "type": "prometheus", "uid": "" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\",container!=\"POD\"}[5m])) by (namespace, container)",
+              "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\",container!=\"POD\",namespace=~\"ecom|inventory|identity|infra|analytics|otel|observability\"}[5m])) by (namespace, container)",
               "legendFormat": "{{ namespace }}/{{ container }}",
               "refId": "A"
             }
@@ -261,10 +351,10 @@ data:
           "title": "Memory Usage by Container",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-          "datasource": { "type": "prometheus", "uid": "" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(container_memory_working_set_bytes{container!=\"\",container!=\"POD\"}) by (namespace, container)",
+              "expr": "sum(container_memory_working_set_bytes{container!=\"\",container!=\"POD\",namespace=~\"ecom|inventory|identity|infra|analytics|otel|observability\"}) by (namespace, container)",
               "legendFormat": "{{ namespace }}/{{ container }}",
               "refId": "A"
             }
@@ -298,7 +388,7 @@ data:
           "title": "Recent Traces",
           "type": "table",
           "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
-          "datasource": { "type": "tempo", "uid": "" },
+          "datasource": { "type": "tempo", "uid": "tempo" },
           "targets": [
             {
               "queryType": "nativeSearch",
@@ -380,7 +470,7 @@ data:
           "title": "Service Node Graph",
           "type": "nodeGraph",
           "gridPos": { "h": 10, "w": 24, "x": 0, "y": 18 },
-          "datasource": { "type": "tempo", "uid": "" },
+          "datasource": { "type": "tempo", "uid": "tempo" },
           "targets": [
             {
               "queryType": "serviceMap",
@@ -396,6 +486,130 @@ data:
       "time": { "from": "now-1h", "to": "now" },
       "title": "Distributed Tracing",
       "uid": "distributed-tracing"
+    }
+  application-logs.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "Application Logs — All Services",
+          "type": "logs",
+          "gridPos": { "h": 14, "w": 24, "x": 0, "y": 0 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "expr": "{service_name=~\".+\"}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "showCommonLabels": false,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true,
+            "sortOrder": "Descending",
+            "dedupStrategy": "none"
+          }
+        },
+        {
+          "title": "ecom-service Logs",
+          "type": "logs",
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 14 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "expr": "{service_name=\"ecom-service\"}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "showCommonLabels": false,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true,
+            "sortOrder": "Descending",
+            "dedupStrategy": "none"
+          }
+        },
+        {
+          "title": "inventory-service Logs",
+          "type": "logs",
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 26 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "expr": "{service_name=\"inventory-service\"}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "showCommonLabels": false,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true,
+            "sortOrder": "Descending",
+            "dedupStrategy": "none"
+          }
+        },
+        {
+          "title": "Log Volume by Service",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 38 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "expr": "sum by (service_name) (count_over_time({service_name=~\".+\"}[5m]))",
+              "legendFormat": "{{ service_name }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "drawStyle": "bars", "fillOpacity": 50, "stacking": { "mode": "normal" } }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Error Logs by Service",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 38 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "expr": "sum by (service_name) (count_over_time({service_name=~\".+\"} |~ \"(?i)(error|exception|fatal)\"[5m]))",
+              "legendFormat": "{{ service_name }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "drawStyle": "bars", "fillOpacity": 50, "stacking": { "mode": "normal" } },
+              "color": { "mode": "fixed", "fixedColor": "red" }
+            },
+            "overrides": []
+          }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["loki", "logs", "opentelemetry"],
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Application Logs",
+      "uid": "application-logs"
     }
 
 ---

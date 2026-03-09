@@ -6,7 +6,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-# ── OpenTelemetry tracing (enabled when OTEL_EXPORTER_OTLP_ENDPOINT is set) ──
+# ── OpenTelemetry (enabled when OTEL_EXPORTER_OTLP_ENDPOINT is set) ──────────
+_OTEL_ENABLED = False
 if os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
     from opentelemetry import trace
     from opentelemetry.sdk.trace import TracerProvider
@@ -15,13 +16,32 @@ if os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-    _resource = Resource.create({"service.name": os.environ.get("OTEL_SERVICE_NAME", "inventory-service")})
+    # Build shared resource with service name + extra attributes from env
+    _resource_attrs = {"service.name": os.environ.get("OTEL_SERVICE_NAME", "inventory-service")}
+    for pair in os.environ.get("OTEL_RESOURCE_ATTRIBUTES", "").split(","):
+        if "=" in pair:
+            k, v = pair.split("=", 1)
+            _resource_attrs[k.strip()] = v.strip()
+    _resource = Resource.create(_resource_attrs)
+
+    # Tracing
     _provider = TracerProvider(resource=_resource)
     _provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
     trace.set_tracer_provider(_provider)
+
+    # Logging — export Python logs to OTel Collector → Loki
+    if os.environ.get("OTEL_LOGS_EXPORTER", "").lower() == "otlp":
+        from opentelemetry._logs import set_logger_provider
+        from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+        from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+        from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+
+        _log_provider = LoggerProvider(resource=_resource)
+        _log_provider.add_log_record_processor(BatchLogRecordProcessor(OTLPLogExporter()))
+        set_logger_provider(_log_provider)
+        _otel_handler = LoggingHandler(level=logging.INFO, logger_provider=_log_provider)
+
     _OTEL_ENABLED = True
-else:
-    _OTEL_ENABLED = False
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 from pythonjsonlogger.json import JsonFormatter
@@ -43,6 +63,9 @@ _handler.setFormatter(_json_formatter)
 
 logging.root.handlers.clear()
 logging.root.addHandler(_handler)
+# Attach OTel log handler (sends logs to OTel Collector → Loki)
+if _OTEL_ENABLED and os.environ.get("OTEL_LOGS_EXPORTER", "").lower() == "otlp":
+    logging.root.addHandler(_otel_handler)
 logging.root.setLevel(logging.INFO)
 
 logger = logging.getLogger(__name__)

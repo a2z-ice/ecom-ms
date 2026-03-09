@@ -21,6 +21,7 @@ spec:
   mtls:
     mode: STRICT
 
+
 ---
 apiVersion: security.istio.io/v1
 kind: PeerAuthentication
@@ -139,8 +140,20 @@ spec:
       mode: PERMISSIVE
 
 ---
-# Observability namespace uses PERMISSIVE mTLS to allow OTel Collector → Tempo/Loki
-# plain HTTP communication. These are internal infra components, not user-facing.
+# OTel namespace uses PERMISSIVE mTLS — OTel Collector, Tempo, and Loki communicate
+# via plain HTTP. Prometheus scrapes metrics from this namespace via plaintext.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: permissive-mtls
+  namespace: otel
+spec:
+  mtls:
+    mode: PERMISSIVE
+
+---
+# Observability namespace uses PERMISSIVE mTLS to allow Prometheus scraping
+# and inter-component plain HTTP communication.
 apiVersion: security.istio.io/v1
 kind: PeerAuthentication
 metadata:

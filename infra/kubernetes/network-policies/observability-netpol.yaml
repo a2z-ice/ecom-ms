@@ -93,6 +93,30 @@ spec:
         - port: 15008
 
 ---
+# Allow kube-state-metrics ingress from Prometheus
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kube-state-metrics-ingress
+  namespace: observability
+spec:
+  podSelector:
+    matchLabels:
+      app: kube-state-metrics
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - port: 8080
+        - port: 8081
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008
+
+---
 # Allow AlertManager ingress from Prometheus
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

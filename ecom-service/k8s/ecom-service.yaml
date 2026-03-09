@@ -80,7 +80,9 @@ spec:
             - name: OTEL_METRICS_EXPORTER
               value: "none"
             - name: OTEL_LOGS_EXPORTER
-              value: "none"
+              value: "otlp"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.namespace=ecom,deployment.environment=production"
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
