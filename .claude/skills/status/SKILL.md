@@ -35,10 +35,22 @@ kubectl get pods -A --no-headers 2>/dev/null | grep -v Running | grep -v Complet
    - Debezium inventory: `http://localhost:32301/q/health`
    - PgAdmin: `http://localhost:31111/misc/ping`
    - Keycloak Admin: `http://localhost:32400/admin/`
+   - Cert Dashboard: `http://localhost:32600/healthz`
 
 4. **Flink jobs**:
 ```bash
 curl -s http://localhost:32200/jobs 2>/dev/null
 ```
 
-5. Present a summary table with status indicators.
+5. **TLS certificates** (if cert-manager is installed):
+```bash
+kubectl get certificates -A 2>/dev/null
+```
+
+6. **Cert Dashboard operator** (if deployed):
+```bash
+kubectl get certdashboard -n cert-dashboard 2>/dev/null
+kubectl get pods -n cert-dashboard 2>/dev/null
+```
+
+7. Present a summary table with status indicators.

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="1600" height="1100" viewBox="0 0 1600 1100" xmlns="http://www.w3.org/2000/svg" font-family="'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+<svg width="1600" height="1200" viewBox="0 0 1600 1200" xmlns="http://www.w3.org/2000/svg" font-family="'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
   <defs>
     <!-- Background gradient -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -289,38 +289,60 @@
   <!-- TIER 5: ANALYTICS & OBSERVABILITY (y=580) -->
   <!-- ══════════════════════════════════════════════════════════════ -->
   <g id="tier5">
-    <rect x="30" y="580" width="1540" height="145" rx="10" fill="url(#tierLabelGrad)" stroke="#475569" stroke-width="0.5"/>
+    <rect x="30" y="580" width="1540" height="220" rx="10" fill="url(#tierLabelGrad)" stroke="#475569" stroke-width="0.5"/>
     <text x="50" y="600" fill="#94a3b8" font-size="10" font-weight="700" letter-spacing="3">ANALYTICS &amp; OBSERVABILITY</text>
 
+    <!-- Row 1: Analytics -->
     <!-- Flink -->
-    <rect x="60" y="616" width="260" height="56" rx="10" fill="url(#nodePurple)" filter="url(#glowPurple)"/>
-    <text x="190" y="640" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Apache Flink 2.2.0</text>
-    <text x="190" y="658" text-anchor="middle" fill="#e9d5ff" font-size="9">SQL Session Cluster | 4 Streaming Jobs</text>
+    <rect x="60" y="612" width="260" height="52" rx="10" fill="url(#nodePurple)" filter="url(#glowPurple)"/>
+    <text x="190" y="634" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Apache Flink 2.2.0</text>
+    <text x="190" y="652" text-anchor="middle" fill="#e9d5ff" font-size="9">SQL Session Cluster | 4 Streaming Jobs</text>
 
     <!-- analytics-db -->
-    <rect x="360" y="616" width="250" height="56" rx="10" fill="url(#nodeTeal)" filter="url(#glowTeal)"/>
-    <text x="485" y="640" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">analytics-db</text>
-    <text x="485" y="658" text-anchor="middle" fill="#ccfbf1" font-size="9">PostgreSQL | Star Schema | 10 Views</text>
+    <rect x="360" y="612" width="250" height="52" rx="10" fill="url(#nodeTeal)" filter="url(#glowTeal)"/>
+    <text x="485" y="634" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">analytics-db</text>
+    <text x="485" y="652" text-anchor="middle" fill="#ccfbf1" font-size="9">PostgreSQL | Star Schema | 10 Views</text>
 
     <!-- Superset -->
-    <rect x="650" y="616" width="230" height="56" rx="10" fill="url(#nodeTeal)" filter="url(#glowTeal)"/>
-    <text x="765" y="640" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Apache Superset</text>
-    <text x="765" y="658" text-anchor="middle" fill="#ccfbf1" font-size="9">3 Dashboards | 16 Charts</text>
+    <rect x="650" y="612" width="230" height="52" rx="10" fill="url(#nodeTeal)" filter="url(#glowTeal)"/>
+    <text x="765" y="634" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Apache Superset</text>
+    <text x="765" y="652" text-anchor="middle" fill="#ccfbf1" font-size="9">3 Dashboards | 16 Charts</text>
 
+    <!-- Row 2: Observability + Operations -->
     <!-- Prometheus -->
-    <rect x="920" y="616" width="200" height="56" rx="10" fill="url(#nodeRose)" filter="url(#glowRed)"/>
-    <text x="1020" y="640" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Prometheus</text>
-    <text x="1020" y="658" text-anchor="middle" fill="#ffe4e6" font-size="9">Metrics Collection</text>
+    <rect x="60" y="676" width="170" height="52" rx="10" fill="url(#nodeRose)" filter="url(#glowRed)"/>
+    <text x="145" y="698" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Prometheus</text>
+    <text x="145" y="716" text-anchor="middle" fill="#ffe4e6" font-size="9">Metrics Collection</text>
+
+    <!-- Grafana -->
+    <rect x="250" y="676" width="170" height="52" rx="10" fill="url(#nodeRose)" filter="url(#glowRed)"/>
+    <text x="335" y="698" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Grafana</text>
+    <text x="335" y="716" text-anchor="middle" fill="#ffe4e6" font-size="9">Dashboards | Logs :32500</text>
+
+    <!-- Loki -->
+    <rect x="440" y="676" width="150" height="52" rx="10" fill="url(#nodeRose)" filter="url(#glowRed)"/>
+    <text x="515" y="698" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Loki</text>
+    <text x="515" y="716" text-anchor="middle" fill="#ffe4e6" font-size="9">Log Aggregation</text>
+
+    <!-- Tempo -->
+    <rect x="610" y="676" width="150" height="52" rx="10" fill="url(#nodeRose)" filter="url(#glowRed)"/>
+    <text x="685" y="698" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Tempo</text>
+    <text x="685" y="716" text-anchor="middle" fill="#ffe4e6" font-size="9">Distributed Tracing</text>
 
     <!-- Kiali -->
-    <rect x="1160" y="616" width="190" height="56" rx="10" fill="url(#nodeRose)" filter="url(#glowRed)"/>
-    <text x="1255" y="640" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Kiali</text>
-    <text x="1255" y="658" text-anchor="middle" fill="#ffe4e6" font-size="9">Mesh Observability</text>
+    <rect x="780" y="676" width="170" height="52" rx="10" fill="url(#nodeRose)" filter="url(#glowRed)"/>
+    <text x="865" y="698" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Kiali</text>
+    <text x="865" y="716" text-anchor="middle" fill="#ffe4e6" font-size="9">Mesh Observability :32100</text>
 
     <!-- PgAdmin -->
-    <rect x="1390" y="616" width="160" height="56" rx="10" fill="url(#nodeSlate)" filter="url(#glowSlate)"/>
-    <text x="1470" y="640" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">PgAdmin</text>
-    <text x="1470" y="658" text-anchor="middle" fill="#cbd5e1" font-size="9">DB Admin :31111</text>
+    <rect x="970" y="676" width="150" height="52" rx="10" fill="url(#nodeSlate)" filter="url(#glowSlate)"/>
+    <text x="1045" y="698" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">PgAdmin</text>
+    <text x="1045" y="716" text-anchor="middle" fill="#cbd5e1" font-size="9">DB Admin :31111</text>
+
+    <!-- Cert Dashboard Operator -->
+    <rect x="1140" y="676" width="260" height="52" rx="10" fill="url(#nodeGreen)" filter="url(#glowGreen)"/>
+    <text x="1270" y="698" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Cert Dashboard Operator</text>
+    <text x="1270" y="716" text-anchor="middle" fill="#dcfce7" font-size="9">OLM | Monitor &amp; Renew Certs :32600</text>
   </g>
 
   <!-- ══════════════════════════════════════════════════════════════ -->
@@ -392,34 +414,38 @@
     <text x="812" y="427" text-anchor="middle" fill="#f97316" font-size="8" font-weight="600">order.created</text>
 
     <!-- 14. Kafka → Flink (solid purple, "Flink SQL consume") -->
-    <path d="M 1000,512 Q 650,560 250,616" fill="none" stroke="#a855f7" stroke-width="1.8" marker-end="url(#arrowPurpleM)"/>
-    <rect x="588" y="545" width="110" height="14" rx="4" fill="#0f172a" opacity="0.85"/>
-    <text x="643" y="556" text-anchor="middle" fill="#a855f7" font-size="9" font-weight="600">Flink SQL consume</text>
+    <path d="M 1000,512 Q 650,556 250,612" fill="none" stroke="#a855f7" stroke-width="1.8" marker-end="url(#arrowPurpleM)"/>
+    <rect x="588" y="541" width="110" height="14" rx="4" fill="#0f172a" opacity="0.85"/>
+    <text x="643" y="552" text-anchor="middle" fill="#a855f7" font-size="9" font-weight="600">Flink SQL consume</text>
 
     <!-- 15. Flink → analytics-db (dashed purple, "JDBC sink") -->
-    <path d="M 320,644 L 360,644" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrowPurpleM)"/>
-    <rect x="320" y="624" width="55" height="14" rx="4" fill="#0f172a" opacity="0.85"/>
-    <text x="347" y="635" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">JDBC sink</text>
+    <path d="M 320,638 L 360,638" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrowPurpleM)"/>
+    <rect x="320" y="620" width="55" height="14" rx="4" fill="#0f172a" opacity="0.85"/>
+    <text x="347" y="631" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="600">JDBC sink</text>
 
     <!-- 16. analytics-db → Superset (solid teal, "SQL queries") -->
-    <path d="M 610,644 L 650,644" fill="none" stroke="#14b8a6" stroke-width="1.5" marker-end="url(#arrowTealM)"/>
-    <rect x="607" y="628" width="62" height="14" rx="4" fill="#0f172a" opacity="0.85"/>
-    <text x="638" y="639" text-anchor="middle" fill="#14b8a6" font-size="8" font-weight="600">SQL queries</text>
+    <path d="M 610,638 L 650,638" fill="none" stroke="#14b8a6" stroke-width="1.5" marker-end="url(#arrowTealM)"/>
+    <rect x="607" y="622" width="62" height="14" rx="4" fill="#0f172a" opacity="0.85"/>
+    <text x="638" y="633" text-anchor="middle" fill="#14b8a6" font-size="8" font-weight="600">SQL queries</text>
 
     <!-- 17. Keycloak → keycloak-db (dashed faint) -->
     <path d="M 670,252 Q 670,360 670,420 Q 820,445 1240,480" fill="none" stroke="#64748b" stroke-width="1" stroke-dasharray="4,4" opacity="0.5" marker-end="url(#arrowSlateM)"/>
 
     <!-- 18. Prometheus → services (faint dotted lines to app tier) -->
-    <path d="M 1020,616 Q 1020,550 575,398" fill="none" stroke="#f43f5e" stroke-width="0.8" stroke-dasharray="2,4" opacity="0.35"/>
-    <path d="M 1020,616 Q 1020,550 945,398" fill="none" stroke="#f43f5e" stroke-width="0.8" stroke-dasharray="2,4" opacity="0.35"/>
-    <text x="1020" y="555" text-anchor="middle" fill="#f43f5e" font-size="7" opacity="0.6">scrape metrics</text>
+    <path d="M 145,676 Q 400,550 575,398" fill="none" stroke="#f43f5e" stroke-width="0.8" stroke-dasharray="2,4" opacity="0.35"/>
+    <path d="M 145,676 Q 600,550 945,398" fill="none" stroke="#f43f5e" stroke-width="0.8" stroke-dasharray="2,4" opacity="0.35"/>
+    <text x="400" y="555" text-anchor="middle" fill="#f43f5e" font-size="7" opacity="0.6">scrape metrics</text>
+
+    <!-- 19. Cert Dashboard → cert-manager (faint dashed) -->
+    <path d="M 1270,676 Q 1310,440 1335,252" fill="none" stroke="#22c55e" stroke-width="0.8" stroke-dasharray="3,4" opacity="0.4"/>
+    <text x="1340" y="460" text-anchor="middle" fill="#22c55e" font-size="7" opacity="0.6">monitor certs</text>
 
   </g>
 
   <!-- ══════════════════════════════════════════════════════════════ -->
   <!-- LEGEND -->
   <!-- ══════════════════════════════════════════════════════════════ -->
-  <g id="legend" transform="translate(60, 748)">
+  <g id="legend" transform="translate(60, 823)">
     <rect x="0" y="0" width="1480" height="95" rx="10" fill="#0f172a" stroke="#334155" stroke-width="1" opacity="0.9"/>
     <text x="20" y="22" fill="#94a3b8" font-size="11" font-weight="700" letter-spacing="2">LEGEND</text>
 
@@ -469,12 +495,12 @@
     <text x="885" y="74" fill="#cbd5e1" font-size="10">Prometheus Scrape</text>
 
     <!-- Tech stack summary -->
-    <text x="1100" y="70" fill="#64748b" font-size="9" font-weight="600">STACK: kind | Istio Ambient | KGateway | cert-manager | PostgreSQL | Kafka KRaft</text>
-    <text x="1100" y="83" fill="#64748b" font-size="9">Debezium Server 3.4 | Flink 2.2.0 | Superset | Keycloak 26.5.4 | TLS Everywhere</text>
+    <text x="1100" y="70" fill="#64748b" font-size="9" font-weight="600">STACK: kind | Istio | KGateway | cert-manager | Kafka KRaft | Flink 2.2.0</text>
+    <text x="1100" y="83" fill="#64748b" font-size="9">Grafana | Loki | Tempo | Cert Dashboard Operator | TLS Everywhere</text>
   </g>
 
   <!-- Data flow annotation -->
-  <g transform="translate(60, 860)">
+  <g transform="translate(60, 935)">
     <rect x="0" y="0" width="1480" height="52" rx="8" fill="#0f172a" stroke="#1e40af" stroke-width="0.8" opacity="0.8"/>
     <text x="20" y="20" fill="#60a5fa" font-size="10" font-weight="700" letter-spacing="1">DATA FLOW</text>
     <text x="20" y="40" fill="#94a3b8" font-size="10">
@@ -483,6 +509,6 @@
   </g>
 
   <!-- Footer -->
-  <text x="800" y="940" text-anchor="middle" fill="#475569" font-size="10">Book Store E-Commerce Microservices Platform | Production-Aligned POC on kind Cluster | Sessions 1-24 Complete | 239+ E2E Tests Passing | TLS Everywhere</text>
+  <text x="800" y="1015" text-anchor="middle" fill="#475569" font-size="10">Book Store E-Commerce Microservices Platform | Production-Aligned POC on kind Cluster | Sessions 1-25 Complete | TLS Everywhere</text>
 
 </svg>

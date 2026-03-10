@@ -1,0 +1,9 @@
+apiVersion: certs.bookstore.io/v1alpha1
+kind: CertDashboard
+metadata:
+  labels:
+    app.kubernetes.io/name: cert-dashboard-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: certdashboard-sample
+spec:
+  # TODO(user): Add fields here

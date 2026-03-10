@@ -1,6 +1,6 @@
 ---
 name: deploy
-description: Build and deploy a specific service (ecom, inventory, ui, flink) to the kind cluster
+description: Build and deploy a specific service (ecom, inventory, ui, flink, cert-dashboard) to the kind cluster
 disable-model-invocation: true
 argument-hint: <service-name>
 allowed-tools: Bash, Read, Grep
@@ -9,7 +9,7 @@ allowed-tools: Bash, Read, Grep
 Build a Docker image and deploy a specific service to the kind cluster.
 
 ## Arguments
-`$ARGUMENTS` must be one of: `ecom`, `inventory`, `ui`, `flink`, or `all`.
+`$ARGUMENTS` must be one of: `ecom`, `inventory`, `ui`, `flink`, `cert-dashboard`, or `all`.
 
 ## Service build commands
 
@@ -60,8 +60,23 @@ kubectl apply -f /Volumes/Other/rand/llm/microservice/infra/flink/flink-sql-runn
 kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeout=120s
 ```
 
+### cert-dashboard
+```bash
+cd /Volumes/Other/rand/llm/microservice/cert-dashboard-operator
+docker build -t bookstore/cert-dashboard-operator:latest .
+docker tag bookstore/cert-dashboard-operator:latest bookstore/cert-dashboard:latest
+kind load docker-image bookstore/cert-dashboard-operator:latest --name bookstore
+kind load docker-image bookstore/cert-dashboard:latest --name bookstore
+kubectl rollout restart deployment/cert-dashboard-operator -n cert-dashboard
+kubectl rollout status deployment/cert-dashboard-operator -n cert-dashboard --timeout=120s
+# Wait for operator to recreate dashboard pod
+sleep 5
+kubectl rollout restart deployment/bookstore-certs -n cert-dashboard 2>/dev/null || true
+kubectl rollout status deployment/bookstore-certs -n cert-dashboard --timeout=60s
+```
+
 ### all
-Run ecom, inventory, ui, flink in sequence.
+Run ecom, inventory, ui, flink, cert-dashboard in sequence.
 
 ## After deploy
 1. Verify the pod is Running

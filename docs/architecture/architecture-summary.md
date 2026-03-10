@@ -20,7 +20,8 @@ A production-grade microservices e-commerce bookstore deployed to Kubernetes, de
 | **Identity** | OIDC provider, RBAC, realm management | Keycloak 26.5.4 |
 | **Data & Messaging** | 4 isolated databases, event streaming, CDC | PostgreSQL, Kafka KRaft, Debezium Server 3.4 |
 | **Analytics & BI** | Stream processing, star schema, dashboards | Flink 2.2.0 SQL, Superset (3 dashboards, 16 charts) |
-| **Observability** | Metrics, tracing, logs, service mesh visualization, DB admin | Prometheus, Grafana, Loki, Tempo, Kiali, PgAdmin |
+| **Observability** | Metrics, tracing, logs, service mesh visualization, DB admin | Prometheus, Grafana, Loki, Tempo, Kiali, OTel Collector, PgAdmin |
+| **Operations** | Certificate monitoring, renewal dashboard, operator lifecycle | Cert Dashboard Operator (OLM), cert-manager 1.17.2 |
 
 ## Key Architecture Decisions
 
@@ -50,7 +51,11 @@ RESTful APIs built with Spring Boot 4.0.3 (Java) and FastAPI (Python). Kubernete
 
 ### Observability Stack
 
-Prometheus scrapes Istio telemetry (istiod + ztunnel) and application metrics. Kiali provides real-time service mesh topology visualization with traffic flow. Apache Superset delivers business analytics across three dashboards with 16 charts covering sales, inventory, and revenue.
+Prometheus scrapes Istio telemetry (istiod + ztunnel) and application metrics. Grafana provides unified dashboards for metrics, logs (via Loki), and traces (via Tempo). OTel Collector receives telemetry from application services and routes to Loki/Tempo backends. Kiali provides real-time service mesh topology visualization with traffic flow. Apache Superset delivers business analytics across three dashboards with 16 charts covering sales, inventory, and revenue.
+
+### Certificate Operations
+
+The cert-dashboard-operator is a Go-based Kubernetes operator (OLM-managed) that deploys a web dashboard for monitoring and renewing cert-manager certificates. It displays certificate lifecycle status with color-coded progress bars (green > 10d, yellow <= 10d, red <= 5d), provides one-click renewal with SSE live streaming, and auto-refreshes every 30 seconds. Accessible at NodePort 32600.
 
 ## Data Flow
 
@@ -92,7 +97,7 @@ Source DBs → Debezium Server 3.4 → Kafka → Flink 2.2.0 SQL → analytics-d
 ## Infrastructure
 
 - Local Kubernetes via kind (3 nodes: 1 control-plane, 2 workers)
-- 10 NodePort services exposed directly via kind host port mappings (HTTPS :30000, HTTP redirect :30080, plus 8 tool ports)
+- 12 NodePort services exposed directly via kind host port mappings (HTTPS :30000, HTTP redirect :30080, plus 10 tool ports)
 - No `kubectl port-forward` used anywhere — all access via stable ports
 - All stateful services backed by PersistentVolumeClaims with host-path storage
 - cert-manager v1.17.2 for automated certificate lifecycle (issuance + 30-day rotation)
@@ -100,7 +105,7 @@ Source DBs → Debezium Server 3.4 → Kafka → Flink 2.2.0 SQL → analytics-d
 
 ## Test Coverage
 
-- 239+ end-to-end tests via Playwright (all passing)
+- E2E tests via Playwright (all passing)
 - TLS/cert-manager E2E tests: certificate chain, SANs, rotation, HTTPS connectivity, HTTP→HTTPS redirect
 - Unit tests for both backend services (JUnit, pytest)
 - CDC pipeline verification: insert → poll analytics DB within 30s
@@ -123,6 +128,8 @@ Source DBs → Debezium Server 3.4 → Kafka → Flink 2.2.0 SQL → analytics-d
 | BI / Analytics | Apache Superset | latest |
 | Certificate Management | cert-manager | 1.17.2 |
 | Observability | Prometheus, Grafana, Loki, Tempo, Kiali | — |
+| Telemetry Pipeline | OpenTelemetry Collector | — |
+| Cert Operations | Cert Dashboard Operator (Go, OLM) | v0.0.1 |
 | Cache / Sessions | Redis | — |
 | E2E Testing | Playwright | latest |
 | Container Orchestration | Kubernetes (kind) | — |

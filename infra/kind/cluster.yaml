@@ -41,6 +41,9 @@ nodes:
       - containerPort: 32500   # Grafana Dashboard
         hostPort: 32500
         protocol: TCP
+      - containerPort: 32600   # Cert Dashboard (operator-managed)
+        hostPort: 32600
+        protocol: TCP
     # DATA_DIR is substituted by stack-up.sh / cluster-up.sh at runtime via sed.
     # Do not hardcode an absolute path here — it varies per developer machine.
     extraMounts:

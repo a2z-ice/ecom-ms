@@ -11,6 +11,8 @@ Run the comprehensive smoke test suite.
 - All gateway endpoint checks use `curl -sk` (self-signed TLS cert on port 30000)
 - Port 30080 serves HTTP→HTTPS redirect (301 → https://:30000)
 - Tool NodePorts (31111, 32000, 32100, etc.) remain plain HTTP
+- Cert Dashboard at `http://localhost:32600` (HTTP, NodePort)
+- TLS certificates managed by cert-manager with 30-day auto-rotation
 
 ## Steps
 

@@ -1,0 +1,16 @@
+---
+apiVersion: certs.bookstore.io/v1alpha1
+kind: CertDashboard
+metadata:
+  name: bookstore-certs
+  namespace: cert-dashboard
+spec:
+  # Monitor certificates in cert-manager and infra namespaces
+  namespaces:
+    - cert-manager
+    - infra
+  nodePort: 32600
+  yellowThresholdDays: 10
+  redThresholdDays: 5
+  replicas: 1
+  image: bookstore/cert-dashboard:latest

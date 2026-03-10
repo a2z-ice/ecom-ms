@@ -6,7 +6,7 @@
   <title>BookStore Platform — Microservices Architecture</title>
   <!-- OpenGraph for LinkedIn / Twitter preview -->
   <meta property="og:title" content="BookStore Platform — Microservices Architecture" />
-  <meta property="og:description" content="Production-grade microservices e-commerce bookstore on Kubernetes with TLS everywhere, Istio mTLS, Flink 2.2.0 CDC, Keycloak OIDC, and Superset analytics. 239+ E2E tests passing." />
+  <meta property="og:description" content="Production-grade microservices e-commerce bookstore on Kubernetes with TLS everywhere, Istio mTLS, Flink 2.2.0 CDC, Keycloak OIDC, Grafana/Loki/Tempo observability, Cert Dashboard Operator, and Superset analytics." />
   <meta property="og:image" content="diagrams/architecture.gif" />
   <meta property="og:type" content="article" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -50,8 +50,8 @@
   <p>Production-grade microservices e-commerce bookstore on Kubernetes</p>
 
   <div class="badges">
-    <span class="badge green">239+ E2E Tests Passing</span>
-    <span class="badge purple">24 Sessions Complete</span>
+    <span class="badge green">E2E Tests Passing</span>
+    <span class="badge purple">25 Sessions Complete</span>
     <span class="badge orange">TLS Everywhere + mTLS</span>
     <span class="badge red">Zero Trust</span>
   </div>
@@ -68,7 +68,8 @@
     <tr><td><strong>Identity</strong></td><td>OIDC provider, RBAC, realm management</td><td>Keycloak 26.5.4</td></tr>
     <tr><td><strong>Data &amp; Messaging</strong></td><td>4 isolated databases, event streaming, CDC</td><td>PostgreSQL, Kafka KRaft, Debezium Server 3.4</td></tr>
     <tr><td><strong>Analytics &amp; BI</strong></td><td>Stream processing, star schema, dashboards</td><td>Flink 2.2.0 SQL, Superset (3 dashboards, 16 charts)</td></tr>
-    <tr><td><strong>Observability</strong></td><td>Metrics, tracing, logs, service mesh visualization, DB admin</td><td>Prometheus, Grafana, Loki, Tempo, Kiali, PgAdmin</td></tr>
+    <tr><td><strong>Observability</strong></td><td>Metrics, tracing, logs, service mesh visualization, DB admin</td><td>Prometheus, Grafana, Loki, Tempo, OTel Collector, Kiali, PgAdmin</td></tr>
+    <tr><td><strong>Operations</strong></td><td>Certificate monitoring, renewal dashboard, operator lifecycle</td><td>Cert Dashboard Operator (OLM), cert-manager 1.17.2</td></tr>
   </table>
 
   <h2>Key Architecture Decisions</h2>
@@ -92,7 +93,10 @@
   <p>RESTful APIs built with Spring Boot 4.0.3 (Java) and FastAPI (Python). Kubernetes Gateway API handles all ingress routing via HTTPRoutes — no Ingress resources. Rate limiting uses Bucket4j backed by Redis. CSRF tokens stored server-side in Redis.</p>
 
   <h3>Observability Stack</h3>
-  <p>Prometheus scrapes Istio telemetry (istiod + ztunnel) and application metrics. Kiali provides real-time service mesh topology visualization with traffic flow. Apache Superset delivers business analytics across three dashboards with 16 charts covering sales, inventory, and revenue.</p>
+  <p>Prometheus scrapes Istio telemetry (istiod + ztunnel) and application metrics. Grafana provides unified dashboards with Loki (logs) and Tempo (traces) backends. OTel Collector routes telemetry from services. Kiali provides real-time service mesh topology visualization. Apache Superset delivers business analytics across three dashboards with 16 charts.</p>
+
+  <h3>Certificate Operations</h3>
+  <p>The cert-dashboard-operator is a Go-based Kubernetes operator (OLM-managed) that deploys a web dashboard for monitoring and renewing cert-manager certificates. It displays certificate lifecycle with color-coded progress bars, provides one-click renewal with SSE live streaming, and auto-refreshes every 30 seconds. Accessible at NodePort 32600.</p>
 
   <h2>Live Data Flow</h2>
   <img src="diagrams/data-flow.gif" alt="BookStore Platform — Live Data Flow (Animated)" />
@@ -129,7 +133,7 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
 
   <h2>Test Coverage</h2>
   <ul>
-    <li>239+ end-to-end tests via Playwright (all passing)</li>
+    <li>E2E tests via Playwright (all passing)</li>
     <li>TLS/cert-manager E2E tests: certificate chain, SANs, rotation, HTTPS connectivity</li>
     <li>Unit tests for both backend services (JUnit, pytest)</li>
     <li>CDC pipeline verification: insert → poll analytics DB within 30s</li>
@@ -152,6 +156,8 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
     <tr><td>BI / Analytics</td><td>Apache Superset</td><td>latest</td></tr>
     <tr><td>Certificate Management</td><td>cert-manager</td><td>1.17.2</td></tr>
     <tr><td>Observability</td><td>Prometheus, Grafana, Loki, Tempo, Kiali</td><td>—</td></tr>
+    <tr><td>Telemetry Pipeline</td><td>OpenTelemetry Collector</td><td>—</td></tr>
+    <tr><td>Cert Operations</td><td>Cert Dashboard Operator (Go, OLM)</td><td>v0.0.1</td></tr>
     <tr><td>Cache / Sessions</td><td>Redis</td><td>—</td></tr>
     <tr><td>E2E Testing</td><td>Playwright</td><td>latest</td></tr>
     <tr><td>Container Orchestration</td><td>Kubernetes (kind)</td><td>—</td></tr>

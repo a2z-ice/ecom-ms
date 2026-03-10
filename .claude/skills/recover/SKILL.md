@@ -8,10 +8,12 @@ allowed-tools: Bash
 Recover the bookstore stack after a Docker Desktop restart.
 
 ## Context
-After Docker Desktop restarts, three things break:
+After Docker Desktop restarts, these things break:
 1. **ztunnel** — Istio Ambient mesh HBONE plumbing breaks; ztunnel must restart first
 2. **All pods** — lose HBONE registration; must restart in dependency order (DBs first, then apps)
 3. **Debezium** — offset files on emptyDir are lost; servers re-snapshot automatically on restart
+4. **Cert Dashboard** — operator and dashboard pods restart automatically; verify with `curl http://localhost:32600/healthz`
+5. **TLS certificates** — cert-manager re-reads existing secrets; no action needed unless secrets were lost
 
 ## Steps
 

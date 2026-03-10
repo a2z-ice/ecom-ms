@@ -582,8 +582,10 @@ All ports are exposed directly via kind `extraPortMappings` on the control-plane
 | Debezium ecom | 32300 | `http://localhost:32300/q/health` |
 | Debezium inventory | 32301 | `http://localhost:32301/q/health` |
 | Keycloak Admin | 32400 | `http://localhost:32400/admin` |
+| Grafana | 32500 | `http://localhost:32500` |
+| Cert Dashboard | 32600 | `http://localhost:32600` |
 
-All 10 ports are declared in `infra/kind/cluster.yaml` under `extraPortMappings` on the `control-plane` role node. kind binds them directly from host to the container port — no socat or proxy containers required. Port 30080 was added for HTTP→HTTPS redirect (`up.sh --fresh` required for new port mappings).
+All 12 ports are declared in `infra/kind/cluster.yaml` under `extraPortMappings` on the `control-plane` role node. kind binds them directly from host to the container port — no socat or proxy containers required. Port 30080 was added for HTTP→HTTPS redirect, port 32600 for cert-dashboard (`up.sh --fresh` required for new port mappings).
 
 ### UI Bug Fixes — Completed (Post Session 15)
 
@@ -819,12 +821,27 @@ All stateful services are backed by PVCs → PVs → host `data/` directory:
 - **Browser trust**: `bash scripts/trust-ca.sh --install` extracts CA cert to `certs/bookstore-ca.crt` and adds to macOS Keychain
 - **E2E**: `playwright.config.ts` uses `ignoreHTTPSErrors: true`; baseURL changed to `https://localhost:30000`
 - **curl**: All smoke tests and verification scripts use `-sk` flag for self-signed cert
-- **Tool NodePorts unchanged**: 31111, 32000, 32100, 32200, 32300, 32301, 32400, 32500 remain HTTP
+- **Tool NodePorts unchanged**: 31111, 32000, 32100, 32200, 32300, 32301, 32400, 32500, 32600 remain HTTP
 - **Manifests**: `infra/cert-manager/ca-issuer.yaml`, `gateway-certificate.yaml`, `rotation-config.yaml`
+
+### Session 25 — Completed (Cert Dashboard Kubernetes Operator)
+
+- **Go-based Kubernetes operator** (`cert-dashboard-operator/`) using operator-sdk + OLM
+- **CertDashboard CRD** (`v1alpha1`): spec includes namespaces, nodePort, thresholds, image, replicas
+- **Go web dashboard** with embedded HTML/CSS/JS (`embed.FS`): dark theme, certificate cards, progress bars (green/yellow/red), renewal modal, SSE streaming
+- **API endpoints**: `GET /api/certs`, `POST /api/renew`, `GET /api/sse/{streamId}`, `GET /healthz`
+- **Renewal via secret deletion**: Delete TLS secret → cert-manager re-issues → SSE streams phases (deleting-secret → waiting-issuing → issued → ready → complete)
+- **Single Docker image**: Both `/manager` (operator) and `/dashboard` (web server) binaries, different entrypoints
+- **OLM installed**: Operator Lifecycle Manager for production-grade operator lifecycle
+- **NodePort 32600**: Exposed via kind `extraPortMappings` (requires `up.sh --fresh`)
+- **Istio PeerAuthentication**: `portLevelMtls: PERMISSIVE` on port 8080 for NodePort access
+- **Deployment script**: `scripts/cert-dashboard-up.sh` — builds images, installs OLM, deploys operator + CR
+- **E2E tests**: `cert-dashboard.spec.ts` — 29 tests (CRD, operator, API, UI, renewal SSE flow)
+- **Key fix**: Kubernetes unstructured API stores revision as `int64` (not `float64`) — use type switch for both
 
 ### NEXT SESSION — Start Here
 
-**Sessions 1–24 complete.** No outstanding items. See `docs/architecture/review-and-proposed-architecture.md` for the enhancement roadmap.
+**Sessions 1–25 complete.** No outstanding items. See `docs/architecture/review-and-proposed-architecture.md` for the enhancement roadmap.
 
 ---
 

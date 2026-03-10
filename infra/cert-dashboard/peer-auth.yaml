@@ -1,0 +1,16 @@
+---
+# cert-dashboard: NodePort 32600 receives plaintext from kind hostPort — allow on app port 8080.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: cert-dashboard-nodeport-permissive
+  namespace: cert-dashboard
+spec:
+  selector:
+    matchLabels:
+      app: cert-dashboard
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "8080":
+      mode: PERMISSIVE

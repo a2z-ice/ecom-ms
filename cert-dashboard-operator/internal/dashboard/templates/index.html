@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Certificate Dashboard</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>Certificate Dashboard</h1>
+    <p class="subtitle">cert-manager Certificate Monitoring &amp; Renewal</p>
+  </header>
+
+  <main id="app">
+    <div id="loading" class="loading">Loading certificates...</div>
+    <div id="certs-container"></div>
+  </main>
+
+  <!-- Confirmation Modal -->
+  <dialog id="renew-modal">
+    <div class="modal-content">
+      <h2>Confirm Certificate Renewal</h2>
+      <p>Are you sure you want to renew the certificate <strong id="modal-cert-name"></strong> in namespace <strong id="modal-cert-ns"></strong>?</p>
+      <p class="modal-warning">This will delete the TLS secret and trigger cert-manager to issue a new certificate. There may be a brief interruption to HTTPS traffic.</p>
+      <div class="modal-actions">
+        <button id="modal-cancel" class="btn btn-secondary">Cancel</button>
+        <button id="modal-confirm" class="btn btn-danger">Renew Certificate</button>
+      </div>
+    </div>
+  </dialog>
+
+  <footer>
+    <p>BookStore Platform &middot; cert-manager Operator Dashboard &middot; Auto-refresh every 30s</p>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>

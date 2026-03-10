@@ -39,3 +39,5 @@ bash scripts/smoke-test.sh 2>&1
 - cert-manager is installed during bootstrap (`infra/cert-manager/install.sh`); self-signed CA + gateway cert provisioned automatically
 - After bootstrap, trust the CA for browser access: `bash scripts/trust-ca.sh --install` (adds to macOS Keychain)
 - `up.sh --fresh` is required when adding new kind port mappings (e.g., port 30080 for HTTP→HTTPS redirect)
+- Cert Dashboard operator deployed via `bash scripts/cert-dashboard-up.sh` (builds images, installs OLM, deploys operator + CR)
+- TLS certificates: CA (10yr) + gateway cert (30d auto-rotation) managed by cert-manager; dashboard at `http://localhost:32600`
