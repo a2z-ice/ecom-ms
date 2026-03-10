@@ -15,11 +15,12 @@ export default defineConfig({
   ],
 
   use: {
-    baseURL: 'http://localhost:30000',
+    baseURL: 'https://localhost:30000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     viewport: { width: 1280, height: 800 },
+    ignoreHTTPSErrors: true,
   },
 
   projects: [

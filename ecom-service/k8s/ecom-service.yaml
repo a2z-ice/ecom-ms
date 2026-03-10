@@ -6,7 +6,7 @@
 #   --from-literal=DB_USERNAME=ecomuser \
 #   --from-literal=DB_PASSWORD=<password> \
 #   --from-literal=KEYCLOAK_JWKS_URI=http://keycloak.identity.svc.cluster.local:8080/realms/bookstore/protocol/openid-connect/certs \
-#   --from-literal=KEYCLOAK_ISSUER_URI=http://idp.keycloak.net:30000/realms/bookstore \
+#   --from-literal=KEYCLOAK_ISSUER_URI=https://idp.keycloak.net:30000/realms/bookstore \
 #   --from-literal=KAFKA_BOOTSTRAP_SERVERS=kafka.infra.svc.cluster.local:9092 \
 #   --from-literal=REDIS_HOST=redis.infra.svc.cluster.local \
 #   --from-literal=REDIS_PASSWORD=<password>
@@ -21,7 +21,7 @@ data:
   DB_USERNAME: ZWNvbXVzZXI=
   DB_PASSWORD: Q0hBTkdFX01F
   KEYCLOAK_JWKS_URI: aHR0cDovL2tleWNsb2FrLmlkZW50aXR5LnN2Yy5jbHVzdGVyLmxvY2FsOjgwODAvcmVhbG1zL2Jvb2tzdG9yZS9wcm90b2NvbC9vcGVuaWQtY29ubmVjdC9jZXJ0cw==
-  KEYCLOAK_ISSUER_URI: aHR0cDovL2lkcC5rZXljbG9hay5uZXQ6MzAwMDAvcmVhbG1zL2Jvb2tzdG9yZQ==
+  KEYCLOAK_ISSUER_URI: aHR0cHM6Ly9pZHAua2V5Y2xvYWsubmV0OjMwMDAwL3JlYWxtcy9ib29rc3RvcmU=
   KAFKA_BOOTSTRAP_SERVERS: a2Fma2EuaW5mcmEuc3ZjLmNsdXN0ZXIubG9jYWw6OTA5Mg==
   REDIS_HOST: cmVkaXMuaW5mcmEuc3ZjLmNsdXN0ZXIubG9jYWw=
   REDIS_PASSWORD: Q0hBTkdFX01F

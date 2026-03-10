@@ -145,6 +145,7 @@
 
   <!-- ========== EDGE LABELS ========== -->
   <g font-family="'Segoe UI',system-ui,sans-serif" fill="#64748b" text-anchor="middle">
+    <text x="780" y="170" fill="#3b82f6" font-size="8" font-weight="600">HTTPS</text>
     <text x="780" y="338" fill="#78716c" font-size="8" font-style="italic">mTLS</text>
     <text x="880" y="435" fill="#92400e" font-size="8">order.created</text>
     <text x="1048" y="468" fill="#92400e" font-size="8">inv.updated</text>
@@ -170,7 +171,7 @@
     <g filter="url(#node-glow)">
       <rect x="720" y="200" width="160" height="44" rx="8" fill="#0f172a" stroke="#6366f1" stroke-width="1.5" opacity="0.9"/>
       <text x="800" y="224" text-anchor="middle" fill="#c7d2fe" font-size="13" font-weight="600">Istio Gateway</text>
-      <text x="800" y="237" text-anchor="middle" fill="#64748b" font-size="8">K8s Gateway API</text>
+      <text x="800" y="237" text-anchor="middle" fill="#64748b" font-size="8">K8s Gateway API | HTTPS</text>
     </g>
 
     <!-- Row 2: Keycloak -->
@@ -445,7 +446,7 @@
 
   <!-- ========== FOOTER ========== -->
   <text x="800" y="930" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="10" fill="#334155">
-    BookStore Platform  &#183;  Istio Ambient Mesh 1.28.4  &#183;  mTLS everywhere  &#183;  Flink 2.2.0 SQL CDC  &#183;  Superset (3 dashboards, 16 charts)
+    BookStore Platform  &#183;  TLS Everywhere (cert-manager)  &#183;  Istio Ambient 1.28.4  &#183;  mTLS  &#183;  Flink 2.2.0 SQL CDC  &#183;  Superset (3 dashboards, 16 charts)
   </text>
   <text x="800" y="948" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9" fill="#1e293b">
     Spring Boot 4.0.3  &#183;  Keycloak 26.5.4  &#183;  Debezium Server 3.4.1  &#183;  Kafka KRaft  &#183;  PostgreSQL (4 instances)

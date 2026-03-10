@@ -14,8 +14,8 @@
 import { test, expect } from './fixtures/base'
 import { test as plainTest } from '@playwright/test'
 
-const ECOM_API = 'http://api.service.net:30000/ecom'
-const INVEN_API = 'http://api.service.net:30000/inven'
+const ECOM_API = 'https://api.service.net:30000/ecom'
+const INVEN_API = 'https://api.service.net:30000/inven'
 const GRAFANA_URL = 'http://localhost:32500'
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -233,7 +233,7 @@ plainTest.describe('Production Improvements — Observability', () => {
 
   plainTest('Nginx serves /assets/ with immutable cache headers', async ({ page, request }) => {
     // Load the app to get the actual asset URLs (Vite hashes filenames)
-    await page.goto('http://localhost:30000/')
+    await page.goto('https://localhost:30000/')
     await page.waitForLoadState('networkidle')
 
     // Find a JS asset URL from the page source

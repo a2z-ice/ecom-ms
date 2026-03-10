@@ -51,7 +51,7 @@ test.describe('Cart', () => {
     // shows a toast, and does NOT redirect to Keycloak.
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })   // no storageState
     const page = await ctx.newPage()
-    await page.goto('http://localhost:30000/')
+    await page.goto('https://localhost:30000/')
     await page.screenshot({ path: 'screenshots/cart-05-unauthenticated-catalog.png', fullPage: true })
 
     await page.getByRole('button', { name: /add to cart/i }).first().click()

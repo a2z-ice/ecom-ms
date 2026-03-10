@@ -42,9 +42,9 @@ npm run build                     # TypeScript + Vite bundle to dist/
 npm run lint                      # ESLint on src/
 # IMPORTANT: VITE_ vars must be passed as --build-arg (baked in at build time, not runtime)
 docker build \
-  --build-arg VITE_KEYCLOAK_AUTHORITY=http://idp.keycloak.net:30000/realms/bookstore \
+  --build-arg VITE_KEYCLOAK_AUTHORITY=https://idp.keycloak.net:30000/realms/bookstore \
   --build-arg VITE_KEYCLOAK_CLIENT_ID=ui-client \
-  --build-arg VITE_REDIRECT_URI=http://localhost:30000/callback \
+  --build-arg VITE_REDIRECT_URI=https://localhost:30000/callback \
   -t bookstore/ui-service:latest .
 kind load docker-image bookstore/ui-service:latest --name bookstore
 ```
@@ -120,7 +120,8 @@ See `docs/operations/restart-app.md` for the full explanation and root cause ana
 
 - **Kubernetes**: kind (local), NodePort exposure only — no `kubectl port-forward`
 - **Service Mesh**: Istio Ambient Mesh 1.28.4 (mTLS between all services, JWT validation via `RequestAuthentication` + `AuthorizationPolicy`)
-- **Gateway**: Kubernetes Gateway API (`gatewayClassName: istio`) — Istio's built-in Gateway implementation; all ingress routing via HTTPRoutes
+- **Gateway**: Kubernetes Gateway API (`gatewayClassName: istio`) — Istio's built-in Gateway implementation; all ingress routing via HTTPRoutes; HTTPS on port 30000 with TLS termination
+- **TLS / cert-manager**: cert-manager v1.17.2 manages self-signed CA and gateway certificates (30d rotation, 7d renewBefore). HTTP→HTTPS redirect on port 30080. See `docs/guides/tls-setup.md`
 - **Identity**: Keycloak 26.5.4 at `idp.keycloak.net:30000`
 - **Databases**: Each service has its own dedicated PostgreSQL instance — no cross-database access. Instances: `ecom-db`, `inventory-db`, `analytics-db`, plus Keycloak's own `keycloak-db`
 - **Messaging**: Kafka for event streaming; Debezium for CDC from all PostgreSQL DBs
@@ -130,8 +131,8 @@ See `docs/operations/restart-app.md` for the full explanation and root cause ana
 ### Data Flow
 
 ```
-User → UI → Keycloak (OIDC PKCE) → UI
-UI → E-Commerce API (JWT-protected)
+User (HTTPS) → UI → Keycloak (OIDC PKCE) → UI
+UI → E-Commerce API (HTTPS, JWT-protected)
 E-Commerce → Inventory API (service-to-service, mTLS)
 E-Commerce DB → Debezium → Kafka → Analytics DB
 Inventory DB  → Debezium → Kafka → Analytics DB
@@ -193,11 +194,18 @@ Add to `/etc/hosts`:
 
 kind cluster must have `hostMapping` and `NodePort: 30000` configured in the cluster config. All services must be reachable without port-forwarding.
 
+**HTTPS (self-signed CA)**: All gateway endpoints serve HTTPS on port 30000. To trust the self-signed CA in browsers:
+```bash
+bash scripts/trust-ca.sh --install   # extracts CA cert + adds to macOS Keychain
+```
+For curl, use `-sk` flag or `--cacert certs/bookstore-ca.crt`. See `docs/guides/tls-setup.md` for details.
+
 ---
 
 ## Security Invariants
 
 These must be maintained across all services:
+- All external gateway traffic served over HTTPS (TLS terminated at Istio Gateway, cert-manager managed)
 - All inter-service traffic encrypted via Istio mTLS
 - JWT validation in every backend service (never trust the UI's claims)
 - CSRF tokens required for state-changing UI requests, stored in Redis
@@ -281,7 +289,7 @@ components/NavBar.tsx
 
 ### e2e (`e2e/`)
 ```
-playwright.config.ts       workers:1, baseURL:http://localhost:30000 (PKCE requires localhost)
+playwright.config.ts       workers:1, baseURL:https://localhost:30000, ignoreHTTPSErrors:true
 fixtures/auth.setup.ts     OIDC login → saves storageState (fixtures/user1.json) +
                            sessionStorage separately (fixtures/user1-session.json)
                            NOTE: Playwright storageState does NOT capture sessionStorage
@@ -297,7 +305,8 @@ kind/cluster.yaml       kind cluster with hostMapping + NodePort 30000; contains
                         placeholder substituted at runtime by cluster-up.sh via sed
 storage/                storageclass.yaml (local-hostpath) + persistent-volumes.yaml (7 PVs)
 namespaces.yaml
-kgateway/               gateway.yaml + HTTPRoutes per service
+cert-manager/           install.sh, ca-issuer.yaml, gateway-certificate.yaml, rotation-config.yaml
+kgateway/               gateway.yaml (HTTPS listener) + HTTPRoutes per service + routes/https-redirect.yaml
 keycloak/               keycloak.yaml, import-job.yaml, realm-export.json
 postgres/               ecom-db.yaml, inventory-db.yaml, analytics-db.yaml (each with PVC)
 kafka/                  kafka.yaml (KRaft), zookeeper.yaml (intentionally EMPTY placeholder)
@@ -430,6 +439,19 @@ spec:
       mode: PERMISSIVE
 ```
 
+### TLS / cert-manager Pattern (Session 24)
+
+- cert-manager v1.17.2 installed in `cert-manager` namespace
+- Self-signed CA chain: bootstrap ClusterIssuer → CA Certificate (10yr) → CA ClusterIssuer → leaf Certificate (30d, renewBefore 7d)
+- Gateway leaf cert stored in `bookstore-gateway-tls` Secret (namespace `infra`), referenced by Gateway HTTPS listener
+- All gateway URLs use HTTPS on port 30000: `https://myecom.net:30000`, `https://api.service.net:30000`, `https://idp.keycloak.net:30000`, `https://localhost:30000`
+- HTTP→HTTPS redirect on port 30080 (301 → `https://<host>:30000`)
+- Tool NodePorts (31111, 32000, 32100, 32200, 32300, 32301, 32400, 32500) remain plain HTTP
+- E2E tests: `ignoreHTTPSErrors: true` in Playwright config
+- curl commands for gateway endpoints: use `-sk` flag (e.g., `curl -sk https://api.service.net:30000/ecom/books`)
+- Browser trust: `bash scripts/trust-ca.sh --install` (extracts CA from cluster + adds to macOS Keychain)
+- Manifests: `infra/cert-manager/install.sh`, `ca-issuer.yaml`, `gateway-certificate.yaml`, `rotation-config.yaml`
+
 ### CDC / Debezium Server Pattern (Session 22)
 
 - PostgreSQL must have `wal_level=logical` (set via `POSTGRES_INITDB_ARGS` or ConfigMap)
@@ -443,6 +465,7 @@ spec:
 
 ### Playwright Test Pattern
 
+- `ignoreHTTPSErrors: true` in `playwright.config.ts` (required for self-signed TLS cert)
 - Use `test.use({ storageState: ... })` with a pre-authenticated state file for tests that need login
 - Auth fixture: log in via Keycloak UI once, save storage state; re-use across tests
 - CDC assertions: poll with retry (max 30s, 1s interval) — never sleep fixed duration
@@ -482,6 +505,7 @@ All `scripts/` files must be idempotent (safe to run multiple times):
 - `stack-up.sh` — one-command full bootstrap (cluster + infra + keycloak + connectors)
 - `sanity-test.sh` — comprehensive cluster health check (pods + routes + Kafka + Debezium)
 - `restart-after-docker.sh` — full recovery after Docker Desktop restart (ztunnel + pod restarts in dependency order + Debezium re-registration)
+- `trust-ca.sh` — extract self-signed CA cert from cluster to `certs/bookstore-ca.crt`; `--install` adds to macOS Keychain
 
 ---
 
@@ -497,9 +521,9 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 
 ---
 
-## Current Implementation State (as of 2026-03-06)
+## Current Implementation State (as of 2026-03-10)
 
-**Sessions 1–22 complete. E2E: 130/130 passing.**
+**Sessions 1–24 complete. E2E: 130/130 passing.**
 
 ### Cluster: `bookstore` (kind, 3 nodes) — RUNNING
 
@@ -523,10 +547,13 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 | analytics | flink-taskmanager | Running ✓ |
 | analytics | superset | Running ✓ |
 | observability | prometheus | Running ✓ |
+| cert-manager | cert-manager | Running ✓ (v1.17.2, self-signed CA) |
 | istio-system | kiali | Running ✓ (Prometheus connected) |
 
 ### Verified
-- `GET http://api.service.net:30000/ecom/books` → 200 with 10 seeded books ✓
+- `GET https://api.service.net:30000/ecom/books` → 200 with 10 seeded books (use `curl -sk`) ✓
+- TLS: cert-manager self-signed CA → gateway cert (30d rotation, 7d renewBefore) ✓
+- HTTP→HTTPS redirect: `http://*:30080` → 301 → `https://*:30000` ✓
 - Keycloak realm `bookstore` imported ✓, JWT validation working ✓
 - CDC pipeline: Debezium Server → Kafka → Flink SQL → analytics-db ✓
 - Flink REST API `/jobs` shows 4 streaming jobs in RUNNING state ✓
@@ -546,7 +573,8 @@ All ports are exposed directly via kind `extraPortMappings` on the control-plane
 
 | Service | NodePort | Host URL |
 |---------|----------|----------|
-| Main Gateway | 30000 | `http://myecom.net:30000` |
+| Main Gateway (HTTPS) | 30000 | `https://myecom.net:30000` |
+| HTTP→HTTPS Redirect | 30080 | `http://*:30080` → 301 → `https://*:30000` |
 | PgAdmin | 31111 | `http://localhost:31111` |
 | Superset | 32000 | `http://localhost:32000` |
 | Kiali | 32100 | `http://localhost:32100/kiali` |
@@ -555,7 +583,7 @@ All ports are exposed directly via kind `extraPortMappings` on the control-plane
 | Debezium inventory | 32301 | `http://localhost:32301/q/health` |
 | Keycloak Admin | 32400 | `http://localhost:32400/admin` |
 
-All 8 ports are declared in `infra/kind/cluster.yaml` under `extraPortMappings` on the `control-plane` role node. kind binds them directly from host to the container port — no socat or proxy containers required.
+All 10 ports are declared in `infra/kind/cluster.yaml` under `extraPortMappings` on the `control-plane` role node. kind binds them directly from host to the container port — no socat or proxy containers required. Port 30080 was added for HTTP→HTTPS redirect (`up.sh --fresh` required for new port mappings).
 
 ### UI Bug Fixes — Completed (Post Session 15)
 
@@ -572,7 +600,7 @@ All 8 ports are declared in `infra/kind/cluster.yaml` under `extraPortMappings` 
 - Prometheus scrape configs added for Istio telemetry: `istiod` (port 15014) + `ztunnel` DaemonSet (port 15020, kubernetes_sd_configs) + Prometheus RBAC (ServiceAccount/ClusterRole/ClusterRoleBinding)
 - Architecture diagram labels corrected: "KGateway" → "Istio Gateway (K8s Gateway API)"
 - E2E coverage added: `istio-gateway.spec.ts` (6 tests), `kiali.spec.ts` (3 tests), `guest-cart.spec.ts` (4 tests)
-- Guest cart tests require `http://localhost:30000` (secure context for PKCE). `http://myecom.net:30000` is non-localhost HTTP — `crypto.subtle` unavailable there.
+- Guest cart tests use `https://localhost:30000` (HTTPS — secure context for PKCE). All gateway endpoints now serve HTTPS.
 - CLAUDE.md updated with Session 14 state, new scripts, corrected gateway terminology
 
 ### Session 15 — Completed
@@ -781,9 +809,22 @@ All stateful services are backed by PVCs → PVs → host `data/` directory:
 - **E2E**: Suite 1 in `debezium-flink.spec.ts` fully rewritten for Debezium Server health API; Suite 4 updated for 2 pods + 2 NodePorts
 - **Flink SQL pipeline unchanged**: Same Kafka topics, same Debezium JSON envelope format
 
+### Session 24 — Completed (TLS / cert-manager)
+
+- **cert-manager v1.17.2**: Installed via `infra/cert-manager/install.sh`; manages self-signed CA and gateway leaf certificate
+- **Certificate chain**: `selfsigned-bootstrap` ClusterIssuer → `bookstore-ca` Certificate (10yr) → `bookstore-ca-issuer` ClusterIssuer → `bookstore-gateway-cert` Certificate (30d, renewBefore 7d) → `bookstore-gateway-tls` Secret
+- **Gateway HTTPS**: Port 30000 now serves HTTPS (TLS terminated at Istio Gateway). All hostnames covered: `myecom.net`, `api.service.net`, `idp.keycloak.net`, `localhost`, `127.0.0.1`
+- **HTTP→HTTPS redirect**: Port 30080 returns 301 to `https://<host>:30000` via HTTPRoute at `infra/kgateway/routes/https-redirect.yaml`
+- **kind cluster.yaml**: Port 30080 added to `extraPortMappings` (requires `up.sh --fresh`)
+- **Browser trust**: `bash scripts/trust-ca.sh --install` extracts CA cert to `certs/bookstore-ca.crt` and adds to macOS Keychain
+- **E2E**: `playwright.config.ts` uses `ignoreHTTPSErrors: true`; baseURL changed to `https://localhost:30000`
+- **curl**: All smoke tests and verification scripts use `-sk` flag for self-signed cert
+- **Tool NodePorts unchanged**: 31111, 32000, 32100, 32200, 32300, 32301, 32400, 32500 remain HTTP
+- **Manifests**: `infra/cert-manager/ca-issuer.yaml`, `gateway-certificate.yaml`, `rotation-config.yaml`
+
 ### NEXT SESSION — Start Here
 
-**Sessions 1–22 complete.** No outstanding items. See `docs/architecture/review-and-proposed-architecture.md` for the enhancement roadmap.
+**Sessions 1–24 complete.** No outstanding items. See `docs/architecture/review-and-proposed-architecture.md` for the enhancement roadmap.
 
 ---
 

@@ -73,20 +73,54 @@ bootstrap_fresh() {
   section "Installing Kubernetes Gateway API (kgateway)"
   bash "${REPO_ROOT}/infra/kgateway/install.sh"
 
+  section "Installing cert-manager"
+  bash "${REPO_ROOT}/infra/cert-manager/install.sh"
+
   section "Applying namespaces and Gateway resource"
   kubectl apply -f "${REPO_ROOT}/infra/namespaces.yaml"
-  kubectl apply -f "${REPO_ROOT}/infra/kgateway/gateway.yaml"
-  # Istio creates the gateway Service with a random NodePort; patch it to 30000
-  # so the kind extraPortMapping (host:30000 → container:30000) routes correctly.
-  info "Waiting for Istio to create bookstore-gateway-istio service..."
-  for i in $(seq 1 24); do
-    if kubectl get svc bookstore-gateway-istio -n infra &>/dev/null 2>&1; then
-      kubectl patch svc bookstore-gateway-istio -n infra --type='json' \
-        -p='[{"op":"replace","path":"/spec/ports/1/nodePort","value":30000}]' 2>/dev/null || true
-      info "Patched bookstore-gateway-istio NodePort → 30000"
+  # Apply CA issuer + certificate chain (cert-manager must be ready first)
+  info "Creating CA issuer and certificate chain..."
+  kubectl apply -f "${REPO_ROOT}/infra/cert-manager/ca-issuer.yaml"
+  # Wait for CA certificate to be issued
+  info "Waiting for CA certificate to be ready..."
+  for _ca_i in $(seq 1 30); do
+    if kubectl get certificate bookstore-ca -n cert-manager -o jsonpath='{.status.conditions[0].status}' 2>/dev/null | grep -q "True"; then
+      info "CA certificate ready."
       break
     fi
-    info "  Service not ready yet (${i}/24), retrying in 5s..."
+    [[ $_ca_i -eq 30 ]] && warn "CA certificate not ready after 150s — continuing anyway"
+    sleep 5
+  done
+  # Apply gateway certificate (needs CA issuer)
+  kubectl apply -f "${REPO_ROOT}/infra/cert-manager/gateway-certificate.yaml"
+  kubectl apply -f "${REPO_ROOT}/infra/cert-manager/rotation-config.yaml"
+  # Wait for gateway TLS certificate
+  info "Waiting for gateway TLS certificate to be ready..."
+  for _tls_i in $(seq 1 30); do
+    if kubectl get certificate bookstore-gateway-cert -n infra -o jsonpath='{.status.conditions[0].status}' 2>/dev/null | grep -q "True"; then
+      info "Gateway TLS certificate ready."
+      break
+    fi
+    [[ $_tls_i -eq 30 ]] && warn "Gateway TLS certificate not ready after 150s — continuing anyway"
+    sleep 5
+  done
+
+  kubectl apply -f "${REPO_ROOT}/infra/kgateway/gateway.yaml"
+  # Istio creates the gateway Service with random NodePorts; patch HTTPS (8443) to 30000
+  # so the kind extraPortMapping (host:30000 → container:30000) routes correctly.
+  info "Waiting for Istio to create bookstore-gateway-istio service..."
+  for i in $(seq 1 30); do
+    if kubectl get svc bookstore-gateway-istio -n infra &>/dev/null 2>&1; then
+      # Patch HTTPS (8443) → NodePort 30000, HTTP (8080) → NodePort 30080.
+      # Istio names the ports based on listener names from the Gateway spec.
+      kubectl patch svc bookstore-gateway-istio -n infra --type='merge' \
+        -p='{"spec":{"ports":[{"name":"https","port":8443,"targetPort":8443,"nodePort":30000,"protocol":"TCP"},{"name":"http","port":8080,"targetPort":8080,"nodePort":30080,"protocol":"TCP"}]}}' 2>/dev/null || \
+      kubectl patch svc bookstore-gateway-istio -n infra --type='json' \
+        -p='[{"op":"replace","path":"/spec/ports/0/nodePort","value":30000},{"op":"replace","path":"/spec/ports/1/nodePort","value":30080}]' 2>/dev/null || true
+      info "Patched bookstore-gateway-istio NodePorts → HTTPS:30000, HTTP:30080"
+      break
+    fi
+    info "  Service not ready yet (${i}/30), retrying in 5s..."
     sleep 5
   done
 
@@ -129,9 +163,9 @@ bootstrap_fresh() {
   # UI always rebuilt — VITE vars are baked in at build time
   info "  Building bookstore/ui-service:latest (background)..."
   docker build \
-    --build-arg VITE_KEYCLOAK_AUTHORITY=http://idp.keycloak.net:30000/realms/bookstore \
+    --build-arg VITE_KEYCLOAK_AUTHORITY=https://idp.keycloak.net:30000/realms/bookstore \
     --build-arg VITE_KEYCLOAK_CLIENT_ID=ui-client \
-    --build-arg VITE_REDIRECT_URI=http://localhost:30000/callback \
+    --build-arg VITE_REDIRECT_URI=https://localhost:30000/callback \
     -t bookstore/ui-service:latest "${REPO_ROOT}/ui" \
     >/tmp/build-ui.log 2>&1 &
   _UI_PID=$!
@@ -285,6 +319,8 @@ bootstrap_fresh() {
 
   # ── 10. Deploy application services (custom images already in kind) ───────────
   section "Deploying application services"
+  # ServiceAccounts must exist before Deployments reference them
+  kubectl apply -f "${REPO_ROOT}/infra/istio/security/serviceaccounts.yaml"
   kubectl apply -f "${REPO_ROOT}/ecom-service/k8s/"
   [[ -d "${REPO_ROOT}/inventory-service/k8s/" ]] && kubectl apply -f "${REPO_ROOT}/inventory-service/k8s/"
   [[ -d "${REPO_ROOT}/ui/k8s/" ]]                && kubectl apply -f "${REPO_ROOT}/ui/k8s/"
@@ -368,7 +404,15 @@ bootstrap_fresh() {
   kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeout=120s || \
     warn "flink-sql-runner not yet complete — check: kubectl logs -n analytics -l job-name=flink-sql-runner"
 
-  # ── 16. Smoke test ────────────────────────────────────────────────────────────
+  # ── 16. Extract CA certificate for browser trust ──────────────────────────────
+  section "Extracting CA certificate and installing into Keychain"
+  _TRUST_ARGS="--install"
+  $YES && _TRUST_ARGS="--install --yes"
+  bash "${REPO_ROOT}/scripts/trust-ca.sh" $_TRUST_ARGS
+
+  # trust-ca.sh handles interactive CA install prompt above.
+
+  # ── 17. Smoke test ──────────────────────────────────────────────────────────────
   section "Smoke test"
   bash "${REPO_ROOT}/scripts/smoke-test.sh"
 
@@ -475,15 +519,15 @@ ensure_connectors() {
 # ── Print service endpoints ───────────────────────────────────────────────────
 _print_endpoints() {
   echo ""
-  echo "  Service endpoints:"
-  echo "    UI:            http://localhost:30000"
-  echo "    Admin Panel:   http://localhost:30000/admin  (login: admin1 / CHANGE_ME)"
-  echo "    API (ecom):    http://api.service.net:30000/ecom/books"
-  echo "    API (inven):   http://api.service.net:30000/inven/health"
-  echo "    Swagger UI:    http://api.service.net:30000/ecom/swagger-ui/index.html"
-  echo "    Keycloak:      http://idp.keycloak.net:30000"
+  echo "  Service endpoints (TLS — use -k for self-signed cert):"
+  echo "    UI:            https://localhost:30000"
+  echo "    Admin Panel:   https://localhost:30000/admin  (login: admin1 / CHANGE_ME)"
+  echo "    API (ecom):    https://api.service.net:30000/ecom/books"
+  echo "    API (inven):   https://api.service.net:30000/inven/health"
+  echo "    Swagger UI:    https://api.service.net:30000/ecom/swagger-ui/index.html"
+  echo "    Keycloak:      https://idp.keycloak.net:30000"
   echo "    KC Admin:      http://localhost:32400/admin  (admin / CHANGE_ME) [direct NodePort]"
-  echo "                   http://idp.keycloak.net:30000/admin  [via gateway — works now]"
+  echo "                   https://idp.keycloak.net:30000/admin  [via gateway]"
   echo "    PgAdmin:       http://localhost:31111"
   echo "    Superset:      http://localhost:32000"
   echo "    Kiali:         http://localhost:32100/kiali"
@@ -492,6 +536,8 @@ _print_endpoints() {
   echo "    Debezium inv:  http://localhost:32301/q/health"
   echo ""
   echo "  Credentials:  user1 / CHANGE_ME (customer)   admin1 / CHANGE_ME (admin)"
+  echo "  HTTP redirect: http://*:30080 → https://*:30000 (301)"
+  echo "  TLS: self-signed cert. Run 'bash scripts/trust-ca.sh --install' to trust CA."
   echo "  All ports served directly via kind NodePort (no proxy containers needed)."
 }
 
@@ -530,8 +576,8 @@ if ! $CLUSTER_EXISTS; then
   # Scenario 1: No cluster — full bootstrap
   section "No cluster found — starting fresh bootstrap"
   bootstrap_fresh
-elif ! curl -s --max-time 8 -o /dev/null -w "%{http_code}" \
-    "http://api.service.net:30000/ecom/books" 2>/dev/null | grep -q "^200$"; then
+elif ! curl -sk --max-time 8 -o /dev/null -w "%{http_code}" \
+    "https://api.service.net:30000/ecom/books" 2>/dev/null | grep -q "^200$"; then
   # Scenario 3: Cluster exists but stack is not responding — recovery
   section "Cluster exists but stack is not responding — starting recovery"
   kubectl config use-context kind-bookstore

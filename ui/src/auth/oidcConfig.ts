@@ -1,7 +1,7 @@
 import { UserManager, WebStorageStateStore } from 'oidc-client-ts'
 
 // All config from Vite env vars (injected at build time via ConfigMap in k8s)
-const AUTHORITY = import.meta.env.VITE_KEYCLOAK_AUTHORITY   // e.g. http://idp.keycloak.net:30000/realms/bookstore
+const AUTHORITY = import.meta.env.VITE_KEYCLOAK_AUTHORITY   // e.g. https://idp.keycloak.net:30000/realms/bookstore
 const CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID   // ui-client
 
 // redirect_uri is derived from the current origin so the OIDC callback returns to the same

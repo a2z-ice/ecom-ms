@@ -122,18 +122,18 @@ ServiceAccount SPIFFE identity) may call it over mutual TLS inside the cluster.
 ### How to authenticate (admin endpoints)
 ```bash
 TOKEN=$(curl -s -X POST \\
-  "http://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token" \\
+  "https://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token" \\
   -H "Content-Type: application/x-www-form-urlencoded" \\
   -d "grant_type=password&client_id=ui-client&username=admin1&password=CHANGE_ME" \\
   | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
 
 # List all stock (admin)
-curl -H "Authorization: Bearer $TOKEN" http://api.service.net:30000/inven/admin/stock
+curl -H "Authorization: Bearer $TOKEN" https://api.service.net:30000/inven/admin/stock
 
 # Set quantity
 curl -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \\
   -d '{"quantity": 100}' \\
-  http://api.service.net:30000/inven/admin/stock/00000000-0000-0000-0000-000000000001
+  https://api.service.net:30000/inven/admin/stock/00000000-0000-0000-0000-000000000001
 ```
 """
 
@@ -167,7 +167,7 @@ app = FastAPI(
     root_path="/inven",
     servers=[
         {
-            "url": "http://api.service.net:30000/inven",
+            "url": "https://api.service.net:30000/inven",
             "description": "Kind cluster — Istio Gateway NodePort (external)",
         },
         {
@@ -187,7 +187,7 @@ Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://myecom.net:30000", "http://localhost:30000"],
+    allow_origins=["https://myecom.net:30000", "https://localhost:30000"],
     allow_methods=["GET", "PUT", "POST", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )

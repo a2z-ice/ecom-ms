@@ -51,15 +51,14 @@
         "pkce.code.challenge.method": "S256"
       },
       "redirectUris": [
-        "http://myecom.net:30000/*",
-        "http://myecom.net:30000/callback",
-        "http://localhost:30000/*",
-        "http://localhost:30000/callback"
+        "https://myecom.net:30000/*",
+        "https://myecom.net:30000/callback",
+        "https://localhost:30000/*",
+        "https://localhost:30000/callback"
       ],
-      "postLogoutRedirectUris": ["+"],
       "webOrigins": [
-        "http://myecom.net:30000",
-        "http://localhost:30000"
+        "https://myecom.net:30000",
+        "https://localhost:30000"
       ],
       "defaultClientScopes": [
         "openid",
@@ -249,6 +248,6 @@
     }
   ],
   "attributes": {
-    "frontendUrl": "http://idp.keycloak.net:30000"
+    "frontendUrl": "https://idp.keycloak.net:30000"
   }
 }

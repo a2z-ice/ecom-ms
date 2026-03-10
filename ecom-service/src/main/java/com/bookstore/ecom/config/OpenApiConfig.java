@@ -30,14 +30,14 @@ public class OpenApiConfig {
                     Protected endpoints require a **Bearer JWT** token issued by Keycloak.
 
                     **How to get a token:**
-                    1. Open the UI at `http://localhost:30000` and log in (user1 / CHANGE_ME)
+                    1. Open the UI at `https://localhost:30000` and log in (user1 / CHANGE_ME)
                     2. Open DevTools → Application → Session Storage → copy the OIDC user JSON
                     3. Extract the `access_token` field
                     4. Click **Authorize** above, enter: `Bearer <your_access_token>`
 
                     **Or via curl:**
                     ```
-                    TOKEN=$(curl -s -X POST http://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token \\
+                    TOKEN=$(curl -s -X POST https://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token \\
                       -d "grant_type=password&client_id=ui-client&username=user1&password=CHANGE_ME" \\
                       -H "Content-Type: application/x-www-form-urlencoded" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
                     ```
@@ -59,7 +59,7 @@ public class OpenApiConfig {
                     .url("https://opensource.org/licenses/MIT")))
             .servers(List.of(
                 new Server()
-                    .url("http://api.service.net:30000/ecom")
+                    .url("https://api.service.net:30000/ecom")
                     .description("Kind cluster — Istio Gateway NodePort (external)"),
                 new Server()
                     .url("http://ecom-service.ecom.svc.cluster.local:8080/ecom")
@@ -69,6 +69,6 @@ public class OpenApiConfig {
                     .type(SecurityScheme.Type.HTTP)
                     .scheme("bearer")
                     .bearerFormat("JWT")
-                    .description("Keycloak JWT access token. Obtain via OIDC login at http://localhost:30000")));
+                    .description("Keycloak JWT access token. Obtain via OIDC login at https://localhost:30000")));
     }
 }

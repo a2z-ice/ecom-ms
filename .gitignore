@@ -27,5 +27,8 @@ __pycache__/
 *.pyc
 inventory-service/.venv/
 
+# TLS certificates (extracted from cluster)
+certs/
+
 # OS
 .DS_Store

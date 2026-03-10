@@ -12,9 +12,9 @@
  */
 import { test, expect } from './fixtures/admin-base'
 
-const KEYCLOAK_TOKEN_URL = 'http://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token'
-const ECOM_BASE = 'http://api.service.net:30000/ecom'
-const INVEN_BASE = 'http://api.service.net:30000/inven'
+const KEYCLOAK_TOKEN_URL = 'https://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token'
+const ECOM_BASE = 'https://api.service.net:30000/ecom'
+const INVEN_BASE = 'https://api.service.net:30000/inven'
 
 // Helper: get a JWT for any user via Resource Owner Password grant
 async function getToken(request: any, username: string, password: string): Promise<string> {
@@ -324,7 +324,7 @@ test.describe('Keycloak Admin Console', () => {
   test('admin console is accessible via gateway URL', async ({ request }) => {
     // Keycloak routes all of idp.keycloak.net:30000 to the Keycloak pod via the gateway.
     // The admin console redirects to /admin/master — we expect a 200 or 302.
-    const resp = await request.get('http://idp.keycloak.net:30000/admin/', {
+    const resp = await request.get('https://idp.keycloak.net:30000/admin/', {
       maxRedirects: 0,
     })
     expect([200, 302]).toContain(resp.status())
@@ -332,7 +332,7 @@ test.describe('Keycloak Admin Console', () => {
 
   test('bookstore realm OIDC discovery document is reachable', async ({ request }) => {
     const resp = await request.get(
-      'http://idp.keycloak.net:30000/realms/bookstore/.well-known/openid-configuration'
+      'https://idp.keycloak.net:30000/realms/bookstore/.well-known/openid-configuration'
     )
     expect(resp.status()).toBe(200)
     const doc = await resp.json()
@@ -348,7 +348,7 @@ test.describe('Keycloak Admin Console', () => {
 
     // Use the Keycloak admin REST API (via gateway) to fetch realm roles
     const resp = await request.get(
-      'http://idp.keycloak.net:30000/admin/realms/bookstore/roles',
+      'https://idp.keycloak.net:30000/admin/realms/bookstore/roles',
       { headers: { Authorization: `Bearer ${token}` } }
     )
     // Admin REST API requires the master-admin token, not a realm token.
@@ -396,7 +396,7 @@ test.describe('Keycloak Admin Console', () => {
   test('Keycloak admin console is accessible via API (gateway routes /admin correctly)', async ({ request }) => {
     // Use the Playwright request fixture (not browser page) which follows the system hosts file.
     // Verifies the gateway correctly forwards idp.keycloak.net/admin to the Keycloak pod.
-    const resp = await request.get('http://idp.keycloak.net:30000/admin/master/console/', {
+    const resp = await request.get('https://idp.keycloak.net:30000/admin/master/console/', {
       maxRedirects: 5,
     })
     // Keycloak admin SPA returns 200 after following redirects

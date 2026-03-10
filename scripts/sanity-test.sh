@@ -18,7 +18,7 @@ info() { echo -e "${YELLOW}INFO${NC} $*"; }
 http_check() {
   local label=$1 url=$2 expected=${3:-200}
   local code
-  code=$(curl -sf -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null || echo "000")
+  code=$(curl -skf -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null || echo "000")
   [[ "$code" == "$expected" ]] \
     && ok "[$label] → HTTP $code" \
     || fail "[$label] $url → expected=$expected got=$code"
@@ -94,12 +94,12 @@ pvc_check "redis"        infra     "redis-pvc"
 echo ""
 # 3. HTTP endpoints
 info "Checking HTTP endpoints..."
-http_check "Keycloak OIDC"        "http://idp.keycloak.net:30000/realms/bookstore/.well-known/openid-configuration"
-http_check "UI catalog"           "http://myecom.net:30000/"
-http_check "ecom /books"          "http://api.service.net:30000/ecom/books"
-http_check "ecom /books/search"   "http://api.service.net:30000/ecom/books/search?q=python"
-http_check "ecom /cart (unauth→401)" "http://api.service.net:30000/ecom/cart" "401"
-http_check "inventory /health"    "http://api.service.net:30000/inven/health"
+http_check "Keycloak OIDC"        "https://idp.keycloak.net:30000/realms/bookstore/.well-known/openid-configuration"
+http_check "UI catalog"           "https://myecom.net:30000/"
+http_check "ecom /books"          "https://api.service.net:30000/ecom/books"
+http_check "ecom /books/search"   "https://api.service.net:30000/ecom/books/search?q=python"
+http_check "ecom /cart (unauth→401)" "https://api.service.net:30000/ecom/cart" "401"
+http_check "inventory /health"    "https://api.service.net:30000/inven/health"
 http_check "PgAdmin"              "http://localhost:31111/misc/ping"
 http_check "Superset /health"     "http://localhost:32000/health"
 http_check "Kiali (NodePort)"     "http://localhost:32100/kiali/api/status"

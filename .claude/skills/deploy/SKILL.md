@@ -37,9 +37,9 @@ IMPORTANT: VITE_ vars must be passed as --build-arg (baked in at build time).
 ```bash
 cd /Volumes/Other/rand/llm/microservice/ui
 docker build \
-  --build-arg VITE_KEYCLOAK_AUTHORITY=http://idp.keycloak.net:30000/realms/bookstore \
+  --build-arg VITE_KEYCLOAK_AUTHORITY=https://idp.keycloak.net:30000/realms/bookstore \
   --build-arg VITE_KEYCLOAK_CLIENT_ID=ui-client \
-  --build-arg VITE_REDIRECT_URI=http://localhost:30000/callback \
+  --build-arg VITE_REDIRECT_URI=https://localhost:30000/callback \
   -t bookstore/ui-service:latest .
 kind load docker-image bookstore/ui-service:latest --name bookstore
 kubectl rollout restart deployment/ui-service -n ecom

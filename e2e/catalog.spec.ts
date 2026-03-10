@@ -36,7 +36,7 @@ test.describe('Catalog', () => {
     // Session 14: ALL users see "Add to Cart" buttons — unauthenticated users get a guest cart
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
     const page = await ctx.newPage()
-    await page.goto('http://localhost:30000/')
+    await page.goto('https://localhost:30000/')
 
     await expect(page.getByRole('button', { name: /add to cart/i }).first()).toBeVisible()
     await page.screenshot({ path: 'screenshots/catalog-04-unauthenticated-add-to-cart.png', fullPage: true })

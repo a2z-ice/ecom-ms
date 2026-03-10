@@ -13,10 +13,21 @@ metadata:
 spec:
   gatewayClassName: istio
   listeners:
+    - name: https
+      protocol: HTTPS
+      port: 8443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: bookstore-gateway-tls
+      # Allow HTTPRoutes from all namespaces to attach
+      allowedRoutes:
+        namespaces:
+          from: All
     - name: http
       protocol: HTTP
       port: 8080
-      # Allow HTTPRoutes from all namespaces to attach
+      # HTTP listener kept for redirect-to-HTTPS only
       allowedRoutes:
         namespaces:
           from: All

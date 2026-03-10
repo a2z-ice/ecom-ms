@@ -12,7 +12,7 @@
  */
 import { type Page } from '@playwright/test'
 
-const BASE_URL = 'http://localhost:30000'
+const BASE_URL = 'https://localhost:30000'
 
 export async function ensureAuthenticated(page: Page): Promise<void> {
   await page.goto(`${BASE_URL}/`)

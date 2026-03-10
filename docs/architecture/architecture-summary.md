@@ -15,14 +15,18 @@ A production-grade microservices e-commerce bookstore deployed to Kubernetes, de
 | Layer | Components | Technology |
 |-------|-----------|------------|
 | **Client** | Single-page application, OIDC login | React 19.2 + Vite, PKCE (S256) |
-| **Ingress / Security** | Gateway routing, mTLS mesh, JWT validation | Istio Ambient 1.28.4, K8s Gateway API |
+| **Ingress / Security** | Gateway routing, TLS termination, mTLS mesh, JWT validation | Istio Ambient 1.28.4, K8s Gateway API, cert-manager 1.17.2 |
 | **Application Services** | E-Commerce API, Inventory API, Admin API | Spring Boot 4.0.3, FastAPI |
 | **Identity** | OIDC provider, RBAC, realm management | Keycloak 26.5.4 |
 | **Data & Messaging** | 4 isolated databases, event streaming, CDC | PostgreSQL, Kafka KRaft, Debezium Server 3.4 |
 | **Analytics & BI** | Stream processing, star schema, dashboards | Flink 2.2.0 SQL, Superset (3 dashboards, 16 charts) |
-| **Observability** | Metrics, service mesh visualization, DB admin | Prometheus, Kiali, PgAdmin |
+| **Observability** | Metrics, tracing, logs, service mesh visualization, DB admin | Prometheus, Grafana, Loki, Tempo, Kiali, PgAdmin |
 
 ## Key Architecture Decisions
+
+### TLS / Certificate Management
+
+All external-facing endpoints serve HTTPS via a self-signed CA managed by cert-manager v1.17.2. A single multi-SAN certificate covers all 4 hostnames (myecom.net, api.service.net, idp.keycloak.net, localhost) plus 127.0.0.1. TLS terminates at the Istio Gateway (port 8443, NodePort 30000). Certificates auto-rotate every 30 days (renewBefore: 7 days). The CA certificate (10-year validity) is extracted and optionally installed into the macOS Keychain during bootstrap. HTTP requests on port 30080 redirect to HTTPS with 301.
 
 ### Service Mesh & Zero Trust
 
@@ -56,8 +60,8 @@ Prometheus scrapes Istio telemetry (istiod + ztunnel) and application metrics. K
 
 **User Request Flow:**
 ```
-Browser → Istio Gateway → UI Service (React SPA)
-Browser → Keycloak (OIDC PKCE login)
+Browser (HTTPS) → Istio Gateway (TLS termination) → UI Service (React SPA)
+Browser (HTTPS) → Keycloak (OIDC PKCE login)
 UI → E-Commerce API (JWT-protected)
 E-Commerce → Inventory Service (service-to-service mTLS)
 ```
@@ -76,27 +80,31 @@ Source DBs → Debezium Server 3.4 → Kafka → Flink 2.2.0 SQL → analytics-d
 
 ## Security Invariants
 
+- All external traffic encrypted via TLS (HTTPS on port 30000, cert-manager auto-rotation)
 - All inter-service traffic encrypted via Istio mTLS (STRICT mode)
 - JWT validated independently at every backend service
 - Non-root containers with read-only root filesystems and all capabilities dropped
 - Secrets managed exclusively through Kubernetes Secrets (no hardcoded config)
 - NetworkPolicies enforced per namespace
 - CSRF tokens stored server-side in Redis
+- HTTP→HTTPS redirect on port 30080 (301 Moved Permanently)
 
 ## Infrastructure
 
 - Local Kubernetes via kind (3 nodes: 1 control-plane, 2 workers)
-- 8 NodePort services exposed directly via kind host port mappings
+- 10 NodePort services exposed directly via kind host port mappings (HTTPS :30000, HTTP redirect :30080, plus 8 tool ports)
 - No `kubectl port-forward` used anywhere — all access via stable ports
 - All stateful services backed by PersistentVolumeClaims with host-path storage
+- cert-manager v1.17.2 for automated certificate lifecycle (issuance + 30-day rotation)
 - Idempotent shell scripts for full cluster lifecycle (bootstrap, recovery, teardown)
 
 ## Test Coverage
 
-- 155 end-to-end tests via Playwright (all passing, zero flaky)
+- 239+ end-to-end tests via Playwright (all passing)
+- TLS/cert-manager E2E tests: certificate chain, SANs, rotation, HTTPS connectivity, HTTP→HTTPS redirect
 - Unit tests for both backend services (JUnit, pytest)
 - CDC pipeline verification: insert → poll analytics DB within 30s
-- Smoke tests covering pods, HTTP routes, Kafka, and Debezium health
+- Smoke tests covering pods, HTTPS routes, Kafka, and Debezium health
 
 ## Technology Stack
 
@@ -113,7 +121,8 @@ Source DBs → Debezium Server 3.4 → Kafka → Flink 2.2.0 SQL → analytics-d
 | CDC | Debezium Server | 3.4.1 |
 | Stream Processing | Apache Flink | 2.2.0 |
 | BI / Analytics | Apache Superset | latest |
-| Observability | Prometheus + Kiali | — |
+| Certificate Management | cert-manager | 1.17.2 |
+| Observability | Prometheus, Grafana, Loki, Tempo, Kiali | — |
 | Cache / Sessions | Redis | — |
 | E2E Testing | Playwright | latest |
 | Container Orchestration | Kubernetes (kind) | — |
@@ -129,4 +138,4 @@ Source DBs → Debezium Server 3.4 → Kafka → Flink 2.2.0 SQL → analytics-d
 
 ---
 
-*Built as a production-grade proof of concept demonstrating microservices best practices, zero-trust security, event-driven architecture, and real-time analytics.*
+*Built as a production-grade proof of concept demonstrating microservices best practices, zero-trust security, TLS everywhere, event-driven architecture, and real-time analytics.*

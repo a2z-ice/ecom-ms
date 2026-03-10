@@ -11,13 +11,13 @@
 import { test as setup, expect } from '@playwright/test'
 import * as fs from 'fs'
 
-const KEYCLOAK_URL = 'http://idp.keycloak.net:30000/realms/bookstore'
+const KEYCLOAK_URL = 'https://idp.keycloak.net:30000/realms/bookstore'
 const USER1_USERNAME = process.env.USER1_USERNAME ?? 'user1'
 const USER1_PASSWORD = process.env.USER1_PASSWORD ?? 'CHANGE_ME'
 
 setup('authenticate as user1', async ({ page }) => {
   // ── Step 1: Navigate to UI ───────────────────────────────────────────────
-  await page.goto('http://localhost:30000/')
+  await page.goto('https://localhost:30000/')
   await page.screenshot({ path: 'screenshots/auth-setup-01-homepage.png', fullPage: true })
 
   // ── Step 2: Click login → Keycloak redirects ─────────────────────────────
@@ -35,7 +35,7 @@ setup('authenticate as user1', async ({ page }) => {
   await page.getByRole('button', { name: /sign in/i }).click()
 
   // Should be back on the UI with Logout button visible
-  await page.waitForURL('http://localhost:30000/**')
+  await page.waitForURL('https://localhost:30000/**')
   await expect(page.getByRole('button', { name: /logout/i })).toBeVisible()
   await page.screenshot({ path: 'screenshots/auth-setup-04-logged-in.png', fullPage: true })
 

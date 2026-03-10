@@ -8,7 +8,7 @@ metadata:
   namespace: ecom
 spec:
   jwtRules:
-    - issuer: "http://idp.keycloak.net:30000/realms/bookstore"
+    - issuer: "https://idp.keycloak.net:30000/realms/bookstore"
       jwksUri: "http://keycloak.identity.svc.cluster.local:8080/realms/bookstore/protocol/openid-connect/certs"
       forwardOriginalToken: true
 
@@ -21,6 +21,6 @@ metadata:
   namespace: inventory
 spec:
   jwtRules:
-    - issuer: "http://idp.keycloak.net:30000/realms/bookstore"
+    - issuer: "https://idp.keycloak.net:30000/realms/bookstore"
       jwksUri: "http://keycloak.identity.svc.cluster.local:8080/realms/bookstore/protocol/openid-connect/certs"
       forwardOriginalToken: true

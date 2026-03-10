@@ -30,7 +30,7 @@ test.describe('Authentication', () => {
     // Use a fresh context (no stored auth)
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
     const page = await ctx.newPage()
-    await page.goto('http://localhost:30000/cart')
+    await page.goto('https://localhost:30000/cart')
     // Should redirect to Keycloak or show login
     await expect(page).toHaveURL(/idp\.keycloak\.net|\/cart/)
     await page.screenshot({ path: 'screenshots/auth-06-unauth-cart-redirect.png', fullPage: true })
@@ -71,7 +71,7 @@ test.describe('Back-channel Logout', () => {
     // should NOT be auto-logged-in via SSO cookies.
     const freshCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
     const freshPage = await freshCtx.newPage()
-    await freshPage.goto('http://localhost:30000/')
+    await freshPage.goto('https://localhost:30000/')
     // Login button proves the user is NOT auto-authenticated
     await expect(freshPage.getByRole('button', { name: /login/i })).toBeVisible({ timeout: 10000 })
     await freshPage.screenshot({ path: 'screenshots/auth-05-logged-out-fresh-page.png', fullPage: true })
@@ -89,7 +89,7 @@ test.describe('Back-channel Logout', () => {
     // a fresh login attempt would fail without credentials.
 
     // Verify with a completely fresh request (no auth headers)
-    const resp = await request.get('http://localhost:30000/ecom/cart')
+    const resp = await request.get('https://localhost:30000/ecom/cart')
     expect(resp.status()).toBe(401)
   })
 })
@@ -109,7 +109,7 @@ test.describe('myecom.net login redirect', () => {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
     const page = await ctx.newPage()
 
-    await page.goto('http://myecom.net:30000/')
+    await page.goto('https://myecom.net:30000/')
     await expect(page.getByRole('button', { name: /login/i })).toBeVisible({ timeout: 10000 })
     await page.screenshot({ path: 'screenshots/myecom-01-homepage.png', fullPage: true })
 
@@ -135,7 +135,7 @@ test.describe('myecom.net login redirect', () => {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
     const page = await ctx.newPage()
 
-    await page.goto('http://myecom.net:30000/admin')
+    await page.goto('https://myecom.net:30000/admin')
 
     // Wait for Keycloak login form (handles myecom → localhost relay → Keycloak)
     await expect(page.getByLabel('Username')).toBeVisible({ timeout: 45000 })

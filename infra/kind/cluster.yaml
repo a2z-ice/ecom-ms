@@ -11,8 +11,11 @@ nodes:
     # Map NodePorts from the container to the host so that all services are
     # reachable at 127.0.0.1 without kubectl port-forward.
     extraPortMappings:
-      - containerPort: 30000   # Main gateway (UI, APIs, Keycloak)
+      - containerPort: 30000   # Main gateway HTTPS (UI, APIs, Keycloak)
         hostPort: 30000
+        protocol: TCP
+      - containerPort: 30080   # Main gateway HTTP → HTTPS redirect
+        hostPort: 30080
         protocol: TCP
       - containerPort: 31111   # PgAdmin
         hostPort: 31111

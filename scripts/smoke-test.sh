@@ -15,7 +15,7 @@ info() { echo -e "${YELLOW}INFO${NC} $*"; }
 http_check() {
   local label=$1 url=$2 expected=${3:-200}
   local code
-  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null || echo "000")
+  code=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null || echo "000")
   [[ "$code" == "$expected" ]] && ok "[$label] $url → $code" || fail "[$label] $url → expected=$expected actual=$code"
 }
 
@@ -23,7 +23,7 @@ http_check() {
 http_check_bearer() {
   local label=$1 url=$2 token=$3 expected_codes=${4:-200}
   local code
-  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+  code=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 10 \
     -H "Authorization: Bearer $token" "$url" 2>/dev/null || echo "000")
   for exp in $expected_codes; do
     [[ "$code" == "$exp" ]] && { ok "[$label] $url → $code"; return; }
@@ -35,7 +35,7 @@ http_check_bearer() {
 http_check_any() {
   local label=$1 url=$2 expected_codes=$3
   local code
-  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null || echo "000")
+  code=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null || echo "000")
   for exp in $expected_codes; do
     [[ "$code" == "$exp" ]] && { ok "[$label] $url → $code"; return; }
   done
@@ -73,12 +73,12 @@ pod_check "ui-service" ecom "app=ui-service"
 echo ""
 # ── 2. HTTP endpoint checks ─────────────────────────────────────────────────
 info "Checking HTTP endpoints..."
-http_check "Keycloak OIDC" "http://idp.keycloak.net:30000/realms/bookstore/.well-known/openid-configuration"
-http_check "UI catalog" "http://myecom.net:30000/"
-http_check "ecom GET /books" "http://api.service.net:30000/ecom/books"
-http_check "ecom GET /books/search" "http://api.service.net:30000/ecom/books/search?q=kafka"
-http_check "ecom GET /cart (no auth→401)" "http://api.service.net:30000/ecom/cart" "401"
-http_check "inventory health" "http://api.service.net:30000/inven/health"
+http_check "Keycloak OIDC" "https://idp.keycloak.net:30000/realms/bookstore/.well-known/openid-configuration"
+http_check "UI catalog" "https://myecom.net:30000/"
+http_check "ecom GET /books" "https://api.service.net:30000/ecom/books"
+http_check "ecom GET /books/search" "https://api.service.net:30000/ecom/books/search?q=kafka"
+http_check "ecom GET /cart (no auth→401)" "https://api.service.net:30000/ecom/cart" "401"
+http_check "inventory health" "https://api.service.net:30000/inven/health"
 http_check "PgAdmin" "http://localhost:31111/misc/ping"
 http_check "Superset" "http://localhost:32000/health"
 
@@ -115,14 +115,14 @@ echo ""
 info "Checking admin API access control..."
 
 # No-token requests must be rejected
-http_check "ecom admin no-token→401"  "http://api.service.net:30000/ecom/admin/books" "401"
+http_check "ecom admin no-token→401"  "https://api.service.net:30000/ecom/admin/books" "401"
 # FastAPI HTTPBearer returns 403 (not 401) when Authorization header is absent
 http_check_any "inven admin no-token→401/403" \
-  "http://api.service.net:30000/inven/admin/stock" "401 403"
+  "https://api.service.net:30000/inven/admin/stock" "401 403"
 
 # Fetch admin token via Resource Owner Password grant (directAccessGrantsEnabled=true on ui-client)
-ADMIN_TOKEN=$(curl -s --max-time 15 -X POST \
-  "http://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token" \
+ADMIN_TOKEN=$(curl -sk --max-time 15 -X POST \
+  "https://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password&client_id=ui-client&username=admin1&password=CHANGE_ME" \
   | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))" 2>/dev/null || echo "")
@@ -130,28 +130,38 @@ ADMIN_TOKEN=$(curl -s --max-time 15 -X POST \
 if [[ -n "$ADMIN_TOKEN" ]]; then
   ok "[Admin token] Fetched admin1 token from Keycloak"
   http_check_bearer "ecom admin GET /books→200"  \
-    "http://api.service.net:30000/ecom/admin/books" "$ADMIN_TOKEN" "200"
+    "https://api.service.net:30000/ecom/admin/books" "$ADMIN_TOKEN" "200"
   http_check_bearer "inven admin GET /stock→200" \
-    "http://api.service.net:30000/inven/admin/stock" "$ADMIN_TOKEN" "200"
+    "https://api.service.net:30000/inven/admin/stock" "$ADMIN_TOKEN" "200"
 else
   fail "[Admin token] Could not fetch admin1 token — check Keycloak realm import"
 fi
 
 # Customer token must be denied on admin endpoints (role enforcement)
-CUSTOMER_TOKEN=$(curl -s --max-time 15 -X POST \
-  "http://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token" \
+CUSTOMER_TOKEN=$(curl -sk --max-time 15 -X POST \
+  "https://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password&client_id=ui-client&username=user1&password=CHANGE_ME" \
   | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))" 2>/dev/null || echo "")
 
 if [[ -n "$CUSTOMER_TOKEN" ]]; then
   http_check_bearer "ecom admin customer→403"  \
-    "http://api.service.net:30000/ecom/admin/books" "$CUSTOMER_TOKEN" "403"
+    "https://api.service.net:30000/ecom/admin/books" "$CUSTOMER_TOKEN" "403"
   http_check_bearer "inven admin customer→403" \
-    "http://api.service.net:30000/inven/admin/stock" "$CUSTOMER_TOKEN" "403"
+    "https://api.service.net:30000/inven/admin/stock" "$CUSTOMER_TOKEN" "403"
 else
   fail "[Customer token] Could not fetch user1 token — check Keycloak realm import"
 fi
+
+# ── 6. TLS certificate check ─────────────────────────────────────────────────
+info "Checking TLS certificate..."
+CERT_READY=$(kubectl get certificate bookstore-gateway-cert -n infra \
+  -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "Unknown")
+[[ "$CERT_READY" == "True" ]] && ok "[TLS] Gateway certificate Ready" || fail "[TLS] Gateway certificate status=$CERT_READY"
+
+# ── 7. HTTP→HTTPS redirect ───────────────────────────────────────────────────
+info "Checking HTTP→HTTPS redirect (port 30080 → 301 → https://:30000)..."
+http_check "HTTP→HTTPS redirect" "http://myecom.net:30080/" "301"
 
 echo ""
 echo "==============================="

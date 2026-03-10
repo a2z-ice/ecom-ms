@@ -29,4 +29,4 @@ kubectl wait --for=condition=complete job/keycloak-realm-import \
 echo ""
 echo -e "${GREEN}✔ Keycloak realm 'bookstore' imported successfully.${NC}"
 echo ""
-echo "Verify at: http://idp.keycloak.net:30000/realms/bookstore/.well-known/openid-configuration"
+echo "Verify at: https://idp.keycloak.net:30000/realms/bookstore/.well-known/openid-configuration"

@@ -6,7 +6,7 @@
   <title>BookStore Platform — Microservices Architecture</title>
   <!-- OpenGraph for LinkedIn / Twitter preview -->
   <meta property="og:title" content="BookStore Platform — Microservices Architecture" />
-  <meta property="og:description" content="Production-grade microservices e-commerce bookstore on Kubernetes with Istio mTLS, Flink 2.2.0 CDC, Keycloak OIDC, and Superset analytics. 155 E2E tests passing." />
+  <meta property="og:description" content="Production-grade microservices e-commerce bookstore on Kubernetes with TLS everywhere, Istio mTLS, Flink 2.2.0 CDC, Keycloak OIDC, and Superset analytics. 239+ E2E tests passing." />
   <meta property="og:image" content="diagrams/architecture.gif" />
   <meta property="og:type" content="article" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -50,9 +50,9 @@
   <p>Production-grade microservices e-commerce bookstore on Kubernetes</p>
 
   <div class="badges">
-    <span class="badge green">155 E2E Tests Passing</span>
-    <span class="badge purple">22 Sessions Complete</span>
-    <span class="badge orange">Istio mTLS STRICT</span>
+    <span class="badge green">239+ E2E Tests Passing</span>
+    <span class="badge purple">24 Sessions Complete</span>
+    <span class="badge orange">TLS Everywhere + mTLS</span>
     <span class="badge red">Zero Trust</span>
   </div>
 
@@ -63,15 +63,18 @@
   <table>
     <tr><th>Layer</th><th>Components</th><th>Technology</th></tr>
     <tr><td><strong>Client</strong></td><td>Single-page application, OIDC login</td><td>React 19.2 + Vite, PKCE (S256)</td></tr>
-    <tr><td><strong>Ingress / Security</strong></td><td>Gateway routing, mTLS mesh, JWT validation</td><td>Istio Ambient 1.28.4, K8s Gateway API</td></tr>
+    <tr><td><strong>Ingress / Security</strong></td><td>Gateway routing, TLS termination, mTLS mesh, JWT validation</td><td>Istio Ambient 1.28.4, K8s Gateway API, cert-manager 1.17.2</td></tr>
     <tr><td><strong>Application Services</strong></td><td>E-Commerce API, Inventory API, Admin API</td><td>Spring Boot 4.0.3, FastAPI</td></tr>
     <tr><td><strong>Identity</strong></td><td>OIDC provider, RBAC, realm management</td><td>Keycloak 26.5.4</td></tr>
     <tr><td><strong>Data &amp; Messaging</strong></td><td>4 isolated databases, event streaming, CDC</td><td>PostgreSQL, Kafka KRaft, Debezium Server 3.4</td></tr>
     <tr><td><strong>Analytics &amp; BI</strong></td><td>Stream processing, star schema, dashboards</td><td>Flink 2.2.0 SQL, Superset (3 dashboards, 16 charts)</td></tr>
-    <tr><td><strong>Observability</strong></td><td>Metrics, service mesh visualization, DB admin</td><td>Prometheus, Kiali, PgAdmin</td></tr>
+    <tr><td><strong>Observability</strong></td><td>Metrics, tracing, logs, service mesh visualization, DB admin</td><td>Prometheus, Grafana, Loki, Tempo, Kiali, PgAdmin</td></tr>
   </table>
 
   <h2>Key Architecture Decisions</h2>
+
+  <h3>TLS / Certificate Management</h3>
+  <p>All external-facing endpoints serve HTTPS via a self-signed CA managed by cert-manager v1.17.2. A single multi-SAN certificate covers all hostnames. TLS terminates at the Istio Gateway (HTTPS :30000). Certificates auto-rotate every 30 days. HTTP→HTTPS redirect on port 30080 (301).</p>
 
   <h3>Service Mesh &amp; Zero Trust</h3>
   <p>Istio Ambient Mesh provides mutual TLS across all service-to-service communication without sidecar proxy overhead. ztunnel handles L4 encryption transparently. AuthorizationPolicies operate at L4 only (namespace + SPIFFE principal), compatible with the sidecar-free ambient model. JWT validation occurs independently at every backend service — no service trusts upstream claims.</p>
@@ -95,8 +98,8 @@
   <img src="diagrams/data-flow.gif" alt="BookStore Platform — Live Data Flow (Animated)" />
 
   <h3>User Request Flow</h3>
-  <pre><code>Browser → Istio Gateway → UI Service (React SPA)
-Browser → Keycloak (OIDC PKCE login)
+  <pre><code>Browser (HTTPS) → Istio Gateway (TLS termination) → UI Service (React SPA)
+Browser (HTTPS) → Keycloak (OIDC PKCE login)
 UI → E-Commerce API (JWT-protected)
 E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
 
@@ -114,20 +117,23 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
 
   <h2>Security Invariants</h2>
   <ul>
+    <li>All external traffic encrypted via TLS (HTTPS on port 30000, cert-manager auto-rotation)</li>
     <li>All inter-service traffic encrypted via Istio mTLS (STRICT mode)</li>
     <li>JWT validated independently at every backend service</li>
     <li>Non-root containers with read-only root filesystems and all capabilities dropped</li>
     <li>Secrets managed exclusively through Kubernetes Secrets (no hardcoded config)</li>
     <li>NetworkPolicies enforced per namespace</li>
     <li>CSRF tokens stored server-side in Redis</li>
+    <li>HTTP→HTTPS redirect on port 30080 (301 Moved Permanently)</li>
   </ul>
 
   <h2>Test Coverage</h2>
   <ul>
-    <li>155 end-to-end tests via Playwright (all passing, zero flaky)</li>
+    <li>239+ end-to-end tests via Playwright (all passing)</li>
+    <li>TLS/cert-manager E2E tests: certificate chain, SANs, rotation, HTTPS connectivity</li>
     <li>Unit tests for both backend services (JUnit, pytest)</li>
     <li>CDC pipeline verification: insert → poll analytics DB within 30s</li>
-    <li>Smoke tests covering pods, HTTP routes, Kafka, and Debezium health</li>
+    <li>Smoke tests covering pods, HTTPS routes, Kafka, and Debezium health</li>
   </ul>
 
   <h2>Technology Stack</h2>
@@ -144,14 +150,15 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
     <tr><td>CDC</td><td>Debezium Server</td><td>3.4.1</td></tr>
     <tr><td>Stream Processing</td><td>Apache Flink</td><td>2.2.0</td></tr>
     <tr><td>BI / Analytics</td><td>Apache Superset</td><td>latest</td></tr>
-    <tr><td>Observability</td><td>Prometheus + Kiali</td><td>—</td></tr>
+    <tr><td>Certificate Management</td><td>cert-manager</td><td>1.17.2</td></tr>
+    <tr><td>Observability</td><td>Prometheus, Grafana, Loki, Tempo, Kiali</td><td>—</td></tr>
     <tr><td>Cache / Sessions</td><td>Redis</td><td>—</td></tr>
     <tr><td>E2E Testing</td><td>Playwright</td><td>latest</td></tr>
     <tr><td>Container Orchestration</td><td>Kubernetes (kind)</td><td>—</td></tr>
   </table>
 
   <footer>
-    <p>Built as a production-grade proof of concept demonstrating microservices best practices, zero-trust security, event-driven architecture, and real-time analytics.</p>
+    <p>Built as a production-grade proof of concept demonstrating microservices best practices, zero-trust security, TLS everywhere, event-driven architecture, and real-time analytics.</p>
     <p style="margin-top: 12px;"><a href="https://github.com/a2z-ice/ecom-ms">GitHub Repository</a> · <a href="https://gist.github.com/a2z-ice/75fbc3c000760e1a6a9f03a6e1f9ecdf">Architecture Summary (Gist)</a></p>
   </footer>
 

@@ -7,12 +7,12 @@
 import { test as setup, expect } from '@playwright/test'
 import * as fs from 'fs'
 
-const KEYCLOAK_URL = 'http://idp.keycloak.net:30000/realms/bookstore'
+const KEYCLOAK_URL = 'https://idp.keycloak.net:30000/realms/bookstore'
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME ?? 'admin1'
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'CHANGE_ME'
 
 setup('authenticate as admin1', async ({ page }) => {
-  await page.goto('http://localhost:30000/')
+  await page.goto('https://localhost:30000/')
 
   await page.getByRole('button', { name: 'Login', exact: true }).click()
 
@@ -23,7 +23,7 @@ setup('authenticate as admin1', async ({ page }) => {
 
   await page.getByRole('button', { name: /sign in/i }).click()
 
-  await page.waitForURL('http://localhost:30000/**')
+  await page.waitForURL('https://localhost:30000/**')
   await expect(page.getByRole('button', { name: /logout/i })).toBeVisible()
 
   // Verify Admin link visible in navbar (admin role present)

@@ -7,6 +7,11 @@ allowed-tools: Bash
 
 Run the comprehensive smoke test suite.
 
+## Notes
+- All gateway endpoint checks use `curl -sk` (self-signed TLS cert on port 30000)
+- Port 30080 serves HTTP→HTTPS redirect (301 → https://:30000)
+- Tool NodePorts (31111, 32000, 32100, etc.) remain plain HTTP
+
 ## Steps
 
 1. Run:

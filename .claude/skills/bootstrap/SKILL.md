@@ -36,3 +36,6 @@ bash scripts/smoke-test.sh 2>&1
 - Smart start (no args) takes 1-2 minutes if cluster is healthy
 - If bootstrap fails, check pod logs: `kubectl logs -n <namespace> <pod>`
 - The script is idempotent — safe to re-run
+- cert-manager is installed during bootstrap (`infra/cert-manager/install.sh`); self-signed CA + gateway cert provisioned automatically
+- After bootstrap, trust the CA for browser access: `bash scripts/trust-ca.sh --install` (adds to macOS Keychain)
+- `up.sh --fresh` is required when adding new kind port mappings (e.g., port 30080 for HTTP→HTTPS redirect)

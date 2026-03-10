@@ -1,0 +1,26 @@
+---
+# Gateway TLS certificate — multi-SAN, covers all external hostnames.
+# cert-manager auto-rotates based on duration/renewBefore.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: bookstore-gateway-cert
+  namespace: infra
+spec:
+  secretName: bookstore-gateway-tls
+  duration: 720h      # 30 days
+  renewBefore: 168h    # 7 days before expiry
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  dnsNames:
+    - myecom.net
+    - api.service.net
+    - idp.keycloak.net
+    - localhost
+  ipAddresses:
+    - "127.0.0.1"
+  issuerRef:
+    name: bookstore-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io

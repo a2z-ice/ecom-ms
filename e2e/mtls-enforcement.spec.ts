@@ -17,9 +17,9 @@
 import { test, expect } from './fixtures/base'
 
 const INVENTORY_BOOK_ID = '00000000-0000-0000-0000-000000000001' // "The Pragmatic Programmer"
-const INVENTORY_STOCK_URL = `http://api.service.net:30000/inven/stock/${INVENTORY_BOOK_ID}`
-const RESERVE_URL = 'http://api.service.net:30000/inven/stock/reserve'
-const CHECKOUT_URL = 'http://api.service.net:30000/ecom/checkout'
+const INVENTORY_STOCK_URL = `https://api.service.net:30000/inven/stock/${INVENTORY_BOOK_ID}`
+const RESERVE_URL = 'https://api.service.net:30000/inven/stock/reserve'
+const CHECKOUT_URL = 'https://api.service.net:30000/ecom/checkout'
 
 test.describe('mTLS Enforcement', () => {
 

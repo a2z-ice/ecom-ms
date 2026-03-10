@@ -11,6 +11,7 @@ spec:
   parentRefs:
     - name: bookstore-gateway
       namespace: infra
+      sectionName: https
   hostnames:
     - "api.service.net"
   rules:

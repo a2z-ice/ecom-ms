@@ -100,7 +100,7 @@ test.describe('Loki Log Labels', () => {
 test.describe('Loki Log Queries', () => {
 
   test('ecom-service logs are queryable', async ({ request }) => {
-    await request.get('http://api.service.net:30000/ecom/books')
+    await request.get('https://api.service.net:30000/ecom/books')
     await new Promise(r => setTimeout(r, 5000))
 
     const resp = await request.get(
@@ -119,7 +119,7 @@ test.describe('Loki Log Queries', () => {
   })
 
   test('inventory-service logs are queryable', async ({ request }) => {
-    await request.get('http://api.service.net:30000/inven/stock/00000000-0000-0000-0000-000000000001')
+    await request.get('https://api.service.net:30000/inven/stock/00000000-0000-0000-0000-000000000001')
     await new Promise(r => setTimeout(r, 5000))
 
     const resp = await request.get(
@@ -303,7 +303,7 @@ test.describe('Distributed Tracing Dashboard', () => {
 
   test('OTel Collector receives spans', async ({ request }) => {
     // Generate traffic to produce spans
-    await request.get('http://api.service.net:30000/ecom/books')
+    await request.get('https://api.service.net:30000/ecom/books')
     await new Promise(r => setTimeout(r, 3000))
 
     const result = await promQuery(request, 'otelcol_receiver_accepted_spans')

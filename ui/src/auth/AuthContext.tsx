@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // crypto.subtle is genuinely absent (strict non-secure context).
     if (typeof crypto === 'undefined' || !crypto.subtle) {
       window.location.href =
-        `http://localhost:30000/login?return=${encodeURIComponent(window.location.href)}`
+        `https://localhost:30000/login?return=${encodeURIComponent(window.location.href)}`
       return
     }
 

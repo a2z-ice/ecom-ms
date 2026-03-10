@@ -12,13 +12,13 @@ test.describe('Stock Management', () => {
 
   test('bulk stock API returns correct structure', async ({ request }) => {
     // First get a book ID from the catalog API
-    const booksResp = await request.get('http://api.service.net:30000/ecom/books?page=0&size=5')
+    const booksResp = await request.get('https://api.service.net:30000/ecom/books?page=0&size=5')
     expect(booksResp.status()).toBe(200)
     const books = await booksResp.json()
     expect(books.content.length).toBeGreaterThan(0)
 
     const bookIds = books.content.slice(0, 3).map((b: any) => b.id).join(',')
-    const stockResp = await request.get(`http://api.service.net:30000/inven/stock/bulk?book_ids=${bookIds}`)
+    const stockResp = await request.get(`https://api.service.net:30000/inven/stock/bulk?book_ids=${bookIds}`)
     expect(stockResp.status()).toBe(200)
 
     const stocks = await stockResp.json()
@@ -38,7 +38,7 @@ test.describe('Stock Management', () => {
   })
 
   test('bulk stock API returns empty array for empty input', async ({ request }) => {
-    const resp = await request.get('http://api.service.net:30000/inven/stock/bulk?book_ids=')
+    const resp = await request.get('https://api.service.net:30000/inven/stock/bulk?book_ids=')
     expect(resp.status()).toBe(200)
     const stocks = await resp.json()
     expect(Array.isArray(stocks)).toBe(true)
@@ -47,7 +47,7 @@ test.describe('Stock Management', () => {
 
   test('bulk stock API silently omits unknown UUIDs', async ({ request }) => {
     const fakeId = '00000000-0000-0000-0000-000000000000'
-    const resp = await request.get(`http://api.service.net:30000/inven/stock/bulk?book_ids=${fakeId}`)
+    const resp = await request.get(`https://api.service.net:30000/inven/stock/bulk?book_ids=${fakeId}`)
     expect(resp.status()).toBe(200)
     const stocks = await resp.json()
     expect(Array.isArray(stocks)).toBe(true)
@@ -174,7 +174,7 @@ test.describe('Stock Management', () => {
   test('individual stock API returns correct structure', async ({ request }) => {
     // Use a known book ID with guaranteed seeded stock (book 1: 50 units)
     const bookId = '00000000-0000-0000-0000-000000000001'
-    const resp = await request.get(`http://api.service.net:30000/inven/stock/${bookId}`)
+    const resp = await request.get(`https://api.service.net:30000/inven/stock/${bookId}`)
     expect(resp.status()).toBe(200)
     const stock = await resp.json()
 
