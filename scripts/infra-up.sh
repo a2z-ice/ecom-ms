@@ -119,16 +119,6 @@ info "Deploying OTel stack (Tempo + Loki + OTel Collector) in otel namespace..."
 kubectl create ns otel 2>/dev/null || true
 kubectl label ns otel istio.io/dataplane-mode=ambient --overwrite 2>/dev/null
 kubectl label ns otel pod-security.kubernetes.io/enforce=baseline pod-security.kubernetes.io/enforce-version=latest --overwrite 2>/dev/null
-cat <<'OTEL_PA' | kubectl apply -f -
-apiVersion: security.istio.io/v1
-kind: PeerAuthentication
-metadata:
-  name: permissive-mtls
-  namespace: otel
-spec:
-  mtls:
-    mode: PERMISSIVE
-OTEL_PA
 kubectl apply -f "${REPO_ROOT}/infra/observability/otel-collector.yaml"
 kubectl apply -f "${REPO_ROOT}/infra/observability/tempo/tempo.yaml"
 kubectl apply -f "${REPO_ROOT}/infra/observability/loki/loki.yaml"

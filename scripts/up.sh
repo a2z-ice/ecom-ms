@@ -342,6 +342,23 @@ bootstrap_fresh() {
   kubectl rollout restart deployment/kiali -n istio-system
   kubectl rollout status deployment/kiali -n istio-system --timeout=120s
 
+  # ── 13b. Grafana + AlertManager + kube-state-metrics + OTel stack ────────────
+  section "Deploying Grafana, AlertManager, kube-state-metrics"
+  kubectl apply -f "${REPO_ROOT}/infra/observability/alertmanager/alertmanager.yaml"
+  kubectl apply -f "${REPO_ROOT}/infra/observability/kube-state-metrics/kube-state-metrics.yaml"
+  kubectl apply -f "${REPO_ROOT}/infra/observability/grafana/grafana.yaml"
+  wait_deploy alertmanager observability
+  wait_deploy kube-state-metrics observability
+  wait_deploy grafana observability
+
+  section "Deploying OTel stack (Tempo + Loki + OTel Collector)"
+  kubectl apply -f "${REPO_ROOT}/infra/observability/otel-collector.yaml"
+  kubectl apply -f "${REPO_ROOT}/infra/observability/tempo/tempo.yaml"
+  kubectl apply -f "${REPO_ROOT}/infra/observability/loki/loki.yaml"
+  wait_deploy otel-collector otel
+  wait_deploy tempo otel
+  wait_deploy loki otel
+
   # ── 14. Wait for Debezium Server health ───────────────────────────────────────
   section "Waiting for Debezium Server health"
   bash "${REPO_ROOT}/infra/debezium/register-connectors.sh"

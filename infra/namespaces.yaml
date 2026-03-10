@@ -56,11 +56,22 @@ metadata:
     pod-security.kubernetes.io/enforce-version: latest
 
 ---
-# observability — Prometheus, Grafana, Kiali, OTel Collector
+# observability — Prometheus, Grafana, Kiali
 apiVersion: v1
 kind: Namespace
 metadata:
   name: observability
+  labels:
+    istio.io/dataplane-mode: ambient
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+
+---
+# otel — OTel Collector, Loki, Tempo
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: otel
   labels:
     istio.io/dataplane-mode: ambient
     pod-security.kubernetes.io/enforce: baseline
