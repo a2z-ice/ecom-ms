@@ -457,6 +457,13 @@ recovery() {
   kubectl rollout restart deploy/superset -n analytics
   kubectl rollout restart deploy/prometheus -n observability
   kubectl rollout restart deploy/kiali -n istio-system || true
+  # OTel stack + Grafana + AlertManager + kube-state-metrics (session 23+)
+  kubectl rollout restart deploy/grafana -n observability 2>/dev/null || true
+  kubectl rollout restart deploy/alertmanager -n observability 2>/dev/null || true
+  kubectl rollout restart deploy/kube-state-metrics -n observability 2>/dev/null || true
+  kubectl rollout restart deploy/otel-collector -n otel 2>/dev/null || true
+  kubectl rollout restart deploy/tempo -n otel 2>/dev/null || true
+  kubectl rollout restart deploy/loki -n otel 2>/dev/null || true
 
   info "Waiting for critical services..."
   wait_deploy kafka infra
@@ -481,7 +488,8 @@ recovery() {
   _gw_i=0
   until kubectl exec -n analytics deploy/flink-jobmanager -c sql-gateway -- \
     curl -sf http://localhost:9091/v1/info > /dev/null 2>&1; do
-    ((_gw_i++)) && [[ $_gw_i -ge 24 ]] && { warn "SQL Gateway not ready after 2m — skipping sql-runner"; break; }
+    _gw_i=$((_gw_i + 1))
+    [[ $_gw_i -ge 24 ]] && { warn "SQL Gateway not ready after 2m — skipping sql-runner"; break; }
     echo "  SQL Gateway not ready, retrying in 5s..."
     sleep 5
   done
@@ -557,6 +565,20 @@ if [[ ${#MISSING_HOSTS[@]} -gt 0 ]]; then
   warn "Add this line: 127.0.0.1  idp.keycloak.net  myecom.net  api.service.net"
 fi
 
+# ── Stack health check (with retry) ──────────────────────────────────────────
+_stack_healthy() {
+  # Try the ecom API twice with a short pause — avoids false negatives from
+  # transient network hiccups right after Docker Desktop resumes.
+  for _attempt in 1 2; do
+    if curl -sk --max-time 10 -o /dev/null -w "%{http_code}" \
+         "https://api.service.net:30000/ecom/books" 2>/dev/null | grep -q "^200$"; then
+      return 0
+    fi
+    [[ $_attempt -eq 1 ]] && { info "Health check attempt 1 failed, retrying in 5s..."; sleep 5; }
+  done
+  return 1
+}
+
 # ── Determine scenario ───────────────────────────────────────────────────────
 CLUSTER_EXISTS=false
 kind get clusters 2>/dev/null | grep -q "^bookstore$" && CLUSTER_EXISTS=true
@@ -576,8 +598,7 @@ if ! $CLUSTER_EXISTS; then
   # Scenario 1: No cluster — full bootstrap
   section "No cluster found — starting fresh bootstrap"
   bootstrap_fresh
-elif ! curl -sk --max-time 8 -o /dev/null -w "%{http_code}" \
-    "https://api.service.net:30000/ecom/books" 2>/dev/null | grep -q "^200$"; then
+elif ! _stack_healthy; then
   # Scenario 3: Cluster exists but stack is not responding — recovery
   section "Cluster exists but stack is not responding — starting recovery"
   kubectl config use-context kind-bookstore

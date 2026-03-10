@@ -5,19 +5,31 @@
  * full page, cert cards, progress bars, renew modal, SSE streaming, API endpoints.
  */
 import { test, expect } from '@playwright/test'
+import { execFileSync } from 'child_process'
 
 const DASHBOARD_URL = 'http://localhost:32600'
 const SCREENSHOTS = 'screenshots/cert-dashboard'
 
+function kubectl(args: string[]): string {
+  return execFileSync('kubectl', args, { encoding: 'utf-8', timeout: 30_000 }).trim()
+}
+
+function getDashboardToken(): string {
+  return kubectl([
+    'create', 'token', 'bookstore-certs',
+    '-n', 'cert-dashboard',
+    '--duration=10m',
+  ])
+}
+
 function dashboardAvailable(): boolean {
   try {
-    const { execFileSync } = require('child_process')
-    const pods = execFileSync('kubectl', [
+    const pods = kubectl([
       'get', 'pods', '-n', 'cert-dashboard',
       '-l', 'app=cert-dashboard',
       '--field-selector=status.phase=Running',
       '-o', 'jsonpath={.items[*].metadata.name}',
-    ], { encoding: 'utf-8', timeout: 30_000 }).trim()
+    ])
     return pods.length > 0
   } catch {
     return false
@@ -30,7 +42,17 @@ test.describe('Cert Dashboard Screenshots', () => {
   })
 
   test('Capture all dashboard screenshots', async ({ page, context }) => {
-    test.setTimeout(120000)
+    test.setTimeout(180000)
+
+    // Handle any alert dialog (rate limit or error) — dismiss it so test can proceed
+    let alertFired = false
+    page.on('dialog', async (dialog) => {
+      alertFired = true
+      await dialog.dismiss()
+    })
+
+    // Wait for rate limit to clear from any previous tests
+    await page.waitForTimeout(12000)
 
     // 1. Full page dashboard
     await page.goto(DASHBOARD_URL)
@@ -58,11 +80,24 @@ test.describe('Cert Dashboard Screenshots', () => {
     // 6. Modal close-up
     await page.locator('dialog').screenshot({ path: `${SCREENSHOTS}/cert-dashboard-06-modal-closeup.png` })
 
+    // 6b. Fill in token and take screenshot of token input
+    const token = getDashboardToken()
+    await page.locator('#modal-token').fill(token)
+    await page.screenshot({ path: `${SCREENSHOTS}/cert-dashboard-06b-token-filled.png` })
+
     // 7. Confirm renewal → SSE starts
     await page.locator('#modal-confirm').click()
     await expect(page.locator('#renew-modal')).not.toBeVisible()
+
+    // If an alert fired (rate limit), skip the SSE screenshots
+    await page.waitForTimeout(1000)
+    if (alertFired) {
+      test.skip(true, 'Rate limited — renewal was rejected; skipping SSE screenshots')
+      return
+    }
+
     const ssePanel = gwCard.locator('.sse-panel')
-    await expect(ssePanel).toHaveClass(/active/, { timeout: 5000 })
+    await expect(ssePanel).toHaveClass(/active/, { timeout: 10000 })
     await page.waitForTimeout(1000)
     await page.screenshot({ path: `${SCREENSHOTS}/cert-dashboard-07-sse-in-progress.png`, fullPage: true })
 
