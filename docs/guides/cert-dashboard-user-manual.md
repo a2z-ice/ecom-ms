@@ -360,11 +360,25 @@ curl -s http://localhost:32600/api/certs | python3 -m json.tool
 ]
 ```
 
-### Trigger Renewal via API
+### Prometheus Metrics
 
 ```bash
+curl -s http://localhost:32600/metrics
+```
+
+**Response:** Prometheus exposition format with certificate counts, days remaining, ready status, and renewal counters.
+
+### Trigger Renewal via API
+
+> **Authentication required:** The renew endpoint requires a valid Kubernetes ServiceAccount token. Pass it as a Bearer token in the `Authorization` header.
+
+```bash
+# Get a ServiceAccount token
+TOKEN=$(kubectl create token bookstore-certs -n cert-dashboard)
+
 curl -s -X POST http://localhost:32600/api/renew \
   -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{"name":"bookstore-gateway-cert","namespace":"infra"}'
 ```
 
@@ -404,7 +418,9 @@ data: {"event":"complete","message":"Renewal complete","done":true}
 | Endpoint | Status | Body | Cause |
 |----------|--------|------|-------|
 | `POST /api/renew` | 400 | `{"error":"name and namespace required"}` | Empty name or namespace |
+| `POST /api/renew` | 401 | `Unauthorized` | Missing or invalid Bearer token |
 | `POST /api/renew` | 404 | `{"error":"certificate not found"}` | Certificate doesn't exist in monitored namespaces |
+| `POST /api/renew` | 429 | `Too Many Requests` | Rate limit exceeded (1 per 10 seconds) |
 | `GET /api/sse/{id}` | 404 | `stream not found` | Invalid or expired stream ID |
 
 ---
@@ -432,8 +448,9 @@ The dashboard refreshes certificate data automatically:
 | `http://localhost:32600` | Dashboard UI |
 | `http://localhost:32600/healthz` | Health check |
 | `http://localhost:32600/api/certs` | Certificate list (JSON) |
-| `http://localhost:32600/api/renew` | Trigger renewal (POST) |
+| `http://localhost:32600/api/renew` | Trigger renewal (POST, auth required) |
 | `http://localhost:32600/api/sse/{id}` | Renewal SSE stream |
+| `http://localhost:32600/metrics` | Prometheus metrics |
 
 ### kubectl Commands
 
@@ -558,6 +575,22 @@ Edit the CertDashboard CR and add namespaces to the `spec.namespaces` array:
 kubectl patch certdashboard bookstore-certs -n cert-dashboard \
   --type=json -p='[{"op":"add","path":"/spec/namespaces/-","value":"my-new-namespace"}]'
 ```
+
+### Q: Why does POST /api/renew return 401?
+
+The renew endpoint requires a valid Kubernetes ServiceAccount token in the `Authorization` header. Obtain a token and include it as a Bearer token:
+
+```bash
+TOKEN=$(kubectl create token bookstore-certs -n cert-dashboard)
+curl -s -X POST http://localhost:32600/api/renew \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"bookstore-gateway-cert","namespace":"infra"}'
+```
+
+### Q: Why does POST /api/renew return 429?
+
+Rate limiting allows only one renewal every 10 seconds. Wait at least 10 seconds after the previous renewal request and try again.
 
 ### Q: The SSE stream shows "SSE connection lost"
 

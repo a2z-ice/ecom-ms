@@ -24,8 +24,11 @@ A comprehensive guide to building, deploying, and testing the cert-dashboard-ope
 16. [Deploying to GKE](#16-deploying-to-gke)
 17. [OLM (Operator Lifecycle Manager)](#17-olm-operator-lifecycle-manager)
 18. [Manual Testing Guide](#18-manual-testing-guide)
-19. [Troubleshooting](#19-troubleshooting)
-20. [Key Lessons & Gotchas](#20-key-lessons--gotchas)
+19. [Automated Tests](#19-automated-tests)
+20. [Security](#20-security)
+21. [Metrics](#21-metrics)
+22. [Troubleshooting](#22-troubleshooting)
+23. [Key Lessons & Gotchas](#23-key-lessons--gotchas)
 
 ---
 
@@ -45,38 +48,47 @@ The cert-dashboard-operator watches for `CertDashboard` custom resources and dep
 - SSE over WebSocket (simpler, unidirectional, sufficient for status streaming)
 - OLM-compatible for production-grade operator lifecycle management
 - Go `embed` package for baking HTML/CSS/JS into the dashboard binary
+- Kubernetes TokenReview for POST endpoint authentication
+- CertProvider interface for dependency injection and testability
+- Prometheus custom metrics for operational observability
+- Validation webhook for CRD field validation
+- Rate limiting to prevent renewal abuse
 
 ---
 
 ## 2. Architecture
 
 ```
-                    ┌─────────────────────────────────────┐
-                    │       cert-dashboard namespace       │
-                    │                                      │
-  kubectl apply     │  ┌──────────────────────┐           │
-  CertDashboard CR ─┼─>│  Operator (manager)  │           │
-                    │  │  controller-runtime   │           │
-                    │  └──────────┬───────────┘           │
-                    │             │ reconcile              │
-                    │             ▼                        │
-                    │  ┌──────────────────────┐           │
-                    │  │ Creates:              │           │
-                    │  │  - ServiceAccount     │           │
-                    │  │  - ClusterRole/Binding│           │
-                    │  │  - Deployment         │           │
-                    │  │  - Service (NodePort) │           │
-                    │  └──────────┬───────────┘           │
-                    │             │                        │
-                    │             ▼                        │
-                    │  ┌──────────────────────┐           │
-  Browser ──────────┼─>│  Dashboard (port 8080)│           │
-  http://host:32600 │  │  /api/certs           │           │
-                    │  │  /api/renew           │───────────┼──> cert-manager Certificates
-                    │  │  /api/sse/{id}        │───────────┼──> K8s Secrets (TLS)
-                    │  │  /healthz             │           │
-                    │  └──────────────────────┘           │
-                    └─────────────────────────────────────┘
+                    ┌──────────────────────────────────────────┐
+                    │         cert-dashboard namespace          │
+                    │                                           │
+  kubectl apply     │  ┌──────────────────────┐                │
+  CertDashboard CR ─┼─>│  Operator (manager)  │                │
+                    │  │  controller-runtime   │                │
+                    │  │  + Validation Webhook │                │
+                    │  └──────────┬───────────┘                │
+                    │             │ reconcile                   │
+                    │             ▼                             │
+                    │  ┌──────────────────────┐                │
+                    │  │ Creates:              │                │
+                    │  │  - ServiceAccount     │                │
+                    │  │  - ClusterRole/Binding│                │
+                    │  │  - Deployment         │                │
+                    │  │  - Service (NodePort) │                │
+                    │  └──────────┬───────────┘                │
+                    │             │                             │
+                    │             ▼                             │
+                    │  ┌──────────────────────┐                │
+  Browser ──────────┼─>│  Dashboard (port 8080)│                │
+  http://host:32600 │  │  /api/certs           │                │
+                    │  │  /api/renew ──[Auth]──│──┬────────────┼──> K8s TokenReview API
+                    │  │  /api/sse/{id}        │  │            │
+                    │  │  /healthz             │  ├────────────┼──> cert-manager Certificates
+                    │  │  /metrics             │  └────────────┼──> K8s Secrets (TLS)
+                    │  └──────────────────────┘                │
+                    │                          ▲                │
+                    │              Prometheus ──┘ (scrape)      │
+                    └──────────────────────────────────────────┘
 ```
 
 **Renewal Flow:**
@@ -597,8 +609,9 @@ func NewServer(cfg Config) (*Server, error) {
 
     // API endpoints
     s.mux.HandleFunc("GET /api/certs", s.handleGetCerts)
-    s.mux.HandleFunc("POST /api/renew", s.handleRenew)
+    s.mux.HandleFunc("POST /api/renew", s.authMiddleware(s.handleRenew))
     s.mux.HandleFunc("GET /api/sse/{streamId}", s.handleSSE)
+    s.mux.HandleFunc("GET /metrics", s.handleMetrics)
     s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Content-Type", "application/json")
         w.Write([]byte(`{"status":"ok"}`))
@@ -638,6 +651,8 @@ func (s *Server) Run(ctx context.Context) error {
 **Key points:**
 - `//go:embed templates/*` bakes all files in `templates/` into the binary
 - Routes use Go 1.22+ `http.ServeMux` pattern matching (`GET /api/sse/{streamId}`)
+- `POST /api/renew` is wrapped with `authMiddleware` (Kubernetes TokenReview authentication)
+- `GET /metrics` exposes Prometheus-format metrics
 - Watcher starts in a goroutine for background certificate polling
 - Graceful shutdown on context cancellation
 
@@ -2051,7 +2066,179 @@ VERIFY: catalog-operator pod is Running
 
 ---
 
-## 19. Troubleshooting
+## 19. Automated Tests
+
+The operator and dashboard have 35 automated tests across 4 packages.
+
+### Controller Tests (8 tests, envtest)
+
+Package: `internal/controller/`
+
+| Test | Description |
+|------|-------------|
+| Reconcile | Creates all child resources (SA, ClusterRole, ClusterRoleBinding, Deployment, Service) |
+| Defaults | Applies default values for replicas, image, nodePort, thresholds when not specified |
+| Finalizer | Adds finalizer on first reconcile; cleans up cluster-scoped resources on deletion |
+| ObservedGeneration | Sets `status.observedGeneration` to match `metadata.generation` |
+| RequeueAfter | Returns a requeue duration for periodic reconciliation |
+| Non-existent resource | Returns no error and does not requeue for deleted/missing CRs |
+| Update | Updates existing child resources when CR spec changes |
+| Deletion cleanup | Removes ClusterRole and ClusterRoleBinding when CR is deleted (finalizer logic) |
+
+### Handler Tests (11 tests)
+
+Package: `internal/dashboard/`
+
+| Test | Description |
+|------|-------------|
+| GetCerts returns | Returns JSON array of certificate data from CertProvider |
+| GetCerts nil | Returns empty array `[]` when provider returns nil |
+| GetCerts threshold | Applies yellow/red threshold to status field |
+| Renew invalid JSON | Returns 400 for malformed request body |
+| Renew missing fields | Returns 400 when name or namespace is empty |
+| Renew not found | Returns 404 when certificate does not exist |
+| Renew success | Returns 200 with streamId for valid renewal request |
+| Renew name too long | Returns 400 when name exceeds 253 characters |
+| Healthz | Returns `{"status":"ok"}` with 200 |
+| SSE unknown | Returns 404 for non-existent stream ID |
+| SSE missing | Returns 404 when stream ID is absent |
+| Index root | Serves index.html for `GET /` |
+| Index non-root | Returns 404 for unknown paths |
+
+### CertWatcher Tests (7 tests)
+
+Package: `internal/dashboard/`
+
+| Test | Description |
+|------|-------------|
+| NilSpec | Handles Certificate with nil spec gracefully |
+| InvalidSpecType | Handles unexpected spec type without crashing |
+| FullSpec | Parses all fields (DNS names, IP addresses, duration, renewBefore, algorithm) |
+| MinimalSpec | Parses Certificate with only required fields |
+| RevisionAsInt64 | Correctly reads revision from status as int64 (Kubernetes unstructured API) |
+| NotReadyStatus | Sets ready=false and appropriate status when Certificate is not Ready |
+| IsCA | Detects `isCA: true` in spec and sets the isCA field |
+
+### Webhook Tests (9 tests)
+
+Package: `api/v1alpha1/`
+
+| Test | Description |
+|------|-------------|
+| ValidCR | Accepts a well-formed CertDashboard CR |
+| RedGreaterThanYellow | Rejects CR where redThresholdDays > yellowThresholdDays |
+| RedEqualToYellow | Rejects CR where redThresholdDays == yellowThresholdDays |
+| EmptyImage | Rejects CR with empty image string |
+| NegativeReplicas | Rejects CR with replicas < 0 |
+| InvalidNodePort | Rejects CR with nodePort outside valid range (30000-32767) |
+| Update | Validates updated CR (same rules as create) |
+| DeleteAlwaysAllowed | Allows deletion of any CR without validation |
+| DefaultsValid | Verifies defaulting webhook sets correct default values |
+
+### Running Tests
+
+```bash
+cd cert-dashboard-operator
+go test ./... -v
+```
+
+---
+
+## 20. Security
+
+### Authentication
+
+`POST /api/renew` requires a valid Kubernetes ServiceAccount token in the `Authorization: Bearer <token>` header. The dashboard validates the token via the Kubernetes TokenReview API. Unauthenticated requests receive a `401 Unauthorized` response.
+
+Read-only endpoints (`GET /api/certs`, `GET /healthz`, `GET /metrics`, `GET /api/sse/{id}`) do not require authentication.
+
+### Rate Limiting
+
+The renew endpoint is rate-limited to 1 request per 10 seconds (per-server, not per-client). Requests that exceed the limit receive a `429 Too Many Requests` response.
+
+### Input Validation
+
+- Certificate name: maximum 253 characters (Kubernetes DNS subdomain limit)
+- Namespace: maximum 63 characters (Kubernetes namespace limit)
+- Request body: must be valid JSON with `name` and `namespace` string fields
+
+### Context Deadlines
+
+- Renewal timeout: 90 seconds (context deadline for the entire renewal goroutine)
+- HTTP ReadHeaderTimeout: 10 seconds
+- HTTP ReadTimeout: 30 seconds
+- HTTP IdleTimeout: 120 seconds
+
+### Pod Security
+
+The dashboard Deployment created by the operator enforces:
+
+```yaml
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+  seccompProfile:
+    type: RuntimeDefault
+```
+
+### Validation Webhook
+
+The operator registers a validating webhook for `CertDashboard` CRs that enforces:
+
+- `redThresholdDays` must be strictly less than `yellowThresholdDays`
+- `image` must not be empty
+- `replicas` must be >= 0
+- `nodePort` must be in valid range (30000-32767)
+
+---
+
+## 21. Metrics
+
+The dashboard exposes Prometheus metrics at `GET /metrics` in standard Prometheus exposition format.
+
+### Available Metrics
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `cert_dashboard_certificates_total` | Gauge | (none) | Total number of monitored certificates |
+| `cert_dashboard_certificate_days_remaining` | GaugeVec | `name`, `namespace` | Days remaining until certificate expiry |
+| `cert_dashboard_certificate_ready` | GaugeVec | `name`, `namespace` | Whether the certificate is Ready (1) or not (0) |
+| `cert_dashboard_renewals_total` | Counter | (none) | Total number of successful certificate renewals |
+| `cert_dashboard_renewal_errors_total` | Counter | (none) | Total number of failed certificate renewal attempts |
+
+### Scraping
+
+Add the dashboard to your Prometheus scrape configuration:
+
+```yaml
+scrape_configs:
+  - job_name: cert-dashboard
+    static_configs:
+      - targets: ['cert-dashboard.cert-dashboard.svc:8080']
+    metrics_path: /metrics
+    scrape_interval: 30s
+```
+
+### Example Queries
+
+```promql
+# Certificates expiring within 7 days
+cert_dashboard_certificate_days_remaining < 7
+
+# Renewal error rate (last 5 minutes)
+rate(cert_dashboard_renewal_errors_total[5m])
+
+# Not-ready certificates
+cert_dashboard_certificate_ready == 0
+```
+
+---
+
+## 22. Troubleshooting
 
 ### Image Pull Errors (ImagePullBackOff)
 
@@ -2121,7 +2308,7 @@ kubectl logs -n cert-dashboard -l app=cert-dashboard --tail=50
 
 ---
 
-## 20. Key Lessons & Gotchas
+## 23. Key Lessons & Gotchas
 
 1. **`imagePullPolicy: IfNotPresent`** is mandatory for kind clusters with locally-loaded images. Without it, Kubernetes tries to pull from Docker Hub and fails.
 

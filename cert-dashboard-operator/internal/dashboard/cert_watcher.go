@@ -45,6 +45,16 @@ type CertInfo struct {
 	IsCA         bool     `json:"isCA"`
 }
 
+// CertProvider abstracts certificate operations for testability.
+type CertProvider interface {
+	Start(ctx context.Context)
+	GetCerts() []CertInfo
+	DeleteSecret(ctx context.Context, namespace, secretName string) error
+	WaitForReady(ctx context.Context, name, namespace string, timeout time.Duration) error
+	GetRevision(ctx context.Context, name, namespace string) (int64, error)
+	Refresh(ctx context.Context)
+}
+
 var certGVR = schema.GroupVersionResource{
 	Group:    "cert-manager.io",
 	Version:  "v1",
@@ -137,10 +147,20 @@ func (w *CertWatcher) refresh(ctx context.Context) {
 	w.mu.Lock()
 	w.certs = allCerts
 	w.mu.Unlock()
+
+	// Update Prometheus metrics
+	UpdateCertMetrics(allCerts)
 }
 
 func (w *CertWatcher) parseCertificate(ctx context.Context, obj *unstructured.Unstructured) CertInfo {
-	spec := obj.Object["spec"].(map[string]interface{})
+	specRaw, ok := obj.Object["spec"]
+	if !ok {
+		return CertInfo{Name: obj.GetName(), Namespace: obj.GetNamespace(), Status: "red"}
+	}
+	spec, ok := specRaw.(map[string]interface{})
+	if !ok {
+		return CertInfo{Name: obj.GetName(), Namespace: obj.GetNamespace(), Status: "red"}
+	}
 	status, _ := obj.Object["status"].(map[string]interface{})
 
 	info := CertInfo{
@@ -254,6 +274,9 @@ func (w *CertWatcher) parseCertificate(ctx context.Context, obj *unstructured.Un
 }
 
 func (w *CertWatcher) enrichFromSecret(ctx context.Context, info *CertInfo) {
+	if w.coreClient == nil {
+		return
+	}
 	secret, err := w.coreClient.CoreV1().Secrets(info.Namespace).Get(ctx, info.SecretName, metav1.GetOptions{})
 	if err != nil {
 		return
@@ -286,6 +309,11 @@ func (w *CertWatcher) enrichFromSecret(ctx context.Context, info *CertInfo) {
 	default:
 		info.Algorithm = cert.PublicKeyAlgorithm.String()
 	}
+}
+
+// Refresh forces an immediate refresh of the certificate cache.
+func (w *CertWatcher) Refresh(ctx context.Context) {
+	w.refresh(ctx)
 }
 
 // DeleteSecret deletes a certificate's TLS secret to trigger renewal.

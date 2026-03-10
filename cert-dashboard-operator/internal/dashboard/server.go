@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -55,9 +56,11 @@ func ConfigFromEnv() Config {
 
 // Server is the dashboard HTTP server.
 type Server struct {
-	config  Config
-	watcher *CertWatcher
-	mux     *http.ServeMux
+	config    Config
+	watcher   CertProvider
+	mux       *http.ServeMux
+	streamsMu sync.RWMutex
+	streams   map[string]chan SSEEvent
 }
 
 // NewServer creates a new dashboard server.
@@ -67,21 +70,28 @@ func NewServer(config Config) (*Server, error) {
 		return nil, fmt.Errorf("creating cert watcher: %w", err)
 	}
 
+	return NewServerWithProvider(config, watcher), nil
+}
+
+// NewServerWithProvider creates a server with a custom CertProvider (for testing).
+func NewServerWithProvider(config Config, provider CertProvider) *Server {
 	s := &Server{
 		config:  config,
-		watcher: watcher,
+		watcher: provider,
 		mux:     http.NewServeMux(),
+		streams: make(map[string]chan SSEEvent),
 	}
 
 	s.mux.HandleFunc("GET /", s.handleIndex)
 	s.mux.HandleFunc("GET /style.css", s.handleStatic("templates/style.css", "text/css"))
 	s.mux.HandleFunc("GET /app.js", s.handleStatic("templates/app.js", "application/javascript"))
 	s.mux.HandleFunc("GET /api/certs", s.handleGetCerts)
-	s.mux.HandleFunc("POST /api/renew", s.handleRenew)
+	s.mux.HandleFunc("POST /api/renew", s.requireAuth(s.handleRenew))
 	s.mux.HandleFunc("GET /api/sse/{streamId}", s.handleSSE)
 	s.mux.HandleFunc("GET /healthz", s.handleHealthz)
+	s.mux.Handle("GET /metrics", MetricsHandler())
 
-	return s, nil
+	return s
 }
 
 // Run starts the server and blocks until ctx is cancelled.
@@ -93,6 +103,9 @@ func (s *Server) Run(ctx context.Context) error {
 		Addr:              addr,
 		Handler:           s.mux,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		// WriteTimeout intentionally omitted — SSE streams are long-lived
 	}
 
 	go func() {

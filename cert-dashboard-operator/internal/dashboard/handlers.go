@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,12 +29,6 @@ type SSEEvent struct {
 	Msg   string `json:"message"`
 	Done  bool   `json:"done,omitempty"`
 }
-
-// Active SSE streams
-var (
-	streamsMu sync.RWMutex
-	streams   = make(map[string]chan SSEEvent)
-)
 
 func (s *Server) handleGetCerts(w http.ResponseWriter, r *http.Request) {
 	certs := s.watcher.GetCerts()
@@ -71,6 +64,12 @@ func (s *Server) handleRenew(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate input length to prevent abuse
+	if len(req.Name) > 253 || len(req.Namespace) > 63 {
+		http.Error(w, `{"error":"name or namespace exceeds maximum length"}`, http.StatusBadRequest)
+		return
+	}
+
 	// Find the certificate to get secretName
 	certs := s.watcher.GetCerts()
 	var secretName string
@@ -88,12 +87,16 @@ func (s *Server) handleRenew(w http.ResponseWriter, r *http.Request) {
 	streamID := uuid.New().String()
 
 	ch := make(chan SSEEvent, 20)
-	streamsMu.Lock()
-	streams[streamID] = ch
-	streamsMu.Unlock()
+	s.streamsMu.Lock()
+	s.streams[streamID] = ch
+	s.streamsMu.Unlock()
 
-	// Start renewal in background — use Background context since the POST request ends immediately
-	go s.performRenewal(context.Background(), req.Name, req.Namespace, secretName, streamID, ch)
+	// Start renewal in background with a deadline
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	go func() {
+		defer cancel()
+		s.performRenewal(ctx, req.Name, req.Namespace, secretName, streamID, ch)
+	}()
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(RenewResponse{StreamID: streamID})
@@ -102,9 +105,9 @@ func (s *Server) handleRenew(w http.ResponseWriter, r *http.Request) {
 func (s *Server) performRenewal(ctx context.Context, name, namespace, secretName, streamID string, ch chan SSEEvent) {
 	defer func() {
 		time.Sleep(2 * time.Second)
-		streamsMu.Lock()
-		delete(streams, streamID)
-		streamsMu.Unlock()
+		s.streamsMu.Lock()
+		delete(s.streams, streamID)
+		s.streamsMu.Unlock()
 		close(ch)
 	}()
 
@@ -141,7 +144,9 @@ func (s *Server) performRenewal(ctx context.Context, name, namespace, secretName
 	ch <- SSEEvent{Event: "status", Phase: "ready", Msg: fmt.Sprintf("Certificate is Ready. Revision: %d → %d", revBefore, revAfter)}
 
 	// Refresh the watcher's cache
-	s.watcher.refresh(ctx)
+	s.watcher.Refresh(ctx)
+
+	RenewalsTotal.Inc()
 
 	ch <- SSEEvent{Event: "complete", Msg: "Renewal complete", Done: true}
 	log.Printf("Certificate %s/%s renewed successfully (revision %d → %d)", namespace, name, revBefore, revAfter)
@@ -154,9 +159,9 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	streamsMu.RLock()
-	ch, ok := streams[streamID]
-	streamsMu.RUnlock()
+	s.streamsMu.RLock()
+	ch, ok := s.streams[streamID]
+	s.streamsMu.RUnlock()
 
 	if !ok {
 		http.Error(w, "stream not found", http.StatusNotFound)

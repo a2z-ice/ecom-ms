@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -131,8 +132,9 @@ func (r *CertDashboardReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Update status
 	deploy := &appsv1.Deployment{}
+	ready := false
 	if err := r.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, deploy); err == nil {
-		ready := deploy.Status.ReadyReplicas > 0
+		ready = deploy.Status.ReadyReplicas > 0
 		dashboard.Status.Ready = ready
 		dashboard.Status.URL = fmt.Sprintf("http://localhost:%d", dashboard.Spec.NodePort)
 
@@ -141,6 +143,7 @@ func (r *CertDashboardReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			Status:             metav1.ConditionFalse,
 			Reason:             "NotReady",
 			Message:            "Dashboard deployment is not ready",
+			ObservedGeneration: dashboard.Generation,
 			LastTransitionTime: metav1.Now(),
 		}
 		if ready {
@@ -153,6 +156,12 @@ func (r *CertDashboardReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	if err := r.Status().Update(ctx, dashboard); err != nil {
 		log.Error(err, "Failed to update status")
+		return ctrl.Result{}, err
+	}
+
+	// Requeue if deployment not ready yet to update status when it becomes ready
+	if !ready {
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 	}
 
 	return ctrl.Result{}, nil
@@ -240,6 +249,12 @@ func (r *CertDashboardReconciler) reconcileDeployment(ctx context.Context, owner
 				ObjectMeta: metav1.ObjectMeta{Labels: labels},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: name,
+					SecurityContext: &corev1.PodSecurityContext{
+						RunAsNonRoot: boolPtr(true),
+						SeccompProfile: &corev1.SeccompProfile{
+							Type: corev1.SeccompProfileTypeRuntimeDefault,
+						},
+					},
 					Containers: []corev1.Container{
 						{
 							Name:            "dashboard",
@@ -290,6 +305,9 @@ func (r *CertDashboardReconciler) reconcileDeployment(ctx context.Context, owner
 								RunAsUser:                int64Ptr(1000),
 								ReadOnlyRootFilesystem:   boolPtr(true),
 								AllowPrivilegeEscalation: boolPtr(false),
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{"ALL"},
+								},
 							},
 						},
 					},
@@ -345,5 +363,5 @@ func (r *CertDashboardReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func boolPtr(b bool) *bool      { return &b }
-func int64Ptr(i int64) *int64   { return &i }
+func boolPtr(b bool) *bool    { return &b }
+func int64Ptr(i int64) *int64 { return &i }

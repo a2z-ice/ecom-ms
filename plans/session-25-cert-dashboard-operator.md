@@ -23,6 +23,14 @@ Create a Go-based Kubernetes operator (OLM-compatible) that deploys a web dashbo
 | 11 | Istio PeerAuthentication for NodePort | Done |
 | 12 | E2E tests (cert-dashboard.spec.ts) | Done |
 | 13 | kind cluster.yaml updated with port 32600 | Done |
+| 14 | Validation webhook (CertDashboardValidator) | Done |
+| 15 | Kubernetes TokenReview auth middleware | Done |
+| 16 | Prometheus custom metrics (5 cert_dashboard_* metrics) | Done |
+| 17 | Rate limiter (1 renewal per 10s globally) | Done |
+| 18 | Pod security hardening (seccomp, capabilities drop ALL) | Done |
+| 19 | CertProvider interface for testability | Done |
+| 20 | 44 Go tests (controller 8, handlers 11, cert_watcher 7, webhook 9) | Done |
+| 21 | scripts/cert-dashboard-up.sh rewritten (test → build → deploy → verify) | Done |
 
 ## Key Design Decisions
 
@@ -67,6 +75,33 @@ Dashboard exposes: GET /api/certs, POST /api/renew, GET /api/sse/{id}
 ## Files Modified
 
 - `infra/kind/cluster.yaml` — Added port 32600 to extraPortMappings
+
+## Post-Review Enterprise Hardening
+
+### New Files Created
+- `internal/dashboard/auth.go` — Kubernetes TokenReview auth middleware + rate limiter
+- `internal/dashboard/metrics.go` — 5 Prometheus custom metrics + UpdateCertMetrics()
+- `internal/webhook/certdashboard_webhook.go` — CRD validation webhook
+- `internal/webhook/certdashboard_webhook_test.go` — 9 webhook tests
+- `internal/dashboard/cert_watcher_test.go` — 7 cert watcher tests
+- `internal/dashboard/handlers_test.go` — 11 handler tests (was 0)
+
+### Files Modified
+- `internal/controller/certdashboard_controller.go` — Pod seccomp profile, capabilities drop ALL, ObservedGeneration, RequeueAfter 10s
+- `internal/controller/certdashboard_controller_test.go` — Rewritten: 8 comprehensive tests (was 1 stub)
+- `internal/dashboard/server.go` — CertProvider interface (was *CertWatcher), NewServerWithProvider(), HTTP timeouts, /metrics endpoint, requireAuth on POST /api/renew
+- `internal/dashboard/handlers.go` — Input validation (253/63 char limits), context deadline (90s), rate limiter, s.streams moved to Server struct
+- `internal/dashboard/cert_watcher.go` — CertProvider interface, safe type assertions (panic fix), nil guard in enrichFromSecret, public Refresh(), UpdateCertMetrics() call
+- `config/manifests/bases/cert-dashboard-operator.clusterserviceversion.yaml` — Real description, icon, installModes, keywords, maturity
+- `scripts/cert-dashboard-up.sh` — Complete pipeline: test → build → deploy → verify (8 checks)
+
+### Test Coverage Summary
+- Controller: 8 tests (envtest integration)
+- Handlers: 11 tests (HTTP unit)
+- CertWatcher: 7 tests (parsing unit)
+- Webhook: 9 tests (validation unit)
+- E2E: 29 tests (Playwright)
+- Total: 64 tests
 
 ## Build & Deploy
 
