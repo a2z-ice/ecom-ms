@@ -38,7 +38,7 @@ The cert-dashboard-operator watches for `CertDashboard` custom resources and dep
 
 - Displays all cert-manager `Certificate` resources with full metadata
 - Shows certificate lifetime as a progress bar (green > 10d, yellow <= 10d, red <= 5d)
-- Provides a "Renew Certificate" button with a confirmation modal
+- Provides a "Renew Certificate" button with a confirmation modal (token input, clipboard copy icon, Show/Hide toggle)
 - Streams the renewal process live via Server-Sent Events (SSE)
 - Auto-refreshes certificate data every 30 seconds
 

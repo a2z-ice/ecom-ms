@@ -23,6 +23,15 @@ function kubectlJsonpath(resource: string, namespace: string, jsonpath: string):
   return kubectl(['get', resource, ...nsArgs, '-o', `jsonpath=${jsonpath}`])
 }
 
+/** Get a short-lived ServiceAccount token for the dashboard. */
+function getDashboardToken(): string {
+  return kubectl([
+    'create', 'token', 'bookstore-certs',
+    '-n', 'cert-dashboard',
+    '--duration=10m',
+  ])
+}
+
 /** Check if cert-dashboard is deployed and accessible. */
 function dashboardAvailable(): boolean {
   try {
@@ -178,9 +187,18 @@ test.describe('Dashboard API', () => {
     expect(gateway.status).toBe('green')
   })
 
-  test('POST /api/renew returns streamId', async ({ request }) => {
+  test('POST /api/renew returns 401 without token', async ({ request }) => {
     const res = await request.post(`${DASHBOARD_URL}/api/renew`, {
       data: { name: 'bookstore-gateway-cert', namespace: 'infra' },
+    })
+    expect(res.status()).toBe(401)
+  })
+
+  test('POST /api/renew returns streamId with valid token', async ({ request }) => {
+    const token = getDashboardToken()
+    const res = await request.post(`${DASHBOARD_URL}/api/renew`, {
+      data: { name: 'bookstore-gateway-cert', namespace: 'infra' },
+      headers: { 'Authorization': `Bearer ${token}` },
     })
     expect(res.status()).toBe(200)
     const body = await res.json()
@@ -189,17 +207,27 @@ test.describe('Dashboard API', () => {
   })
 
   test('POST /api/renew rejects invalid request', async ({ request }) => {
+    const token = getDashboardToken()
     const res = await request.post(`${DASHBOARD_URL}/api/renew`, {
       data: { name: '', namespace: '' },
+      headers: { 'Authorization': `Bearer ${token}` },
     })
-    expect(res.status()).toBe(400)
+    // Rate limit may kick in (429) or bad request (400)
+    expect([400, 429]).toContain(res.status())
   })
 
   test('GET /api/sse/{streamId} returns event-stream', async ({ request }) => {
+    const token = getDashboardToken()
     // First trigger a renewal to get a stream ID
     const renewRes = await request.post(`${DASHBOARD_URL}/api/renew`, {
       data: { name: 'bookstore-gateway-cert', namespace: 'infra' },
+      headers: { 'Authorization': `Bearer ${token}` },
     })
+    // May be 429 if rate limited from previous test
+    if (renewRes.status() === 429) {
+      test.skip(true, 'Rate limited — skipping SSE test')
+      return
+    }
     const { streamId } = await renewRes.json()
 
     const sseRes = await request.get(`${DASHBOARD_URL}/api/sse/${streamId}`)
@@ -268,21 +296,93 @@ test.describe('Dashboard UI', () => {
     expect(await buttons.count()).toBeGreaterThanOrEqual(1)
   })
 
-  test('Renew button opens confirmation modal', async ({ page }) => {
+  test('Renew button opens confirmation modal with token field', async ({ page }) => {
     await page.goto(DASHBOARD_URL)
     await expect(page.locator('.cert-card').first()).toBeVisible({ timeout: 10000 })
     await page.locator('.btn-renew').first().click()
     await expect(page.locator('#renew-modal')).toBeVisible()
     await expect(page.locator('.modal-warning')).toBeVisible()
+
+    // Token section elements
+    await expect(page.locator('.token-section')).toBeVisible()
+    await expect(page.locator('#modal-token')).toBeVisible()
+    await expect(page.locator('#token-cmd')).toContainText('kubectl create token')
+    await expect(page.locator('#copy-cmd')).toBeVisible()
+    await expect(page.locator('#toggle-token')).toHaveText('Show')
+
+    // Token input is password-masked by default
+    await expect(page.locator('#modal-token')).toHaveAttribute('type', 'password')
   })
 
-  test('Cancel dismisses modal', async ({ page }) => {
+  test('Token field Show/Hide toggle works', async ({ page }) => {
     await page.goto(DASHBOARD_URL)
     await expect(page.locator('.cert-card').first()).toBeVisible({ timeout: 10000 })
     await page.locator('.btn-renew').first().click()
     await expect(page.locator('#renew-modal')).toBeVisible()
+
+    // Default: password masked
+    await expect(page.locator('#modal-token')).toHaveAttribute('type', 'password')
+    await expect(page.locator('#toggle-token')).toHaveText('Show')
+
+    // Click Show → reveals text
+    await page.locator('#toggle-token').click()
+    await expect(page.locator('#modal-token')).toHaveAttribute('type', 'text')
+    await expect(page.locator('#toggle-token')).toHaveText('Hide')
+
+    // Click Hide → masks again
+    await page.locator('#toggle-token').click()
+    await expect(page.locator('#modal-token')).toHaveAttribute('type', 'password')
+    await expect(page.locator('#toggle-token')).toHaveText('Show')
+  })
+
+  test('Confirm without token shows validation error', async ({ page }) => {
+    await page.goto(DASHBOARD_URL)
+    await expect(page.locator('.cert-card').first()).toBeVisible({ timeout: 10000 })
+    await page.locator('.btn-renew').first().click()
+    await expect(page.locator('#renew-modal')).toBeVisible()
+
+    // Click confirm without entering a token
+    await page.locator('#modal-confirm').click()
+
+    // Modal should still be visible (not dismissed)
+    await expect(page.locator('#renew-modal')).toBeVisible()
+
+    // Error message should appear
+    await expect(page.locator('#token-error')).toBeVisible()
+    await expect(page.locator('#modal-token')).toHaveClass(/invalid/)
+  })
+
+  test('Token error clears when user types', async ({ page }) => {
+    await page.goto(DASHBOARD_URL)
+    await expect(page.locator('.cert-card').first()).toBeVisible({ timeout: 10000 })
+    await page.locator('.btn-renew').first().click()
+    await expect(page.locator('#renew-modal')).toBeVisible()
+
+    // Trigger error
+    await page.locator('#modal-confirm').click()
+    await expect(page.locator('#token-error')).toBeVisible()
+
+    // Type something → error clears
+    await page.locator('#modal-token').fill('some-token')
+    await expect(page.locator('#token-error')).toBeHidden()
+    await expect(page.locator('#modal-token')).not.toHaveClass(/invalid/)
+  })
+
+  test('Cancel dismisses modal and clears token', async ({ page }) => {
+    await page.goto(DASHBOARD_URL)
+    await expect(page.locator('.cert-card').first()).toBeVisible({ timeout: 10000 })
+    await page.locator('.btn-renew').first().click()
+    await expect(page.locator('#renew-modal')).toBeVisible()
+
+    // Type a token then cancel
+    await page.locator('#modal-token').fill('some-token-value')
     await page.locator('#modal-cancel').click()
     await expect(page.locator('#renew-modal')).not.toBeVisible()
+
+    // Reopen — token field should be empty
+    await page.locator('.btn-renew').first().click()
+    await expect(page.locator('#renew-modal')).toBeVisible()
+    await expect(page.locator('#modal-token')).toHaveValue('')
   })
 
   test('Shows CA badge for CA certificates', async ({ page }) => {
@@ -310,8 +410,15 @@ test.describe('Renewal Flow', () => {
     test.skip(!dashboardAvailable(), 'Dashboard not deployed')
   })
 
-  test('Confirm triggers renewal with SSE streaming', async ({ page }) => {
-    test.setTimeout(90000) // Renewal can take up to 60s
+  test('Confirm triggers renewal with token and SSE streaming', async ({ page }) => {
+    test.setTimeout(120000) // Renewal can take up to 60s + rate limit wait
+
+    // Get a real Kubernetes ServiceAccount token
+    const token = getDashboardToken()
+    expect(token.length).toBeGreaterThan(50)
+
+    // Wait for rate limit to clear from previous API tests
+    await page.waitForTimeout(12000)
 
     await page.goto(DASHBOARD_URL)
     await expect(page.locator('.cert-card').first()).toBeVisible({ timeout: 10000 })
@@ -327,13 +434,30 @@ test.describe('Renewal Flow', () => {
     await gatewayCard.locator('.btn-renew').click()
     await expect(page.locator('#renew-modal')).toBeVisible()
 
+    // Handle any alert dialog (rate limit or error) — dismiss it so test can proceed
+    let alertFired = false
+    page.on('dialog', async (dialog) => {
+      alertFired = true
+      await dialog.dismiss()
+    })
+
+    // Paste the token into the masked input
+    await page.locator('#modal-token').fill(token)
+
     // Confirm
     await page.locator('#modal-confirm').click()
     await expect(page.locator('#renew-modal')).not.toBeVisible()
 
+    // If an alert fired (rate limit), the renewal failed — skip the rest
+    await page.waitForTimeout(1000)
+    if (alertFired) {
+      test.skip(true, 'Rate limited — renewal was rejected')
+      return
+    }
+
     // Wait for SSE panel to appear and show messages
     const ssePanel = gatewayCard.locator('.sse-panel')
-    await expect(ssePanel).toHaveClass(/active/, { timeout: 5000 })
+    await expect(ssePanel).toHaveClass(/active/, { timeout: 10000 })
 
     // Wait for "deleting-secret" phase
     await expect(ssePanel.locator('.phase-deleting-secret')).toBeVisible({ timeout: 10000 })

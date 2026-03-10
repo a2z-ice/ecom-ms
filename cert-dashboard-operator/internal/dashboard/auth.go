@@ -37,12 +37,7 @@ func getAuthClient() (kubernetes.Interface, error) {
 // GET endpoints (certs list, healthz) remain unauthenticated for monitoring.
 func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Rate limiting: 1 renewal per 10 seconds globally
-		if !s.checkRateLimit() {
-			http.Error(w, `{"error":"rate limit exceeded, try again later"}`, http.StatusTooManyRequests)
-			return
-		}
-
+		// Authenticate first — unauthenticated requests should not consume rate limit
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			http.Error(w, `{"error":"authorization header required"}`, http.StatusUnauthorized)
@@ -61,28 +56,32 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 			// If we can't get an auth client (e.g. running outside cluster), log and allow
 			// This permits local development while enforcing auth in-cluster
 			log.Printf("WARN: auth client unavailable, skipping token validation: %v", err)
-			next(w, r)
-			return
+		} else {
+			review := &authenticationv1.TokenReview{
+				Spec: authenticationv1.TokenReviewSpec{
+					Token: token,
+				},
+			}
+
+			ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+			defer cancel()
+
+			result, err := client.AuthenticationV1().TokenReviews().Create(ctx, review, metav1.CreateOptions{})
+			if err != nil {
+				log.Printf("ERROR: TokenReview API call failed: %v", err)
+				http.Error(w, `{"error":"authentication service unavailable"}`, http.StatusInternalServerError)
+				return
+			}
+
+			if !result.Status.Authenticated {
+				http.Error(w, `{"error":"invalid or expired token"}`, http.StatusUnauthorized)
+				return
+			}
 		}
 
-		review := &authenticationv1.TokenReview{
-			Spec: authenticationv1.TokenReviewSpec{
-				Token: token,
-			},
-		}
-
-		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-		defer cancel()
-
-		result, err := client.AuthenticationV1().TokenReviews().Create(ctx, review, metav1.CreateOptions{})
-		if err != nil {
-			log.Printf("ERROR: TokenReview API call failed: %v", err)
-			http.Error(w, `{"error":"authentication service unavailable"}`, http.StatusInternalServerError)
-			return
-		}
-
-		if !result.Status.Authenticated {
-			http.Error(w, `{"error":"invalid or expired token"}`, http.StatusUnauthorized)
+		// Rate limiting: 1 renewal per 10 seconds globally (only for authenticated requests)
+		if !s.checkRateLimit() {
+			http.Error(w, `{"error":"rate limit exceeded, try again later"}`, http.StatusTooManyRequests)
 			return
 		}
 

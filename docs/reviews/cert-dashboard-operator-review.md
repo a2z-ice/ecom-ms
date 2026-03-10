@@ -54,6 +54,24 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 
 **Why**: Certificate renewal is a destructive operation (deletes TLS secrets). Without auth, any network-adjacent attacker could trigger mass certificate churn, causing service disruptions. TokenReview leverages the existing Kubernetes RBAC model — no separate auth system needed.
 
+**RBAC chain**: The operator's own ServiceAccount (`cert-dashboard-operator`) must have `authentication.k8s.io/tokenreviews/create` permission so it can grant it to the dashboard's ServiceAccount (`bookstore-certs`) via the reconciled ClusterRole.
+
+### Frontend Token Input (Browser UI)
+
+**Before**: The browser "Renew Certificate" button submitted the renewal request without any token — always resulted in `401 Unauthorized` in-cluster.
+
+**After**: The confirmation dialog now includes:
+- A pre-filled `kubectl create token` command with a **clipboard copy icon** (top-right, shows checkmark on click)
+- A **password-masked** token input field with **Show/Hide** toggle (switches `input type` between `password` and `text`)
+- Client-side validation (red border + error message if token is empty; modal stays open)
+- The token is sent as `Authorization: Bearer <token>` in the renewal request
+- The dialog is **centered on screen** with a dark backdrop overlay
+
+![Token Modal](../../e2e/screenshots/cert-dashboard-token-modal.png)
+![Token Validation Error](../../e2e/screenshots/cert-dashboard-token-error.png)
+
+**Why**: Cluster admins need a way to renew certificates from the browser without resorting to `curl`. The token-in-modal approach keeps the full visual SSE streaming experience while enforcing the same auth as the CLI method.
+
 ---
 
 ## 2. Rate Limiting

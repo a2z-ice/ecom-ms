@@ -250,6 +250,11 @@ dialog {
   padding: 32px;
   max-width: 480px;
   width: 90%;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
 }
 
 dialog::backdrop {
@@ -269,6 +274,114 @@ dialog::backdrop {
   background: rgba(234, 179, 8, 0.1);
   border-radius: 6px;
   border: 1px solid rgba(234, 179, 8, 0.2);
+}
+
+/* Token input in modal */
+.token-section {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.token-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.token-help {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.token-command {
+  position: relative;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 36px 8px 12px;
+  margin-bottom: 10px;
+}
+
+.token-command code {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 0.78rem;
+  color: var(--green);
+  word-break: break-all;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.btn-copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+.btn-copy:hover { color: var(--text); background: rgba(255,255,255,0.1); }
+.btn-copy.copied { color: var(--green); }
+.copy-icon { display: block; }
+
+.token-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.token-input {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 0.78rem;
+  padding: 10px 56px 10px 12px;
+  line-height: 1.4;
+}
+.btn-toggle-vis {
+  position: absolute;
+  right: 8px;
+  background: var(--border);
+  color: var(--muted);
+  border: none;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-toggle-vis:hover { background: #475569; color: var(--text); }
+
+.token-input:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+.token-input.invalid {
+  border-color: var(--red);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+}
+
+.token-error {
+  font-size: 0.8rem;
+  color: var(--red);
+  margin-top: 6px;
 }
 
 .modal-actions {

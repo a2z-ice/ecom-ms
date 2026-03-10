@@ -31,6 +31,12 @@ Create a Go-based Kubernetes operator (OLM-compatible) that deploys a web dashbo
 | 19 | CertProvider interface for testability | Done |
 | 20 | 44 Go tests (controller 8, handlers 11, cert_watcher 7, webhook 9) | Done |
 | 21 | scripts/cert-dashboard-up.sh rewritten (test → build → deploy → verify) | Done |
+| 22 | Token input in renewal confirmation modal (password-masked, Show/Hide toggle) | Done |
+| 23 | Clipboard copy icon for kubectl command in modal (SVG icon, checkmark feedback) | Done |
+| 24 | Centered dialog with word-wrapped command display | Done |
+| 25 | TokenReview RBAC rule in ClusterRole (authentication.k8s.io/tokenreviews/create) | Done |
+| 26 | rebuild-deploy.sh script (no-cache build, image clearing, pod restart, 8 checks) | Done |
+| 27 | E2E tests for token modal (6 new: toggle, validation, error clear, cancel, auth) | Done |
 
 ## Key Design Decisions
 
@@ -86,22 +92,29 @@ Dashboard exposes: GET /api/certs, POST /api/renew, GET /api/sse/{id}
 - `internal/dashboard/cert_watcher_test.go` — 7 cert watcher tests
 - `internal/dashboard/handlers_test.go` — 11 handler tests (was 0)
 
+### New Files Created (Token Modal & Rebuild)
+- `cert-dashboard-operator/rebuild-deploy.sh` — Mature rebuild/redeploy script (no-cache build, kind image clearing, RBAC update, pod restart, 8 verification checks)
+
 ### Files Modified
-- `internal/controller/certdashboard_controller.go` — Pod seccomp profile, capabilities drop ALL, ObservedGeneration, RequeueAfter 10s
-- `internal/controller/certdashboard_controller_test.go` — Rewritten: 8 comprehensive tests (was 1 stub)
+- `internal/controller/certdashboard_controller.go` — Pod seccomp profile, capabilities drop ALL, ObservedGeneration, RequeueAfter 10s, **tokenreviews ClusterRole rule**
+- `internal/controller/certdashboard_controller_test.go` — Rewritten: 8 comprehensive tests (was 1 stub), **HaveLen(3) for ClusterRole rules**
 - `internal/dashboard/server.go` — CertProvider interface (was *CertWatcher), NewServerWithProvider(), HTTP timeouts, /metrics endpoint, requireAuth on POST /api/renew
 - `internal/dashboard/handlers.go` — Input validation (253/63 char limits), context deadline (90s), rate limiter, s.streams moved to Server struct
 - `internal/dashboard/cert_watcher.go` — CertProvider interface, safe type assertions (panic fix), nil guard in enrichFromSecret, public Refresh(), UpdateCertMetrics() call
+- `internal/dashboard/auth.go` — **Auth check before rate limit** (unauthenticated requests don't consume rate limit window)
+- `internal/dashboard/templates/index.html` — **Token section in renewal modal**: kubectl command with clipboard SVG icon, password-masked input with Show/Hide toggle, validation error display
+- `internal/dashboard/templates/style.css` — **Centered dialog** (`position: fixed; transform: translate(-50%,-50%)`), word-wrapped command, clipboard icon button, token input styling
+- `internal/dashboard/templates/app.js` — **Copy handler** (clipboard API + fallback, SVG icon swap), **Show/Hide toggle** (`type` attribute switch), token validation, modal reset
 - `config/manifests/bases/cert-dashboard-operator.clusterserviceversion.yaml` — Real description, icon, installModes, keywords, maturity
-- `scripts/cert-dashboard-up.sh` — Complete pipeline: test → build → deploy → verify (8 checks)
+- `scripts/cert-dashboard-up.sh` — Complete pipeline: test → build → deploy → verify (8 checks), **authentication.k8s.io/tokenreviews in operator ClusterRole**
 
 ### Test Coverage Summary
 - Controller: 8 tests (envtest integration)
 - Handlers: 11 tests (HTTP unit)
 - CertWatcher: 7 tests (parsing unit)
 - Webhook: 9 tests (validation unit)
-- E2E: 29 tests (Playwright)
-- Total: 64 tests
+- E2E: 32 passed, 1 skipped (Playwright — token modal, auth, renewal flow)
+- Total: 67 tests
 
 ## Build & Deploy
 

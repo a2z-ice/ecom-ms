@@ -836,12 +836,13 @@ All stateful services are backed by PVCs → PVs → host `data/` directory:
 - **NodePort 32600**: Exposed via kind `extraPortMappings` (requires `up.sh --fresh`)
 - **Istio PeerAuthentication**: `portLevelMtls: PERMISSIVE` on port 8080 for NodePort access
 - **Deployment script**: `scripts/cert-dashboard-up.sh` — builds images, installs OLM, deploys operator + CR
-- **E2E tests**: `cert-dashboard.spec.ts` — 29 tests (CRD, operator, API, UI, renewal SSE flow)
+- **E2E tests**: `cert-dashboard.spec.ts` — 32 passed, 1 skipped (CRD, operator, API, UI, token modal, auth, renewal SSE flow)
 - **Key fix**: Kubernetes unstructured API stores revision as `int64` (not `float64`) — use type switch for both
 - **Validation webhook**: CertDashboardValidator (threshold ordering, image required, replicas >= 0, nodePort range)
-- **Kubernetes TokenReview auth**: POST /api/renew requires Bearer token validated via TokenReview API
+- **Kubernetes TokenReview auth**: POST /api/renew requires Bearer token validated via TokenReview API; ClusterRole includes `authentication.k8s.io/tokenreviews/create`
+- **Token modal UI**: Renewal confirmation dialog with password-masked token input, Show/Hide toggle, clipboard copy icon (SVG with checkmark feedback), client-side validation, centered dialog with word-wrapped kubectl command
 - **Prometheus metrics**: 5 custom metrics (`cert_dashboard_*`) at `GET /metrics`
-- **Rate limiting**: 1 renewal per 10 seconds globally
+- **Rate limiting**: 1 renewal per 10 seconds globally; auth checked before rate limit (unauthenticated requests don't consume the window)
 - **Pod security hardened**: seccomp RuntimeDefault, capabilities drop ALL on reconciled Deployment
 - **Safe type assertions**: Panic fix in parseCertificate (nil spec, invalid spec type)
 - **CertProvider interface**: Server.watcher typed as interface for testability
@@ -849,6 +850,7 @@ All stateful services are backed by PVCs → PVs → host `data/` directory:
 - **HTTP timeouts**: ReadHeaderTimeout 10s, ReadTimeout 30s, IdleTimeout 120s
 - **Input validation**: name max 253 chars, namespace max 63 chars on POST /api/renew
 - **scripts/cert-dashboard-up.sh**: Complete pipeline script (test -> build -> deploy -> verify, 8 verification checks)
+- **rebuild-deploy.sh**: Quick rebuild script in `cert-dashboard-operator/` (no-cache build, kind image clearing, RBAC update, pod restart, 8 verification checks)
 
 ### NEXT SESSION — Start Here
 

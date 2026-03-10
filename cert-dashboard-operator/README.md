@@ -248,13 +248,15 @@ Status colors are determined by the CertDashboard CR thresholds:
 
 Triggers certificate renewal by deleting the TLS secret (cert-manager re-issues automatically). Requires Kubernetes ServiceAccount token authentication via TokenReview API.
 
+**CLI usage:**
+
 ```bash
-TOKEN=$(kubectl create token cert-dashboard-operator -n cert-dashboard)
+TOKEN=$(kubectl create token bookstore-certs -n cert-dashboard --duration=10m)
 
 curl -X POST http://localhost:32600/api/renew \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name": "bookstore-gateway-cert", "namespace": "istio-system"}'
+  -d '{"name": "bookstore-gateway-cert", "namespace": "infra"}'
 ```
 
 Response:
@@ -266,6 +268,13 @@ Response:
 ```
 
 Use the returned `streamId` to subscribe to live renewal progress via SSE.
+
+**Browser usage:** Click "Renew Certificate" on any card. The confirmation dialog includes:
+- The exact `kubectl create token` command with a clipboard copy icon
+- A password-masked token input field with Show/Hide toggle
+- Client-side validation (empty token shows error, modal stays open)
+
+The token is sent as `Authorization: Bearer <token>` in the renewal request.
 
 **Rate limit:** 1 renewal per 10 seconds globally. Returns `429 Too Many Requests` if exceeded.
 

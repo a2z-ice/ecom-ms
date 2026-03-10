@@ -101,13 +101,17 @@ var _ = Describe("CertDashboard Controller", func() {
 			cr := &rbacv1.ClusterRole{}
 			crName := "cert-dashboard-" + resourceName
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: crName}, cr)).To(Succeed())
-			Expect(cr.Rules).To(HaveLen(2))
+			Expect(cr.Rules).To(HaveLen(3))
 			// First rule: cert-manager.io resources
 			Expect(cr.Rules[0].APIGroups).To(ContainElement("cert-manager.io"))
 			Expect(cr.Rules[0].Resources).To(ContainElements("certificates", "certificaterequests"))
 			// Second rule: secrets
 			Expect(cr.Rules[1].Resources).To(ContainElement("secrets"))
 			Expect(cr.Rules[1].Verbs).To(ContainElement("delete"))
+			// Third rule: tokenreviews for auth
+			Expect(cr.Rules[2].APIGroups).To(ContainElement("authentication.k8s.io"))
+			Expect(cr.Rules[2].Resources).To(ContainElement("tokenreviews"))
+			Expect(cr.Rules[2].Verbs).To(ContainElement("create"))
 
 			By("creating a ClusterRoleBinding")
 			crb := &rbacv1.ClusterRoleBinding{}

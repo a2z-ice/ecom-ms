@@ -189,43 +189,215 @@ The details grid shows 10 fields:
 
 ## 8. Renewing a Certificate
 
-### Step 1: Click the Renew Button
+### Authentication Requirement
 
-![Renew Button](../../e2e/screenshots/cert-dashboard/cert-dashboard-um-renew-button.png)
+Certificate renewal is a **destructive operation** (it deletes TLS secrets). To prevent unauthorized renewals, the `POST /api/renew` endpoint requires a valid Kubernetes ServiceAccount token.
 
-Find the certificate card you want to renew and click the blue **"Renew Certificate"** button at the bottom.
+There are **two ways** to renew a certificate, depending on your workflow:
+
+| Method | Best For | Auth Handling |
+|--------|----------|---------------|
+| [Method A: CLI with curl](#method-a-renew-via-cli-recommended) | Production, automation, scripting | You provide the Bearer token explicitly via curl |
+| [Method B: Browser UI with token input](#method-b-renew-via-browser-ui-recommended-for-interactive-use) | Interactive use, visual monitoring | You paste a token into the confirmation dialog |
+
+---
+
+### Method A: Renew via CLI (Recommended)
+
+This is the **recommended production method** for cluster administrators. It provides a full audit trail and works in any environment.
+
+#### Step 1: Identify the certificate to renew
+
+```bash
+# List all certificates visible to the dashboard
+curl -s http://localhost:32600/api/certs | python3 -c "
+import sys, json
+for c in json.load(sys.stdin):
+    print(f\"  {c['namespace']}/{c['name']}  (secret: {c['secretName']}, days left: {c['daysRemaining']}, rev: {c['revision']})\")
+"
+```
+
+Example output:
+```
+  cert-manager/bookstore-ca  (secret: bookstore-ca-secret, days left: 3649, rev: 1)
+  infra/bookstore-gateway-cert  (secret: bookstore-gateway-tls, days left: 29, rev: 21)
+```
+
+#### Step 2: Get a Kubernetes ServiceAccount token
+
+The dashboard runs as ServiceAccount `bookstore-certs` in namespace `cert-dashboard`. Create a short-lived token for it:
+
+```bash
+TOKEN=$(kubectl create token bookstore-certs -n cert-dashboard --duration=10m)
+```
+
+This creates a token valid for 10 minutes — long enough to trigger a renewal and watch the SSE stream.
+
+> **Who can run this?** Any user with `create` permission on `serviceaccounts/token` in the `cert-dashboard` namespace. Typically this means cluster-admin or a user with an explicit RBAC binding.
+
+#### Step 3: Trigger the renewal
+
+```bash
+RESPONSE=$(curl -s -X POST http://localhost:32600/api/renew \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"name":"bookstore-gateway-cert","namespace":"infra"}')
+
+echo "$RESPONSE"
+```
+
+Expected response:
+```json
+{"streamId":"505c9948-be50-436b-8724-aab86bac4d8c"}
+```
+
+#### Step 4: Watch the renewal progress via SSE
+
+```bash
+STREAM_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['streamId'])")
+curl -sN http://localhost:32600/api/sse/$STREAM_ID
+```
+
+You'll see live events:
+```
+: keepalive
+
+event: status
+data: {"event":"status","phase":"deleting-secret","message":"Deleting TLS secret 'bookstore-gateway-tls' to trigger renewal..."}
+
+event: status
+data: {"event":"status","phase":"waiting-issuing","message":"Secret deleted. Waiting for cert-manager to issue new certificate..."}
+
+event: status
+data: {"event":"status","phase":"issued","message":"New certificate issued by cert-manager."}
+
+event: status
+data: {"event":"status","phase":"ready","message":"Certificate is Ready. Revision: 21 → 22"}
+
+event: complete
+data: {"event":"complete","message":"Renewal complete","done":true}
+```
+
+#### Step 5: Verify the renewal
+
+```bash
+# Check the certificate was renewed (revision should have incremented)
+curl -s http://localhost:32600/api/certs | python3 -c "
+import sys, json
+for c in json.load(sys.stdin):
+    if c['name'] == 'bookstore-gateway-cert':
+        print(f\"Revision: {c['revision']}\")
+        print(f\"Not After: {c['notAfter']}\")
+        print(f\"Serial:    {c['serialNumber']}\")
+        print(f\"Days Left: {c['daysRemaining']}\")
+"
+
+# Verify HTTPS still works
+curl -sk https://api.service.net:30000/ecom/books | head -c 100
+```
+
+#### Complete one-liner for experienced admins
+
+```bash
+# Renew bookstore-gateway-cert in one shot (non-interactive)
+TOKEN=$(kubectl create token bookstore-certs -n cert-dashboard --duration=10m) && \
+STREAM_ID=$(curl -s -X POST http://localhost:32600/api/renew \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"name":"bookstore-gateway-cert","namespace":"infra"}' | \
+  python3 -c "import sys,json; print(json.load(sys.stdin)['streamId'])") && \
+curl -sN http://localhost:32600/api/sse/$STREAM_ID
+```
+
+---
+
+### Method B: Renew via Browser UI (Recommended for Interactive Use)
+
+The dashboard UI has a built-in token input field in the renewal confirmation dialog. This is the easiest way to renew certificates interactively.
+
+#### Step 1: Open the dashboard
+
+```
+http://localhost:32600
+```
+
+![Dashboard Overview](../../e2e/screenshots/cert-dashboard-overview.png)
+
+#### Step 2: Click "Renew Certificate" on the target card
+
+Find the certificate card and click the blue **"Renew Certificate"** button.
 
 > The button is disabled (grayed out) if the certificate is not in a Ready state.
 
-### Step 2: Review the Confirmation Modal
+#### Step 3: Get a ServiceAccount token
 
-![Renew Modal](../../e2e/screenshots/cert-dashboard/cert-dashboard-05-renew-modal.png)
+A confirmation dialog appears with a **token section** that shows the exact `kubectl` command to run:
 
-A confirmation dialog appears with:
-- The certificate name and namespace
-- A yellow warning explaining what will happen
+![Token Modal](../../e2e/screenshots/cert-dashboard-token-modal.png)
 
-![Modal Close-up](../../e2e/screenshots/cert-dashboard/cert-dashboard-06-modal-closeup.png)
+1. Click the **clipboard icon** (top-right of the command box) — it will briefly show a checkmark to confirm the copy
+2. Open a terminal and paste the command:
 
-**Read the warning carefully:**
+```bash
+kubectl create token bookstore-certs -n cert-dashboard --duration=10m
+```
 
-> "This will delete the TLS secret and trigger cert-manager to issue a new certificate. There may be a brief interruption to HTTPS traffic."
+3. Copy the output token (it starts with `eyJ...`)
 
-### Step 3: Confirm or Cancel
+> **Who can run this?** Any user with `create` permission on `serviceaccounts/token` in the `cert-dashboard` namespace. Typically this means cluster-admin or a user with an explicit RBAC binding.
+
+#### Step 4: Paste the token into the dialog
+
+Paste the token into the **password-masked input field**. The token is masked by default for security.
+
+![Token Masked](../../e2e/screenshots/cert-dashboard-token-masked.png)
+
+Use the **"Show"** button to reveal the token if you need to verify it was pasted correctly:
+
+![Token Visible](../../e2e/screenshots/cert-dashboard-token-visible.png)
+
+> If you click "Renew Certificate" without entering a token, you'll see a validation error:
+
+![Token Error](../../e2e/screenshots/cert-dashboard-token-error.png)
+
+#### Step 5: Confirm the renewal
 
 | Button | Action |
 |--------|--------|
-| **Cancel** (gray) | Closes the modal, no changes made |
-| **Renew Certificate** (red) | Triggers the renewal process |
+| **Cancel** (gray) | Closes the modal, clears the token, no changes made |
+| **Renew Certificate** (red) | Validates the token, triggers the renewal process |
 
-### What Happens When You Confirm
+After clicking "Renew Certificate" with a valid token:
+- The modal closes
+- The SSE status panel appears on the certificate card
+- Live progress events stream in real-time (see [Section 9](#9-understanding-the-renewal-sse-stream))
 
-1. The modal closes
-2. The Renew button becomes disabled (prevents double-click)
-3. An SSE (Server-Sent Events) panel appears below the button
-4. The dashboard deletes the TLS secret from Kubernetes
-5. cert-manager detects the missing secret and starts re-issuance
-6. Progress updates stream live to your browser
+#### Troubleshooting
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| "A valid token is required" | Empty token field | Paste the token from Step 3 |
+| "authorization header required" (401) | Token not sent | Refresh the page and try again |
+| "invalid or expired token" (401) | Token expired (>10 min) | Generate a new token with `kubectl create token` |
+| "authentication service unavailable" (500) | Dashboard can't reach K8s API | Check dashboard pod logs: `kubectl logs -n cert-dashboard -l app=cert-dashboard` |
+| "rate limit exceeded" (429) | Too many renewals too fast | Wait 10 seconds and try again |
+
+> **Dev mode fallback:** When the dashboard runs outside a Kubernetes cluster (e.g., `go run` locally), the auth middleware cannot reach the TokenReview API and gracefully skips token validation. The token field still appears but any value (or even empty) will work.
+
+---
+
+### What Happens During Renewal
+
+Regardless of which method you use, the renewal process is the same:
+
+1. The dashboard records the current certificate revision number
+2. The TLS secret is deleted from Kubernetes
+3. cert-manager detects the missing secret and starts re-issuance
+4. cert-manager requests a new certificate from the issuer (CA)
+5. The issuer signs the new certificate
+6. cert-manager stores the new certificate in a new secret
+7. The Certificate resource becomes Ready with an incremented revision
+8. The dashboard refreshes its cache
 
 ---
 
@@ -370,12 +542,13 @@ curl -s http://localhost:32600/metrics
 
 ### Trigger Renewal via API
 
-> **Authentication required:** The renew endpoint requires a valid Kubernetes ServiceAccount token. Pass it as a Bearer token in the `Authorization` header.
+**Authentication required.** The renew endpoint requires a valid Kubernetes ServiceAccount token.
 
 ```bash
-# Get a ServiceAccount token
-TOKEN=$(kubectl create token bookstore-certs -n cert-dashboard)
+# Step 1: Get a short-lived token (valid 10 minutes)
+TOKEN=$(kubectl create token bookstore-certs -n cert-dashboard --duration=10m)
 
+# Step 2: Trigger the renewal
 curl -s -X POST http://localhost:32600/api/renew \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer $TOKEN" \
@@ -387,10 +560,13 @@ curl -s -X POST http://localhost:32600/api/renew \
 {"streamId":"505c9948-be50-436b-8724-aab86bac4d8c"}
 ```
 
+> For the full step-by-step walkthrough including SSE monitoring and verification, see [Section 8: Renewing a Certificate — Method A](#method-a-renew-via-cli-recommended).
+
 ### Subscribe to Renewal Stream
 
 ```bash
-curl -sN http://localhost:32600/api/sse/<streamId>
+# Use the streamId from the renew response (no auth required for SSE)
+curl -sN http://localhost:32600/api/sse/505c9948-be50-436b-8724-aab86bac4d8c
 ```
 
 **Response** (Server-Sent Events format):
@@ -398,16 +574,16 @@ curl -sN http://localhost:32600/api/sse/<streamId>
 : keepalive
 
 event: status
-data: {"event":"status","phase":"deleting-secret","message":"Deleting TLS secret..."}
+data: {"event":"status","phase":"deleting-secret","message":"Deleting TLS secret 'bookstore-gateway-tls' to trigger renewal..."}
 
 event: status
-data: {"event":"status","phase":"waiting-issuing","message":"Secret deleted..."}
+data: {"event":"status","phase":"waiting-issuing","message":"Secret deleted. Waiting for cert-manager to issue new certificate..."}
 
 event: status
-data: {"event":"status","phase":"issued","message":"New certificate issued..."}
+data: {"event":"status","phase":"issued","message":"New certificate issued by cert-manager."}
 
 event: status
-data: {"event":"status","phase":"ready","message":"Certificate is Ready. Revision: 20 → 21"}
+data: {"event":"status","phase":"ready","message":"Certificate is Ready. Revision: 21 → 22"}
 
 event: complete
 data: {"event":"complete","message":"Renewal complete","done":true}
@@ -415,13 +591,18 @@ data: {"event":"complete","message":"Renewal complete","done":true}
 
 ### API Error Responses
 
-| Endpoint | Status | Body | Cause |
-|----------|--------|------|-------|
-| `POST /api/renew` | 400 | `{"error":"name and namespace required"}` | Empty name or namespace |
-| `POST /api/renew` | 401 | `Unauthorized` | Missing or invalid Bearer token |
-| `POST /api/renew` | 404 | `{"error":"certificate not found"}` | Certificate doesn't exist in monitored namespaces |
-| `POST /api/renew` | 429 | `Too Many Requests` | Rate limit exceeded (1 per 10 seconds) |
-| `GET /api/sse/{id}` | 404 | `stream not found` | Invalid or expired stream ID |
+| Endpoint | Status | Body | Cause | Fix |
+|----------|--------|------|-------|-----|
+| `POST /api/renew` | 400 | `{"error":"name and namespace required"}` | Empty name or namespace | Provide both `name` and `namespace` in JSON body |
+| `POST /api/renew` | 400 | `{"error":"name or namespace exceeds maximum length"}` | Name > 253 chars or namespace > 63 chars | Use valid Kubernetes resource names |
+| `POST /api/renew` | 401 | `{"error":"authorization header required"}` | No `Authorization` header sent | Add `Authorization: Bearer $TOKEN` header (see [Method A](#method-a-renew-via-cli-recommended)) |
+| `POST /api/renew` | 401 | `{"error":"invalid authorization header format"}` | Header present but not `Bearer <token>` format | Use format: `Authorization: Bearer <token>` |
+| `POST /api/renew` | 401 | `{"error":"invalid or expired token"}` | Token failed Kubernetes TokenReview validation | Generate a fresh token: `kubectl create token bookstore-certs -n cert-dashboard` |
+| `POST /api/renew` | 404 | `{"error":"certificate not found"}` | Certificate doesn't exist in monitored namespaces | Verify cert exists: `kubectl get cert -A` |
+| `POST /api/renew` | 429 | `{"error":"rate limit exceeded, try again later"}` | Another renewal was triggered < 10 seconds ago | Wait 10 seconds and retry |
+| `POST /api/renew` | 500 | `{"error":"authentication service unavailable"}` | Kubernetes API server unreachable | Check cluster health: `kubectl cluster-info` |
+| `GET /api/sse/{id}` | 400 | `streamId required` | No stream ID in URL path | Use the `streamId` from the renew response |
+| `GET /api/sse/{id}` | 404 | `stream not found` | Invalid or expired stream ID (streams expire ~2s after completion) | Trigger a new renewal to get a fresh streamId |
 
 ---
 
@@ -576,21 +757,108 @@ kubectl patch certdashboard bookstore-certs -n cert-dashboard \
   --type=json -p='[{"op":"add","path":"/spec/namespaces/-","value":"my-new-namespace"}]'
 ```
 
-### Q: Why does POST /api/renew return 401?
+### Q: How do I renew a certificate from the browser?
 
-The renew endpoint requires a valid Kubernetes ServiceAccount token in the `Authorization` header. Obtain a token and include it as a Bearer token:
+Click "Renew Certificate" on any card. The confirmation dialog will ask you to paste a Kubernetes ServiceAccount token. Run the kubectl command shown in the dialog to get the token, paste it in, and click "Renew Certificate". See [Method B: Browser UI](#method-b-renew-via-browser-ui-recommended-for-interactive-use) for the full walkthrough.
+
+### Q: Why does the browser Renew button show "authorization header required"?
+
+This happens if the frontend code is outdated. Refresh the page — the latest version includes a token input field in the confirmation dialog. If the error persists, check the dashboard pod is running the latest image (see `rebuild-deploy.sh`).
+
+Viewing certificates (`GET /api/certs`) and the health check (`GET /healthz`) do **not** require authentication — only the renewal endpoint is protected.
+
+### Q: How do I get a ServiceAccount token for renewal?
 
 ```bash
-TOKEN=$(kubectl create token bookstore-certs -n cert-dashboard)
+# Create a short-lived token (10 minutes)
+TOKEN=$(kubectl create token bookstore-certs -n cert-dashboard --duration=10m)
+echo "$TOKEN"
+```
+
+**Prerequisites:**
+- You must have `kubectl` configured with cluster access
+- Your kubeconfig user must have permission to create tokens for ServiceAccounts in the `cert-dashboard` namespace
+- Cluster-admin role satisfies this; otherwise you need an RBAC binding:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cert-dashboard-token-creator
+  namespace: cert-dashboard
+rules:
+- apiGroups: [""]
+  resources: ["serviceaccounts/token"]
+  verbs: ["create"]
+```
+
+### Q: The token expired and I get "invalid or expired token" — what now?
+
+`kubectl create token` generates short-lived tokens (default: 1 hour, or whatever you set with `--duration`). Simply generate a new one:
+
+```bash
+TOKEN=$(kubectl create token bookstore-certs -n cert-dashboard --duration=10m)
+```
+
+### Q: Can I use my own ServiceAccount token instead of bookstore-certs?
+
+Yes. Any valid Kubernetes ServiceAccount token will pass the TokenReview check. The dashboard validates that the token is **authenticated** (not expired, properly signed) but does not enforce specific roles or service accounts. Use any SA token your cluster admin has access to:
+
+```bash
+# Using the default SA in kube-system (cluster-admin typically has access)
+TOKEN=$(kubectl create token default -n kube-system --duration=10m)
+```
+
+### Q: Why does POST /api/renew return 429?
+
+Rate limiting allows only one renewal every 10 seconds. This prevents accidental rapid-fire renewals that could overwhelm cert-manager.
+
+```bash
+# If you get 429, just wait and retry
+sleep 10
+TOKEN=$(kubectl create token bookstore-certs -n cert-dashboard --duration=10m)
 curl -s -X POST http://localhost:32600/api/renew \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"name":"bookstore-gateway-cert","namespace":"infra"}'
 ```
 
-### Q: Why does POST /api/renew return 429?
+### Q: How do I automate certificate renewal in a CronJob?
 
-Rate limiting allows only one renewal every 10 seconds. Wait at least 10 seconds after the previous renewal request and try again.
+Create a Kubernetes CronJob that uses the dashboard's ServiceAccount token:
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cert-renew-gateway
+  namespace: cert-dashboard
+spec:
+  schedule: "0 2 15 * *"  # 2 AM on the 15th of each month
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: bookstore-certs
+          containers:
+          - name: renew
+            image: curlimages/curl:latest
+            command:
+            - sh
+            - -c
+            - |
+              # Read the mounted SA token
+              TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              # Trigger renewal
+              RESPONSE=$(curl -sf -X POST http://bookstore-certs.cert-dashboard:8080/api/renew \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $TOKEN" \
+                -d '{"name":"bookstore-gateway-cert","namespace":"infra"}')
+              echo "Renewal triggered: $RESPONSE"
+          restartPolicy: OnFailure
+```
+
+> **Note:** The CronJob pod's auto-mounted ServiceAccount token is valid and passes TokenReview. No need for `kubectl create token` when running inside the cluster.
 
 ### Q: The SSE stream shows "SSE connection lost"
 

@@ -23,6 +23,29 @@
       <h2>Confirm Certificate Renewal</h2>
       <p>Are you sure you want to renew the certificate <strong id="modal-cert-name"></strong> in namespace <strong id="modal-cert-ns"></strong>?</p>
       <p class="modal-warning">This will delete the TLS secret and trigger cert-manager to issue a new certificate. There may be a brief interruption to HTTPS traffic.</p>
+
+      <div class="token-section">
+        <label class="token-label" for="modal-token">Kubernetes ServiceAccount Token</label>
+        <p class="token-help">Run this command to get a token, then paste it below:</p>
+        <div class="token-command">
+          <code id="token-cmd">kubectl create token bookstore-certs -n cert-dashboard --duration=10m</code>
+          <button type="button" id="copy-cmd" class="btn-copy" title="Copy to clipboard">
+            <svg id="copy-icon" class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <svg id="check-icon" class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </button>
+        </div>
+        <div class="token-input-wrapper">
+          <input type="password" id="modal-token" class="token-input" placeholder="Paste your token here..." spellcheck="false" autocomplete="off" />
+          <button type="button" id="toggle-token" class="btn-toggle-vis" title="Show/hide token">Show</button>
+        </div>
+        <p id="token-error" class="token-error" hidden>A valid token is required to renew certificates.</p>
+      </div>
+
       <div class="modal-actions">
         <button id="modal-cancel" class="btn btn-secondary">Cancel</button>
         <button id="modal-confirm" class="btn btn-danger">Renew Certificate</button>

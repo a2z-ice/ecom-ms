@@ -7,8 +7,58 @@ const modalCertName = document.getElementById('modal-cert-name');
 const modalCertNs = document.getElementById('modal-cert-ns');
 const modalCancel = document.getElementById('modal-cancel');
 const modalConfirm = document.getElementById('modal-confirm');
+const modalToken = document.getElementById('modal-token');
+const tokenError = document.getElementById('token-error');
+const copyCmd = document.getElementById('copy-cmd');
+const toggleToken = document.getElementById('toggle-token');
 
 let pendingRenew = null;
+
+// ─── Token field helpers ────────────────────────────────────────────────
+
+copyCmd.addEventListener('click', async () => {
+  const cmd = document.getElementById('token-cmd').textContent;
+  const copyIcon = document.getElementById('copy-icon');
+  const checkIcon = document.getElementById('check-icon');
+
+  try {
+    await navigator.clipboard.writeText(cmd);
+  } catch {
+    // Fallback for non-secure contexts
+    const ta = document.createElement('textarea');
+    ta.value = cmd;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+
+  // Show checkmark icon briefly
+  copyIcon.style.display = 'none';
+  checkIcon.style.display = 'block';
+  copyCmd.classList.add('copied');
+  setTimeout(() => {
+    checkIcon.style.display = 'none';
+    copyIcon.style.display = 'block';
+    copyCmd.classList.remove('copied');
+  }, 2000);
+});
+
+toggleToken.addEventListener('click', () => {
+  if (modalToken.type === 'password') {
+    modalToken.type = 'text';
+    toggleToken.textContent = 'Hide';
+  } else {
+    modalToken.type = 'password';
+    toggleToken.textContent = 'Show';
+  }
+});
+
+modalToken.addEventListener('input', () => {
+  // Clear error state when user types
+  modalToken.classList.remove('invalid');
+  tokenError.hidden = true;
+});
 
 // ─── Fetch & Render ─────────────────────────────────────────────────────
 
@@ -38,7 +88,14 @@ function renderCerts(certs) {
       pendingRenew = { name: btn.dataset.name, namespace: btn.dataset.ns };
       modalCertName.textContent = btn.dataset.name;
       modalCertNs.textContent = btn.dataset.ns;
+      // Reset token field state
+      modalToken.value = '';
+      modalToken.type = 'password';
+      toggleToken.textContent = 'Show';
+      modalToken.classList.remove('invalid');
+      tokenError.hidden = true;
       modal.showModal();
+      modalToken.focus();
     });
   });
 }
@@ -137,14 +194,25 @@ function renderCard(cert) {
 modalCancel.addEventListener('click', () => {
   modal.close();
   pendingRenew = null;
+  modalToken.value = '';
 });
 
 modal.addEventListener('close', () => {
   pendingRenew = null;
+  modalToken.value = '';
 });
 
 modalConfirm.addEventListener('click', async () => {
   if (!pendingRenew) return;
+
+  const token = modalToken.value.trim();
+  if (!token) {
+    modalToken.classList.add('invalid');
+    tokenError.hidden = false;
+    modalToken.focus();
+    return;
+  }
+
   const { name, namespace } = pendingRenew;
   modal.close();
 
@@ -155,13 +223,20 @@ modalConfirm.addEventListener('click', async () => {
   try {
     const res = await fetch('/api/renew', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
       body: JSON.stringify({ name, namespace }),
     });
 
     if (!res.ok) {
-      const err = await res.json();
-      alert(`Renewal failed: ${err.error || res.statusText}`);
+      let errMsg = res.statusText;
+      try {
+        const err = await res.json();
+        errMsg = err.error || errMsg;
+      } catch { /* non-JSON error body */ }
+      alert(`Renewal failed: ${errMsg}`);
       if (btn) btn.disabled = false;
       return;
     }
