@@ -38,6 +38,11 @@
     .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
     .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
     .badges { margin-bottom: 24px; }
+    .cta-banner { display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(139,92,246,0.12)); border: 1px solid rgba(99,102,241,0.3); border-radius: 12px; padding: 20px 28px; margin: 32px 0 40px; flex-wrap: wrap; gap: 16px; }
+    .cta-banner .cta-text { color: var(--text); font-size: 0.95rem; }
+    .cta-banner .cta-text strong { color: #a78bfa; }
+    .cta-btn { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 0.88rem; transition: transform 0.15s, box-shadow 0.15s; }
+    .cta-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(59,130,246,0.3); }
     footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
     footer a { color: var(--accent); text-decoration: none; }
     footer a:hover { text-decoration: underline; }
@@ -50,10 +55,19 @@
   <p>Production-grade microservices e-commerce bookstore on Kubernetes</p>
 
   <div class="badges">
-    <span class="badge green">E2E Tests Passing</span>
+    <span class="badge green">200+ E2E Tests Passing</span>
     <span class="badge purple">25 Sessions Complete</span>
     <span class="badge orange">TLS Everywhere + mTLS</span>
     <span class="badge red">Zero Trust</span>
+  </div>
+
+  <div class="cta-banner">
+    <div class="cta-text">
+      <strong>New:</strong> Comprehensive architecture deep dive covering security layers, reliability, resiliency, observability, and 15-Factor App compliance.
+    </div>
+    <a href="architecture.html" class="cta-btn">
+      Architecture Deep Dive &rarr;
+    </a>
   </div>
 
   <h2>Infrastructure Architecture</h2>
@@ -165,7 +179,7 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
 
   <footer>
     <p>Built as a production-grade proof of concept demonstrating microservices best practices, zero-trust security, TLS everywhere, event-driven architecture, and real-time analytics.</p>
-    <p style="margin-top: 12px;"><a href="https://github.com/a2z-ice/ecom-ms">GitHub Repository</a> · <a href="https://gist.github.com/a2z-ice/75fbc3c000760e1a6a9f03a6e1f9ecdf">Architecture Summary (Gist)</a></p>
+    <p style="margin-top: 12px;"><a href="architecture.html">Architecture Deep Dive</a> · <a href="https://github.com/a2z-ice/ecom-ms">GitHub Repository</a> · <a href="https://gist.github.com/a2z-ice/75fbc3c000760e1a6a9f03a6e1f9ecdf">Architecture Summary (Gist)</a></p>
   </footer>
 
 </div>
