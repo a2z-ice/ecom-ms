@@ -37,6 +37,8 @@ spec:
 
   # Exclude CNPG pods from Istio Ambient mesh — CNPG manages its own TLS
   inheritedMetadata:
+    labels:
+      istio.io/dataplane-mode: none
     annotations:
       ambient.istio.io/redirection: disabled
 

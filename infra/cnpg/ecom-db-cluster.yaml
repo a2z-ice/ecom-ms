@@ -38,7 +38,11 @@ spec:
 
   # Exclude CNPG pods from Istio Ambient mesh — CNPG manages its own TLS
   # for streaming replication; ztunnel HBONE double-encryption causes timeouts.
+  # NOTE: Pod annotation alone is NOT enough — Istio CNI overrides it when the
+  # namespace has istio.io/dataplane-mode=ambient. Must use pod LABEL instead.
   inheritedMetadata:
+    labels:
+      istio.io/dataplane-mode: none
     annotations:
       ambient.istio.io/redirection: disabled
 

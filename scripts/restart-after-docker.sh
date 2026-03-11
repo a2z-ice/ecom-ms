@@ -21,8 +21,32 @@ GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 info()    { echo -e "${GREEN}==>${NC} $*"; }
 section() { echo -e "\n${YELLOW}════ $* ════${NC}"; }
 
+warn()    { echo -e "${YELLOW}WARN:${NC} $*"; }
+
 wait_deploy() {
   kubectl rollout status deployment/"$1" -n "$2" --timeout=180s
+}
+
+_debezium_crash_looping() {
+  local deploy=$1 ns=$2
+  local restarts
+  restarts=$(kubectl get pods -n "$ns" -l "app=$deploy" -o jsonpath='{.items[0].status.containerStatuses[0].restartCount}' 2>/dev/null || echo "0")
+  [[ "$restarts" -ge 3 ]]
+}
+
+_debezium_has_stale_offset() {
+  local deploy=$1 ns=$2
+  kubectl logs -n "$ns" -l "app=$deploy" --tail=20 2>/dev/null \
+    | grep -q "no longer available on the server" 2>/dev/null
+}
+
+_fix_debezium_stale_offset() {
+  local name=$1 deploy=$2 offset_topic=$3
+  warn "$name has stale WAL offset — resetting offset topic '${offset_topic}' and restarting..."
+  kubectl exec -n infra deploy/kafka -- \
+    kafka-topics --bootstrap-server localhost:9092 --delete --topic "$offset_topic" 2>/dev/null || true
+  kubectl rollout restart "deploy/$deploy" -n infra
+  kubectl rollout status "deploy/$deploy" -n infra --timeout=120s
 }
 
 # ── Pre-flight ───────────────────────────────────────────────────────────────
@@ -80,6 +104,15 @@ wait_deploy flink-taskmanager analytics
 # (debezium.ecom.offsets and debezium.inventory.offsets topics in Kafka).
 # No re-registration needed — just poll /q/health until both instances are UP.
 section "Waiting for Debezium Server health (auto-resumes from Kafka offsets)"
+# Check for stale offset crash loops before waiting (common after CNPG failover/migration)
+sleep 15  # give pods time to crash if offsets are stale
+for _dbz_pair in "debezium-server-ecom:debezium.ecom.offsets" "debezium-server-inventory:debezium.inventory.offsets"; do
+  _dbz_name="${_dbz_pair%%:*}"
+  _dbz_topic="${_dbz_pair##*:}"
+  if _debezium_crash_looping "$_dbz_name" infra && _debezium_has_stale_offset "$_dbz_name" infra; then
+    _fix_debezium_stale_offset "$_dbz_name" "$_dbz_name" "$_dbz_topic"
+  fi
+done
 bash "${REPO_ROOT}/infra/debezium/register-connectors.sh"
 
 # ── Step 5: Resubmit Flink SQL pipeline ──────────────────────────────────────

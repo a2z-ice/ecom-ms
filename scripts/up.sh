@@ -488,6 +488,15 @@ recovery() {
   wait_deploy flink-taskmanager analytics
 
   section "Waiting for Debezium Server health"
+  # Check for stale offset crash loops before waiting (common after CNPG migration)
+  sleep 15  # give pods time to crash if offsets are stale
+  for _dbz_pair in "debezium-server-ecom:debezium.ecom.offsets" "debezium-server-inventory:debezium.inventory.offsets"; do
+    _dbz_name="${_dbz_pair%%:*}"
+    _dbz_topic="${_dbz_pair##*:}"
+    if _debezium_crash_looping "$_dbz_name" infra && _debezium_has_stale_offset "$_dbz_name" infra; then
+      _fix_debezium_stale_offset "$_dbz_name" "$_dbz_name" "$_dbz_topic"
+    fi
+  done
   bash "${REPO_ROOT}/infra/debezium/register-connectors.sh"
 
   # ── Resubmit Flink SQL pipeline ─────────────────────────────────────────────
@@ -522,18 +531,59 @@ recovery() {
 }
 
 # ── Ensure Debezium Server instances are healthy (healthy cluster check) ──────
+_debezium_health() {
+  local port=$1
+  curl -sf --max-time 10 "http://localhost:${port}/q/health" \
+    | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo ""
+}
+
+_debezium_crash_looping() {
+  local deploy=$1 ns=$2
+  local restarts
+  restarts=$(kubectl get pods -n "$ns" -l "app=$deploy" -o jsonpath='{.items[0].status.containerStatuses[0].restartCount}' 2>/dev/null || echo "0")
+  [[ "$restarts" -ge 3 ]]
+}
+
+_debezium_has_stale_offset() {
+  local deploy=$1 ns=$2
+  kubectl logs -n "$ns" -l "app=$deploy" --tail=20 2>/dev/null \
+    | grep -q "no longer available on the server" 2>/dev/null
+}
+
+_fix_debezium_stale_offset() {
+  local name=$1 deploy=$2 offset_topic=$3
+  warn "$name has stale WAL offset — resetting offset topic '${offset_topic}' and restarting..."
+  kubectl exec -n infra deploy/kafka -- \
+    kafka-topics --bootstrap-server localhost:9092 --delete --topic "$offset_topic" 2>/dev/null || true
+  kubectl rollout restart "deploy/$deploy" -n infra
+  kubectl rollout status "deploy/$deploy" -n infra --timeout=120s
+}
+
 ensure_connectors() {
   local ecom_status inv_status
-  ecom_status=$(curl -sf --max-time 10 "http://localhost:32300/q/health" \
-    | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
-  inv_status=$(curl -sf --max-time 10 "http://localhost:32301/q/health" \
-    | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
+  ecom_status=$(_debezium_health 32300)
+  inv_status=$(_debezium_health 32301)
+
   if [[ "$ecom_status" == "UP" ]] && [[ "$inv_status" == "UP" ]]; then
     info "Both Debezium Server instances healthy (ecom=UP, inventory=UP)"
-  else
-    info "Debezium Server not fully healthy (ecom='${ecom_status}', inventory='${inv_status}') — waiting..."
-    bash "${REPO_ROOT}/infra/debezium/register-connectors.sh"
+    return
   fi
+
+  info "Debezium Server not fully healthy (ecom='${ecom_status}', inventory='${inv_status}') — diagnosing..."
+
+  # Check for stale offset crash loops (common after CNPG migration or WAL recycling)
+  if [[ "$ecom_status" != "UP" ]] && _debezium_crash_looping debezium-server-ecom infra \
+      && _debezium_has_stale_offset debezium-server-ecom infra; then
+    _fix_debezium_stale_offset "debezium-server-ecom" "debezium-server-ecom" "debezium.ecom.offsets"
+  fi
+
+  if [[ "$inv_status" != "UP" ]] && _debezium_crash_looping debezium-server-inventory infra \
+      && _debezium_has_stale_offset debezium-server-inventory infra; then
+    _fix_debezium_stale_offset "debezium-server-inventory" "debezium-server-inventory" "debezium.inventory.offsets"
+  fi
+
+  # Wait for both to become healthy
+  bash "${REPO_ROOT}/infra/debezium/register-connectors.sh"
 }
 
 # ── Print service endpoints ───────────────────────────────────────────────────

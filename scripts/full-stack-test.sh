@@ -415,7 +415,7 @@ ANALYTICS_POD=$(kubectl get pod -n analytics -l "cnpg.io/cluster=analytics-db,cn
 if [[ -n "$ANALYTICS_POD" ]]; then
   for table in fact_orders fact_order_items dim_books fact_inventory; do
     EXISTS=$(kubectl exec -n analytics "$ANALYTICS_POD" -- \
-      sh -c "PGPASSWORD=\$POSTGRES_PASSWORD psql -U \$POSTGRES_USER -d analyticsdb -tAc \
+      sh -c "psql -U postgres -d analyticsdb -tAc \
         \"SELECT COUNT(*) FROM information_schema.tables WHERE table_name='$table'\"" 2>/dev/null || echo "0")
     [[ "${EXISTS// /}" == "1" ]] \
       && pass "[analytics-db] table '$table' exists" \
