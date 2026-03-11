@@ -19,6 +19,9 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 2
       connection-timeout: 30000
+      max-lifetime: 1800000
+      idle-timeout: 600000
+      leak-detection-threshold: 30000
 
   jpa:
     hibernate:

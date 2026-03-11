@@ -22,3 +22,6 @@ spec:
         - name: ui-service
           namespace: ecom
           port: 80
+      timeouts:
+        request: 10s
+        backendRequest: 5s

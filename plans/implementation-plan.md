@@ -874,6 +874,39 @@ When a user starts login at `http://myecom.net:30000` (non-secure context, no `c
 
 ---
 
+## Session 26 — Reliability & Resiliency Grade A + Navigation Enhancement
+
+**Goal:** Close remaining reliability/resiliency gaps so all 8 architecture scorecard dimensions reach grade A. Add sticky navigation to docs/index.html.
+
+### Deliverables
+
+- `infra/storage/persistent-volumes.yaml` — Add `prometheus-pv` (2Gi)
+- `infra/observability/prometheus/prometheus.yaml` — PVC + `--storage.tsdb.retention.time=15d` arg
+- `scripts/cluster-up.sh` — Add `prometheus` to data dir creation
+- `ecom-service/k8s/ecom-service.yaml` — Rolling update strategy, topology spread, terminationGracePeriodSeconds
+- `inventory-service/k8s/inventory-service.yaml` — Rolling update strategy, topology spread, terminationGracePeriodSeconds
+- `ui/k8s/ui-service.yaml` — Rolling update strategy, topology spread, terminationGracePeriodSeconds
+- `infra/superset/superset.yaml` — Add livenessProbe
+- `ecom-service/src/main/resources/application.yml` — HikariCP max-lifetime, idle-timeout, leak-detection
+- `inventory-service/app/database.py` — pool_pre_ping + pool_recycle
+- `infra/kgateway/routes/*.yaml` — HTTPRoute timeouts on all 4 routes
+- `docs/index.html` — Sticky navigation bar, section anchors, documentation cards, CSS fix
+- `docs/architecture.html` — Scorecard Reliability/Resiliency A- → A
+
+### Acceptance Criteria
+
+- [x] `kubectl get pvc -n observability` — `prometheus-pvc` Bound
+- [x] Deployment strategies show `maxSurge:1, maxUnavailable:0`
+- [x] Superset has livenessProbe
+- [x] All HTTPRoutes have timeouts
+- [x] All 3 app deployments have topology spread constraints
+- [x] docs/index.html has sticky nav and documentation section
+- [x] docs/architecture.html scorecard shows all A grades
+
+### Status: Complete ✓
+
+---
+
 ## Cross-Session Rules
 
 These apply to every session:

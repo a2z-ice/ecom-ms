@@ -21,3 +21,6 @@ spec:
         - name: ecom-service
           namespace: ecom
           port: 8080
+      timeouts:
+        request: 30s
+        backendRequest: 25s
