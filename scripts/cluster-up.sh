@@ -35,7 +35,7 @@ else
   info "Creating kind cluster '${CLUSTER_NAME}'..."
   # Create data directories so extraMounts have valid host paths
   DATA_DIR="${REPO_ROOT}/data"
-  mkdir -p "${DATA_DIR}"/{ecom-db,inventory-db,analytics-db,keycloak-db,superset,kafka,redis,grafana}
+  mkdir -p "${DATA_DIR}"/{ecom-db,inventory-db,analytics-db,keycloak-db,superset,kafka,redis,grafana,prometheus}
   # Substitute DATA_DIR placeholder in cluster.yaml before passing to kind
   sed "s|DATA_DIR|${DATA_DIR}|g" \
     "${REPO_ROOT}/infra/kind/cluster.yaml" > /tmp/bookstore-cluster.yaml

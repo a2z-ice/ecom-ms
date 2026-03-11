@@ -133,6 +133,20 @@ data:
         metrics_path: '/stats/prometheus'
 
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-pvc
+  namespace: observability
+spec:
+  storageClassName: local-hostpath
+  volumeName: prometheus-pv
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -153,6 +167,23 @@ spec:
         runAsNonRoot: true
         runAsUser: 65534   # nobody
         fsGroup: 65534
+      initContainers:
+        - name: fix-permissions
+          image: busybox:1.36
+          command: ["sh", "-c", "chown -R 65534:65534 /prometheus"]
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+          volumeMounts:
+            - name: data
+              mountPath: /prometheus
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
       containers:
         - name: prometheus
           image: prom/prometheus:v2.53.0
@@ -160,6 +191,7 @@ spec:
             - --config.file=/etc/prometheus/prometheus.yml
             - --storage.tsdb.path=/prometheus
             - --web.enable-lifecycle
+            - --storage.tsdb.retention.time=15d
           ports:
             - containerPort: 9090
           volumeMounts:
@@ -185,7 +217,8 @@ spec:
           configMap:
             name: prometheus-rules
         - name: data
-          emptyDir: {}   # Replace with PVC for persistence
+          persistentVolumeClaim:
+            claimName: prometheus-pvc
 
 ---
 # Prometheus alert rules

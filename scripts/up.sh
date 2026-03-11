@@ -60,7 +60,7 @@ wait_deploy() {
 bootstrap_fresh() {
   # ── 1. Kind cluster + Istio + KGateway (~4-6 min, sequential) ───────────────
   section "Creating kind cluster 'bookstore'"
-  mkdir -p "${REPO_ROOT}/data"/{ecom-db,inventory-db,analytics-db,keycloak-db,superset,kafka,redis,flink,grafana}
+  mkdir -p "${REPO_ROOT}/data"/{ecom-db,inventory-db,analytics-db,keycloak-db,superset,kafka,redis,flink,grafana,prometheus}
   DATA_DIR="${REPO_ROOT}/data"
   sed "s|DATA_DIR|${DATA_DIR}|g" "${REPO_ROOT}/infra/kind/cluster.yaml" > /tmp/bookstore-cluster.yaml
   kind create cluster --name bookstore --config /tmp/bookstore-cluster.yaml

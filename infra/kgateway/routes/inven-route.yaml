@@ -25,6 +25,9 @@ spec:
         - name: inventory-service
           namespace: inventory
           port: 8000
+      timeouts:
+        request: 15s
+        backendRequest: 10s
     # Health endpoints (GET /inven/health, /inven/health/ready)
     - matches:
         - path:
@@ -35,6 +38,9 @@ spec:
         - name: inventory-service
           namespace: inventory
           port: 8000
+      timeouts:
+        request: 15s
+        backendRequest: 10s
     # Prometheus metrics (GET /inven/metrics)
     - matches:
         - path:
@@ -45,6 +51,9 @@ spec:
         - name: inventory-service
           namespace: inventory
           port: 8000
+      timeouts:
+        request: 15s
+        backendRequest: 10s
     # OpenAPI specification (GET /inven/openapi.json)
     - matches:
         - path:
@@ -55,6 +64,9 @@ spec:
         - name: inventory-service
           namespace: inventory
           port: 8000
+      timeouts:
+        request: 15s
+        backendRequest: 10s
     # Swagger UI interactive docs (GET /inven/docs)
     - matches:
         - path:
@@ -65,6 +77,9 @@ spec:
         - name: inventory-service
           namespace: inventory
           port: 8000
+      timeouts:
+        request: 15s
+        backendRequest: 10s
     # ReDoc documentation page (GET /inven/redoc)
     - matches:
         - path:
@@ -75,6 +90,9 @@ spec:
         - name: inventory-service
           namespace: inventory
           port: 8000
+      timeouts:
+        request: 15s
+        backendRequest: 10s
     # Admin stock management — GET/PUT/POST /inven/admin/stock/**
     # JWT authentication enforced by the service (require_role("admin"))
     - matches:
@@ -85,3 +103,6 @@ spec:
         - name: inventory-service
           namespace: inventory
           port: 8000
+      timeouts:
+        request: 15s
+        backendRequest: 10s
