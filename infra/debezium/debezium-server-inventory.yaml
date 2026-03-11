@@ -20,14 +20,20 @@ data:
     debezium.source.plugin.name=pgoutput
     debezium.source.slot.name=debezium_inventory_slot
     debezium.source.publication.name=debezium_inventory_pub
+    debezium.source.publication.autocreate.mode=disabled
     debezium.source.snapshot.mode=initial
     debezium.source.decimal.handling.mode=double
     debezium.source.time.precision.mode=connect
 
-    # Offset storage: file-backed (survives pod restarts via mounted data volume)
-    debezium.source.offset.storage=org.apache.kafka.connect.storage.FileOffsetBackingStore
-    debezium.source.offset.storage.file.filename=/debezium/data/offsets.dat
+    # Offset storage: Kafka-backed (survives pod restarts and CNPG failovers)
+    debezium.source.offset.storage=org.apache.kafka.connect.storage.KafkaOffsetBackingStore
+    debezium.source.offset.storage.topic=debezium.inventory.offsets
+    debezium.source.offset.storage.bootstrap.servers=kafka.infra.svc.cluster.local:9092
     debezium.source.offset.flush.interval.ms=5000
+    # KafkaOffsetBackingStore requires these in embedded worker config
+    debezium.source.bootstrap.servers=kafka.infra.svc.cluster.local:9092
+    debezium.source.offset.storage.partitions=1
+    debezium.source.offset.storage.replication.factor=1
 
     # Sink: Kafka (same broker — produces CDC events to Kafka topics)
     debezium.sink.type=kafka
@@ -87,8 +93,6 @@ spec:
               mountPath: /debezium/config/application.properties
               subPath: application.properties
               readOnly: true
-            - name: data
-              mountPath: /debezium/data
             - name: tmp
               mountPath: /tmp
           resources:
@@ -120,8 +124,6 @@ spec:
         - name: config
           configMap:
             name: debezium-server-inventory-config
-        - name: data
-          emptyDir: {}
         - name: tmp
           emptyDir: {}
 

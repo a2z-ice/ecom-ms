@@ -6,9 +6,25 @@
 import { execFileSync } from 'child_process'
 
 const ANALYTICS_NAMESPACE = 'analytics'
-const ANALYTICS_DEPLOYMENT = 'analytics-db'
-const ANALYTICS_DB_USER = process.env.ANALYTICS_DB_USER ?? 'analyticsuser'
+const ANALYTICS_DB_USER = process.env.ANALYTICS_DB_USER ?? 'postgres'
 const ANALYTICS_DB_NAME = process.env.ANALYTICS_DB_NAME ?? 'analyticsdb'
+
+/**
+ * Resolve the CNPG primary pod name for a given cluster.
+ * Falls back to `deployment/<cluster>` for backward compatibility.
+ */
+export function getCnpgPrimaryPod(namespace: string, cluster: string): string {
+  try {
+    return execFileSync('kubectl', [
+      'get', 'pod', '-n', namespace,
+      '-l', `cnpg.io/cluster=${cluster},cnpg.io/instanceRole=primary`,
+      '-o', 'jsonpath={.items[0].metadata.name}',
+    ], { encoding: 'utf-8', timeout: 10_000 }).trim()
+  } catch {
+    // Fallback for non-CNPG environments
+    return ''
+  }
+}
 
 /**
  * Runs a SQL query inside the analytics-db pod via kubectl exec.
@@ -27,10 +43,14 @@ export async function queryAnalyticsDb<T>(sql: string, params: unknown[] = []): 
   const jsonQuery = `SELECT COALESCE(json_agg(t), '[]'::json) FROM (${query}) t`
 
   try {
+    // Resolve CNPG primary pod for analytics-db
+    const primaryPod = getCnpgPrimaryPod(ANALYTICS_NAMESPACE, 'analytics-db')
+    const podTarget = primaryPod ? primaryPod : 'deployment/analytics-db'
+
     // Use execFileSync (no shell) so SQL with parens/quotes is passed directly
     const output = execFileSync('kubectl', [
       'exec', '-n', ANALYTICS_NAMESPACE,
-      `deployment/${ANALYTICS_DEPLOYMENT}`, '--',
+      podTarget, '--',
       'psql', '-U', ANALYTICS_DB_USER, ANALYTICS_DB_NAME,
       '-t', '-A', '-c', jsonQuery,
     ], { encoding: 'utf-8', timeout: 15_000 }).trim()

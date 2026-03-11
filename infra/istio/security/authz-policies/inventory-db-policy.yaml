@@ -11,7 +11,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: inventory-db
+      cnpg.io/cluster: inventory-db
   rules:
     - from:
         - source:
@@ -19,3 +19,6 @@ spec:
     - from:
         - source:
             namespaces: ["infra"]
+    - from:
+        - source:
+            namespaces: ["cnpg-system"]

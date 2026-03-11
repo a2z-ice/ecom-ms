@@ -12,7 +12,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: ecom-db
+      cnpg.io/cluster: ecom-db
   rules:
     - from:
         - source:
@@ -20,3 +20,6 @@ spec:
     - from:
         - source:
             namespaces: ["infra"]
+    - from:
+        - source:
+            namespaces: ["cnpg-system"]

@@ -123,7 +123,7 @@ See `docs/operations/restart-app.md` for the full explanation and root cause ana
 - **Gateway**: Kubernetes Gateway API (`gatewayClassName: istio`) — Istio's built-in Gateway implementation; all ingress routing via HTTPRoutes; HTTPS on port 30000 with TLS termination
 - **TLS / cert-manager**: cert-manager v1.17.2 manages self-signed CA and gateway certificates (30d rotation, 7d renewBefore). HTTP→HTTPS redirect on port 30080. See `docs/guides/tls-setup.md`
 - **Identity**: Keycloak 26.5.4 at `idp.keycloak.net:30000`
-- **Databases**: Each service has its own dedicated PostgreSQL instance — no cross-database access. Instances: `ecom-db`, `inventory-db`, `analytics-db`, plus Keycloak's own `keycloak-db`
+- **Databases**: CloudNativePG-managed PostgreSQL HA clusters (1 primary + 1 standby each). 4 clusters: `ecom-db`, `inventory-db`, `analytics-db`, `keycloak-db`. No cross-database access. ExternalName Service aliases for zero app config changes.
 - **Messaging**: Kafka for event streaming; Debezium for CDC from all PostgreSQL DBs
 - **Session/CSRF/Rate-limiting**: Central Redis instance
 - **Reporting**: Apache Superset connected to the central analytics PostgreSQL
@@ -388,7 +388,7 @@ spec:
 
 ### CDC / Debezium Server Pattern (Session 22)
 
-- PostgreSQL must have `wal_level=logical` (set via `POSTGRES_INITDB_ARGS` or ConfigMap)
+- PostgreSQL must have `wal_level=logical` (set via CNPG `postgresql.parameters` in Cluster CR)
 - **Debezium Server** (not Kafka Connect): one pod per source DB; config in `application.properties` ConfigMap
 - Health check: `GET /q/health` at port 8080 → `{"status":"UP"}` when running
 - Offset storage: `KafkaOffsetBackingStore` — topics `debezium.ecom.offsets` and `debezium.inventory.offsets` in Kafka
@@ -405,12 +405,15 @@ spec:
 - CDC assertions: poll with retry (max 30s, 1s interval) — never sleep fixed duration
 - API assertions for CDC: prefer direct DB query via `pg` client over UI polling
 
-### Data Persistence Pattern (Session 14)
+### Data Persistence Pattern (Session 14, updated Session 27)
 
-- StorageClass: `local-hostpath` backed by host `data/` directory in the repo root
-- PersistentVolumes use `hostPath` mounts into `data/<service>/` on the kind node
-- All 4 PostgreSQL instances (ecom-db, inventory-db, analytics-db, keycloak-db) use PVCs of this class
-- Manifests: `infra/postgres/*-db.yaml` each include a PVC; `infra/kubernetes/storage/` has the StorageClass
+- Non-DB services: StorageClass `local-hostpath` backed by host `data/` directory (superset, kafka, redis, flink, grafana, prometheus)
+- **PostgreSQL (Session 27)**: CloudNativePG manages its own PVCs via kind's `standard` StorageClass (dynamic provisioner)
+  - 4 CNPG Clusters: `ecom-db`, `inventory-db`, `analytics-db`, `keycloak-db` (2 instances each)
+  - ExternalName Service aliases (`ecom-db` → `ecom-db-rw`) ensure zero app config changes
+  - Manifests: `infra/cnpg/*-cluster.yaml`; old `infra/postgres/*-db.yaml` files deleted
+  - CNPG labels: `cnpg.io/cluster=<name>`, `cnpg.io/instanceRole=primary|replica`
+  - Debezium offset storage: `KafkaOffsetBackingStore` (survives CNPG failover)
 
 ### Guest Cart Pattern (Session 14)
 
@@ -455,9 +458,9 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 
 ---
 
-## Current Implementation State (as of 2026-03-10)
+## Current Implementation State (as of 2026-03-11)
 
-**Sessions 1–24 complete. E2E: 130/130 passing.**
+**Sessions 1–27 in progress. E2E: 130/130 passing.**
 
 ### Cluster: `bookstore` (kind, 3 nodes) — RUNNING
 
@@ -465,22 +468,23 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 |---|---|---|
 | ecom | ecom-service | Running ✓ |
 | ecom | ui-service | Running ✓ |
-| ecom | ecom-db | Running ✓ |
+| ecom | ecom-db (CNPG 2 instances) | Running ✓ |
 | inventory | inventory-service | Running ✓ |
-| inventory | inventory-db | Running ✓ |
+| inventory | inventory-db (CNPG 2 instances) | Running ✓ |
 | identity | keycloak | Running ✓ |
-| identity | keycloak-db | Running ✓ |
+| identity | keycloak-db (CNPG 2 instances) | Running ✓ |
 | identity | keycloak-realm-import | Completed ✓ |
 | infra | kafka (KRaft) | Running ✓ |
 | infra | debezium-server-ecom | Running ✓ (Debezium Server 3.4, health at :32300/q/health) |
 | infra | debezium-server-inventory | Running ✓ (Debezium Server 3.4, health at :32301/q/health) |
 | infra | redis | Running ✓ |
 | infra | pgadmin | Running ✓ |
-| analytics | analytics-db | Running ✓ |
+| analytics | analytics-db (CNPG 2 instances) | Running ✓ |
 | analytics | flink-jobmanager | Running ✓ |
 | analytics | flink-taskmanager | Running ✓ |
 | analytics | superset | Running ✓ |
 | observability | prometheus | Running ✓ |
+| cnpg-system | cnpg-controller-manager | Running ✓ (v1.25.1, manages all 4 DB clusters) |
 | cert-manager | cert-manager | Running ✓ (v1.17.2, self-signed CA) |
 | istio-system | kiali | Running ✓ (Prometheus connected) |
 
@@ -526,7 +530,8 @@ All 12 ports are declared in `infra/kind/cluster.yaml` under `extraPortMappings`
 Detailed per-session implementation history is in `docs/architecture/session-history.md`.
 
 Key facts:
-- Sessions 1–25 complete. E2E: 130/130 passing.
+- Sessions 1–27 (27 in progress). E2E: 130/130 passing.
+- **Session 27**: CloudNativePG HA — 4 CNPG clusters (2 instances each), ExternalName aliases, Kafka offset storage for Debezium
 - Flink CDC: Debezium Server 3.4 → Kafka → Flink SQL → analytics-db → Superset (3 dashboards, 16 charts)
 - Flink SQL uses plain `json` format (NOT `debezium-json`). `WHERE after IS NOT NULL` skips deletes/tombstones.
 - Admin panel: `admin1`/`CHANGE_ME` (customer+admin roles), ecom `/admin/books` + `/admin/orders`, inventory `/admin/stock`
@@ -534,12 +539,12 @@ Key facts:
 - Stock UI: `/inven/stock/bulk?book_ids=...`, StockBadge component (gray/red/orange/green)
 - TLS: cert-manager v1.17.2, self-signed CA (10yr) → leaf cert (30d, 7d renewBefore)
 - Cert Dashboard: Go operator at NodePort 32600, SSE renewal, TokenReview auth
-- All PVCs backed by host `data/` dirs; `cluster-up.sh` creates dirs before `kind create`
+- DB storage: CNPG uses kind `standard` StorageClass (dynamic PVC). Non-DB PVCs still use host `data/` dirs.
 - Superset working viz types: `echarts_timeseries_bar`, `echarts_timeseries_line`, `pie`, `table`, `big_number_total` (NOT `echarts_bar`/`echarts_pie`)
 
 ### NEXT SESSION — Start Here
 
-**Sessions 1–25 complete.** No outstanding items. See `docs/architecture/review-and-proposed-architecture.md` for the enhancement roadmap.
+**Session 27 in progress.** CloudNativePG HA migration. Run `bash scripts/up.sh --fresh --yes` to deploy.
 
 ---
 

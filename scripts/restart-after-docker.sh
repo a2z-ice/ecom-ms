@@ -38,14 +38,16 @@ sleep 10
 
 # ── Step 2: Restart DB pods first (apps need DBs ready for migrations) ───────
 section "Restarting DB pods"
-kubectl rollout restart deploy/ecom-db -n ecom
-kubectl rollout restart deploy/inventory-db -n inventory
-kubectl rollout restart deploy/keycloak-db -n identity
-kubectl rollout restart deploy/analytics-db -n analytics
-wait_deploy ecom-db ecom
-wait_deploy inventory-db inventory
-wait_deploy keycloak-db identity
-wait_deploy analytics-db analytics
+info "Restarting CNPG database pods (CNPG auto-recreates)..."
+kubectl delete pod -n ecom -l cnpg.io/cluster=ecom-db --wait=false 2>/dev/null || true
+kubectl delete pod -n inventory -l cnpg.io/cluster=inventory-db --wait=false 2>/dev/null || true
+kubectl delete pod -n identity -l cnpg.io/cluster=keycloak-db --wait=false 2>/dev/null || true
+kubectl delete pod -n analytics -l cnpg.io/cluster=analytics-db --wait=false 2>/dev/null || true
+info "Waiting for CNPG clusters to recover..."
+kubectl wait --for=condition=Ready cluster/ecom-db -n ecom --timeout=300s
+kubectl wait --for=condition=Ready cluster/inventory-db -n inventory --timeout=300s
+kubectl wait --for=condition=Ready cluster/keycloak-db -n identity --timeout=300s
+kubectl wait --for=condition=Ready cluster/analytics-db -n analytics --timeout=300s
 
 # ── Step 3: Restart application pods ─────────────────────────────────────────
 section "Restarting application pods"

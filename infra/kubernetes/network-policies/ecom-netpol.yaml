@@ -37,11 +37,11 @@ spec:
             matchLabels:
               kubernetes.io/metadata.name: observability
   egress:
-    # ecom-service → ecom-db
+    # ecom-service → ecom-db (CNPG)
     - to:
         - podSelector:
             matchLabels:
-              app: ecom-db
+              cnpg.io/cluster: ecom-db
       ports:
         - port: 5432
     # ecom-service → Kafka
@@ -134,7 +134,7 @@ spec:
           protocol: UDP
 
 ---
-# Allow ecom-db to receive only from ecom-service and Debezium
+# Allow ecom-db (CNPG) to receive from ecom-service, Debezium, CNPG operator, and inter-pod replication
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -143,7 +143,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app: ecom-db
+      cnpg.io/cluster: ecom-db
   ingress:
     - from:
         - podSelector:
@@ -153,4 +153,45 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: infra
-  egress: []
+    # CNPG operator access from cnpg-system namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cnpg-system
+    # CNPG inter-pod replication (primary ↔ standby)
+    - from:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: ecom-db
+      ports:
+        - port: 5432
+        - port: 8000
+  egress:
+    # CNPG inter-pod replication
+    - to:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: ecom-db
+      ports:
+        - port: 5432
+        - port: 8000
+    # CNPG instance manager → K8s API server (kube-system namespace)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 443
+    # K8s API server ClusterIP (10.96.0.1) — direct IP access
+    - ports:
+        - port: 443
+        - port: 6443
+    # DNS
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+    # Istio HBONE
+    - to: []
+      ports:
+        - port: 15008

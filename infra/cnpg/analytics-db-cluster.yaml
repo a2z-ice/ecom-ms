@@ -1,0 +1,71 @@
+---
+# Secret — analytics-db credentials for CNPG bootstrap
+apiVersion: v1
+kind: Secret
+metadata:
+  name: analytics-db-cnpg-auth
+  namespace: analytics
+type: kubernetes.io/basic-auth
+data:
+  username: YW5hbHl0aWNzdXNlcg==   # analyticsuser
+  password: Q0hBTkdFX01F           # CHANGE_ME
+
+---
+# Keep the legacy secret for app compatibility
+apiVersion: v1
+kind: Secret
+metadata:
+  name: analytics-db-secret
+  namespace: analytics
+type: Opaque
+data:
+  POSTGRES_USER: YW5hbHl0aWNzdXNlcg==   # analyticsuser
+  POSTGRES_PASSWORD: Q0hBTkdFX01F       # CHANGE_ME
+  POSTGRES_DB: YW5hbHl0aWNzZGI=         # analyticsdb
+
+---
+# CloudNativePG Cluster — analytics-db (1 primary + 1 standby)
+# No wal_level=logical — this is a sink-only DB (not a CDC source)
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: analytics-db
+  namespace: analytics
+spec:
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:17
+
+  # Exclude CNPG pods from Istio Ambient mesh — CNPG manages its own TLS
+  inheritedMetadata:
+    annotations:
+      ambient.istio.io/redirection: disabled
+
+  bootstrap:
+    initdb:
+      database: analyticsdb
+      owner: analyticsuser
+      secret:
+        name: analytics-db-cnpg-auth
+
+  storage:
+    size: 5Gi
+    storageClass: standard
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+---
+# ExternalName Service alias
+apiVersion: v1
+kind: Service
+metadata:
+  name: analytics-db
+  namespace: analytics
+spec:
+  type: ExternalName
+  externalName: analytics-db-rw.analytics.svc.cluster.local

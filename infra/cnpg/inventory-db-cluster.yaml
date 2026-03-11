@@ -1,0 +1,80 @@
+---
+# Secret — inventory-db credentials for CNPG bootstrap
+apiVersion: v1
+kind: Secret
+metadata:
+  name: inventory-db-cnpg-auth
+  namespace: inventory
+type: kubernetes.io/basic-auth
+data:
+  username: aW52ZW50b3J5dXNlcg==   # inventoryuser
+  password: Q0hBTkdFX01F           # CHANGE_ME
+
+---
+# Keep the legacy secret for app compatibility
+apiVersion: v1
+kind: Secret
+metadata:
+  name: inventory-db-secret
+  namespace: inventory
+type: Opaque
+data:
+  POSTGRES_USER: aW52ZW50b3J5dXNlcg==   # inventoryuser
+  POSTGRES_PASSWORD: Q0hBTkdFX01F       # CHANGE_ME
+  POSTGRES_DB: aW52ZW50b3J5ZGI=         # inventorydb
+
+---
+# CloudNativePG Cluster — inventory-db (1 primary + 1 standby)
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: inventory-db
+  namespace: inventory
+spec:
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:17
+
+  # Exclude CNPG pods from Istio Ambient mesh — CNPG manages its own TLS
+  inheritedMetadata:
+    annotations:
+      ambient.istio.io/redirection: disabled
+
+  postgresql:
+    parameters:
+      wal_level: logical
+      max_replication_slots: "10"
+      max_wal_senders: "10"
+      wal_keep_size: 256MB
+
+  bootstrap:
+    initdb:
+      database: inventorydb
+      owner: inventoryuser
+      secret:
+        name: inventory-db-cnpg-auth
+      postInitApplicationSQL:
+        - ALTER USER inventoryuser WITH REPLICATION;
+        - CREATE PUBLICATION debezium_inventory_pub FOR ALL TABLES;
+
+  storage:
+    size: 2Gi
+    storageClass: standard
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+---
+# ExternalName Service alias
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-db
+  namespace: inventory
+spec:
+  type: ExternalName
+  externalName: inventory-db-rw.inventory.svc.cluster.local

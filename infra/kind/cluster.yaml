@@ -46,15 +46,8 @@ nodes:
         protocol: TCP
     # DATA_DIR is substituted by stack-up.sh / cluster-up.sh at runtime via sed.
     # Do not hardcode an absolute path here — it varies per developer machine.
+    # DB volumes removed — CNPG manages its own PVCs via the `standard` StorageClass.
     extraMounts:
-      - hostPath: DATA_DIR/ecom-db
-        containerPath: /data/ecom-db
-      - hostPath: DATA_DIR/inventory-db
-        containerPath: /data/inventory-db
-      - hostPath: DATA_DIR/analytics-db
-        containerPath: /data/analytics-db
-      - hostPath: DATA_DIR/keycloak-db
-        containerPath: /data/keycloak-db
       - hostPath: DATA_DIR/superset
         containerPath: /data/superset
       - hostPath: DATA_DIR/kafka
@@ -74,14 +67,6 @@ nodes:
 
   - role: worker
     extraMounts:
-      - hostPath: DATA_DIR/ecom-db
-        containerPath: /data/ecom-db
-      - hostPath: DATA_DIR/inventory-db
-        containerPath: /data/inventory-db
-      - hostPath: DATA_DIR/analytics-db
-        containerPath: /data/analytics-db
-      - hostPath: DATA_DIR/keycloak-db
-        containerPath: /data/keycloak-db
       - hostPath: DATA_DIR/superset
         containerPath: /data/superset
       - hostPath: DATA_DIR/kafka
@@ -95,14 +80,6 @@ nodes:
 
   - role: worker
     extraMounts:
-      - hostPath: DATA_DIR/ecom-db
-        containerPath: /data/ecom-db
-      - hostPath: DATA_DIR/inventory-db
-        containerPath: /data/inventory-db
-      - hostPath: DATA_DIR/analytics-db
-        containerPath: /data/analytics-db
-      - hostPath: DATA_DIR/keycloak-db
-        containerPath: /data/keycloak-db
       - hostPath: DATA_DIR/superset
         containerPath: /data/superset
       - hostPath: DATA_DIR/kafka

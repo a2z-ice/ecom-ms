@@ -1,0 +1,85 @@
+---
+# Secret — ecom-db credentials for CNPG bootstrap
+# CNPG reads username/password from this secret to create the DB owner.
+# The secret MUST exist before the Cluster CR is applied.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ecom-db-cnpg-auth
+  namespace: ecom
+type: kubernetes.io/basic-auth
+data:
+  username: ZWNvbXVzZXI=         # ecomuser
+  password: Q0hBTkdFX01F         # CHANGE_ME
+
+---
+# Keep the legacy secret for app compatibility (ecom-service reads POSTGRES_USER etc.)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ecom-db-secret
+  namespace: ecom
+type: Opaque
+data:
+  POSTGRES_USER: ZWNvbXVzZXI=         # ecomuser
+  POSTGRES_PASSWORD: Q0hBTkdFX01F     # CHANGE_ME
+  POSTGRES_DB: ZWNvbWRi               # ecomdb
+
+---
+# CloudNativePG Cluster — ecom-db (1 primary + 1 standby)
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: ecom-db
+  namespace: ecom
+spec:
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:17
+
+  # Exclude CNPG pods from Istio Ambient mesh — CNPG manages its own TLS
+  # for streaming replication; ztunnel HBONE double-encryption causes timeouts.
+  inheritedMetadata:
+    annotations:
+      ambient.istio.io/redirection: disabled
+
+  postgresql:
+    parameters:
+      wal_level: logical
+      max_replication_slots: "10"
+      max_wal_senders: "10"
+      wal_keep_size: 256MB
+
+  bootstrap:
+    initdb:
+      database: ecomdb
+      owner: ecomuser
+      secret:
+        name: ecom-db-cnpg-auth
+      postInitApplicationSQL:
+        - ALTER USER ecomuser WITH REPLICATION;
+        - CREATE PUBLICATION debezium_ecom_pub FOR ALL TABLES;
+
+  storage:
+    size: 2Gi
+    storageClass: standard
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+---
+# ExternalName Service alias — apps connect to "ecom-db" as before.
+# CNPG creates ecom-db-rw (primary), ecom-db-ro (standby), ecom-db-r (any).
+# This alias ensures zero config changes in app secrets.
+apiVersion: v1
+kind: Service
+metadata:
+  name: ecom-db
+  namespace: ecom
+spec:
+  type: ExternalName
+  externalName: ecom-db-rw.ecom.svc.cluster.local

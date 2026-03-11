@@ -60,7 +60,7 @@ wait_deploy() {
 bootstrap_fresh() {
   # ── 1. Kind cluster + Istio + KGateway (~4-6 min, sequential) ───────────────
   section "Creating kind cluster 'bookstore'"
-  mkdir -p "${REPO_ROOT}/data"/{ecom-db,inventory-db,analytics-db,keycloak-db,superset,kafka,redis,flink,grafana,prometheus}
+  mkdir -p "${REPO_ROOT}/data"/{superset,kafka,redis,flink,grafana,prometheus}
   DATA_DIR="${REPO_ROOT}/data"
   sed "s|DATA_DIR|${DATA_DIR}|g" "${REPO_ROOT}/infra/kind/cluster.yaml" > /tmp/bookstore-cluster.yaml
   kind create cluster --name bookstore --config /tmp/bookstore-cluster.yaml
@@ -170,30 +170,41 @@ bootstrap_fresh() {
     >/tmp/build-ui.log 2>&1 &
   _UI_PID=$!
 
-  # ── 3. PostgreSQL (all 3 apply, then wait in parallel) ───────────────────────
+  # ── 3. CloudNativePG database clusters ────────────────────────────────────────
   # IMPORTANT: use explicit PID tracking for all parallel waits so that bare
   # `wait` never accidentally reaps the background docker build processes.
-  section "Deploying PostgreSQL instances"
-  kubectl apply -f "${REPO_ROOT}/infra/postgres/ecom-db.yaml"
-  kubectl apply -f "${REPO_ROOT}/infra/postgres/inventory-db.yaml"
-  kubectl apply -f "${REPO_ROOT}/infra/postgres/analytics-db.yaml"
-  info "Waiting for all PostgreSQL instances in parallel..."
-  kubectl rollout status deployment/ecom-db      -n ecom      --timeout=300s & _P1=$!
-  kubectl rollout status deployment/inventory-db -n inventory --timeout=300s & _P2=$!
-  kubectl rollout status deployment/analytics-db -n analytics --timeout=300s & _P3=$!
-  wait $_P1 $_P2 $_P3
+  section "Installing CloudNativePG operator"
+  bash "${REPO_ROOT}/infra/cnpg/install.sh"
+
+  section "Deploying CNPG database clusters"
+  kubectl apply -f "${REPO_ROOT}/infra/cnpg/ecom-db-cluster.yaml"
+  kubectl apply -f "${REPO_ROOT}/infra/cnpg/inventory-db-cluster.yaml"
+  kubectl apply -f "${REPO_ROOT}/infra/cnpg/analytics-db-cluster.yaml"
+  kubectl apply -f "${REPO_ROOT}/infra/cnpg/keycloak-db-cluster.yaml"
+  kubectl apply -f "${REPO_ROOT}/infra/cnpg/peer-auth.yaml"
+  info "Waiting for all CNPG clusters to be ready..."
+  kubectl wait --for=condition=Ready cluster/ecom-db -n ecom --timeout=300s & _P1=$!
+  kubectl wait --for=condition=Ready cluster/inventory-db -n inventory --timeout=300s & _P2=$!
+  kubectl wait --for=condition=Ready cluster/analytics-db -n analytics --timeout=300s & _P3=$!
+  kubectl wait --for=condition=Ready cluster/keycloak-db -n identity --timeout=300s & _P4=$!
+  wait $_P1 $_P2 $_P3 $_P4
 
   # ── 4. Analytics DDL (before Flink — JDBC sink requires tables to pre-exist) ─
   section "Applying analytics DB schema"
   if [[ -f "${REPO_ROOT}/analytics/schema/analytics-ddl.sql" ]]; then
     info "Waiting for analytics-db pod..."
-    kubectl wait --for=condition=Ready pod -n analytics -l app=analytics-db --timeout=60s
-    ANALYTICS_POD=$(kubectl get pod -n analytics -l app=analytics-db \
+    kubectl wait --for=condition=Ready pod -n analytics -l cnpg.io/cluster=analytics-db,cnpg.io/instanceRole=primary --timeout=60s
+    ANALYTICS_POD=$(kubectl get pod -n analytics -l cnpg.io/cluster=analytics-db,cnpg.io/instanceRole=primary \
       -o jsonpath='{.items[0].metadata.name}')
+    # CNPG uses peer auth on local sockets — use postgres superuser for DDL, then grant to app user
     cat "${REPO_ROOT}/analytics/schema/analytics-ddl.sql" | \
       kubectl exec -i -n analytics "$ANALYTICS_POD" -- \
-      psql -U analyticsuser -d analyticsdb || \
+      psql -U postgres -d analyticsdb || \
       warn "Analytics DDL apply failed — check schema manually"
+    # Grant ownership of all tables/views to analyticsuser
+    kubectl exec -n analytics "$ANALYTICS_POD" -- \
+      psql -U postgres -d analyticsdb -c \
+      "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO analyticsuser; GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO analyticsuser;" 2>/dev/null || true
     info "Analytics schema applied."
   fi
 
@@ -216,10 +227,10 @@ bootstrap_fresh() {
   section "Deploying Debezium Server (ecom + inventory) + PgAdmin"
   # Debezium Server pods run in `infra` namespace; DB secrets live in `ecom`/`inventory`.
   # Kubernetes secrets are namespace-scoped — copy credentials into infra namespace.
-  ECOM_USER=$(kubectl get secret -n ecom ecom-db-secret -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)
-  ECOM_PASS=$(kubectl get secret -n ecom ecom-db-secret -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d)
-  INV_USER=$(kubectl get secret -n inventory inventory-db-secret -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)
-  INV_PASS=$(kubectl get secret -n inventory inventory-db-secret -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d)
+  ECOM_USER=$(kubectl get secret -n ecom ecom-db-cnpg-auth -o jsonpath='{.data.username}' | base64 -d)
+  ECOM_PASS=$(kubectl get secret -n ecom ecom-db-cnpg-auth -o jsonpath='{.data.password}' | base64 -d)
+  INV_USER=$(kubectl get secret -n inventory inventory-db-cnpg-auth -o jsonpath='{.data.username}' | base64 -d)
+  INV_PASS=$(kubectl get secret -n inventory inventory-db-cnpg-auth -o jsonpath='{.data.password}' | base64 -d)
   kubectl create secret generic debezium-db-credentials -n infra \
     --from-literal=ECOM_DB_USER="$ECOM_USER" \
     --from-literal=ECOM_DB_PASSWORD="$ECOM_PASS" \
@@ -284,7 +295,6 @@ bootstrap_fresh() {
   # ── 9. Wait for Keycloak, import realm, reset passwords ─────────────────────
   # Keycloak was applied in step 6, should be nearly ready by now.
   section "Waiting for Keycloak + importing realm"
-  wait_deploy keycloak-db identity
   wait_deploy keycloak identity
   bash "${REPO_ROOT}/scripts/keycloak-import.sh"
 
@@ -433,14 +443,16 @@ recovery() {
   sleep 10
 
   section "Restarting DB pods (dependencies first)"
-  kubectl rollout restart deploy/ecom-db -n ecom
-  kubectl rollout restart deploy/inventory-db -n inventory
-  kubectl rollout restart deploy/keycloak-db -n identity
-  kubectl rollout restart deploy/analytics-db -n analytics
-  wait_deploy ecom-db ecom
-  wait_deploy inventory-db inventory
-  wait_deploy keycloak-db identity
-  wait_deploy analytics-db analytics
+  info "Restarting CNPG database pods..."
+  kubectl delete pod -n ecom -l cnpg.io/cluster=ecom-db --wait=false 2>/dev/null || true
+  kubectl delete pod -n inventory -l cnpg.io/cluster=inventory-db --wait=false 2>/dev/null || true
+  kubectl delete pod -n identity -l cnpg.io/cluster=keycloak-db --wait=false 2>/dev/null || true
+  kubectl delete pod -n analytics -l cnpg.io/cluster=analytics-db --wait=false 2>/dev/null || true
+  info "Waiting for CNPG clusters to recover..."
+  kubectl wait --for=condition=Ready cluster/ecom-db -n ecom --timeout=300s || true
+  kubectl wait --for=condition=Ready cluster/inventory-db -n inventory --timeout=300s || true
+  kubectl wait --for=condition=Ready cluster/keycloak-db -n identity --timeout=300s || true
+  kubectl wait --for=condition=Ready cluster/analytics-db -n analytics --timeout=300s || true
 
   section "Restarting application pods"
   kubectl rollout restart deploy/kafka -n infra

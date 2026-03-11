@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PostgreSQL HA with CloudNativePG &amp; Debezium CDC — BookStore Platform</title>
+  <meta property="og:title" content="PostgreSQL HA with CloudNativePG &amp; Debezium CDC" />
+  <meta property="og:description" content="Comprehensive guide to PostgreSQL High Availability using CloudNativePG operator with Debezium CDC from Write-Ahead Log, automatic failover, and Kafka offset storage." />
+  <meta property="og:image" content="diagrams/ha-postgres-debezium.gif" />
+  <meta property="og:type" content="article" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #22c55e; --red: #ef4444; --amber: #f59e0b; --purple: #a855f7; --cyan: #06b6d4; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #22c55e, #06b6d4); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.5rem; font-weight: 700; margin: 56px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.15rem; font-weight: 600; margin: 28px 0 10px; color: #cbd5e1; }
+    h4 { font-size: 0.95rem; font-weight: 600; margin: 20px 0 8px; color: var(--muted); }
+    p { margin-bottom: 14px; color: var(--text); font-size: 0.95rem; }
+    img, object { width: 100%; border-radius: 12px; border: 1px solid var(--border); margin: 16px 0 24px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.85rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.05); }
+    code { background: var(--card); padding: 2px 6px; border-radius: 4px; font-size: 0.85em; color: #f59e0b; }
+    pre { background: var(--card); padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); font-size: 0.85rem; line-height: 1.6; }
+    pre code { background: none; padding: 0; color: #e2e8f0; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; font-size: 0.93rem; }
+    .badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badge.blue { background: linear-gradient(135deg, #1d4ed8, #3b82f6); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+    .topnav-links a { color: var(--muted); font-size: 0.8rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #86efac; }
+    /* Issue cards */
+    .issue-card { background: var(--card); border-left: 4px solid var(--red); border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 16px 0; }
+    .issue-card.fixed { border-left-color: var(--green); }
+    .issue-card h4 { margin: 0 0 8px; color: #fca5a5; font-size: 0.95rem; }
+    .issue-card.fixed h4 { color: #86efac; }
+    .issue-card p { margin-bottom: 8px; font-size: 0.88rem; }
+    .issue-card code { font-size: 0.82em; }
+    /* Phase timeline */
+    .phase-timeline { display: flex; flex-direction: column; gap: 0; margin: 20px 0; }
+    .phase { display: flex; gap: 16px; padding: 16px 0; border-left: 3px solid var(--border); margin-left: 12px; padding-left: 24px; position: relative; }
+    .phase::before { content: ''; position: absolute; left: -8px; top: 20px; width: 13px; height: 13px; border-radius: 50%; background: var(--accent); }
+    .phase:nth-child(1)::before { background: var(--green); }
+    .phase:nth-child(2)::before { background: var(--red); }
+    .phase:nth-child(3)::before { background: var(--amber); }
+    .phase:nth-child(4)::before { background: var(--purple); }
+    .phase:nth-child(5)::before { background: var(--cyan); }
+    .phase:nth-child(6)::before { background: var(--accent); }
+    .phase:nth-child(7)::before { background: var(--amber); }
+    .phase:nth-child(8)::before { background: var(--green); }
+    .phase-num { font-weight: 800; font-size: 1.2rem; color: var(--muted); min-width: 30px; }
+    .phase-content h4 { margin: 0 0 4px; font-size: 0.95rem; }
+    .phase-content p { margin: 0; font-size: 0.88rem; color: var(--muted); }
+    /* Callout boxes */
+    .callout { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+    .callout.warning { border-color: var(--amber); background: rgba(245,158,11,0.05); }
+    .callout.info { border-color: var(--cyan); background: rgba(6,182,212,0.05); }
+    .callout.success { border-color: var(--green); background: rgba(34,197,94,0.05); }
+    .callout.danger { border-color: var(--red); background: rgba(239,68,68,0.05); }
+    .callout-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 6px; }
+    .callout.warning .callout-title { color: var(--amber); }
+    .callout.info .callout-title { color: var(--cyan); }
+    .callout.success .callout-title { color: var(--green); }
+    .callout.danger .callout-title { color: var(--red); }
+    /* Comparison table */
+    .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+    .comparison-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+    .comparison-card h4 { margin: 0 0 12px; }
+    .comparison-card ul { margin: 0 0 0 18px; }
+    @media (max-width: 768px) { .comparison { grid-template-columns: 1fr; } }
+    /* Diagram caption */
+    .diagram-caption { text-align: center; color: var(--muted); font-size: 0.85rem; margin-top: -16px; margin-bottom: 24px; }
+    /* SVG container */
+    .svg-container { background: #050d1a; border-radius: 12px; border: 1px solid var(--border); margin: 16px 0 8px; overflow: hidden; }
+    .svg-container object, .svg-container img { margin: 0; border: none; border-radius: 0; display: block; }
+  </style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="#what-is-cnpg">CNPG</a>
+      <a href="#wal-cdc">WAL &amp; CDC</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#five-services">5 Services</a>
+      <a href="#failover">Failover</a>
+      <a href="#mesh-exclusion">Mesh Exclusion</a>
+      <a href="#issues">Issues &amp; Fixes</a>
+      <a href="#aws">AWS Config</a>
+      <a href="index.html" class="highlight">Home</a>
+    </div>
+  </div>
+</nav>
+<div class="container">
+
+  <h1>PostgreSQL High Availability with CloudNativePG</h1>
+  <p>Session 27 — Automatic Failover, WAL-based CDC with Debezium, and Zero-Downtime Database Recovery</p>
+
+  <div class="badges">
+    <span class="badge green">309 E2E Tests Passing</span>
+    <span class="badge cyan">CNPG v1.25.1</span>
+    <span class="badge purple">4 HA Clusters</span>
+    <span class="badge orange">Kafka Offset Storage</span>
+    <span class="badge red">Zero App Changes</span>
+    <span class="badge blue">Automatic Failover</span>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <h2 id="what-is-cnpg">What is CloudNativePG?</h2>
+
+  <p><strong>CloudNativePG (CNPG)</strong> is a Kubernetes operator designed to manage the full lifecycle of PostgreSQL database clusters inside Kubernetes. It is the <strong>first open-source PostgreSQL operator to join the CNCF Sandbox</strong>, and it is the industry-standard approach for running production PostgreSQL on Kubernetes.</p>
+
+  <h3>Why CloudNativePG Over Alternatives?</h3>
+
+  <div class="comparison">
+    <div class="comparison-card">
+      <h4 style="color: var(--green);">CloudNativePG (Chosen)</h4>
+      <ul>
+        <li>Kubernetes-native operator with CRD-based management</li>
+        <li>Automatic failover via built-in controller (no external tools)</li>
+        <li>Auto-creates <code>-rw</code>, <code>-ro</code>, <code>-r</code> Services for read/write splitting</li>
+        <li>Supports <code>wal_level=logical</code> (Debezium CDC compatible)</li>
+        <li>Single YAML CRD per database cluster</li>
+        <li>PVC-based storage with dynamic provisioning</li>
+        <li>Built-in backup/restore with Barman</li>
+        <li>CNCF Sandbox project (community-backed)</li>
+      </ul>
+    </div>
+    <div class="comparison-card">
+      <h4 style="color: var(--muted);">Alternatives Considered</h4>
+      <ul>
+        <li><strong>Patroni</strong> — Requires etcd/Consul for leader election, more operational overhead</li>
+        <li><strong>Manual replication</strong> — No auto-failover, requires custom scripts</li>
+        <li><strong>CrunchyData PGO</strong> — Heavier footprint, different CRD model</li>
+        <li><strong>Zalando Postgres Operator</strong> — Patroni-based internally, needs sidecars</li>
+      </ul>
+      <p style="margin-top: 12px; color: var(--muted); font-size: 0.85rem;">CloudNativePG was chosen for its simplicity, native Kubernetes integration, and alignment with our existing operator pattern (cert-manager, cert-dashboard-operator).</p>
+    </div>
+  </div>
+
+  <h3>How CNPG Works</h3>
+
+  <p>The CNPG operator watches for <code>Cluster</code> custom resources and reconciles the desired state:</p>
+
+  <ol>
+    <li><strong>Cluster CR Applied</strong> — You declare a <code>Cluster</code> resource specifying instances, storage, PostgreSQL parameters, and bootstrap configuration</li>
+    <li><strong>Operator Creates Pods</strong> — CNPG creates the specified number of PostgreSQL pods. The first pod becomes the <strong>primary</strong> (read-write), and additional pods become <strong>standbys</strong> (read-only replicas)</li>
+    <li><strong>Services Auto-Created</strong> — Three Kubernetes Services are automatically created:
+      <ul>
+        <li><code>&lt;cluster&gt;-rw</code> — Routes to the current primary (for writes)</li>
+        <li><code>&lt;cluster&gt;-ro</code> — Routes to standby replicas (for reads)</li>
+        <li><code>&lt;cluster&gt;-r</code> — Routes to all instances (for any read)</li>
+      </ul>
+    </li>
+    <li><strong>Streaming Replication</strong> — CNPG configures PostgreSQL native streaming replication between primary and standbys. WAL records are shipped continuously</li>
+    <li><strong>Health Monitoring</strong> — The instance manager (sidecar process) on each pod reports health to the operator every ~10 seconds</li>
+    <li><strong>Automatic Failover</strong> — When the primary pod fails, CNPG promotes the most up-to-date standby to primary and updates the <code>-rw</code> Service endpoint</li>
+  </ol>
+
+  <pre><code># Example CNPG Cluster CR
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: ecom-db
+  namespace: ecom
+spec:
+  instances: 2                    # 1 primary + 1 standby
+  imageName: ghcr.io/cloudnative-pg/postgresql:17
+
+  postgresql:
+    parameters:
+      wal_level: logical          # Required for Debezium CDC
+      max_replication_slots: "10"
+      max_wal_senders: "10"
+      wal_keep_size: 256MB
+
+  bootstrap:
+    initdb:
+      database: ecomdb
+      owner: ecomuser
+      secret:
+        name: ecom-db-cnpg-auth
+      postInitApplicationSQL:
+        - ALTER USER ecomuser WITH REPLICATION;
+        - CREATE PUBLICATION debezium_ecom_pub FOR ALL TABLES;
+
+  storage:
+    size: 2Gi
+    storageClass: standard</code></pre>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <h2 id="wal-cdc">How Debezium CDC Works with PostgreSQL WAL</h2>
+
+  <h3>Write-Ahead Log (WAL) Fundamentals</h3>
+
+  <p>PostgreSQL uses a <strong>Write-Ahead Log (WAL)</strong> to ensure data durability. Before any change is written to the actual data files (tables, indexes), it is first recorded in the WAL. This guarantees that even if PostgreSQL crashes mid-transaction, the database can recover to a consistent state by replaying the WAL.</p>
+
+  <div class="callout info">
+    <div class="callout-title">WAL is the Source of Truth</div>
+    <p>Every <code>INSERT</code>, <code>UPDATE</code>, and <code>DELETE</code> operation generates WAL records. These records contain the exact byte-level changes to the data pages. PostgreSQL uses WAL for three critical purposes: crash recovery, streaming replication (to standbys), and logical replication (to external consumers like Debezium).</p>
+  </div>
+
+  <h3>Physical vs Logical WAL</h3>
+
+  <table>
+    <tr><th>Aspect</th><th>Physical WAL (default)</th><th>Logical WAL (<code>wal_level=logical</code>)</th></tr>
+    <tr><td><strong>Content</strong></td><td>Raw byte-level page diffs</td><td>Logical row changes (INSERT/UPDATE/DELETE with column values)</td></tr>
+    <tr><td><strong>Use case</strong></td><td>Streaming replication, crash recovery</td><td>Change Data Capture, logical replication</td></tr>
+    <tr><td><strong>Consumers</strong></td><td>Standby PostgreSQL instances</td><td>Debezium, pg_logical, custom consumers</td></tr>
+    <tr><td><strong>Overhead</strong></td><td>Minimal</td><td>Slightly larger WAL volume (~10-20% more)</td></tr>
+    <tr><td><strong>PostgreSQL setting</strong></td><td><code>wal_level=replica</code></td><td><code>wal_level=logical</code></td></tr>
+  </table>
+
+  <p><code>wal_level=logical</code> is a superset of <code>replica</code> — it includes all physical WAL data PLUS decoded logical change records. This means a single WAL stream supports both streaming replication (to standbys) and logical replication (to Debezium) simultaneously.</p>
+
+  <h3>Debezium's CDC Pipeline from WAL</h3>
+
+  <p>Debezium captures changes from PostgreSQL through the following mechanism:</p>
+
+  <ol>
+    <li><strong>Logical Replication Slot</strong> — Debezium creates a replication slot (<code>debezium_ecom_slot</code>) on the primary. This slot tells PostgreSQL to <strong>retain WAL segments</strong> that haven't been consumed yet, preventing them from being recycled</li>
+    <li><strong>Publication</strong> — A PostgreSQL <code>PUBLICATION</code> defines which tables are included in the change stream. We pre-create <code>debezium_ecom_pub FOR ALL TABLES</code> as the superuser during database bootstrap</li>
+    <li><strong>pgoutput Plugin</strong> — Debezium uses PostgreSQL's built-in <code>pgoutput</code> logical decoding plugin to decode WAL records into a structured format (table name, operation type, old/new row values)</li>
+    <li><strong>Streaming Protocol</strong> — Debezium connects to PostgreSQL via the streaming replication protocol (port 5432, same as regular connections) and receives a continuous stream of decoded changes</li>
+    <li><strong>Kafka Sink</strong> — Each change is transformed into a Kafka message and published to the appropriate topic (<code>ecom-connector.public.orders</code>, etc.)</li>
+    <li><strong>Offset Storage</strong> — Debezium records the current WAL position (LSN — Log Sequence Number) in a Kafka topic (<code>debezium.ecom.offsets</code>) so it can resume from the exact position after a restart</li>
+  </ol>
+
+  <pre><code># Debezium WAL reading flow (simplified)
+PostgreSQL Primary
+  │
+  ├── Transaction: INSERT INTO orders (id, user_id, total) VALUES (1, 'u1', 39.98)
+  │
+  ├── WAL Record Generated:
+  │     LSN: 0/1A3B4C0
+  │     Type: INSERT
+  │     Table: public.orders
+  │     New Row: {id: 1, user_id: 'u1', total: 39.98}
+  │
+  ├── Logical Replication Slot: debezium_ecom_slot
+  │     Confirmed flush LSN: 0/1A3B4B0  (previous position)
+  │     Slot retains WAL from this LSN onward
+  │
+  ├── pgoutput Plugin decodes → structured change event
+  │
+  └── Debezium Server receives:
+        {
+          "source": {"lsn": 27229376, "table": "orders"},
+          "op": "c",  // c=create, u=update, d=delete
+          "after": {"id": 1, "user_id": "u1", "total": 39.98}
+        }
+        │
+        └── Published to Kafka topic: ecom-connector.public.orders
+            Offset stored in: debezium.ecom.offsets (Kafka, compacted)</code></pre>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <h2 id="architecture">HA Architecture Diagram</h2>
+  <p>This animated diagram shows the complete HA PostgreSQL architecture with CloudNativePG, Debezium CDC, and Kafka offset storage.</p>
+
+  <div class="svg-container">
+    <object type="image/svg+xml" data="diagrams/ha-postgres-debezium-animated.svg" width="100%">
+      <img src="diagrams/ha-postgres-debezium.gif" alt="HA PostgreSQL + Debezium CDC Architecture" />
+    </object>
+  </div>
+  <p class="diagram-caption">Animated: HA PostgreSQL cluster with CloudNativePG operator, ExternalName service aliases, WAL-based CDC, and Kafka offset storage</p>
+
+  <h3>Key Architecture Components</h3>
+
+  <table>
+    <tr><th>Component</th><th>Role</th><th>Details</th></tr>
+    <tr><td><strong>CNPG Operator</strong></td><td>Lifecycle management</td><td>Watches Cluster CRs, manages pods, handles failover, updates Services</td></tr>
+    <tr><td><strong>Primary Pod</strong></td><td>Read-write instance</td><td>Accepts all writes, generates WAL, hosts replication slots and publications</td></tr>
+    <tr><td><strong>Standby Pod</strong></td><td>Read-only replica</td><td>Receives WAL via streaming replication, continuously replays changes</td></tr>
+    <tr><td><strong>-rw Service</strong></td><td>Write endpoint</td><td>Auto-managed by CNPG, always points to current primary pod</td></tr>
+    <tr><td><strong>ExternalName Service</strong></td><td>DNS alias</td><td><code>ecom-db</code> → <code>ecom-db-rw</code> (zero app config changes)</td></tr>
+    <tr><td><strong>Debezium Server</strong></td><td>CDC capture</td><td>Reads WAL via logical replication slot, publishes to Kafka</td></tr>
+    <tr><td><strong>Kafka</strong></td><td>Event bus + offset store</td><td>CDC topics + <code>debezium.ecom.offsets</code> (compacted, survives restarts)</td></tr>
+    <tr><td><strong>Flink SQL</strong></td><td>Stream processing</td><td>Consumes Kafka CDC topics, transforms to analytics star schema</td></tr>
+  </table>
+
+  <h3>ExternalName Service Pattern</h3>
+
+  <p>The key to achieving <strong>zero application code changes</strong> is the ExternalName Service pattern. Applications continue connecting to <code>ecom-db</code> — the same hostname they always used — which now resolves through a chain:</p>
+
+  <pre><code>Application JDBC URL: jdbc:postgresql://ecom-db:5432/ecomdb
+                              │
+                              ▼
+            ExternalName Service: ecom-db
+            (type: ExternalName)
+            externalName: ecom-db-rw.ecom.svc.cluster.local
+                              │
+                              ▼
+            CNPG -rw Service: ecom-db-rw
+            (Endpoints: current primary pod IP)
+                              │
+                              ▼
+            Primary Pod: ecom-db-1 (or ecom-db-2 after failover)
+            PostgreSQL 17 | wal_level=logical</code></pre>
+
+  <div class="callout success">
+    <div class="callout-title">Zero Configuration Changes</div>
+    <p>No application code, Debezium config, Flink SQL, Keycloak, or any other component needed modification to their database connection strings. The ExternalName → -rw Service chain handles all routing transparently, including during failover.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <h2 id="five-services">Why 5 Kubernetes Services Per Database?</h2>
+
+  <p>When you run <code>kubectl get svc -n inventory</code>, you'll see <strong>5 services</strong> for a single database cluster like <code>inventory-db</code>. This can be confusing at first — here's exactly what each one is, who creates it, and where it's used.</p>
+
+  <table>
+    <tr><th>#</th><th>Service Name</th><th>Type</th><th>Created By</th><th>Purpose</th><th>Used By</th></tr>
+    <tr>
+      <td>1</td>
+      <td><code>inventory-db</code></td>
+      <td>ExternalName</td>
+      <td>Manual (YAML)</td>
+      <td><strong>DNS alias</strong> → points to <code>inventory-db-rw</code>. Preserves the original hostname so apps don't need config changes.</td>
+      <td>inventory-service JDBC, Debezium Server</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><code>inventory-db-rw</code></td>
+      <td>ClusterIP</td>
+      <td>CNPG Operator (auto)</td>
+      <td><strong>Read-Write endpoint</strong> — always routes to the current <strong>primary</strong> pod. Endpoints are updated automatically on failover.</td>
+      <td>ExternalName alias target, failover routing</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td><code>inventory-db-ro</code></td>
+      <td>ClusterIP</td>
+      <td>CNPG Operator (auto)</td>
+      <td><strong>Read-Only endpoint</strong> — routes to <strong>standby replicas only</strong>. Use for read-heavy queries that can tolerate slight replication lag.</td>
+      <td>Available for read scaling (not currently used by apps)</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td><code>inventory-db-r</code></td>
+      <td>ClusterIP</td>
+      <td>CNPG Operator (auto)</td>
+      <td><strong>Any-Read endpoint</strong> — routes to <strong>all instances</strong> (primary + standbys). Load-balances reads across every pod in the cluster.</td>
+      <td>Available for read load balancing (not currently used)</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td><code>inventory-db-any</code></td>
+      <td>ClusterIP (Headless)</td>
+      <td>CNPG Operator (auto)</td>
+      <td><strong>Headless service</strong> for pod DNS discovery. Each pod gets a stable DNS name like <code>inventory-db-1.inventory-db-any</code>. Used internally by CNPG for instance management.</td>
+      <td>CNPG operator internals, instance manager</td>
+    </tr>
+  </table>
+
+  <div class="callout info">
+    <div class="callout-title">CNPG Auto-Creates 4 Services Per Cluster</div>
+    <p>When CNPG processes a <code>Cluster</code> CR named <code>inventory-db</code>, it automatically creates <strong>4 services</strong>: <code>-rw</code>, <code>-ro</code>, <code>-r</code>, and <code>-any</code>. The 5th service (<code>inventory-db</code> itself, the ExternalName alias) is <strong>manually defined</strong> in our CNPG cluster YAML files to maintain backward compatibility with existing app connection strings.</p>
+  </div>
+
+  <h3>Service Routing Diagram</h3>
+
+  <pre><code>┌──────────────────────────────────────────────────────────────────────────┐
+│  kubectl get svc -n inventory                                           │
+│                                                                          │
+│  NAME                TYPE           TARGET                               │
+│  ─────────────────   ────────────   ──────────────────────────────────── │
+│  inventory-db        ExternalName   → inventory-db-rw.inventory.svc...  │
+│  inventory-db-rw     ClusterIP      → Primary pod IP (auto-updated)     │
+│  inventory-db-ro     ClusterIP      → Standby pod IPs only              │
+│  inventory-db-r      ClusterIP      → All pod IPs (primary + standby)   │
+│  inventory-db-any    ClusterIP      → Headless (pod DNS discovery)      │
+└──────────────────────────────────────────────────────────────────────────┘
+
+  Application / Debezium connects to:
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │                                                                     │
+  │  inventory-db ──DNS──→ inventory-db-rw ──Endpoint──→ Primary Pod   │
+  │  (ExternalName)         (ClusterIP)                  (inventory-db-1│
+  │                                                       or -2 after   │
+  │                                                       failover)     │
+  └─────────────────────────────────────────────────────────────────────┘
+
+  On failover:
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  CNPG patches inventory-db-rw Endpoints:                           │
+  │    Before: inventory-db-1 (10.244.1.5)  ← was primary             │
+  │    After:  inventory-db-2 (10.244.2.8)  ← promoted to primary     │
+  │                                                                     │
+  │  inventory-db-ro Endpoints:                                        │
+  │    Before: inventory-db-2 (standby)                                │
+  │    After:  inventory-db-1 (rebuilt as new standby)                  │
+  └─────────────────────────────────────────────────────────────────────┘</code></pre>
+
+  <h3>Which Services Are Actually Used?</h3>
+
+  <table>
+    <tr><th>Consumer</th><th>Service Used</th><th>Why</th></tr>
+    <tr>
+      <td><strong>inventory-service</strong> (FastAPI app)</td>
+      <td><code>inventory-db</code></td>
+      <td>JDBC/psycopg connects to the ExternalName alias — same hostname as before CNPG migration</td>
+    </tr>
+    <tr>
+      <td><strong>ecom-service</strong> (Spring Boot)</td>
+      <td><code>ecom-db</code></td>
+      <td>Same pattern — ExternalName alias preserves original connection string</td>
+    </tr>
+    <tr>
+      <td><strong>Debezium Server</strong></td>
+      <td><code>ecom-db</code>, <code>inventory-db</code></td>
+      <td>CDC connector hostname unchanged — resolves through alias → <code>-rw</code> → primary</td>
+    </tr>
+    <tr>
+      <td><strong>Keycloak</strong></td>
+      <td><code>keycloak-db</code></td>
+      <td>ExternalName → <code>keycloak-db-rw</code></td>
+    </tr>
+    <tr>
+      <td><strong>Flink SQL</strong></td>
+      <td><code>analytics-db</code></td>
+      <td>JDBC sink URL uses ExternalName alias</td>
+    </tr>
+    <tr>
+      <td><strong>Superset</strong></td>
+      <td><code>analytics-db</code></td>
+      <td>SQL queries via ExternalName alias</td>
+    </tr>
+    <tr>
+      <td><strong>-ro, -r services</strong></td>
+      <td><em>Not used currently</em></td>
+      <td>Available for future read scaling (e.g., direct read replicas for reporting)</td>
+    </tr>
+    <tr>
+      <td><strong>-any service</strong></td>
+      <td><em>CNPG internal only</em></td>
+      <td>Headless service for pod DNS; used by instance manager for cluster communication</td>
+    </tr>
+  </table>
+
+  <div class="callout warning">
+    <div class="callout-title">The -ro and -r Services Are Ready for Read Scaling</div>
+    <p>While we currently route all traffic through the <code>-rw</code> (primary) service, the <code>-ro</code> and <code>-r</code> services are available for read scaling. In a production scenario, you could point Superset or reporting tools to <code>analytics-db-ro</code> to offload read queries from the primary. This provides read scaling without any additional configuration — just change the hostname in the reporting tool's connection string.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <h2 id="failover">Automatic Failover Sequence</h2>
+  <p>This animated diagram shows the complete 8-phase failover sequence, from primary failure to full recovery.</p>
+
+  <div class="svg-container">
+    <object type="image/svg+xml" data="diagrams/ha-failover-animated.svg" width="100%">
+      <img src="diagrams/ha-failover.gif" alt="CNPG Automatic Failover Sequence" />
+    </object>
+  </div>
+  <p class="diagram-caption">Animated: 8-phase automatic failover — failure detection, promotion, service update, Debezium reconnect, offset resume</p>
+
+  <h3>Failover Timeline</h3>
+
+  <div class="phase-timeline">
+    <div class="phase">
+      <div class="phase-num">1</div>
+      <div class="phase-content">
+        <h4 style="color: var(--green);">Normal Operation</h4>
+        <p>App connects via <code>ecom-db</code> (ExternalName) → <code>ecom-db-rw</code> → Primary pod. Debezium reads WAL via logical replication slot. Streaming replication ships WAL to standby.</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">2</div>
+      <div class="phase-content">
+        <h4 style="color: var(--red);">Primary Pod Fails</h4>
+        <p>Primary pod crashes (OOMKill, node failure, etc.). App JDBC connections break immediately (TCP RST). Debezium loses its TCP connection. Standby continues running with latest replicated WAL data.</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">3</div>
+      <div class="phase-content">
+        <h4 style="color: var(--amber);">CNPG Operator Detects Failure</h4>
+        <p>Instance manager reports unhealthy. Reconcile loop (~10s interval) detects pod not ready. CNPG evaluates cluster topology: 1 standby available for promotion. Decision: promote most up-to-date standby based on WAL position.</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">4</div>
+      <div class="phase-content">
+        <h4 style="color: var(--purple);">Promote Standby to Primary</h4>
+        <p><code>pg_ctl promote</code> on standby pod. Standby exits recovery mode, begins accepting writes. Timeline ID increments. CNPG updates instance labels: <code>cnpg.io/instanceRole=primary</code>.</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">5</div>
+      <div class="phase-content">
+        <h4 style="color: var(--cyan);">Update -rw Service Endpoint</h4>
+        <p>CNPG patches <code>ecom-db-rw</code> Service: Endpoints now point to new primary pod IP. ExternalName alias (<code>ecom-db</code>) resolves to <code>ecom-db-rw</code> → new primary. Zero config change needed anywhere.</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">6</div>
+      <div class="phase-content">
+        <h4 style="color: var(--accent);">Application Reconnects</h4>
+        <p>HikariCP / connection pool detects broken connections, creates new ones. DNS resolves <code>ecom-db</code> → <code>ecom-db-rw</code> → new primary pod IP. Application resumes normal operation. Users experience ~5-15 second interruption.</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">7</div>
+      <div class="phase-content">
+        <h4 style="color: var(--amber);">Debezium Resumes CDC</h4>
+        <p>Debezium reconnects to same hostname → reaches new primary via ExternalName. Creates new logical replication slot on new primary (old slot was on old primary). Reads last committed offset from Kafka topic <code>debezium.ecom.offsets</code>. Resumes from that LSN position — if WAL is available (<code>wal_keep_size=256MB</code> ensures this).</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">8</div>
+      <div class="phase-content">
+        <h4 style="color: var(--green);">Fully Recovered</h4>
+        <p>CNPG recreates old primary pod as new standby. Streaming replication resumes. Cluster returns to 2 healthy instances (1 primary + 1 standby). Total downtime: ~5-15 seconds. Zero data loss (synchronous replication).</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-title">KafkaOffsetBackingStore: The Key to Debezium Resilience</div>
+    <p>Previously, Debezium used <code>FileOffsetBackingStore</code> with <code>emptyDir</code> storage — meaning offsets were lost on every pod restart, triggering a full re-snapshot. By switching to <code>KafkaOffsetBackingStore</code>, offsets are stored in a compacted Kafka topic (<code>debezium.ecom.offsets</code>) that survives both Debezium restarts AND database failovers. After failover, Debezium reads the last committed LSN from Kafka and resumes exactly where it left off.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <h2 id="mesh-exclusion">Why CNPG is Excluded from Istio Ambient Mesh</h2>
+
+  <p>This was one of the most critical architectural decisions in the HA implementation. CloudNativePG manages its own TLS for streaming replication between primary and standby pods, and this <strong>conflicts with Istio Ambient Mesh's ztunnel HBONE tunneling</strong>.</p>
+
+  <h3>The Conflict: Double TLS Encryption</h3>
+
+  <p>Istio Ambient Mesh uses <strong>ztunnel</strong> to transparently intercept all TCP traffic and wrap it in HBONE (HTTP/2-based) tunnels with mTLS encryption. When a pod sends traffic to another pod, ztunnel on the source node encrypts it, and ztunnel on the destination node decrypts it — all transparently to the application.</p>
+
+  <p>CNPG, however, manages its own TLS certificates for PostgreSQL streaming replication. The primary and standby pods communicate using PostgreSQL's native TLS, which CNPG configures automatically (it generates its own CA and certificates).</p>
+
+  <p>When both are active, the traffic path becomes:</p>
+
+  <pre><code># With Istio Ambient + CNPG TLS (BROKEN):
+Primary Pod
+  └── PostgreSQL starts TLS handshake (CNPG-managed cert)
+        └── ztunnel intercepts → wraps in HBONE mTLS tunnel
+              └── ztunnel on destination decrypts HBONE
+                    └── Delivers to Standby Pod
+                          └── PostgreSQL tries to complete TLS handshake
+                                └── FAILS: TLS state corrupted by double encryption
+
+# Without Istio Ambient (WORKING):
+Primary Pod
+  └── PostgreSQL starts TLS handshake (CNPG-managed cert)
+        └── Direct TCP to Standby Pod
+              └── PostgreSQL completes TLS handshake
+                    └── Streaming replication active</code></pre>
+
+  <div class="callout danger">
+    <div class="callout-title">Symptom: TLS Handshake Timeout</div>
+    <p>When CNPG pods are enrolled in the Istio Ambient mesh, standby pods fail to connect to the primary with <code>SSL error: certificate verify failed</code> or TLS handshake timeouts. The streaming replication never establishes, and the standby pod continuously restarts.</p>
+  </div>
+
+  <h3>The Solution: Mesh Exclusion</h3>
+
+  <p>All CNPG database pods are excluded from the Istio Ambient mesh using the <code>ambient.istio.io/redirection: disabled</code> annotation. This tells ztunnel to <strong>not intercept traffic</strong> for these specific pods:</p>
+
+  <pre><code># In every CNPG Cluster CR:
+spec:
+  inheritedMetadata:
+    annotations:
+      ambient.istio.io/redirection: disabled</code></pre>
+
+  <p>This annotation is set at the Cluster level via <code>inheritedMetadata</code>, which ensures it is automatically applied to all pods created by CNPG (both primary and standby).</p>
+
+  <h3>Why cnpg-system Namespace is NOT in the Mesh</h3>
+
+  <p>The CNPG operator itself (running in <code>cnpg-system</code> namespace) also cannot be enrolled in the Istio Ambient mesh. The reason is different from the database pods:</p>
+
+  <div class="callout warning">
+    <div class="callout-title">Webhook Accessibility</div>
+    <p>CNPG registers a <strong>ValidatingWebhookConfiguration</strong> with the Kubernetes API server. When you apply a Cluster CR, the kube-apiserver calls the CNPG webhook to validate it. The kube-apiserver is <strong>outside the mesh</strong> — it does not have an ztunnel identity. If the CNPG webhook pod is enrolled in STRICT mTLS mode, the kube-apiserver's plain TCP connection is rejected, and all CNPG Cluster operations fail with <code>EOF</code> errors.</p>
+  </div>
+
+  <pre><code># cnpg-system PeerAuthentication: PERMISSIVE (not STRICT)
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: cnpg-mtls
+  namespace: cnpg-system
+spec:
+  mtls:
+    mode: PERMISSIVE  # Must allow kube-apiserver plaintext webhook calls</code></pre>
+
+  <h3>Security Impact Assessment</h3>
+
+  <table>
+    <tr><th>Aspect</th><th>Impact</th><th>Mitigation</th></tr>
+    <tr><td>Inter-pod replication traffic</td><td>Not encrypted by Istio</td><td>CNPG manages its own TLS — traffic IS encrypted, just not by Istio</td></tr>
+    <tr><td>App → Database traffic</td><td>Not encrypted by Istio</td><td>CNPG enables TLS by default on all connections (server cert auto-generated)</td></tr>
+    <tr><td>Operator webhook</td><td>Plain TCP from kube-apiserver</td><td>PERMISSIVE mode allows both mTLS and plain TCP; webhook itself uses HTTPS</td></tr>
+    <tr><td>NetworkPolicies</td><td>Still enforced</td><td>All CNPG pods have namespace-scoped NetworkPolicies restricting ingress/egress</td></tr>
+    <tr><td>AuthorizationPolicies</td><td>Updated for CNPG labels</td><td>Policies use <code>cnpg.io/cluster</code> label selectors instead of <code>app</code> labels</td></tr>
+  </table>
+
+  <div class="callout success">
+    <div class="callout-title">Defense in Depth</div>
+    <p>Even though CNPG pods are excluded from the Istio mesh, they are NOT unprotected. CNPG manages its own TLS for all PostgreSQL connections (both client and replication), and Kubernetes NetworkPolicies restrict which pods can connect. The only difference is that traffic encryption is managed by CNPG instead of Istio ztunnel.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <h2 id="debezium-config">Debezium Configuration for HA</h2>
+
+  <h3>KafkaOffsetBackingStore Configuration</h3>
+
+  <p>The critical change for HA support is switching Debezium's offset storage from file-based to Kafka-based:</p>
+
+  <pre><code># Debezium Server application.properties (HA-ready)
+# ─── Offset Storage (Kafka) ───
+debezium.source.offset.storage=org.apache.kafka.connect.storage.KafkaOffsetBackingStore
+debezium.source.offset.storage.topic=debezium.ecom.offsets
+debezium.source.offset.storage.bootstrap.servers=kafka.infra.svc.cluster.local:9092
+debezium.source.offset.flush.interval.ms=5000
+
+# KafkaOffsetBackingStore requires these in embedded worker config:
+debezium.source.bootstrap.servers=kafka.infra.svc.cluster.local:9092
+debezium.source.offset.storage.partitions=1
+debezium.source.offset.storage.replication.factor=1
+
+# ─── Publication (pre-created as superuser) ───
+debezium.source.publication.name=debezium_ecom_pub
+debezium.source.publication.autocreate.mode=disabled
+
+# ─── Source Database ───
+debezium.source.connector.class=io.debezium.connector.postgresql.PostgresConnector
+debezium.source.database.hostname=ecom-db            # ExternalName → -rw → primary
+debezium.source.database.port=5432
+debezium.source.database.dbname=ecomdb
+debezium.source.plugin.name=pgoutput
+debezium.source.slot.name=debezium_ecom_slot</code></pre>
+
+  <h3>Kafka Offset Topics</h3>
+
+  <p>Offset topics must be created with <code>cleanup.policy=compact</code> to retain the latest offset for each key (partition). These are pre-created in the Kafka topic initialization job:</p>
+
+  <pre><code># Offset topics (compacted — retains last value per key)
+recreate_compacted_topic "debezium.ecom.offsets"
+recreate_compacted_topic "debezium.inventory.offsets"
+
+# Why "recreate"? Stale offsets from a previous database instance cause
+# "no longer available on the server" errors. Fresh bootstrap = fresh offsets.</code></pre>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <h2 id="issues">Issues Encountered &amp; Fixes</h2>
+
+  <p>Implementing HA PostgreSQL with CNPG + Debezium + Istio Ambient Mesh involved resolving several complex interactions. Here are the issues we encountered and how they were fixed.</p>
+
+  <div class="issue-card fixed">
+    <h4>Issue 1: CNPG Streaming Replication TLS Timeout</h4>
+    <p><strong>Symptom:</strong> Standby pods failed to connect to primary with TLS handshake errors. Streaming replication never established.</p>
+    <p><strong>Root Cause:</strong> Istio ztunnel double-encrypted CNPG's own TLS traffic, corrupting the handshake.</p>
+    <p><strong>Fix:</strong> Added <code>inheritedMetadata.annotations: ambient.istio.io/redirection: disabled</code> to all CNPG Cluster CRs.</p>
+    <pre><code>spec:
+  inheritedMetadata:
+    annotations:
+      ambient.istio.io/redirection: disabled</code></pre>
+  </div>
+
+  <div class="issue-card fixed">
+    <h4>Issue 2: CNPG Webhook Unreachable (EOF Error)</h4>
+    <p><strong>Symptom:</strong> <code>kubectl apply</code> of Cluster CR failed with <code>Internal error: failed calling webhook "cluster.cnpg.io": EOF</code>.</p>
+    <p><strong>Root Cause:</strong> cnpg-system namespace was enrolled in Istio Ambient mesh with STRICT mTLS. kube-apiserver (outside mesh) couldn't reach the webhook.</p>
+    <p><strong>Fix:</strong> Removed cnpg-system from ambient mesh enrollment. Changed PeerAuthentication to PERMISSIVE.</p>
+    <pre><code># infra/cnpg/peer-auth.yaml
+spec:
+  mtls:
+    mode: PERMISSIVE  # kube-apiserver needs plain TCP access to webhook</code></pre>
+  </div>
+
+  <div class="issue-card fixed">
+    <h4>Issue 3: KafkaOffsetBackingStore Missing Properties</h4>
+    <p><strong>Symptom:</strong> Debezium Server failed to start with <code>Missing required config: bootstrap.servers</code>.</p>
+    <p><strong>Root Cause:</strong> KafkaOffsetBackingStore requires multiple properties beyond the offset topic name. The embedded Kafka Connect worker needs <code>bootstrap.servers</code>, <code>offset.storage.partitions</code>, and <code>offset.storage.replication.factor</code> — all under the <code>debezium.source</code> prefix.</p>
+    <p><strong>Fix:</strong> Added all required properties:</p>
+    <pre><code>debezium.source.offset.storage.bootstrap.servers=kafka.infra.svc.cluster.local:9092
+debezium.source.bootstrap.servers=kafka.infra.svc.cluster.local:9092
+debezium.source.offset.storage.partitions=1
+debezium.source.offset.storage.replication.factor=1</code></pre>
+  </div>
+
+  <div class="issue-card fixed">
+    <h4>Issue 4: REPLICATION Role Not Granted</h4>
+    <p><strong>Symptom:</strong> Debezium couldn't create a replication slot: <code>ERROR: must be superuser or replication role</code>.</p>
+    <p><strong>Root Cause:</strong> CNPG creates the database owner user but does NOT automatically grant the REPLICATION attribute.</p>
+    <p><strong>Fix:</strong> Added <code>postInitApplicationSQL</code> to the Cluster CR bootstrap:</p>
+    <pre><code>bootstrap:
+  initdb:
+    postInitApplicationSQL:
+      - ALTER USER ecomuser WITH REPLICATION;</code></pre>
+  </div>
+
+  <div class="issue-card fixed">
+    <h4>Issue 5: Publication Must Be Created as Superuser</h4>
+    <p><strong>Symptom:</strong> <code>ERROR: must be superuser to create FOR ALL TABLES publication</code> when Debezium tried to auto-create the publication.</p>
+    <p><strong>Root Cause:</strong> PostgreSQL requires superuser privileges for <code>CREATE PUBLICATION FOR ALL TABLES</code>. The application user (ecomuser) doesn't have superuser.</p>
+    <p><strong>Fix:</strong> Pre-create the publication in <code>postInitApplicationSQL</code> (runs as postgres superuser) and disable Debezium's auto-creation:</p>
+    <pre><code># In Cluster CR (runs as superuser):
+postInitApplicationSQL:
+  - CREATE PUBLICATION debezium_ecom_pub FOR ALL TABLES;
+
+# In Debezium config:
+debezium.source.publication.name=debezium_ecom_pub
+debezium.source.publication.autocreate.mode=disabled</code></pre>
+  </div>
+
+  <div class="issue-card fixed">
+    <h4>Issue 6: Peer Authentication Failed for Application User</h4>
+    <p><strong>Symptom:</strong> <code>psql -U ecomuser</code> from <code>kubectl exec</code> failed with <code>Peer authentication failed</code>.</p>
+    <p><strong>Root Cause:</strong> CNPG uses <code>peer</code> authentication for local socket connections. Only the <code>postgres</code> OS user maps to the <code>postgres</code> database superuser. Local <code>kubectl exec</code> commands must use <code>-U postgres</code>.</p>
+    <p><strong>Fix:</strong> Updated all E2E tests and scripts to use <code>psql -U postgres</code> for <code>kubectl exec</code> commands.</p>
+  </div>
+
+  <div class="issue-card fixed">
+    <h4>Issue 7: Stale Kafka Offsets from Previous Run</h4>
+    <p><strong>Symptom:</strong> After a fresh cluster bootstrap, Debezium failed with <code>Replication slot "debezium_ecom_slot" is no longer available on the server</code>.</p>
+    <p><strong>Root Cause:</strong> Kafka data persists on PVC across cluster recreations. Old offset data referenced LSNs from a previous database instance that no longer exists.</p>
+    <p><strong>Fix:</strong> Updated <code>kafka-topics-init.yaml</code> to delete and recreate offset topics on every fresh bootstrap:</p>
+    <pre><code>recreate_compacted_topic() {
+  local topic=$1
+  # Delete stale topic if exists
+  kafka-topics --delete --topic "$topic" || true
+  sleep 2
+  # Recreate with compact policy
+  kafka-topics --create --topic "$topic" \
+    --partitions 1 --replication-factor 1 \
+    --config cleanup.policy=compact
+}</code></pre>
+  </div>
+
+  <div class="issue-card fixed">
+    <h4>Issue 8: NetworkPolicy Blocking K8s API Server Access</h4>
+    <p><strong>Symptom:</strong> CNPG pods couldn't communicate with the Kubernetes API server, preventing the instance manager from reporting status.</p>
+    <p><strong>Root Cause:</strong> Namespace NetworkPolicies had restrictive egress rules that didn't include the K8s API server.</p>
+    <p><strong>Fix:</strong> Added egress rules for K8s API server (ports 443, 6443) to all database namespace NetworkPolicies:</p>
+    <pre><code># CNPG instance manager → K8s API server
+- to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+  ports:
+    - port: 443
+# Direct ClusterIP access (10.96.0.1)
+- ports:
+    - port: 443
+    - port: 6443</code></pre>
+  </div>
+
+  <div class="issue-card fixed">
+    <h4>Issue 9: Offset Topic cleanup.policy Must Be Compact</h4>
+    <p><strong>Symptom:</strong> Debezium started but lost offsets after Kafka log retention kicked in.</p>
+    <p><strong>Root Cause:</strong> Offset topics were created with default <code>cleanup.policy=delete</code>, which eventually purges old offset records. KafkaOffsetBackingStore requires <code>compact</code> policy to retain the latest offset indefinitely.</p>
+    <p><strong>Fix:</strong> Create offset topics with explicit <code>--config cleanup.policy=compact</code>.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <h2 id="clusters">Database Clusters Summary</h2>
+
+  <table>
+    <tr><th>Cluster</th><th>Namespace</th><th>Instances</th><th>WAL Level</th><th>Storage</th><th>CDC Source?</th></tr>
+    <tr><td><strong>ecom-db</strong></td><td>ecom</td><td>2 (1P + 1S)</td><td>logical</td><td>2Gi</td><td>Yes (Debezium)</td></tr>
+    <tr><td><strong>inventory-db</strong></td><td>inventory</td><td>2 (1P + 1S)</td><td>logical</td><td>2Gi</td><td>Yes (Debezium)</td></tr>
+    <tr><td><strong>analytics-db</strong></td><td>analytics</td><td>2 (1P + 1S)</td><td>replica</td><td>5Gi</td><td>No (sink only)</td></tr>
+    <tr><td><strong>keycloak-db</strong></td><td>identity</td><td>2 (1P + 1S)</td><td>replica</td><td>2Gi</td><td>No</td></tr>
+  </table>
+
+  <p>Total: 8 database pods (up from 4 single-replica Deployments). Additional resource usage: ~500m CPU, ~1.25Gi memory.</p>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <h2 id="aws">AWS RDS &amp; Aurora PostgreSQL Configuration</h2>
+
+  <p>If migrating this architecture to AWS, the CNPG operator is replaced by managed database services. Here are the specific configuration differences:</p>
+
+  <h3>AWS RDS PostgreSQL</h3>
+
+  <div class="callout info">
+    <div class="callout-title">RDS Multi-AZ vs Read Replicas</div>
+    <p>AWS RDS offers two HA mechanisms: <strong>Multi-AZ</strong> (synchronous standby in a different AZ, automatic failover) and <strong>Read Replicas</strong> (asynchronous replicas, manual promotion). For HA equivalent to CNPG, use Multi-AZ. For read scaling, add Read Replicas on top.</p>
+  </div>
+
+  <table>
+    <tr><th>CNPG (Kubernetes)</th><th>AWS RDS PostgreSQL</th><th>Notes</th></tr>
+    <tr>
+      <td><code>instances: 2</code></td>
+      <td><code>MultiAZ: true</code></td>
+      <td>RDS Multi-AZ provides synchronous standby with automatic failover</td>
+    </tr>
+    <tr>
+      <td><code>wal_level: logical</code></td>
+      <td>Parameter Group: <code>rds.logical_replication = 1</code></td>
+      <td>RDS uses parameter groups, not <code>postgresql.conf</code> directly</td>
+    </tr>
+    <tr>
+      <td><code>max_replication_slots: 10</code></td>
+      <td>Parameter Group: <code>max_replication_slots = 10</code></td>
+      <td>Same parameter name, different configuration mechanism</td>
+    </tr>
+    <tr>
+      <td><code>wal_keep_size: 256MB</code></td>
+      <td>Not needed (RDS manages WAL retention)</td>
+      <td>RDS automatically manages WAL lifecycle</td>
+    </tr>
+    <tr>
+      <td><code>storageClass: standard</code></td>
+      <td><code>StorageType: gp3</code>, <code>AllocatedStorage: 20</code></td>
+      <td>Use gp3 for balanced IOPS/cost; io2 for high-IOPS workloads</td>
+    </tr>
+    <tr>
+      <td>ExternalName Service</td>
+      <td>RDS Endpoint (DNS)</td>
+      <td>RDS provides <code>&lt;instance&gt;.&lt;region&gt;.rds.amazonaws.com</code> endpoint that auto-follows failover</td>
+    </tr>
+    <tr>
+      <td>CNPG <code>postInitApplicationSQL</code></td>
+      <td>Lambda / custom init script</td>
+      <td>Run <code>ALTER USER WITH REPLICATION</code> and <code>CREATE PUBLICATION</code> after RDS instance is ready</td>
+    </tr>
+    <tr>
+      <td>CNPG manages TLS</td>
+      <td>RDS manages TLS (rds-ca bundle)</td>
+      <td>RDS provides <code>rds-combined-ca-bundle.pem</code> for client verification</td>
+    </tr>
+  </table>
+
+  <pre><code># AWS RDS PostgreSQL — Terraform configuration
+resource "aws_db_parameter_group" "ecom_pg17" {
+  family = "postgres17"
+  name   = "ecom-pg17-params"
+
+  parameter {
+    name         = "rds.logical_replication"
+    value        = "1"
+    apply_method = "pending-reboot"   # Requires reboot to take effect
+  }
+  parameter {
+    name  = "max_replication_slots"
+    value = "10"
+  }
+  parameter {
+    name  = "max_wal_senders"
+    value = "10"
+  }
+}
+
+resource "aws_db_instance" "ecom_db" {
+  identifier     = "ecom-db"
+  engine         = "postgres"
+  engine_version = "17"
+  instance_class = "db.t3.medium"   # Or db.r6g.large for production
+
+  allocated_storage     = 20
+  storage_type          = "gp3"
+  storage_encrypted     = true
+
+  multi_az              = true      # HA: synchronous standby in different AZ
+  db_name               = "ecomdb"
+  username              = "ecomuser"
+  password              = var.ecom_db_password
+
+  parameter_group_name  = aws_db_parameter_group.ecom_pg17.name
+  vpc_security_group_ids = [aws_security_group.ecom_db_sg.id]
+  db_subnet_group_name  = aws_db_subnet_group.private.name
+
+  backup_retention_period = 7
+  skip_final_snapshot     = false
+  final_snapshot_identifier = "ecom-db-final"
+}
+
+# After RDS is ready, run initialization:
+# psql -h ecom-db.xxxx.us-east-1.rds.amazonaws.com -U ecomuser -d ecomdb
+#   ALTER USER ecomuser WITH REPLICATION;
+#   CREATE PUBLICATION debezium_ecom_pub FOR ALL TABLES;</code></pre>
+
+  <h3>AWS Aurora PostgreSQL</h3>
+
+  <div class="callout info">
+    <div class="callout-title">Aurora vs RDS for CDC</div>
+    <p>Aurora PostgreSQL supports logical replication but with some differences. Aurora's storage is shared across all instances (no traditional standby replication). Failover is faster (~30 seconds vs ~60 seconds for RDS Multi-AZ). Aurora also supports <strong>Aurora Replicas</strong> for read scaling with automatic failover.</p>
+  </div>
+
+  <table>
+    <tr><th>CNPG (Kubernetes)</th><th>AWS Aurora PostgreSQL</th><th>Notes</th></tr>
+    <tr>
+      <td><code>instances: 2</code></td>
+      <td>1 Writer + 1+ Reader in Aurora cluster</td>
+      <td>Aurora cluster provides automatic failover between writer and readers</td>
+    </tr>
+    <tr>
+      <td><code>wal_level: logical</code></td>
+      <td>Cluster Parameter Group: <code>rds.logical_replication = 1</code></td>
+      <td>Same as RDS but uses cluster parameter group</td>
+    </tr>
+    <tr>
+      <td>ExternalName Service</td>
+      <td>Aurora Cluster Endpoint (writer) + Reader Endpoint</td>
+      <td>Writer endpoint auto-follows failover; reader endpoint for read queries</td>
+    </tr>
+    <tr>
+      <td><code>storageClass: standard</code></td>
+      <td>Aurora storage (auto-scaling, 6-way replicated)</td>
+      <td>No storage configuration needed; Aurora auto-scales to 128 TiB</td>
+    </tr>
+    <tr>
+      <td><code>wal_keep_size: 256MB</code></td>
+      <td>Not applicable</td>
+      <td>Aurora manages WAL differently (distributed storage layer)</td>
+    </tr>
+    <tr>
+      <td>CNPG streaming replication</td>
+      <td>Aurora shared storage</td>
+      <td>Aurora readers share the same storage volume — no WAL shipping needed</td>
+    </tr>
+  </table>
+
+  <pre><code># AWS Aurora PostgreSQL — Terraform configuration
+resource "aws_rds_cluster_parameter_group" "ecom_aurora_pg17" {
+  family = "aurora-postgresql17"
+  name   = "ecom-aurora-pg17-params"
+
+  parameter {
+    name         = "rds.logical_replication"
+    value        = "1"
+    apply_method = "pending-reboot"
+  }
+  parameter {
+    name  = "max_replication_slots"
+    value = "10"
+  }
+}
+
+resource "aws_rds_cluster" "ecom" {
+  cluster_identifier = "ecom-db-cluster"
+  engine             = "aurora-postgresql"
+  engine_version     = "17.4"
+
+  database_name    = "ecomdb"
+  master_username  = "ecomuser"
+  master_password  = var.ecom_db_password
+
+  db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.ecom_aurora_pg17.name
+  vpc_security_group_ids          = [aws_security_group.ecom_db_sg.id]
+  db_subnet_group_name            = aws_db_subnet_group.private.name
+
+  storage_encrypted = true
+  deletion_protection = true
+}
+
+# Writer instance (primary)
+resource "aws_rds_cluster_instance" "ecom_writer" {
+  identifier         = "ecom-db-writer"
+  cluster_identifier = aws_rds_cluster.ecom.id
+  instance_class     = "db.r6g.large"
+  engine             = "aurora-postgresql"
+}
+
+# Reader instance (failover target)
+resource "aws_rds_cluster_instance" "ecom_reader" {
+  identifier         = "ecom-db-reader"
+  cluster_identifier = aws_rds_cluster.ecom.id
+  instance_class     = "db.r6g.large"
+  engine             = "aurora-postgresql"
+}
+
+# Debezium connects to:
+# Writer endpoint: ecom-db-cluster.cluster-xxxx.us-east-1.rds.amazonaws.com
+# (auto-follows failover, like CNPG's -rw Service)</code></pre>
+
+  <h3>Debezium Configuration Changes for AWS</h3>
+
+  <pre><code># Changes from CNPG (Kubernetes) to AWS RDS/Aurora:
+
+# ─── Database Connection ───
+# CNPG:
+debezium.source.database.hostname=ecom-db               # ExternalName Service
+debezium.source.database.port=5432
+
+# AWS RDS:
+debezium.source.database.hostname=ecom-db.xxxx.us-east-1.rds.amazonaws.com
+debezium.source.database.port=5432
+
+# AWS Aurora:
+debezium.source.database.hostname=ecom-db-cluster.cluster-xxxx.us-east-1.rds.amazonaws.com
+debezium.source.database.port=5432
+
+# ─── SSL/TLS ───
+# CNPG: CNPG auto-manages TLS (no explicit config needed)
+# AWS: Must configure SSL with RDS CA bundle
+debezium.source.database.sslmode=verify-full
+debezium.source.database.sslrootcert=/path/to/rds-combined-ca-bundle.pem
+
+# ─── Offset Storage (unchanged) ───
+# Same regardless of CNPG vs AWS — offset storage is always in Kafka
+debezium.source.offset.storage=org.apache.kafka.connect.storage.KafkaOffsetBackingStore
+debezium.source.offset.storage.topic=debezium.ecom.offsets
+debezium.source.offset.storage.bootstrap.servers=kafka-broker:9092
+
+# ─── Publication (unchanged) ───
+# Pre-create on AWS same as CNPG:
+#   ALTER USER ecomuser WITH REPLICATION;
+#   CREATE PUBLICATION debezium_ecom_pub FOR ALL TABLES;
+debezium.source.publication.name=debezium_ecom_pub
+debezium.source.publication.autocreate.mode=disabled</code></pre>
+
+  <div class="callout warning">
+    <div class="callout-title">AWS-Specific Considerations</div>
+    <ul>
+      <li><strong>No superuser access:</strong> RDS/Aurora don't provide <code>postgres</code> superuser. Use the <code>rds_superuser</code> role for <code>CREATE PUBLICATION FOR ALL TABLES</code> — the master user has this role automatically</li>
+      <li><strong>Reboot required:</strong> Changing <code>rds.logical_replication</code> requires a database reboot (can be deferred to maintenance window)</li>
+      <li><strong>Aurora logical replication slots:</strong> Replication slots on Aurora are tied to the writer instance. On failover, the promoted reader creates new slots — Debezium must reconnect and create a new slot</li>
+      <li><strong>WAL retention:</strong> Aurora doesn't use <code>wal_keep_size</code>. Instead, logical replication slots retain WAL automatically. Monitor <code>ReplicationSlotDiskUsage</code> CloudWatch metric</li>
+      <li><strong>MSK/Kafka:</strong> If using Amazon MSK (Managed Kafka), update <code>bootstrap.servers</code> to the MSK broker endpoints</li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <h2 id="verification">Verification &amp; Testing</h2>
+
+  <h3>Cluster Health Checks</h3>
+
+  <pre><code># Check all CNPG clusters
+kubectl get clusters -A
+# Expected: 4 clusters, all "Cluster in healthy state"
+
+# Check pods per cluster
+kubectl get pods -n ecom -l cnpg.io/cluster=ecom-db
+# Expected: 2 pods (1 primary, 1 standby)
+
+# Verify primary/standby roles
+kubectl get pods -n ecom -l cnpg.io/cluster=ecom-db \
+  -o custom-columns=NAME:.metadata.name,ROLE:.metadata.labels.cnpg\\.io/instanceRole
+
+# Check ExternalName Service resolution
+kubectl get svc ecom-db -n ecom
+# Expected: Type=ExternalName, ExternalName=ecom-db-rw.ecom.svc.cluster.local
+
+# Test application connectivity through the alias chain
+curl -sk https://api.service.net:30000/ecom/books
+# Expected: 200 OK with book data</code></pre>
+
+  <h3>Failover Test</h3>
+
+  <pre><code># 1. Identify current primary
+kubectl get pods -n ecom -l cnpg.io/cluster=ecom-db,cnpg.io/instanceRole=primary
+
+# 2. Delete primary pod (simulates failure)
+kubectl delete pod -n ecom -l cnpg.io/instanceRole=primary,cnpg.io/cluster=ecom-db
+
+# 3. Watch CNPG promote standby (~5-15 seconds)
+kubectl get pods -n ecom -l cnpg.io/cluster=ecom-db -w
+
+# 4. Verify app still works
+curl -sk https://api.service.net:30000/ecom/books
+# Expected: 200 OK (may take 5-15 seconds to reconnect)
+
+# 5. Verify cluster recovers to 2 instances
+kubectl wait --for=jsonpath='{.status.readyInstances}'=2 \
+  cluster/ecom-db -n ecom --timeout=120s</code></pre>
+
+  <h3>E2E Test Coverage</h3>
+
+  <p>Session 27 added <code>e2e/postgresql-ha.spec.ts</code> with comprehensive HA tests:</p>
+
+  <table>
+    <tr><th>Test Suite</th><th>Tests</th><th>Coverage</th></tr>
+    <tr><td>CNPG Operator Health</td><td>1</td><td>Operator deployment running in cnpg-system</td></tr>
+    <tr><td>Cluster Health (x4)</td><td>4</td><td>Each cluster reports "Cluster in healthy state"</td></tr>
+    <tr><td>Instance Count</td><td>4</td><td>Each cluster has exactly 2 ready instances</td></tr>
+    <tr><td>Primary/Standby Roles</td><td>4</td><td>1 primary + 1 replica per cluster</td></tr>
+    <tr><td>ExternalName Services</td><td>4</td><td>Aliases correctly resolve to -rw services</td></tr>
+    <tr><td>WAL Level</td><td>2</td><td>ecom-db and inventory-db have wal_level=logical</td></tr>
+    <tr><td>Streaming Replication</td><td>4</td><td>Active replication connections verified</td></tr>
+    <tr><td>PVC Storage</td><td>4</td><td>All instances have bound PVCs</td></tr>
+    <tr><td>Failover Recovery</td><td>1</td><td>Delete primary → cluster recovers to 2 instances</td></tr>
+    <tr><td>App Reconnection</td><td>1</td><td>API responds 200 after failover</td></tr>
+    <tr><td>Debezium Resilience</td><td>2</td><td>Both Debezium servers healthy after HA setup</td></tr>
+    <tr><td><strong>Total</strong></td><td><strong>31</strong></td><td></td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <h2 id="files-changed">Files Changed Summary</h2>
+
+  <table>
+    <tr><th>#</th><th>File</th><th>Action</th><th>Description</th></tr>
+    <tr><td>1</td><td><code>infra/cnpg/install.sh</code></td><td style="color: var(--green);">NEW</td><td>Install CNPG operator v1.25.1</td></tr>
+    <tr><td>2</td><td><code>infra/cnpg/ecom-db-cluster.yaml</code></td><td style="color: var(--green);">NEW</td><td>CNPG Cluster (2 instances, logical WAL)</td></tr>
+    <tr><td>3</td><td><code>infra/cnpg/inventory-db-cluster.yaml</code></td><td style="color: var(--green);">NEW</td><td>Same pattern</td></tr>
+    <tr><td>4</td><td><code>infra/cnpg/analytics-db-cluster.yaml</code></td><td style="color: var(--green);">NEW</td><td>5Gi storage, no logical WAL</td></tr>
+    <tr><td>5</td><td><code>infra/cnpg/keycloak-db-cluster.yaml</code></td><td style="color: var(--green);">NEW</td><td>Identity namespace</td></tr>
+    <tr><td>6</td><td><code>infra/cnpg/peer-auth.yaml</code></td><td style="color: var(--green);">NEW</td><td>PERMISSIVE mTLS for cnpg-system</td></tr>
+    <tr><td>7-9</td><td><code>infra/postgres/*.yaml</code></td><td style="color: var(--red);">DELETE</td><td>Replaced by CNPG Clusters</td></tr>
+    <tr><td>10</td><td><code>infra/keycloak/keycloak.yaml</code></td><td style="color: var(--amber);">MODIFY</td><td>Remove keycloak-db section</td></tr>
+    <tr><td>11</td><td><code>infra/debezium/debezium-server-*.yaml</code></td><td style="color: var(--amber);">MODIFY</td><td>KafkaOffsetBackingStore</td></tr>
+    <tr><td>12</td><td><code>infra/kafka/kafka-topics-init.yaml</code></td><td style="color: var(--amber);">MODIFY</td><td>Compacted offset topics</td></tr>
+    <tr><td>13-16</td><td><code>infra/kubernetes/network-policies/*.yaml</code></td><td style="color: var(--amber);">MODIFY</td><td>CNPG labels + K8s API egress</td></tr>
+    <tr><td>17-20</td><td><code>infra/istio/security/authz-policies/*.yaml</code></td><td style="color: var(--amber);">MODIFY</td><td>CNPG label selectors</td></tr>
+    <tr><td>21-24</td><td><code>scripts/*.sh</code></td><td style="color: var(--amber);">MODIFY</td><td>CNPG install/wait/labels</td></tr>
+    <tr><td>25-28</td><td><code>e2e/*.ts</code></td><td style="color: var(--amber);">MODIFY</td><td>Label-based pod exec</td></tr>
+    <tr><td>29</td><td><code>e2e/postgresql-ha.spec.ts</code></td><td style="color: var(--green);">NEW</td><td>31 HA E2E tests</td></tr>
+  </table>
+
+  <footer>
+    <p>Session 27 — PostgreSQL High Availability with CloudNativePG. Part of the <a href="index.html">BookStore Platform</a> microservices architecture.</p>
+    <p style="margin-top: 12px;"><a href="index.html">Home</a> · <a href="architecture.html">Architecture Deep Dive</a> · <a href="https://github.com/a2z-ice/ecom-ms">GitHub Repository</a></p>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,6 +1,19 @@
 import * as fs from 'fs'
 import { execFileSync } from 'child_process'
 
+/** Resolve CNPG primary pod name for kubectl exec */
+function getCnpgPrimaryPod(namespace: string, cluster: string): string {
+  try {
+    return execFileSync('kubectl', [
+      'get', 'pod', '-n', namespace,
+      '-l', `cnpg.io/cluster=${cluster},cnpg.io/instanceRole=primary`,
+      '-o', 'jsonpath={.items[0].metadata.name}',
+    ], { encoding: 'utf-8', timeout: 10_000 }).trim()
+  } catch {
+    return ''
+  }
+}
+
 /**
  * Global setup: runs once before all test projects.
  *
@@ -16,11 +29,15 @@ export default function globalSetup() {
 
   console.log('[global-setup] Resetting database state for clean test run...')
 
+  // Resolve CNPG primary pods
+  const inventoryPod = getCnpgPrimaryPod('inventory', 'inventory-db') || 'deploy/inventory-db'
+  const ecomPod = getCnpgPrimaryPod('ecom', 'ecom-db') || 'deploy/ecom-db'
+
   // Reset inventory stock to 50 units, 0 reserved for all books
   try {
     execFileSync('kubectl', [
-      'exec', '-n', 'inventory', 'deploy/inventory-db', '--',
-      'psql', '-U', 'inventoryuser', '-d', 'inventorydb',
+      'exec', '-n', 'inventory', inventoryPod, '--',
+      'psql', '-U', 'postgres', '-d', 'inventorydb',
       '-c', 'UPDATE inventory SET quantity = 50, reserved = 0;',
     ], { encoding: 'utf-8', timeout: 15_000 })
     console.log('[global-setup] ✓ Inventory reset (quantity=50, reserved=0)')
@@ -31,8 +48,8 @@ export default function globalSetup() {
   // Clear all cart items from ecom-db
   try {
     execFileSync('kubectl', [
-      'exec', '-n', 'ecom', 'deploy/ecom-db', '--',
-      'psql', '-U', 'ecomuser', '-d', 'ecomdb',
+      'exec', '-n', 'ecom', ecomPod, '--',
+      'psql', '-U', 'postgres', '-d', 'ecomdb',
       '-c', 'DELETE FROM cart_items;',
     ], { encoding: 'utf-8', timeout: 15_000 })
     console.log('[global-setup] ✓ Cart items cleared')

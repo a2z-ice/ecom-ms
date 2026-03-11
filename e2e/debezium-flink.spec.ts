@@ -12,7 +12,7 @@
  */
 import { test, expect } from '@playwright/test'
 import { execFileSync } from 'child_process'
-import { pollUntilFound, queryAnalyticsDb } from './helpers/db'
+import { pollUntilFound, queryAnalyticsDb, getCnpgPrimaryPod } from './helpers/db'
 
 const DEBEZIUM_ECM_URL = 'http://localhost:32300'
 const DEBEZIUM_INV_URL = 'http://localhost:32301'
@@ -27,10 +27,21 @@ async function apiGet(request: import('@playwright/test').APIRequestContext, url
   return resp.json()
 }
 
-/** Run a command inside a Kubernetes pod via kubectl exec. */
-function kubectlExec(namespace: string, deployment: string, cmd: string[]): string {
+/** Run a command inside a Kubernetes pod via kubectl exec.
+ *  For CNPG-managed databases, resolves the primary pod by label selector.
+ *  For non-CNPG deployments, uses deployment/ prefix as before. */
+function kubectlExec(namespace: string, target: string, cmd: string[]): string {
+  // If target looks like a DB cluster name, resolve CNPG primary pod
+  const cnpgClusters = ['ecom-db', 'inventory-db', 'analytics-db', 'keycloak-db']
+  let podTarget: string
+  if (cnpgClusters.includes(target)) {
+    const primaryPod = getCnpgPrimaryPod(namespace, target)
+    podTarget = primaryPod || `deployment/${target}`
+  } else {
+    podTarget = `deployment/${target}`
+  }
   return execFileSync('kubectl', [
-    'exec', '-n', namespace, `deployment/${deployment}`, '--', ...cmd,
+    'exec', '-n', namespace, podTarget, '--', ...cmd,
   ], { encoding: 'utf-8', timeout: 30_000 }).trim()
 }
 
@@ -316,14 +327,14 @@ test.describe('CDC End-to-End Data Flow', () => {
     try {
       // Insert directly into ecom-db to trigger Debezium CDC
       kubectlExec('ecom', 'ecom-db', [
-        'psql', '-U', 'ecomuser', 'ecomdb', '-c',
+        'psql', '-U', 'postgres', 'ecomdb', '-c',
         `INSERT INTO orders (id, user_id, total, status, created_at)
          VALUES ('${testOrderId}','flink-e2e-test',19.99,'CONFIRMED',NOW())
          ON CONFLICT (id) DO NOTHING;`,
       ])
 
       kubectlExec('ecom', 'ecom-db', [
-        'psql', '-U', 'ecomuser', 'ecomdb', '-c',
+        'psql', '-U', 'postgres', 'ecomdb', '-c',
         `INSERT INTO order_items (id, order_id, book_id, quantity, price_at_purchase)
          VALUES (gen_random_uuid(),'${testOrderId}','${testBookId}',1,19.99)
          ON CONFLICT DO NOTHING;`,
@@ -346,7 +357,7 @@ test.describe('CDC End-to-End Data Flow', () => {
     // Cleanup
     try {
       kubectlExec('ecom', 'ecom-db', [
-        'psql', '-U', 'ecomuser', 'ecomdb', '-c',
+        'psql', '-U', 'postgres', 'ecomdb', '-c',
         `DELETE FROM order_items WHERE order_id='${testOrderId}';
          DELETE FROM orders WHERE id='${testOrderId}';`,
       ])
@@ -442,11 +453,12 @@ test.describe('Operational Health', () => {
   })
 
   test('analytics-db has all 4 fact/dim tables', async ({ page }) => {
+    const primaryPod = getCnpgPrimaryPod('analytics', 'analytics-db') || 'deployment/analytics-db'
     const tables = ['fact_orders', 'fact_order_items', 'fact_inventory', 'dim_books']
     for (const table of tables) {
       const output = execFileSync('kubectl', [
-        'exec', '-n', 'analytics', 'deployment/analytics-db', '--',
-        'psql', '-U', 'analyticsuser', 'analyticsdb', '-tAc',
+        'exec', '-n', 'analytics', primaryPod, '--',
+        'psql', '-U', 'postgres', 'analyticsdb', '-tAc',
         `SELECT to_regclass('public.${table}')`,
       ], { encoding: 'utf-8', timeout: 10_000 }).trim()
       expect(output).not.toBe('')

@@ -259,16 +259,16 @@ info "Checking pods across all namespaces..."
 
 # ecom namespace
 pod_check "ecom-service"     ecom       "app=ecom-service"
-pod_check "ecom-db"          ecom       "app=ecom-db"
+pod_check "ecom-db"          ecom       "cnpg.io/cluster=ecom-db,cnpg.io/instanceRole=primary"
 pod_check "ui-service"       ecom       "app=ui-service"
 
 # inventory namespace
 pod_check "inventory-service" inventory  "app=inventory-service"
-pod_check "inventory-db"      inventory  "app=inventory-db"
+pod_check "inventory-db"      inventory  "cnpg.io/cluster=inventory-db,cnpg.io/instanceRole=primary"
 
 # identity namespace
 pod_check "keycloak"         identity   "app=keycloak"
-pod_check "keycloak-db"      identity   "app=keycloak-db"
+pod_check "keycloak-db"      identity   "cnpg.io/cluster=keycloak-db,cnpg.io/instanceRole=primary"
 
 # infra namespace
 pod_check "kafka"            infra      "app=kafka"
@@ -278,7 +278,7 @@ pod_check "debezium-inv"     infra      "app=debezium-server-inventory"
 pod_check "pgadmin"          infra      "app=pgadmin"
 
 # analytics namespace
-pod_check "analytics-db"     analytics  "app=analytics-db"
+pod_check "analytics-db"     analytics  "cnpg.io/cluster=analytics-db,cnpg.io/instanceRole=primary"
 pod_check "flink-jm"         analytics  "app=flink-jobmanager"
 pod_check "flink-tm"         analytics  "app=flink-taskmanager"
 pod_check "superset"         analytics  "app=superset"
@@ -411,7 +411,7 @@ FLINK_JOBS=$(curl -s --max-time 10 "http://localhost:32200/jobs/overview" 2>/dev
 
 # Analytics DB tables
 info "Checking analytics DB tables..."
-ANALYTICS_POD=$(kubectl get pod -n analytics -l "app=analytics-db" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+ANALYTICS_POD=$(kubectl get pod -n analytics -l "cnpg.io/cluster=analytics-db,cnpg.io/instanceRole=primary" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
 if [[ -n "$ANALYTICS_POD" ]]; then
   for table in fact_orders fact_order_items dim_books fact_inventory; do
     EXISTS=$(kubectl exec -n analytics "$ANALYTICS_POD" -- \

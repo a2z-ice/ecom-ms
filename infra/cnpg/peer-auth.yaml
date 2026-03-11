@@ -1,0 +1,13 @@
+---
+# PeerAuthentication for cnpg-system namespace
+# cnpg-system is NOT enrolled in Istio Ambient mesh (CNPG manages its own TLS
+# for streaming replication; ztunnel HBONE tunneling conflicts with CNPG TLS).
+# Use PERMISSIVE so the operator's webhook is reachable by kube-apiserver.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: cnpg-mtls
+  namespace: cnpg-system
+spec:
+  mtls:
+    mode: PERMISSIVE
