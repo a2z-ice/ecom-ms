@@ -1,11 +1,11 @@
 ---
-# OpenTelemetry Collector — receives traces from ecom-service (Java agent) and
-# inventory-service (Python SDK), forwards to Prometheus (metrics) and Kiali (traces).
+# OpenTelemetry Collector — receives traces/logs/metrics from services,
+# forwards to Tempo (traces), Loki (logs), and Prometheus (metrics).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: otel-collector
-  namespace: observability
+  namespace: otel
 spec:
   replicas: 1
   selector:
@@ -15,6 +15,9 @@ spec:
     metadata:
       labels:
         app: otel-collector
+      annotations:
+        # Exclude from Istio ambient mesh — services send plain gRPC to the collector
+        ambient.istio.io/redirection: disabled
     spec:
       securityContext:
         runAsNonRoot: true
@@ -27,6 +30,8 @@ spec:
             - containerPort: 4317   # OTLP gRPC
             - containerPort: 4318   # OTLP HTTP
             - containerPort: 8888   # OTel internal metrics
+            - containerPort: 8889   # Prometheus exporter
+            - containerPort: 13133  # Health check
           volumeMounts:
             - name: config
               mountPath: /etc/otel
@@ -37,6 +42,18 @@ spec:
             limits:
               cpu: 200m
               memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 10
+            periodSeconds: 30
       volumes:
         - name: config
           configMap:
@@ -47,7 +64,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: otel-collector-config
-  namespace: observability
+  namespace: otel
 data:
   config.yaml: |
     receivers:
@@ -58,27 +75,74 @@ data:
           http:
             endpoint: 0.0.0.0:4318
 
+    processors:
+      batch:
+        timeout: 5s
+        send_batch_size: 1024
+      batch/logs:
+        timeout: 2s
+        send_batch_size: 512
+      memory_limiter:
+        check_interval: 5s
+        limit_mib: 200
+        spike_limit_mib: 50
+      # Map resource attributes to Loki labels so they appear in label filters
+      resource/loki:
+        attributes:
+          - action: insert
+            key: loki.resource.labels
+            value: service.name, service.namespace, deployment.environment
+
     exporters:
+      # Traces → Grafana Tempo (HTTP to avoid gRPC/mTLS conflicts in Istio Ambient)
+      otlphttp/tempo:
+        endpoint: "http://tempo.otel.svc.cluster.local:4318"
+        tls:
+          insecure: true
+      # Logs → Grafana Loki
+      loki:
+        endpoint: "http://loki.otel.svc.cluster.local:3100/loki/api/v1/push"
+        default_labels_enabled:
+          exporter: false
+          job: true
+          instance: false
+          level: true
+      # Metrics → Prometheus (scrape endpoint)
       prometheus:
         endpoint: "0.0.0.0:8889"
+      # Debug output for troubleshooting
       debug:
         verbosity: basic
 
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+
     service:
+      extensions: [health_check]
+      telemetry:
+        logs:
+          level: info
       pipelines:
         traces:
           receivers: [otlp]
-          exporters: [debug]
+          processors: [memory_limiter, batch]
+          exporters: [otlphttp/tempo, debug]
         metrics:
           receivers: [otlp]
+          processors: [memory_limiter, batch]
           exporters: [prometheus]
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, resource/loki, batch/logs]
+          exporters: [loki]
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: otel-collector
-  namespace: observability
+  namespace: otel
 spec:
   selector:
     app: otel-collector
@@ -89,4 +153,10 @@ spec:
     - name: otlp-http
       port: 4318
       targetPort: 4318
+    - name: internal-metrics
+      port: 8888
+      targetPort: 8888
+    - name: prometheus
+      port: 8889
+      targetPort: 8889
   type: ClusterIP

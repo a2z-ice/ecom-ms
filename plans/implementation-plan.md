@@ -605,6 +605,275 @@ kubectl rollout status deployment/inventory-service -n inventory --timeout=60s
 
 ---
 
+## Session 18 — Apache Flink CDC Pipeline & Enhanced Superset Analytics
+
+**Goal:** Replace the Python analytics CDC consumer with a production-grade Apache Flink SQL streaming pipeline. Expand Superset from 1 dashboard/2 charts to 3 dashboards/14 charts.
+
+### Deliverables
+
+| File | Purpose |
+|------|---------|
+| `analytics/flink/Dockerfile` | Custom image: Flink 1.20 + Kafka/JDBC/PostgreSQL connector JARs baked in |
+| `analytics/flink/sql/pipeline.sql` | Flink SQL DDL (4 source + 4 sink tables) + 4 INSERT INTO pipelines |
+| `infra/flink/flink-cluster.yaml` | JobManager Deployment + Service + TaskManager Deployment |
+| `infra/flink/flink-config.yaml` | ConfigMap: flink-conf.yaml (checkpoints, parallelism, state backend) |
+| `infra/flink/flink-sql-runner.yaml` | Kubernetes Job: submits SQL pipeline to Session Cluster |
+| `infra/flink/flink-pvc.yaml` | PVC for checkpoint storage (2Gi, local-hostpath StorageClass) |
+| `plans/session-18-flink-analytics-superset.md` | Session plan doc |
+
+**Modified:** `infra/storage/persistent-volumes.yaml` (flink-pv), `infra/kind/cluster.yaml` (flink extraMount), `analytics/schema/analytics-ddl.sql` (8 new views), `infra/superset/bootstrap/bootstrap_dashboards.py` (14 charts, 3 dashboards), `scripts/infra-up.sh` (Flink deployment), `CLAUDE.md`
+
+**Deleted:** `analytics/consumer/main.py`, `analytics/consumer/Dockerfile`, `analytics/consumer/requirements.txt`, `infra/analytics/analytics-consumer.yaml`
+
+**Created:** `infra/superset/bootstrap-job.yaml` (Kubernetes Job for Superset bootstrap)
+
+### Acceptance Criteria
+
+- [x] `analytics/flink/Dockerfile`, `analytics/flink/sql/pipeline.sql` created
+- [x] `infra/flink/` manifests created (flink-cluster, flink-config, flink-sql-runner, flink-pvc)
+- [x] `flink-pv` added to `infra/storage/persistent-volumes.yaml`; kind cluster.yaml updated
+- [x] 8 new analytics views in `analytics/schema/analytics-ddl.sql` (10 total)
+- [x] Superset bootstrap expanded: 10 datasets, 14 charts, 3 dashboards
+- [x] `infra/superset/bootstrap-job.yaml` created
+- [x] Python consumer files deleted
+- [x] `scripts/infra-up.sh` applies Flink manifests
+- [x] `e2e/superset.spec.ts` expanded to ~10 tests
+- [ ] `flink-jobmanager` and `flink-taskmanager` pods Running in `analytics` namespace (deploy-time)
+- [ ] Flink REST API (`GET /jobs`) shows 4 streaming jobs in RUNNING state (deploy-time)
+- [ ] All 8 new views exist in analytics DB (deploy-time)
+- [ ] Superset has 3 dashboards, 14 charts (deploy-time)
+- [ ] E2E tests: ≥50 passing (deploy-time)
+
+### Build & Deploy Commands
+
+```bash
+docker build -t bookstore/flink:latest ./analytics/flink
+kind load docker-image bookstore/flink:latest --name bookstore
+kubectl apply -f infra/storage/persistent-volumes.yaml
+kubectl apply -f infra/flink/flink-pvc.yaml
+kubectl apply -f infra/flink/flink-config.yaml
+kubectl apply -f infra/flink/flink-cluster.yaml
+kubectl rollout status deployment/flink-jobmanager -n analytics --timeout=120s
+kubectl rollout status deployment/flink-taskmanager -n analytics --timeout=120s
+kubectl delete job flink-sql-runner -n analytics --ignore-not-found
+kubectl apply -f infra/flink/flink-sql-runner.yaml
+kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeout=180s
+kubectl delete -f infra/analytics/analytics-consumer.yaml --ignore-not-found
+kubectl apply -f infra/superset/bootstrap-job.yaml
+kubectl wait --for=condition=complete job/superset-bootstrap -n analytics --timeout=300s
+```
+
+### Status: Implementation complete — pending cluster deployment verification
+
+---
+
+## Session 19 — Production-Grade Flink Kafka Connectivity
+
+**Goal:** Replace the `'scan.topic-partition-discovery.interval' = '0'` shortcut with the correct production fix: re-enable partition discovery and resolve the root cause (stale idle AdminClient connections in NAT networking) by setting `properties.connections.max.idle.ms` below the discovery interval. Document the "add a new table" workflow for future schema growth.
+
+### Deliverables
+
+| File | Change |
+|---|---|
+| `analytics/flink/sql/pipeline.sql` | Re-enable `scan.topic-partition-discovery.interval = '300000'`; add 7 AdminClient connection properties to all 4 source tables |
+| `infra/flink/flink-sql-runner.yaml` | Same changes in ConfigMap (runtime source used by sql-runner Job) |
+| `infra/kafka/kafka.yaml` | Add `KAFKA_CONNECTIONS_MAX_IDLE_MS=600000`, `KAFKA_SOCKET_KEEPALIVE_ENABLE=true` |
+| `docs/operations/stability-issues-and-fixes.md` | Update Issue 1 with proper root-cause fix (replace shortcut description) |
+| `docs/cdc/flink-stability-guide.md` | Update with correct AdminClient connection fix |
+| `docs/cdc/cdc-setup-manual.md` | Update Flink source table template |
+| `CLAUDE.md` | Update Flink CDC section; add "adding a new table" workflow |
+| `plans/session-19-flink-kafka-production-grade-connectivity.md` | Session plan |
+
+### Acceptance Criteria
+
+- [ ] `'scan.topic-partition-discovery.interval' = '0'` removed from all files
+- [ ] `'scan.topic-partition-discovery.interval' = '300000'` in all 4 source tables
+- [ ] `'properties.connections.max.idle.ms' = '180000'` (+ 6 other connection properties) in all 4 source tables
+- [ ] Flink JM logs say `with partition discovery interval of 300000 ms` (NOT `without`)
+- [ ] After 10+ minutes: all 4 jobs still RUNNING, zero exceptions in exception history
+- [ ] Smoke test: 23/23 passing
+- [ ] E2E tests: 89/89 passing
+- [ ] `docs/` updated with correct root-cause explanation and "add new table" procedure
+
+### Build & Deploy
+
+```bash
+# No Docker rebuild — SQL changes are ConfigMap-only
+kubectl apply -f infra/kafka/kafka.yaml
+kubectl apply -f infra/flink/flink-sql-runner.yaml
+kubectl rollout restart deploy/flink-jobmanager deploy/flink-taskmanager -n analytics
+kubectl rollout status deploy/flink-jobmanager deploy/flink-taskmanager -n analytics --timeout=180s
+# Wait for SQL Gateway, then:
+kubectl delete job flink-sql-runner -n analytics --ignore-not-found
+kubectl apply -f infra/flink/flink-sql-runner.yaml
+kubectl wait --for=condition=complete job/flink-sql-runner -n analytics --timeout=120s
+```
+
+### Status: Not started
+
+---
+
+## Session 20 — Production-Grade Stock/Inventory Status in UI
+
+**Goal:** Surface real-time stock availability at every stage of the shopping funnel. Add a bulk stock endpoint to the inventory service, a reusable StockBadge component, and integrate stock status into Catalog, Search, and Cart pages.
+
+### Deliverables
+
+| File | Change |
+|---|---|
+| `inventory-service/app/api/stock.py` | Add `GET /stock/bulk?book_ids=...` endpoint (before `/{book_id}` route) |
+| `inventory-service/app/main.py` | Add `http://localhost:30000` to CORS `allow_origins` |
+| `ui/src/api/books.ts` | Full `StockResponse` type; `getBulkStock()`; `StockStatus` + `getStockStatus()` |
+| `ui/src/components/StockBadge.tsx` (NEW) | Reusable colored stock status badge component |
+| `ui/src/pages/CatalogPage.tsx` | Bulk stock fetch after books load; badges; disable OOS button |
+| `ui/src/pages/SearchPage.tsx` | Availability column in results table; disable OOS button |
+| `ui/src/pages/CartPage.tsx` | Per-item stock validation; warn qty > available; block checkout when OOS |
+| `e2e/stock-management.spec.ts` (NEW) | E2E tests: API structure, catalog badges, search column, cart validation |
+| `plans/session-20-stock-management-ui.md` (NEW) | Session plan doc |
+
+### Acceptance Criteria
+
+- [x] `GET /inven/stock/bulk?book_ids=<id1>,<id2>` returns JSON array with correct schema
+- [x] Catalog page shows stock badges for all books (In Stock / Low Stock / Out of Stock)
+- [x] "Add to Cart" disabled with "Out of Stock" text when `available = 0`
+- [x] Search results page shows "Availability" column with StockBadge
+- [x] Cart page shows "Availability" column with per-item stock badges
+- [x] Cart "Checkout" blocked with warning when any item OOS or overstocked
+- [x] Graceful degradation: inventory service unreachable → no badges, button stays enabled
+- [ ] E2E tests: 89 existing + 9 new stock tests all passing (deploy-time)
+
+### Build & Deploy Commands
+
+```bash
+# Rebuild inventory-service (new bulk endpoint + CORS fix)
+docker build -t bookstore/inventory-service:latest ./inventory-service
+kind load docker-image bookstore/inventory-service:latest --name bookstore
+kubectl rollout restart deployment/inventory-service -n inventory
+kubectl rollout status deployment/inventory-service -n inventory --timeout=60s
+
+# Rebuild UI
+docker build \
+  --build-arg VITE_KEYCLOAK_AUTHORITY=http://idp.keycloak.net:30000/realms/bookstore \
+  --build-arg VITE_KEYCLOAK_CLIENT_ID=ui-client \
+  --build-arg VITE_REDIRECT_URI=http://localhost:30000/callback \
+  -t bookstore/ui-service:latest ./ui
+kind load docker-image bookstore/ui-service:latest --name bookstore
+kubectl rollout restart deployment/ui-service -n ecom
+kubectl rollout status deployment/ui-service -n ecom --timeout=60s
+
+cd e2e && npm run test
+```
+
+### Status: Implementation complete — pending cluster deployment
+
+---
+
+## Session 21 — Admin Panel
+
+**Goal:** Production-grade admin panel where Keycloak `admin` role users can manage books, stock, and view orders. Customer-role users have zero access to any admin endpoint.
+
+### Deliverables
+
+- `ecom-service`: `AdminBookController` (CRUD at `/admin/books`), `AdminOrderController` (read-only at `/admin/orders`), `BookRequest` DTO
+- `inventory-service`: `api/admin.py` (GET/PUT/POST at `/admin/stock/**`) with `require_role("admin")` dependency
+- Gateway: `inven-route.yaml` updated to expose `/inven/admin/**`
+- UI: `AdminRoute.tsx`, `AdminDashboard.tsx`, `AdminBooksPage.tsx`, `AdminEditBookPage.tsx`, `AdminStockPage.tsx`, `api/admin.ts`
+- E2E: `admin.spec.ts`
+
+### Acceptance Criteria
+
+- [ ] `GET /ecom/admin/books` returns 403 for customer, 200 for admin
+- [ ] `POST /ecom/admin/books` creates a new book (admin only)
+- [ ] `PUT /ecom/admin/books/{id}` updates a book (admin only)
+- [ ] `DELETE /ecom/admin/books/{id}` deletes a book (admin only)
+- [ ] `GET /inven/admin/stock` returns 403 for unauthenticated/customer, 200 for admin
+- [ ] `PUT /inven/admin/stock/{book_id}` sets absolute quantity (admin only)
+- [ ] NavBar shows "Admin" link only for admin-role users
+- [ ] `/admin` pages accessible only to admin role; non-admin sees access denied
+- [ ] E2E: all admin tests passing; all existing 99 tests continue to pass
+
+### Build & Deploy
+
+```bash
+docker build -t bookstore/ecom-service:latest ./ecom-service
+kind load docker-image bookstore/ecom-service:latest --name bookstore
+kubectl rollout restart deployment/ecom-service -n ecom
+kubectl rollout status deployment/ecom-service -n ecom --timeout=90s
+
+docker build -t bookstore/inventory-service:latest ./inventory-service
+kind load docker-image bookstore/inventory-service:latest --name bookstore
+kubectl rollout restart deployment/inventory-service -n inventory
+kubectl rollout status deployment/inventory-service -n inventory --timeout=60s
+
+kubectl apply -f infra/kgateway/routes/inven-route.yaml
+
+docker build \
+  --build-arg VITE_KEYCLOAK_AUTHORITY=http://idp.keycloak.net:30000/realms/bookstore \
+  --build-arg VITE_KEYCLOAK_CLIENT_ID=ui-client \
+  --build-arg VITE_REDIRECT_URI=http://localhost:30000/callback \
+  -t bookstore/ui-service:latest ./ui
+kind load docker-image bookstore/ui-service:latest --name bookstore
+kubectl rollout restart deployment/ui-service -n ecom
+kubectl rollout status deployment/ui-service -n ecom --timeout=60s
+
+cd e2e && npm run test
+```
+
+### Status: Complete ✓ (128/128 E2E tests passing)
+
+### Additional deliverables (post-Session-21):
+
+- `docs/guides/admin-feature.md` — full step-by-step admin guide with screenshots
+- `infra/keycloak/keycloak-nodeport.yaml` — Keycloak admin NodePort service at port 32400
+- `infra/kind/cluster.yaml` — port 32400 added to extraPortMappings (takes effect on fresh bootstrap)
+- `scripts/up.sh` — bootstrap applies Keycloak NodePort; `_print_endpoints` shows admin URLs
+- `scripts/smoke-test.sh` — Section 5: 7 admin API access control checks
+- `ui/src/auth/AuthContext.tsx` — logout fix (trailing slash), myecom.net relay support
+- `ui/src/pages/CallbackPage.tsx` — cross-origin token relay via URL hash `#auth=`
+- `realm-export.json` — `postLogoutRedirectUris: ["+"]` for correct logout redirect
+- `e2e/admin.spec.ts` — Keycloak admin console tests (8 tests)
+- `e2e/auth.spec.ts` — myecom.net login redirect tests (2 tests), logout test updated
+
+### myecom.net redirect design (cross-origin auth relay)
+
+When a user starts login at `http://myecom.net:30000` (non-secure context, no `crypto.subtle`):
+1. `login()` in AuthContext redirects to `http://localhost:30000/login?return=<full-myecom-url>`
+2. PKCE flow runs at localhost (secure context) → Keycloak → `localhost:30000/callback`
+3. `CallbackPage.tsx` detects absolute `returnUrl` → relays token via URL hash: `myecom.net:30000/#auth=<encoded-user>`
+4. At `myecom.net:30000`, `AuthContext.useEffect` detects `#auth=` hash → `User.fromStorageString()` → `userManager.storeUser()` → hash cleared → user logged in
+
+---
+
+## Session 22 — Flink 2.2.0 + Debezium Server 3.4
+
+**Goal:** Upgrade Flink from 1.20 to 2.2.0 (connector JARs to 4.x series) and replace Debezium Kafka Connect with Debezium Server 3.4 (standalone Quarkus process, one pod per source DB, config via ConfigMap, health at `/q/health`).
+
+### Deliverables
+
+- `analytics/flink/Dockerfile` — Flink 2.2.0 + kafka connector 4.0.1-2.0 + jdbc connector 4.0.0-2.0
+- `infra/debezium/debezium-server-ecom.yaml` — NEW: ConfigMap + Deployment + ClusterIP + NodePort 32300
+- `infra/debezium/debezium-server-inventory.yaml` — NEW: ConfigMap + Deployment + ClusterIP + NodePort 32301
+- `infra/debezium/debezium.yaml` — DELETED (Kafka Connect replaced)
+- `infra/debezium/connectors/*.json` — DELETED (config now in ConfigMap)
+- `infra/debezium/register-connectors.sh` — Replaced with health-poll script (`/q/health`)
+- `infra/kind/cluster.yaml` — Added port 32301 to `extraPortMappings` (requires `--fresh`)
+- `infra/kafka/kafka-topics-init.yaml` — Added `debezium.ecom.offsets` + `debezium.inventory.offsets` topics
+- `infra/istio/security/peer-auth.yaml` — Two PERMISSIVE entries for port 8080 (one per server)
+- `scripts/infra-up.sh`, `scripts/up.sh`, `scripts/restart-after-docker.sh`, `scripts/smoke-test.sh` — Updated for Debezium Server
+
+### Acceptance Criteria
+
+- [x] Flink 2.2.0 image running (`flink --version` shows 2.2.0)
+- [x] 4 streaming jobs RUNNING in Flink (`curl localhost:32200/jobs`)
+- [x] `curl localhost:32300/q/health` → `{"status":"UP"}` (ecom server)
+- [x] `curl localhost:32301/q/health` → `{"status":"UP"}` (inventory server)
+- [x] `bash scripts/verify-cdc.sh` passes (end-to-end CDC < 30s)
+- [x] E2E tests: 128+ passing
+
+### Status: Complete ✓
+
+---
+
 ## Cross-Session Rules
 
 These apply to every session:

@@ -68,15 +68,32 @@ spec:
               value: "1"
             - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
               value: "false"
+            # IMPORTANT: Mount PVC directly at /var/lib/kafka/data (not parent /var/lib/kafka).
+            # confluentinc/cp-kafka declares VOLUME /var/lib/kafka/data in its Dockerfile.
+            # Docker auto-creates an anonymous volume at that path which shadows any bind mount
+            # at a parent directory. Mounting the PVC at the exact VOLUME path overrides it.
             - name: KAFKA_LOG_DIRS
               value: /var/lib/kafka/data
             # Cap JVM heap so the process stays within the container memory limit.
             # Without this, Confluent Kafka defaults can exceed 1Gi and OOMKill.
             - name: KAFKA_HEAP_OPTS
               value: "-Xmx512m -Xms256m"
+            # Connection management: broker closes idle connections after 10 min (explicit default).
+            # Client-side AdminClient (Flink) is set to 3 min < 10 min → clients always
+            # proactively close the idle connection before the broker silently drops it.
+            # This prevents stale NAT table entries from causing reconnect race conditions.
+            - name: KAFKA_CONNECTIONS_MAX_IDLE_MS
+              value: "600000"
+            # TCP keepalive: sends periodic probes on idle connections.
+            # Keeps NAT table entries alive for legitimate long-lived connections (consumer fetch loop).
+            - name: KAFKA_SOCKET_KEEPALIVE_ENABLE
+              value: "true"
           volumeMounts:
+            # Mount directly at /var/lib/kafka/data (the Docker VOLUME path) so the
+            # PVC bind mount overrides the anonymous Docker volume Docker would otherwise
+            # create at /var/lib/kafka/data (shadowing any parent bind mount).
             - name: data
-              mountPath: /var/lib/kafka
+              mountPath: /var/lib/kafka/data
           resources:
             requests:
               cpu: 250m
@@ -84,6 +101,12 @@ spec:
             limits:
               cpu: 1000m
               memory: 2Gi
+          livenessProbe:
+            tcpSocket:
+              port: 9092
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 4
           readinessProbe:
             # TCP check avoids the chicken-and-egg: kafka-topics follows advertised
             # listener DNS which resolves to the Service (no endpoints until Ready)
@@ -112,52 +135,5 @@ spec:
       targetPort: 9092
   type: ClusterIP
 
----
-# Job — pre-create required Kafka topics after Kafka is running.
-# Re-apply safe: Job names are unique; use a new Job for re-runs.
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: kafka-topic-init
-  namespace: infra
-spec:
-  backoffLimit: 5
-  template:
-    spec:
-      restartPolicy: OnFailure
-      containers:
-        - name: topic-creator
-          image: confluentinc/cp-kafka:latest
-          command:
-            - sh
-            - -c
-            - |
-              echo "Waiting for Kafka to be ready..."
-              until kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --list; do
-                echo "Kafka not ready yet, retrying in 5s..."
-                sleep 5
-              done
-
-              create_topic() {
-                local topic=$1
-                if kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --describe --topic "$topic" &>/dev/null; then
-                  echo "Topic '$topic' already exists."
-                else
-                  kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 \
-                    --create --topic "$topic" \
-                    --partitions 3 \
-                    --replication-factor 1
-                  echo "Topic '$topic' created."
-                fi
-              }
-
-              create_topic "order.created"
-              create_topic "inventory.updated"
-              echo "All topics ready."
-          resources:
-            requests:
-              cpu: 50m
-              memory: 128Mi
-            limits:
-              cpu: 200m
-              memory: 256Mi
+# kafka-topic-init Job is in a separate file: infra/kafka/kafka-topics-init.yaml
+# Apply it after this file + waiting for the Kafka deployment to be ready.

@@ -2,6 +2,8 @@
  * Checkout E2E Tests
  * Covers the complete checkout flow: add to cart → checkout → order confirmation,
  * and verifies the cart is cleared after a successful order.
+ *
+ * Cart clearing is handled automatically by the base fixture (fixtures/base.ts).
  */
 import { test, expect } from './fixtures/base'
 
@@ -10,6 +12,8 @@ test.describe('Checkout', () => {
   test('complete checkout flow', async ({ page }) => {
     // ── Step 1: Add a book to cart ────────────────────────────────────────
     await page.goto('/')
+    await expect(page.getByRole('button', { name: /logout/i })).toBeVisible()
+    await expect(page.getByText('In Stock').first()).toBeVisible({ timeout: 10000 })
     await page.screenshot({ path: 'screenshots/checkout-01-catalog.png', fullPage: true })
 
     const addBtn = page.getByRole('button', { name: /add to cart/i }).first()
@@ -30,7 +34,7 @@ test.describe('Checkout', () => {
 
     // ── Step 3: Click Checkout ────────────────────────────────────────────
     const checkoutBtn = page.getByRole('button', { name: /checkout/i })
-    await expect(checkoutBtn).toBeVisible()
+    await expect(checkoutBtn).toBeEnabled({ timeout: 10000 })
     await page.screenshot({ path: 'screenshots/checkout-04-checkout-button.png', fullPage: true })
     await checkoutBtn.click()
 
@@ -43,27 +47,24 @@ test.describe('Checkout', () => {
   })
 
   test('cart is empty after successful checkout', async ({ page }) => {
-    await page.goto('/cart')
-    // Wait for cart page to finish loading (heading visible means cart data is fetched)
-    await expect(page.getByRole('heading', { name: /your cart/i })).toBeVisible({ timeout: 10000 })
+    // Add an item first (cart was cleared by beforeEach)
+    await page.goto('/')
+    await expect(page.getByRole('button', { name: /logout/i })).toBeVisible()
+    await expect(page.getByText('In Stock').first()).toBeVisible({ timeout: 10000 })
+    const addBtn = page.getByRole('button', { name: /add to cart/i }).first()
+    const [cartResp] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/ecom/cart') && r.request().method() === 'POST'),
+      addBtn.click(),
+    ])
+    await cartResp.finished()
 
-    const emptyMsg = page.getByText(/your cart is empty/i)
-    // Cart may have been cleared by previous test
-    if (await emptyMsg.isVisible()) {
-      // Add item and wait for the POST /ecom/cart response before navigating to cart
-      await page.goto('/')
-      const addBtn = page.getByRole('button', { name: /add to cart/i }).first()
-      await expect(addBtn).toBeVisible()
-      const [cartResp] = await Promise.all([
-        page.waitForResponse(r => r.url().includes('/ecom/cart') && r.request().method() === 'POST'),
-        addBtn.click(),
-      ])
-      await cartResp.finished()
-      await page.goto('/cart')
-    }
+    await page.goto('/cart')
+    await expect(page.getByRole('heading', { name: /your cart/i })).toBeVisible()
 
     await page.screenshot({ path: 'screenshots/checkout-06-cart-before-final-checkout.png', fullPage: true })
-    await page.getByRole('button', { name: /checkout/i }).click()
+    const checkoutBtn = page.getByRole('button', { name: /checkout/i })
+    await expect(checkoutBtn).toBeEnabled({ timeout: 10000 })
+    await checkoutBtn.click()
     await expect(page).toHaveURL(/order-confirmation/)
     await page.screenshot({ path: 'screenshots/checkout-07-second-order-confirmed.png', fullPage: true })
 

@@ -1,0 +1,13 @@
+---
+# PVC for Flink checkpoint storage (dynamically provisioned via kind's standard StorageClass)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: flink-checkpoints-pvc
+  namespace: analytics
+spec:
+  storageClassName: standard
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi

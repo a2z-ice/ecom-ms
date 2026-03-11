@@ -13,10 +13,18 @@ data:
         root /usr/share/nginx/html;
         index index.html;
 
+        # Security headers
         add_header X-Frame-Options "SAMEORIGIN" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-        add_header Content-Security-Policy "default-src 'self'; connect-src 'self' http://api.service.net:30000 http://idp.keycloak.net:30000; frame-src 'self' http://idp.keycloak.net:30000; frame-ancestors 'self';" always;
+        add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.service.net:30000 https://idp.keycloak.net:30000; frame-src 'self' https://idp.keycloak.net:30000; frame-ancestors 'self';" always;
+
+        # Vite hashed assets — immutable cache
+        location /assets/ {
+            expires max;
+            add_header Cache-Control "public, max-age=31536000, immutable";
+        }
 
         # Proxy API calls to backend services
         location /ecom/ {
@@ -31,18 +39,22 @@ data:
             proxy_set_header X-Real-IP $remote_addr;
         }
 
+        # SPA fallback — all routes served by index.html
         location / {
             try_files $uri $uri/ /index.html;
         }
 
+        # Health check for k8s probes
         location /nginx-health {
             access_log off;
-            return 200 "ok\n";
+            return 200 "healthy\n";
             add_header Content-Type text/plain;
         }
 
+        # Gzip
         gzip on;
-        gzip_types text/plain text/css application/json application/javascript;
+        gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
+        gzip_min_length 1000;
     }
 
 ---
@@ -97,6 +109,10 @@ spec:
               port: 80
             initialDelaySeconds: 10
             periodSeconds: 10
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "5"]
       volumes:
         - name: nginx-config
           configMap:

@@ -49,9 +49,11 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())   // CSRF handled at gateway/UI level for this stateless API
             .authorizeHttpRequests(auth -> auth
                 // Public endpoints — no token required
-                .requestMatchers(HttpMethod.GET, "/books", "/books/search").permitAll()
+                .requestMatchers(HttpMethod.GET, "/books", "/books/search", "/books/*").permitAll()
                 // Actuator health — public (wildcard covers /health/liveness and /health/readiness)
                 .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                // OpenAPI / Swagger UI — public read-only documentation
+                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                 // All other endpoints require authentication
                 .anyRequest().authenticated()
             )

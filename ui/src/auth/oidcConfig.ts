@@ -1,9 +1,13 @@
 import { UserManager, WebStorageStateStore } from 'oidc-client-ts'
 
 // All config from Vite env vars (injected at build time via ConfigMap in k8s)
-const AUTHORITY = import.meta.env.VITE_KEYCLOAK_AUTHORITY   // e.g. http://idp.keycloak.net:30000/realms/bookstore
+const AUTHORITY = import.meta.env.VITE_KEYCLOAK_AUTHORITY   // e.g. https://idp.keycloak.net:30000/realms/bookstore
 const CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID   // ui-client
-const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI      // http://localhost:30000/callback
+
+// redirect_uri is derived from the current origin so the OIDC callback returns to the same
+// host the user started from (localhost:30000 or myecom.net:30000). Both /callback paths
+// are registered in Keycloak's ui-client redirectUris.
+const REDIRECT_URI = `${window.location.origin}/callback`
 
 export const userManager = new UserManager({
   authority: AUTHORITY,

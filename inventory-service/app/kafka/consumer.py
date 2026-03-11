@@ -1,4 +1,5 @@
 """Kafka consumer — listens to order.created, deducts stock, publishes inventory.updated."""
+import asyncio
 import json
 import logging
 from datetime import datetime, timezone
@@ -12,6 +13,12 @@ from app.database import AsyncSessionLocal
 from app.models.inventory import Inventory
 
 logger = logging.getLogger(__name__)
+
+_BACKOFF_INITIAL = 1.0
+_BACKOFF_MAX = 60.0
+_BACKOFF_FACTOR = 2.0
+_DLQ_TOPIC = "order.created.dlq"
+_MAX_RETRIES = 3
 
 
 async def _deduct_stock(order_event: dict) -> None:
@@ -54,7 +61,55 @@ async def _deduct_stock(order_event: dict) -> None:
         await session.commit()
 
 
-async def run_consumer() -> None:
+async def _process_message_with_retry(
+    order_event: dict,
+    producer: AIOKafkaProducer,
+    original_msg,
+) -> bool:
+    """Process a single order event with up to _MAX_RETRIES attempts.
+
+    Returns True if processed successfully, False if sent to DLQ.
+    """
+    order_id = order_event.get("orderId")
+
+    for attempt in range(1, _MAX_RETRIES + 1):
+        try:
+            async for inv_event in _deduct_stock(order_event):
+                await producer.send_and_wait("inventory.updated", value=inv_event)
+                logger.info("Published inventory.updated: bookId=%s", inv_event["bookId"])
+            return True
+        except Exception as exc:
+            logger.warning(
+                "Failed to process order %s (attempt %d/%d): %s",
+                order_id, attempt, _MAX_RETRIES, exc,
+            )
+            if attempt < _MAX_RETRIES:
+                await asyncio.sleep(0.5 * attempt)
+
+    # All retries exhausted — send to DLQ
+    logger.error(
+        "All %d retries exhausted for order %s — sending to DLQ topic '%s'",
+        _MAX_RETRIES, order_id, _DLQ_TOPIC,
+    )
+    try:
+        dlq_envelope = {
+            "originalTopic": "order.created",
+            "failedAt": datetime.now(timezone.utc).isoformat(),
+            "retries": _MAX_RETRIES,
+            "event": order_event,
+        }
+        await producer.send_and_wait(_DLQ_TOPIC, value=dlq_envelope)
+        logger.info("Message for order %s sent to DLQ successfully", order_id)
+    except Exception as dlq_exc:
+        logger.error(
+            "Failed to send order %s to DLQ: %s — message will be lost",
+            order_id, dlq_exc,
+        )
+    return False
+
+
+async def _run_consumer_loop() -> None:
+    """Core consumer loop — raises on unrecoverable errors."""
     consumer = AIOKafkaConsumer(
         "order.created",
         bootstrap_servers=settings.kafka_bootstrap_servers,
@@ -77,14 +132,35 @@ async def run_consumer() -> None:
             order_event = msg.value
             logger.info("Received order.created event: orderId=%s", order_event.get("orderId"))
 
-            async for inv_event in _deduct_stock(order_event):
-                await producer.send_and_wait("inventory.updated", value=inv_event)
-                logger.info("Published inventory.updated: bookId=%s", inv_event["bookId"])
+            await _process_message_with_retry(order_event, producer, msg)
 
+            # Always commit offset — failed messages go to DLQ, don't block the consumer
             await consumer.commit()
-    except Exception as exc:
-        logger.error("Consumer error: %s", exc, exc_info=True)
-        raise
     finally:
         await consumer.stop()
         await producer.stop()
+
+
+async def run_consumer_supervised() -> None:
+    """Supervised consumer with exponential backoff restart on errors.
+
+    On CancelledError (graceful shutdown), exits without restart.
+    On any other exception, logs the error, waits with exponential backoff, and restarts.
+    """
+    backoff = _BACKOFF_INITIAL
+    while True:
+        try:
+            await _run_consumer_loop()
+            # Consumer exited normally (shouldn't happen in practice) — restart
+            logger.warning("Kafka consumer exited normally, restarting...")
+            backoff = _BACKOFF_INITIAL
+        except asyncio.CancelledError:
+            logger.info("Kafka consumer received cancellation — shutting down gracefully.")
+            raise
+        except Exception as exc:
+            logger.error(
+                "Kafka consumer crashed: %s — restarting in %.1fs",
+                exc, backoff, exc_info=True,
+            )
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * _BACKOFF_FACTOR, _BACKOFF_MAX)

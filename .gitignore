@@ -6,6 +6,8 @@ data/keycloak-db/
 data/superset/
 data/kafka/
 data/redis/
+data/grafana/
+data/flink/
 
 # Node modules
 node_modules/
@@ -24,6 +26,9 @@ ecom-service/target/
 __pycache__/
 *.pyc
 inventory-service/.venv/
+
+# TLS certificates (extracted from cluster)
+certs/
 
 # OS
 .DS_Store

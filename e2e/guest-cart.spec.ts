@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test'
 
-const BASE_URL = 'http://myecom.net:30000'
+const BASE_URL = 'https://myecom.net:30000'
 // OIDC (PKCE) uses Web Crypto API which requires a secure context.
-// http://myecom.net:30000 is plain HTTP — not a secure context — so crypto.subtle
+// https://myecom.net:30000 is plain HTTP — not a secure context — so crypto.subtle
 // is unavailable there. Use localhost:30000 for tests that trigger signinRedirect().
 // localhost is always treated as a secure context by browsers.
-const OIDC_BASE = 'http://localhost:30000'
-const KC_URL    = 'http://idp.keycloak.net:30000'
+const OIDC_BASE = 'https://localhost:30000'
+const KC_URL    = 'https://idp.keycloak.net:30000'
 
 // All tests run WITHOUT pre-authenticated storage state — they start as guests.
 // (No test.use({ storageState }) here)
@@ -94,7 +94,7 @@ test.describe('Guest Cart Flow', () => {
     }
 
     // CallbackPage syncs guest cart items to server then navigates to /cart.
-    // OIDC redirect_uri is http://localhost:30000/callback (baked at build time).
+    // OIDC redirect_uri is https://localhost:30000/callback (baked at build time).
     await page.waitForURL(/\/cart$/, { timeout: 30000 })
     await expect(page.getByRole('heading', { name: /your cart/i })).toBeVisible()
 

@@ -4,7 +4,7 @@
 #   --namespace inventory \
 #   --from-literal=DATABASE_URL=postgresql://inventoryuser:password@inventory-db.inventory.svc.cluster.local:5432/inventorydb \
 #   --from-literal=KEYCLOAK_JWKS_URI=http://keycloak.identity.svc.cluster.local:8080/realms/bookstore/protocol/openid-connect/certs \
-#   --from-literal=KEYCLOAK_ISSUER_URI=http://idp.keycloak.net:30000/realms/bookstore \
+#   --from-literal=KEYCLOAK_ISSUER_URI=https://idp.keycloak.net:30000/realms/bookstore \
 #   --from-literal=KAFKA_BOOTSTRAP_SERVERS=kafka.infra.svc.cluster.local:9092
 apiVersion: v1
 kind: Secret
@@ -15,7 +15,7 @@ type: Opaque
 data:
   DATABASE_URL: cG9zdGdyZXNxbDovL2ludmVudG9yeXVzZXI6Q0hBTkdFX01FQGludmVudG9yeS1kYi5pbnZlbnRvcnkuc3ZjLmNsdXN0ZXIubG9jYWw6NTQzMi9pbnZlbnRvcnlkYg==
   KEYCLOAK_JWKS_URI: aHR0cDovL2tleWNsb2FrLmlkZW50aXR5LnN2Yy5jbHVzdGVyLmxvY2FsOjgwODAvcmVhbG1zL2Jvb2tzdG9yZS9wcm90b2NvbC9vcGVuaWQtY29ubmVjdC9jZXJ0cw==
-  KEYCLOAK_ISSUER_URI: aHR0cDovL2lkcC5rZXljbG9hay5uZXQ6MzAwMDAvcmVhbG1zL2Jvb2tzdG9yZQ==
+  KEYCLOAK_ISSUER_URI: aHR0cHM6Ly9pZHAua2V5Y2xvYWsubmV0OjMwMDAwL3JlYWxtcy9ib29rc3RvcmU=
   KAFKA_BOOTSTRAP_SERVERS: a2Fma2EuaW5mcmEuc3ZjLmNsdXN0ZXIubG9jYWw6OTA5Mg==
 
 ---
@@ -60,6 +60,21 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: "inventory-service"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.otel.svc.cluster.local:4318"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
+            - name: OTEL_TRACES_EXPORTER
+              value: "otlp"
+            - name: OTEL_LOGS_EXPORTER
+              value: "otlp"
+            - name: OTEL_METRICS_EXPORTER
+              value: "none"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.namespace=inventory,deployment.environment=production"
           envFrom:
             - secretRef:
                 name: inventory-service-secret
@@ -78,18 +93,26 @@ spec:
             limits:
               cpu: 300m
               memory: 256Mi
-          readinessProbe:
+          startupProbe:
             httpGet:
               path: /inven/health
               port: 8000
-            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 20
+          readinessProbe:
+            httpGet:
+              path: /inven/health/ready
+              port: 8000
             periodSeconds: 5
           livenessProbe:
             httpGet:
               path: /inven/health
               port: 8000
-            initialDelaySeconds: 30
             periodSeconds: 10
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "5"]
       volumes:
         - name: tmp
           emptyDir: {}

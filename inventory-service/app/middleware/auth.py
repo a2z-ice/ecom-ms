@@ -1,23 +1,36 @@
 """JWT validation middleware using Keycloak JWKS endpoint."""
+import logging
+
 import httpx
+from cachetools import TTLCache
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
 _bearer = HTTPBearer()
-_jwks_cache: dict | None = None
+_jwks_cache: TTLCache = TTLCache(maxsize=1, ttl=300)
+_JWKS_KEY = "jwks"
 
 
 async def _get_jwks() -> dict:
-    global _jwks_cache
-    if _jwks_cache is None:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(settings.keycloak_jwks_uri)
-            resp.raise_for_status()
-            _jwks_cache = resp.json()
-    return _jwks_cache
+    cached = _jwks_cache.get(_JWKS_KEY)
+    if cached is not None:
+        return cached
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(settings.keycloak_jwks_uri)
+        resp.raise_for_status()
+        jwks = resp.json()
+    _jwks_cache[_JWKS_KEY] = jwks
+    logger.info("JWKS fetched and cached (TTL=300s)")
+    return jwks
+
+
+def _invalidate_jwks_cache() -> None:
+    _jwks_cache.pop(_JWKS_KEY, None)
 
 
 async def get_current_user(
@@ -34,12 +47,28 @@ async def get_current_user(
             issuer=settings.keycloak_issuer_uri,
         )
         return payload
-    except JWTError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid or expired token: {exc}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    except JWTError:
+        # Invalidate cache and retry once with fresh JWKS (handles key rotation)
+        _invalidate_jwks_cache()
+        try:
+            jwks = await _get_jwks()
+            payload = jwt.decode(
+                token,
+                jwks,
+                algorithms=["RS256"],
+                options={"verify_aud": True},
+                audience=settings.jwt_audience,
+                issuer=settings.keycloak_issuer_uri,
+            )
+            logger.info("JWT validated after JWKS cache refresh")
+            return payload
+        except JWTError as exc:
+            logger.warning("JWT validation failed after JWKS refresh: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
 
 def require_role(role: str):

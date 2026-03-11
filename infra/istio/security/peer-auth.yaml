@@ -21,6 +21,7 @@ spec:
   mtls:
     mode: STRICT
 
+
 ---
 apiVersion: security.istio.io/v1
 kind: PeerAuthentication
@@ -30,6 +31,41 @@ metadata:
 spec:
   mtls:
     mode: STRICT
+
+---
+# Superset: NodePort 32000 receives plaintext from kind hostPort — allow on app port 8088.
+# portLevelMtls requires a selector (cannot be used on namespace-wide policies).
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: superset-nodeport-permissive
+  namespace: analytics
+spec:
+  selector:
+    matchLabels:
+      app: superset
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "8088":
+      mode: PERMISSIVE
+
+---
+# Flink: NodePort 32200 receives plaintext from kind hostPort — allow on app port 8081.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: flink-nodeport-permissive
+  namespace: analytics
+spec:
+  selector:
+    matchLabels:
+      app: flink-jobmanager
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "8081":
+      mode: PERMISSIVE
 
 ---
 apiVersion: security.istio.io/v1
@@ -42,6 +78,24 @@ spec:
     mode: STRICT
 
 ---
+# Keycloak: NodePort 32400 receives plaintext from kind hostPort — allow on app port 8080.
+# portLevelMtls requires a selector (cannot be used on namespace-wide policies).
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: keycloak-nodeport-permissive
+  namespace: identity
+spec:
+  selector:
+    matchLabels:
+      app: keycloak
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "8080":
+      mode: PERMISSIVE
+
+---
 apiVersion: security.istio.io/v1
 kind: PeerAuthentication
 metadata:
@@ -50,3 +104,105 @@ metadata:
 spec:
   mtls:
     mode: STRICT
+
+---
+# Debezium Server ecom: NodePort 32300 receives plaintext from kind hostPort — allow on port 8080.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: debezium-ecom-nodeport-permissive
+  namespace: infra
+spec:
+  selector:
+    matchLabels:
+      app: debezium-server-ecom
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "8080":
+      mode: PERMISSIVE
+
+---
+# Debezium Server inventory: NodePort 32301 receives plaintext from kind hostPort — allow on port 8080.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: debezium-inventory-nodeport-permissive
+  namespace: infra
+spec:
+  selector:
+    matchLabels:
+      app: debezium-server-inventory
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "8080":
+      mode: PERMISSIVE
+
+---
+# OTel namespace — PERMISSIVE mTLS required.
+# Despite ambient.istio.io/redirection: disabled on OTel/Loki/Tempo pods, Istio CNI
+# overrides the annotation and captures traffic through ztunnel. However, the annotation
+# prevents ztunnel from setting up proper HBONE listeners on the destination side.
+# PERMISSIVE allows ztunnel to fall back to plaintext when HBONE handshake fails.
+# With STRICT, all connections to otel pods time out (no HBONE listener + no plaintext fallback).
+# Security is enforced by NetworkPolicy (otel-netpol.yaml) which restricts:
+#   - OTel Collector ingress: only ecom, inventory (OTLP), observability (Prometheus)
+#   - Loki ingress: only OTel Collector (push), observability/Grafana (query)
+#   - Tempo ingress: only OTel Collector (push), observability/Grafana (query)
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: permissive-mtls
+  namespace: otel
+spec:
+  mtls:
+    mode: PERMISSIVE
+
+---
+# Observability namespace — STRICT mTLS enforced at namespace level.
+# Prometheus is mesh-enrolled (no annotation) so ztunnel enforces STRICT on it.
+# Grafana has a port-level PERMISSIVE exception (below) for NodePort access.
+# kube-state-metrics has ambient.istio.io/redirection: disabled (bypasses ztunnel).
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: strict-mtls
+  namespace: observability
+spec:
+  mtls:
+    mode: STRICT
+
+---
+# Grafana: NodePort 32500 receives plaintext from kind hostPort — allow on app port 3000.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: grafana-nodeport-permissive
+  namespace: observability
+spec:
+  selector:
+    matchLabels:
+      app: grafana
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "3000":
+      mode: PERMISSIVE
+
+---
+# PgAdmin: NodePort 31111 receives plaintext from kind hostPort — allow on app port 80.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: pgadmin-nodeport-permissive
+  namespace: infra
+spec:
+  selector:
+    matchLabels:
+      app: pgadmin
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "80":
+      mode: PERMISSIVE

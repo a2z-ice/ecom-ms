@@ -1,0 +1,63 @@
+---
+# Prometheus AuthorizationPolicy — defense-in-depth.
+# Prometheus is mesh-enrolled (no ambient.istio.io/redirection: disabled),
+# so this policy IS enforced by ztunnel at L4.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: prometheus-policy
+  namespace: observability
+spec:
+  selector:
+    matchLabels:
+      app: prometheus
+  rules:
+    # Grafana queries Prometheus (same namespace)
+    - from:
+        - source:
+            namespaces: ["observability"]
+    # Kiali queries Prometheus for traffic graph
+    - from:
+        - source:
+            namespaces: ["istio-system"]
+
+---
+# Grafana AuthorizationPolicy — defense-in-depth.
+# Uses ALLOW with broad rules because Grafana NodePort must accept host traffic
+# (which has no SPIFFE identity). Without a selector-less ALLOW-ALL, the implicit
+# deny would block NodePort access from the host.
+# Primary defense is NetworkPolicy (port 3000 only) + Grafana login credentials.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: grafana-policy
+  namespace: observability
+spec:
+  selector:
+    matchLabels:
+      app: grafana
+  rules:
+    # Allow all traffic — NodePort from host has no SPIFFE identity.
+    # Restricting by namespace would block host→NodePort access.
+    # Security is enforced by: NetworkPolicy (port 3000), Grafana auth (admin/password),
+    # and PeerAuthentication (port-level PERMISSIVE on 3000 only).
+    - {}
+
+---
+# kube-state-metrics AuthorizationPolicy — defense-in-depth.
+# kube-state-metrics has ambient.istio.io/redirection: disabled,
+# so this is NOT enforced by ztunnel. Exists for documentation and future-proofing.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: kube-state-metrics-policy
+  namespace: observability
+spec:
+  selector:
+    matchLabels:
+      app: kube-state-metrics
+  rules:
+    # Only Prometheus should scrape kube-state-metrics
+    - from:
+        - source:
+            namespaces: ["observability"]

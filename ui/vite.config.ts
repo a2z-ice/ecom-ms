@@ -8,12 +8,14 @@ export default defineConfig({
     proxy: {
       // Dev-only proxies — in prod, Nginx handles routing
       '/ecom': {
-        target: 'http://api.service.net:30000',
+        target: 'https://api.service.net:30000',
         changeOrigin: true,
+        secure: false,  // accept self-signed cert
       },
       '/inven': {
-        target: 'http://api.service.net:30000',
+        target: 'https://api.service.net:30000',
         changeOrigin: true,
+        secure: false,  // accept self-signed cert
       },
     },
   },

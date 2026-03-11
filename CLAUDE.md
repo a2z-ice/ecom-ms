@@ -42,9 +42,9 @@ npm run build                     # TypeScript + Vite bundle to dist/
 npm run lint                      # ESLint on src/
 # IMPORTANT: VITE_ vars must be passed as --build-arg (baked in at build time, not runtime)
 docker build \
-  --build-arg VITE_KEYCLOAK_AUTHORITY=http://idp.keycloak.net:30000/realms/bookstore \
+  --build-arg VITE_KEYCLOAK_AUTHORITY=https://idp.keycloak.net:30000/realms/bookstore \
   --build-arg VITE_KEYCLOAK_CLIENT_ID=ui-client \
-  --build-arg VITE_REDIRECT_URI=http://localhost:30000/callback \
+  --build-arg VITE_REDIRECT_URI=https://localhost:30000/callback \
   -t bookstore/ui-service:latest .
 kind load docker-image bookstore/ui-service:latest --name bookstore
 ```
@@ -60,15 +60,48 @@ npm run report                    # open last HTML report
 ```
 
 ### Cluster Lifecycle
+
+**Recommended — use the smart master script:**
+```bash
+bash scripts/up.sh           # smart start: fresh bootstrap, recovery, or health check (auto-detects)
+bash scripts/up.sh --fresh   # force full teardown + rebuild from scratch
+bash scripts/down.sh         # delete cluster (keeps data)
+bash scripts/down.sh --data  # delete cluster + wipe all data
+bash scripts/down.sh --all   # delete cluster + data + images
+```
+
+**Individual steps (advanced):**
 ```bash
 bash scripts/cluster-up.sh        # create kind cluster + Istio + Kubernetes Gateway API
 bash scripts/infra-up.sh          # apply all infra manifests
 bash scripts/keycloak-import.sh   # patch ConfigMap + run realm import Job
-bash infra/debezium/register-connectors.sh  # POST CDC connectors
+bash infra/debezium/register-connectors.sh  # PUT CDC connectors (reads creds from K8s secret)
 bash scripts/verify-routes.sh     # smoke-test all external HTTP routes
 bash scripts/verify-cdc.sh        # seed row + poll analytics DB (30s)
 bash scripts/smoke-test.sh        # full stack check
 ```
+
+### After Docker Desktop Restart
+**Use `up.sh`** — it auto-detects the degraded state and runs full recovery:
+```bash
+bash scripts/up.sh
+```
+
+Or use the dedicated recovery script directly:
+```bash
+bash scripts/restart-after-docker.sh
+```
+
+This handles all root causes automatically:
+1. **ztunnel restart** — Istio Ambient mesh HBONE plumbing breaks after Docker restart; ztunnel must be restarted first
+2. **Pod rolling restart (all pods)** — After ztunnel restart, existing pods lose HBONE registration; every pod must restart in dependency order (DBs first, then apps)
+3. **Debezium connector re-registration** — Kafka topics (including `debezium.configs`) are lost on Kafka restart; connectors must be re-registered
+
+See `docs/operations/restart-app.md` for the full explanation and root cause analysis.
+
+**Important Debezium re-registration caveat:** The `${file:...}` FileConfigProvider syntax does NOT expand during Kafka Connect connector validation (only at task startup). `register-connectors.sh` reads real credentials from the K8s secret and injects them directly — do NOT send `${file:...}` literals during PUT.
+
+**Connector registration format:** Use `PUT /connectors/{name}/config` with just the config object (no outer `name`/`config` wrapper). The JSON files in `infra/debezium/connectors/` have the full wrapper format for `POST /connectors` — `register-connectors.sh` extracts the `config` key automatically.
 
 ---
 
@@ -81,13 +114,14 @@ bash scripts/smoke-test.sh        # full stack check
 | UI Service | React 19.2 | `ui/` | `myecom.net:30000` |
 | E-Commerce Service | Spring Boot 4.0.3 | `ecom-service/` | `api.service.net:30000/ecom` |
 | Inventory Service | Python FastAPI | `inventory-service/` | `api.service.net:30000/inven` |
-| Analytics Pipeline | Kafka + Debezium | `analytics/` | internal |
+| Analytics Pipeline | Kafka + Debezium + Flink SQL | `analytics/` | internal |
 
 ### Infrastructure Stack
 
 - **Kubernetes**: kind (local), NodePort exposure only — no `kubectl port-forward`
 - **Service Mesh**: Istio Ambient Mesh 1.28.4 (mTLS between all services, JWT validation via `RequestAuthentication` + `AuthorizationPolicy`)
-- **Gateway**: Kubernetes Gateway API (`gatewayClassName: istio`) — Istio's built-in Gateway implementation; all ingress routing via HTTPRoutes
+- **Gateway**: Kubernetes Gateway API (`gatewayClassName: istio`) — Istio's built-in Gateway implementation; all ingress routing via HTTPRoutes; HTTPS on port 30000 with TLS termination
+- **TLS / cert-manager**: cert-manager v1.17.2 manages self-signed CA and gateway certificates (30d rotation, 7d renewBefore). HTTP→HTTPS redirect on port 30080. See `docs/guides/tls-setup.md`
 - **Identity**: Keycloak 26.5.4 at `idp.keycloak.net:30000`
 - **Databases**: Each service has its own dedicated PostgreSQL instance — no cross-database access. Instances: `ecom-db`, `inventory-db`, `analytics-db`, plus Keycloak's own `keycloak-db`
 - **Messaging**: Kafka for event streaming; Debezium for CDC from all PostgreSQL DBs
@@ -97,8 +131,8 @@ bash scripts/smoke-test.sh        # full stack check
 ### Data Flow
 
 ```
-User → UI → Keycloak (OIDC PKCE) → UI
-UI → E-Commerce API (JWT-protected)
+User (HTTPS) → UI → Keycloak (OIDC PKCE) → UI
+UI → E-Commerce API (HTTPS, JWT-protected)
 E-Commerce → Inventory API (service-to-service, mTLS)
 E-Commerce DB → Debezium → Kafka → Analytics DB
 Inventory DB  → Debezium → Kafka → Analytics DB
@@ -160,11 +194,18 @@ Add to `/etc/hosts`:
 
 kind cluster must have `hostMapping` and `NodePort: 30000` configured in the cluster config. All services must be reachable without port-forwarding.
 
+**HTTPS (self-signed CA)**: All gateway endpoints serve HTTPS on port 30000. To trust the self-signed CA in browsers:
+```bash
+bash scripts/trust-ca.sh --install   # extracts CA cert + adds to macOS Keychain
+```
+For curl, use `-sk` flag or `--cacert certs/bookstore-ca.crt`. See `docs/guides/tls-setup.md` for details.
+
 ---
 
 ## Security Invariants
 
 These must be maintained across all services:
+- All external gateway traffic served over HTTPS (TLS terminated at Istio Gateway, cert-manager managed)
 - All inter-service traffic encrypted via Istio mTLS
 - JWT validation in every backend service (never trust the UI's claims)
 - CSRF tokens required for state-changing UI requests, stored in Redis
@@ -211,73 +252,9 @@ End-to-end tests use **Playwright**. Every user-facing feature must have Playwri
 
 ## Source Structure
 
-### ecom-service (`com.bookstore.ecom`)
-```
-config/          SecurityConfig, KafkaConfig, LiquibaseConfig
-controller/      BookController, CartController, OrderController
-service/         BookService, CartService, OrderService
-model/           Book, CartItem, Order, OrderItem (JPA entities)
-repository/      Spring Data JPA repositories
-dto/             CartRequest, OrderCreatedEvent
-kafka/           OrderEventPublisher
-resources/db/changelog/   Liquibase: 001-create-books → 004-seed-books
-```
+Detailed directory trees for all services and infra: `docs/architecture/source-structure.md`
 
-### inventory-service (`app/`)
-```
-main.py          FastAPI app, lifespan (Kafka consumer start/stop)
-config.py        Env var loading
-database.py      SQLAlchemy async engine/session
-api/stock.py     HTTPRoutes: GET /stock/{id}, POST /reserve
-models/          SQLAlchemy Inventory model
-schemas/         Pydantic StockResponse, ReserveRequest
-kafka/consumer.py  AIOKafkaConsumer for order.created
-middleware/auth.py JWT validation (python-jose + JWKS)
-alembic/versions/  001_create_inventory, 002_seed_inventory
-```
-
-### ui (`src/`)
-```
-auth/oidcConfig.ts     UserManager with PKCE, InMemoryWebStorage
-auth/AuthContext.tsx   Token state context
-api/client.ts          fetch wrapper: attaches Bearer token + X-CSRF-Token
-pages/                 CatalogPage, SearchPage, CartPage, CheckoutPage,
-                       OrderConfirmationPage, CallbackPage
-components/NavBar.tsx
-```
-
-### e2e (`e2e/`)
-```
-playwright.config.ts       workers:1, baseURL:http://localhost:30000 (PKCE requires localhost)
-fixtures/auth.setup.ts     OIDC login → saves storageState (fixtures/user1.json) +
-                           sessionStorage separately (fixtures/user1-session.json)
-                           NOTE: Playwright storageState does NOT capture sessionStorage
-helpers/db.ts              pg client: queryAnalyticsDb(), pollUntilFound() via kubectl exec
-helpers/auth.ts            auth utilities
-*.spec.ts                  catalog, search, auth, cart, checkout, cdc, superset,
-                           istio-gateway, kiali, guest-cart, ui-fixes, mtls-enforcement
-```
-
-### infra (`infra/`)
-```
-kind/cluster.yaml       kind cluster with hostMapping + NodePort 30000; contains DATA_DIR
-                        placeholder substituted at runtime by cluster-up.sh via sed
-storage/                storageclass.yaml (local-hostpath) + persistent-volumes.yaml (7 PVs)
-namespaces.yaml
-kgateway/               gateway.yaml + HTTPRoutes per service
-keycloak/               keycloak.yaml, import-job.yaml, realm-export.json
-postgres/               ecom-db.yaml, inventory-db.yaml, analytics-db.yaml (each with PVC)
-kafka/                  kafka.yaml (KRaft), zookeeper.yaml (intentionally EMPTY placeholder)
-debezium/               debezium.yaml, register-connectors.sh, connectors/*.json
-                        Connector credentials loaded via mounted Secret files, not hardcoded
-istio/security/         peer-auth.yaml, request-auth.yaml, authz-policies/
-observability/          prometheus/, kiali/ (nodeport + config-patch + prometheus-alias),
-                        otel-collector.yaml
-kubernetes/             hpa/, pdb/, network-policies/ (ecom-netpol, inventory-netpol)
-superset/               deployment + bootstrap-job (pre-populates dashboards)
-analytics/schema/       DDL: fact_orders, fact_order_items, dim_books, fact_inventory +
-                        views vw_product_sales_volume, vw_sales_over_time (used by Superset)
-```
+Key entry points: `ecom-service/` (Spring Boot, `com.bookstore.ecom`), `inventory-service/` (FastAPI, `app/`), `ui/` (React, `src/`), `e2e/` (Playwright), `infra/` (K8s manifests), `cert-dashboard-operator/` (Go operator).
 
 ---
 
@@ -378,15 +355,51 @@ Applied in this order per namespace:
 2. `RequestAuthentication` — Keycloak JWKS for JWT validation
 3. `AuthorizationPolicy` — explicit allow rules; default deny-all implied
 
-### CDC / Debezium Pattern
+**NodePort + STRICT mTLS**: ztunnel on worker nodes intercepts ALL inbound traffic (including kind NodePort from host). To allow direct host→pod plaintext for NodePort-exposed services, use `portLevelMtls: PERMISSIVE` on the specific port. This REQUIRES a `selector` — namespace-wide `portLevelMtls` is not supported:
+```yaml
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: debezium-ecom-nodeport-permissive
+  namespace: infra
+spec:
+  selector:
+    matchLabels:
+      app: debezium-server-ecom
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "8080":
+      mode: PERMISSIVE
+```
+
+### TLS / cert-manager Pattern (Session 24)
+
+- cert-manager v1.17.2 installed in `cert-manager` namespace
+- Self-signed CA chain: bootstrap ClusterIssuer → CA Certificate (10yr) → CA ClusterIssuer → leaf Certificate (30d, renewBefore 7d)
+- Gateway leaf cert stored in `bookstore-gateway-tls` Secret (namespace `infra`), referenced by Gateway HTTPS listener
+- All gateway URLs use HTTPS on port 30000: `https://myecom.net:30000`, `https://api.service.net:30000`, `https://idp.keycloak.net:30000`, `https://localhost:30000`
+- HTTP→HTTPS redirect on port 30080 (301 → `https://<host>:30000`)
+- Tool NodePorts (31111, 32000, 32100, 32200, 32300, 32301, 32400, 32500) remain plain HTTP
+- E2E tests: `ignoreHTTPSErrors: true` in Playwright config
+- curl commands for gateway endpoints: use `-sk` flag (e.g., `curl -sk https://api.service.net:30000/ecom/books`)
+- Browser trust: `bash scripts/trust-ca.sh --install` (extracts CA from cluster + adds to macOS Keychain)
+- Manifests: `infra/cert-manager/install.sh`, `ca-issuer.yaml`, `gateway-certificate.yaml`, `rotation-config.yaml`
+
+### CDC / Debezium Server Pattern (Session 22)
 
 - PostgreSQL must have `wal_level=logical` (set via `POSTGRES_INITDB_ARGS` or ConfigMap)
-- Debezium connector registered via REST POST to `http://debezium-service:8083/connectors`
-- Topic format: `<connector-name>.<schema>.<table>` (e.g., `ecom-connector.public.orders`)
-- Sink: Kafka JDBC Sink Connector writes from CDC topics into analytics DB tables
+- **Debezium Server** (not Kafka Connect): one pod per source DB; config in `application.properties` ConfigMap
+- Health check: `GET /q/health` at port 8080 → `{"status":"UP"}` when running
+- Offset storage: `KafkaOffsetBackingStore` — topics `debezium.ecom.offsets` and `debezium.inventory.offsets` in Kafka
+- No REST registration needed: Debezium Server reads config on startup and auto-connects
+- On pod restart: auto-resumes from Kafka offset topics (no re-registration required)
+- Topic format unchanged: `<prefix>.<schema>.<table>` (e.g., `ecom-connector.public.orders`)
+- Flink SQL pipeline unchanged (same Kafka topics, same Debezium JSON envelope)
 
 ### Playwright Test Pattern
 
+- `ignoreHTTPSErrors: true` in `playwright.config.ts` (required for self-signed TLS cert)
 - Use `test.use({ storageState: ... })` with a pre-authenticated state file for tests that need login
 - Auth fixture: log in via Keycloak UI once, save storage state; re-use across tests
 - CDC assertions: poll with retry (max 30s, 1s interval) — never sleep fixed duration
@@ -415,14 +428,18 @@ Applied in this order per namespace:
 ### Scripts Naming Convention
 
 All `scripts/` files must be idempotent (safe to run multiple times):
+- `up.sh` — **master smart startup**: auto-detects scenario (no cluster → fresh bootstrap; degraded → recovery; healthy → verify connectors + smoke test); options: `--fresh`, `--yes`/`-y`
+- `down.sh` — enhanced teardown; options: `--data` (wipe `./data/`), `--images` (remove Docker images), `--all` (data + images), `--yes`/`-y` (skip prompts)
 - `cluster-up.sh` — create kind cluster + install Istio + Kubernetes Gateway API + namespaces; substitutes `DATA_DIR` placeholder in `infra/kind/cluster.yaml` via `sed` before calling `kind create`
+- `cluster-down.sh` — thin wrapper around `down.sh`; maps `--purge-data` → `--data` for backward compat
 - `infra-up.sh` — apply all infra manifests
 - `verify-routes.sh` — curl all external routes, assert HTTP 200/302
 - `verify-cdc.sh` — seed a row, poll analytics DB, assert row present
-- `smoke-test.sh` — full stack smoke test (used in Session 13)
+- `smoke-test.sh` — full stack smoke test
 - `stack-up.sh` — one-command full bootstrap (cluster + infra + keycloak + connectors)
-- `cluster-down.sh` — clean teardown; `--purge-data` to delete host data volumes
 - `sanity-test.sh` — comprehensive cluster health check (pods + routes + Kafka + Debezium)
+- `restart-after-docker.sh` — full recovery after Docker Desktop restart (ztunnel + pod restarts in dependency order + Debezium re-registration)
+- `trust-ca.sh` — extract self-signed CA cert from cluster to `certs/bookstore-ca.crt`; `--install` adds to macOS Keychain
 
 ---
 
@@ -438,9 +455,9 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 
 ---
 
-## Current Implementation State (as of 2026-02-28)
+## Current Implementation State (as of 2026-03-10)
 
-**Sessions 1–16 complete + UI bug fixes. E2E: 45/45 passing.**
+**Sessions 1–24 complete. E2E: 130/130 passing.**
 
 ### Cluster: `bookstore` (kind, 3 nodes) — RUNNING
 
@@ -455,107 +472,80 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 | identity | keycloak-db | Running ✓ |
 | identity | keycloak-realm-import | Completed ✓ |
 | infra | kafka (KRaft) | Running ✓ |
-| infra | debezium | Running ✓ (CDC connectors registered) |
+| infra | debezium-server-ecom | Running ✓ (Debezium Server 3.4, health at :32300/q/health) |
+| infra | debezium-server-inventory | Running ✓ (Debezium Server 3.4, health at :32301/q/health) |
 | infra | redis | Running ✓ |
 | infra | pgadmin | Running ✓ |
 | analytics | analytics-db | Running ✓ |
-| analytics | analytics-consumer | Running ✓ |
+| analytics | flink-jobmanager | Running ✓ |
+| analytics | flink-taskmanager | Running ✓ |
 | analytics | superset | Running ✓ |
 | observability | prometheus | Running ✓ |
+| cert-manager | cert-manager | Running ✓ (v1.17.2, self-signed CA) |
 | istio-system | kiali | Running ✓ (Prometheus connected) |
 
 ### Verified
-- `GET http://api.service.net:30000/ecom/books` → 200 with 10 seeded books ✓
+- `GET https://api.service.net:30000/ecom/books` → 200 with 10 seeded books (use `curl -sk`) ✓
+- TLS: cert-manager self-signed CA → gateway cert (30d rotation, 7d renewBefore) ✓
+- HTTP→HTTPS redirect: `http://*:30080` → 301 → `https://*:30000` ✓
 - Keycloak realm `bookstore` imported ✓, JWT validation working ✓
-- CDC pipeline: Debezium → Kafka → analytics-consumer → analytics-db ✓
-- Superset: "Book Store Analytics" dashboard with 2 ECharts charts ✓
+- CDC pipeline: Debezium Server → Kafka → Flink SQL → analytics-db ✓
+- Flink REST API `/jobs` shows 4 streaming jobs in RUNNING state ✓
+- Flink Web Dashboard: `http://localhost:32200` (kind hostPort, NodePort 32200) ✓
+- Debezium ecom health: `http://localhost:32300/q/health` → `{"status":"UP"}` ✓
+- Debezium inventory health: `http://localhost:32301/q/health` → `{"status":"UP"}` ✓
+- Superset: 3 dashboards, 16 charts (Book Store Analytics, Sales & Revenue Analytics, Inventory Analytics) ✓
+- Analytics DB: 10 views (`\dv vw_*`) ✓
 - Kiali: traffic graph populated (10 nodes, 12 edges for ecom+inventory), Prometheus scraping ztunnel + istiod ✓
-- **E2E tests: 45/45 passing** ✓ (41 existing + 4 new mTLS enforcement tests)
+- **E2E tests: 130/130 passing** ✓ (Sessions 1–22 complete)
 - ecom-service → inventory-service synchronous mTLS reserve call on checkout ✓
 - All Istio AuthorizationPolicies L4-only (ztunnel-compatible) ✓
 
-### UI Bug Fixes — Completed (Post Session 15)
+### NodePort Map
 
-- **Nav cart badge for auth users**: NavBar fetches server cart count via `cartApi.get()` on login; listens for `cartUpdated` DOM event. Badge now shows for both guest and authenticated users.
-- **`cartUpdated` event**: Dispatched from `CatalogPage`, `SearchPage`, and `CartPage` after any cart mutation. NavBar re-fetches count on each dispatch.
-- **Minus button fix**: `CartRequest.java` has `@Min(1)` so `quantity: -1` was rejected with 400. Added `PUT /cart/{itemId}` endpoint with `CartUpdateRequest` DTO, `CartService.setQuantity()`, and `cartApi.update()` in frontend. CartPage uses `cartApi.update(item.id, item.quantity - 1)` for decrement.
-- **Logout button styling**: Added `style={{ color: '#fff', borderColor: '#cbd5e0' }}` to Logout button in NavBar (matching Login button style — both white text on dark navbar).
-- **`api/client.ts`**: Added `put` method alongside existing `get`, `post`, `delete`.
-- **E2E coverage**: `ui-fixes.spec.ts` (5 tests) — auth badge, minus decrement, minus removes, logout color, badge clears after checkout.
+All ports are exposed directly via kind `extraPortMappings` on the control-plane node — no proxy containers needed.
 
-### Session 14 — Completed
+| Service | NodePort | Host URL |
+|---------|----------|----------|
+| Main Gateway (HTTPS) | 30000 | `https://myecom.net:30000` |
+| HTTP→HTTPS Redirect | 30080 | `http://*:30080` → 301 → `https://*:30000` |
+| PgAdmin | 31111 | `http://localhost:31111` |
+| Superset | 32000 | `http://localhost:32000` |
+| Kiali | 32100 | `http://localhost:32100/kiali` |
+| Flink | 32200 | `http://localhost:32200` |
+| Debezium ecom | 32300 | `http://localhost:32300/q/health` |
+| Debezium inventory | 32301 | `http://localhost:32301/q/health` |
+| Keycloak Admin | 32400 | `http://localhost:32400/admin` |
+| Grafana | 32500 | `http://localhost:32500` |
+| Cert Dashboard | 32600 | `http://localhost:32600` |
 
-- Kiali Prometheus connection fixed: ExternalName service `prometheus.istio-system` → `prometheus.observability` + Prometheus deployed to `observability` namespace
-- Prometheus scrape configs added for Istio telemetry: `istiod` (port 15014) + `ztunnel` DaemonSet (port 15020, kubernetes_sd_configs) + Prometheus RBAC (ServiceAccount/ClusterRole/ClusterRoleBinding)
-- Architecture diagram labels corrected: "KGateway" → "Istio Gateway (K8s Gateway API)"
-- E2E coverage added: `istio-gateway.spec.ts` (6 tests), `kiali.spec.ts` (3 tests), `guest-cart.spec.ts` (4 tests)
-- Guest cart tests require `http://localhost:30000` (secure context for PKCE). `http://myecom.net:30000` is non-localhost HTTP — `crypto.subtle` unavailable there.
-- CLAUDE.md updated with Session 14 state, new scripts, corrected gateway terminology
+All 12 ports are declared in `infra/kind/cluster.yaml` under `extraPortMappings` on the `control-plane` role node. kind binds them directly from host to the container port — no socat or proxy containers required. Port 30080 was added for HTTP→HTTPS redirect, port 32600 for cert-dashboard (`up.sh --fresh` required for new port mappings).
 
-### Session 15 — Completed
+### Session History (Sessions 14–25)
 
-- `AuthContext.tsx`: `login(returnPath?)` — at non-localhost hosts redirects to `localhost:30000/login?return=<path>` (avoids `crypto.subtle` unavailability); at localhost calls `userManager.signinRedirect({ state: { returnUrl } })`
-- `LoginPage.tsx` (NEW): served at `/login?return=<path>`, triggers OIDC redirect at localhost (secure context always available)
-- `CallbackPage.tsx`: reads `user.state.returnUrl` and navigates to original page after auth (guest cart merge logic preserved)
-- `ProtectedRoute.tsx` (NEW): route guard that calls `login()` with current path if unauthenticated
-- `NavBar.tsx`: shows `...` during `isLoading` (prevents Login button flash); uses `onClick={() => login()}` not `onClick={login}` (avoids passing MouseEvent as returnPath)
-- `CartPage.tsx`: uses `login('/cart')` from `useAuth()` instead of direct `userManager.signinRedirect()`
-- `App.tsx`: `/login` route added; `/order-confirmation` wrapped with `ProtectedRoute`
-- UI Docker image rebuilt with VITE build args (see build command in Commands section)
-- **CRITICAL**: `docker build` for ui-service requires `--build-arg` for VITE_ vars (baked in at build time by Vite)
+Detailed per-session implementation history is in `docs/architecture/session-history.md`.
 
-### Session 16 — Completed
-
-- Named ServiceAccounts: `ecom-service` (ecom ns) + `inventory-service` (inventory ns)
-- Rewritten AuthorizationPolicies: all L4-only (namespace + SPIFFE principal). L7 policies cause implicit deny-all in Istio Ambient without waypoint proxy
-- DB policies: ecom-db, inventory-db, keycloak-db locked to their namespaces + infra
-- NetworkPolicies: `infra/kubernetes/network-policies/inventory-netpol.yaml` (NEW); ecom-netpol updated with HBONE port 15008, ui-service egress, Prometheus ingress
-- HTTPRoute: `inven-route.yaml` restricted to GET /stock/* and GET /health only; POST /reserve not exposed externally
-- RestClientConfig: forced HTTP/1.1 — Java's default JDK HttpClient sends h2c upgrade headers that Starlette rejects with 400 "Invalid HTTP request received"
-- OrderService: calls `inventoryClient.reserve()` before creating order (synchronous mTLS)
-- Book UUIDs: changeset 005 re-seeds with fixed sequential UUIDs matching inventory seed data
-- **E2E tests: 45/45 passing** (4 new: external POST /reserve → 404, checkout JWT 401, checkout via mTLS, reserved count increases)
+Key facts:
+- Sessions 1–25 complete. E2E: 130/130 passing.
+- Flink CDC: Debezium Server 3.4 → Kafka → Flink SQL → analytics-db → Superset (3 dashboards, 16 charts)
+- Flink SQL uses plain `json` format (NOT `debezium-json`). `WHERE after IS NOT NULL` skips deletes/tombstones.
+- Admin panel: `admin1`/`CHANGE_ME` (customer+admin roles), ecom `/admin/books` + `/admin/orders`, inventory `/admin/stock`
+- OIDC: dynamic `redirect_uri = ${window.location.origin}/callback`, `crypto.subtle` check for PKCE fallback
+- Stock UI: `/inven/stock/bulk?book_ids=...`, StockBadge component (gray/red/orange/green)
+- TLS: cert-manager v1.17.2, self-signed CA (10yr) → leaf cert (30d, 7d renewBefore)
+- Cert Dashboard: Go operator at NodePort 32600, SSE renewal, TokenReview auth
+- All PVCs backed by host `data/` dirs; `cluster-up.sh` creates dirs before `kind create`
+- Superset working viz types: `echarts_timeseries_bar`, `echarts_timeseries_line`, `pie`, `table`, `big_number_total` (NOT `echarts_bar`/`echarts_pie`)
 
 ### NEXT SESSION — Start Here
 
-**All 16 sessions complete + UI bug fixes done.** Outstanding items:
-- DB data persistence — mount all 4 PostgreSQL DBs to host `data/` folder
-- Kafka persistence — topics lost on pod restart; add PVC or recreate on startup
+**Sessions 1–25 complete.** No outstanding items. See `docs/architecture/review-and-proposed-architecture.md` for the enhancement roadmap.
 
 ---
 
-## Spring Boot 4.0 / Spring Framework 7.0 Known Issues (Solved)
+## Known Issues (Solved)
 
-These are non-obvious breaking changes from Spring Boot 3.x. The fixes are already in place but document them here for reference:
-
-1. **KafkaTemplate generic mismatch**: Autoconfigured `KafkaTemplate<?,?>` does NOT match injection of `KafkaTemplate<String, Object>`. Fix: explicit `KafkaConfig.java` `@Bean`.
-2. **Liquibase ordering**: Hibernate validation runs BEFORE Liquibase in Spring Boot 4.0. Fix: `spring.jpa.hibernate.ddl-auto: none` + explicit `LiquibaseConfig.java` `@Bean("liquibase")`.
-3. **Actuator health subpaths**: `/actuator/health` pattern does NOT match `/actuator/health/liveness` or `/actuator/health/readiness`. Fix: use `/actuator/health/**` in SecurityConfig.
-4. **readOnlyRootFilesystem + Tomcat**: Spring Boot Tomcat needs writable `/tmp`. Fix: emptyDir volume mounted at `/tmp`.
-5. **Jackson 3.x package rename**: Spring Boot 4.0 migrates from `com.fasterxml.jackson` to `tools.jackson`. The Kafka `JsonSerializer` must use the new packages. Fix: `Jackson3JsonSerializer.java` in `ecom-service/src/main/java/com/bookstore/ecom/config/` wraps Jackson 3.x for Kafka serialization.
-6. **RestClient HTTP/2 upgrade breaks FastAPI**: Spring Boot 4.0's `RestClient.create()` uses `JdkClientHttpRequestFactory` (Java's `HttpClient`). Java's `HttpClient` may send `Connection: Upgrade, HTTP2-Settings` headers even for plain HTTP. Starlette/uvicorn's h11 parser rejects these with `400 Bad Request: "Invalid HTTP request received."`. Fix: force HTTP/1.1 explicitly:
-   ```java
-   var httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
-   RestClient.builder().requestFactory(new JdkClientHttpRequestFactory(httpClient)).build();
-   ```
-
-## Kafka KRaft Mode (no Zookeeper)
-
-The cluster uses `confluentinc/cp-kafka:latest` in KRaft combined mode (broker + controller in one pod). Critical settings:
-- `KAFKA_PROCESS_ROLES: "broker,controller"`
-- `KAFKA_PORT: ""` — MUST override Kubernetes service-discovery injection
-- Listener name MUST be `PLAINTEXT` (not `INTERNAL`) for CP 8.x KRaft
-- Readiness probe MUST be TCP socket (not exec) — exec follows advertised listener DNS which has no endpoints until pod is Ready (chicken-and-egg)
-
-`infra/kafka/zookeeper.yaml` exists but is **intentionally empty** (comment only) — it is a placeholder to prevent script failures in `infra-up.sh`. Do not add Zookeeper content to it.
-
-## Keycloak Import Job
-
-The import job (`infra/keycloak/import-job.yaml`) does NOT contain a ConfigMap definition — the ConfigMap is managed by `scripts/keycloak-import.sh` which patches it from `realm-export.json`. Always use the script to run imports, never `kubectl apply -f import-job.yaml` alone.
-
-The Keycloak 26.5.4 image has neither `curl` nor `wget`. Health check uses bash built-in `/dev/tcp`:
-```bash
-until (bash -c ">/dev/tcp/keycloak.identity.svc.cluster.local/8080" 2>/dev/null); do
-  sleep 5
-done
-```
+Spring Boot 4.0 breaking changes, Kafka KRaft mode config, and Keycloak import caveats are documented in `docs/architecture/known-issues.md`. All fixes are already in place. Key gotchas:
+- Spring Boot 4.0: KafkaTemplate generic mismatch, Liquibase ordering, Jackson 3.x package rename, RestClient HTTP/2 breaks FastAPI (force HTTP/1.1)
+- Kafka: `zookeeper.yaml` is intentionally empty (placeholder); readiness probe must be TCP socket
+- Keycloak: always use `keycloak-import.sh` (never apply `import-job.yaml` alone); `sub` claim requires explicit `oidc-sub-mapper` in `profile` scope

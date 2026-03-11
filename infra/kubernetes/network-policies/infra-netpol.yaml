@@ -1,0 +1,313 @@
+---
+# infra namespace — default deny all ingress, then allow explicitly
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: infra
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+
+---
+# Allow Kafka ingress from ecom, inventory, infra (Debezium), analytics (Flink)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kafka-ingress
+  namespace: infra
+spec:
+  podSelector:
+    matchLabels:
+      app: kafka
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ecom
+      ports:
+        - port: 9092
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: inventory
+      ports:
+        - port: 9092
+    - from:
+        - podSelector: {}
+      ports:
+        - port: 9092
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: analytics
+      ports:
+        - port: 9092
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008
+
+---
+# Allow Redis ingress from ecom namespace only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-ingress
+  namespace: infra
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ecom
+      ports:
+        - port: 6379
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008
+
+---
+# Allow Debezium Server pods ingress from Prometheus (observability) and host NodePort
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: debezium-ingress
+  namespace: infra
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - debezium-server-ecom
+          - debezium-server-inventory
+  ingress:
+    # Prometheus scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - port: 8080
+    # Host NodePort (plaintext from kind hostPort mapping)
+    - ports:
+        - port: 8080
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008
+
+---
+# Allow PgAdmin ingress from host NodePort only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pgadmin-ingress
+  namespace: infra
+spec:
+  podSelector:
+    matchLabels:
+      app: pgadmin
+  ingress:
+    # Host NodePort (plaintext from kind hostPort mapping)
+    - ports:
+        - port: 80
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008
+
+---
+# Allow Gateway pod to receive all ingress (it's the entry point for all traffic)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gateway-ingress
+  namespace: infra
+spec:
+  podSelector:
+    matchLabels:
+      gateway.networking.k8s.io/gateway-name: bookstore-gateway
+  ingress:
+    # Accept all traffic (NodePort from host)
+    - {}
+  policyTypes: [Ingress]
+
+---
+# Allow Gateway pod egress to all namespaces (routes traffic to ecom, inventory, identity)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gateway-egress
+  namespace: infra
+spec:
+  podSelector:
+    matchLabels:
+      gateway.networking.k8s.io/gateway-name: bookstore-gateway
+  policyTypes: [Egress]
+  egress:
+    - {}
+
+---
+# Allow Debezium egress to source databases and Kafka
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: debezium-egress
+  namespace: infra
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - debezium-server-ecom
+          - debezium-server-inventory
+  policyTypes: [Egress]
+  egress:
+    # To source databases (ecom-db, inventory-db)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ecom
+      ports:
+        - port: 5432
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: inventory
+      ports:
+        - port: 5432
+    # To Kafka (same namespace)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - port: 9092
+    # DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+    # HBONE
+    - to: []
+      ports:
+        - port: 15008
+
+---
+# Allow Kafka egress (inter-broker, DNS)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kafka-egress
+  namespace: infra
+spec:
+  podSelector:
+    matchLabels:
+      app: kafka
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - port: 9092
+        - port: 9093
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+    - to: []
+      ports:
+        - port: 15008
+
+---
+# Allow Schema Registry ingress from infra namespace (Debezium pods) and Kafka store access
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: schema-registry-ingress
+  namespace: infra
+spec:
+  podSelector:
+    matchLabels:
+      app: schema-registry
+  ingress:
+    # From infra namespace pods (Debezium, etc.)
+    - from:
+        - podSelector: {}
+      ports:
+        - port: 8081
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008
+
+---
+# Allow Schema Registry egress to Kafka (store backend) and DNS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: schema-registry-egress
+  namespace: infra
+spec:
+  podSelector:
+    matchLabels:
+      app: schema-registry
+  policyTypes: [Egress]
+  egress:
+    # To Kafka (same namespace)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - port: 9092
+    # DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+    # HBONE
+    - to: []
+      ports:
+        - port: 15008
+
+---
+# Allow DNS egress to kube-system for all infra pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: infra
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+    # HBONE — Istio Ambient mTLS tunneling
+    - to: []
+      ports:
+        - port: 15008

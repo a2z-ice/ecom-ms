@@ -10,7 +10,16 @@ echo "==> Installing Gateway API CRDs (experimental channel for full feature sup
 kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/experimental-install.yaml
 
 echo ""
-echo "==> Verifying Istio GatewayClass is available..."
+echo "==> Waiting for Istio GatewayClass to be created by istiod..."
+# istiod creates the 'istio' GatewayClass after it starts; poll until it exists
+for i in $(seq 1 24); do
+  if kubectl get gatewayclass istio &>/dev/null 2>&1; then
+    echo "  GatewayClass 'istio' found."
+    break
+  fi
+  echo "  Not ready yet (attempt ${i}/24), retrying in 5s..."
+  sleep 5
+done
 kubectl wait --for=condition=Accepted gatewayclass/istio --timeout=60s
 
 echo ""

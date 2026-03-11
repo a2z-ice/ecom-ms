@@ -1,0 +1,16 @@
+---
+# ConfigMap — documents and centralizes TLS rotation settings.
+# cert-manager reads Certificate spec directly; this ConfigMap provides a
+# human-readable reference and can be used by helper scripts.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tls-rotation-config
+  namespace: infra
+data:
+  # Leaf certificate (gateway)
+  cert-duration: "720h"       # 30 days
+  cert-renew-before: "168h"   # 7 days before expiry
+  # CA certificate
+  ca-duration: "87600h"       # 10 years
+  ca-renew-before: "8760h"    # 1 year before expiry

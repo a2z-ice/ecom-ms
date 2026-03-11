@@ -1,57 +1,51 @@
 #!/usr/bin/env bash
 # infra/debezium/register-connectors.sh
-# Registers Debezium CDC connectors via the Kafka Connect REST API.
-# Idempotent — uses PUT to create-or-update.
+# Waits for both Debezium Server instances to report healthy via /q/health.
+# (Replaces the old Kafka Connect connector-registration script.)
+#
+# Usage:
+#   bash infra/debezium/register-connectors.sh
+#   DEBEZIUM_ECM_URL=http://localhost:32300 DEBEZIUM_INV_URL=http://localhost:32301 \
+#     bash infra/debezium/register-connectors.sh
+#
+# Notes:
+#   - Default URLs use kind NodePort (no proxy needed).
+#   - Each Debezium Server instance auto-starts CDC on launch (config is in
+#     application.properties ConfigMap); no REST registration required.
+#   - /q/health reports {"status":"UP"} once the server is running and connected.
+
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-DEBEZIUM_URL="${DEBEZIUM_URL:-http://localhost:8083}"
+DEBEZIUM_ECM_URL="${DEBEZIUM_ECM_URL:-http://localhost:32300}"
+DEBEZIUM_INV_URL="${DEBEZIUM_INV_URL:-http://localhost:32301}"
 GREEN='\033[0;32m'; NC='\033[0m'
 info() { echo -e "${GREEN}==>${NC} $*"; }
 
-wait_for_debezium() {
-  info "Waiting for Debezium to be ready at ${DEBEZIUM_URL}..."
-  until curl -sf "${DEBEZIUM_URL}/connectors" > /dev/null; do
-    echo "  Not ready yet, retrying in 5s..."
+_wait_healthy() {
+  local name=$1 url=$2
+  info "Waiting for ${name} to be healthy at ${url}/q/health..."
+  local i=0
+  while true; do
+    local status
+    status=$(curl -sf "${url}/q/health" \
+      | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null \
+      || echo "")
+    if [[ "$status" == "UP" ]]; then
+      echo -e "  ${GREEN}[OK]${NC} ${name} is healthy (status=UP)"
+      return 0
+    fi
+    i=$((i + 1))
+    if [[ $i -ge 60 ]]; then
+      echo "  [FAIL] ${name} not healthy after 300s (last status='${status}')" >&2
+      return 1
+    fi
+    echo "  ${name} not ready yet (status='${status}'), retrying in 5s... (${i}/60)"
     sleep 5
   done
-  echo "  Debezium is ready."
 }
 
-register_connector() {
-  local name=$1
-  local config_file=$2
-
-  info "Registering connector: ${name}..."
-  curl -sf -X PUT \
-    -H "Content-Type: application/json" \
-    --data "@${config_file}" \
-    "${DEBEZIUM_URL}/connectors/${name}/config"
-  echo ""
-  echo "  Connector '${name}' registered."
-}
-
-check_connector_status() {
-  local name=$1
-  local status
-  status=$(curl -sf "${DEBEZIUM_URL}/connectors/${name}/status" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['connector']['state'])")
-  echo "  Status of '${name}': ${status}"
-  [[ "$status" == "RUNNING" ]]
-}
-
-CONNECTORS_DIR="${REPO_ROOT}/infra/debezium/connectors"
-
-wait_for_debezium
-
-register_connector "ecom-connector" "${CONNECTORS_DIR}/ecom-connector.json"
-register_connector "inventory-connector" "${CONNECTORS_DIR}/inventory-connector.json"
-
-info "Waiting 10s for connectors to start..."
-sleep 10
-
-info "Checking connector statuses..."
-check_connector_status "ecom-connector"
-check_connector_status "inventory-connector"
+_wait_healthy "debezium-server-ecom"      "$DEBEZIUM_ECM_URL"
+_wait_healthy "debezium-server-inventory" "$DEBEZIUM_INV_URL"
 
 echo ""
-echo -e "${GREEN}✔ Debezium connectors registered and running.${NC}"
+echo -e "${GREEN}✔ Both Debezium Server instances are healthy.${NC}"

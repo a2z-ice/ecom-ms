@@ -1,0 +1,162 @@
+---
+# otel namespace — default deny all ingress/egress, then allow explicitly.
+# IMPORTANT: Despite ambient.istio.io/redirection: disabled annotations, Istio CNI
+# overrides them and captures all pod traffic through ztunnel. All inter-pod
+# communication uses HBONE tunneling (port 15008). Both application ports AND
+# port 15008 must be allowed in NetworkPolicy rules.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: otel
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+
+---
+# OTel Collector — receives traces/logs from app services, forwards to Tempo/Loki
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: otel-collector-policy
+  namespace: otel
+spec:
+  podSelector:
+    matchLabels:
+      app: otel-collector
+  ingress:
+    # ecom-service sends OTLP traces/logs (gRPC 4317, HTTP 4318)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ecom
+      ports:
+        - port: 4317
+        - port: 4318
+    # inventory-service sends OTLP traces/logs (gRPC 4317, HTTP 4318)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: inventory
+      ports:
+        - port: 4317
+        - port: 4318
+    # Prometheus scrapes internal metrics (port 8888) and Prometheus exporter (port 8889)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - port: 8888
+        - port: 8889
+    # HBONE — Istio Ambient mTLS tunneling (required even with redirection: disabled)
+    - from: []
+      ports:
+        - port: 15008
+  egress:
+    # OTel Collector → Tempo (OTLP HTTP traces)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: tempo
+      ports:
+        - port: 4318
+    # OTel Collector → Loki (HTTP log push)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: loki
+      ports:
+        - port: 3100
+    # HBONE — ztunnel tunneling for outbound connections
+    - to: []
+      ports:
+        - port: 15008
+    # DNS
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+
+---
+# Loki — receives logs from OTel Collector, queried by Grafana
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: loki-policy
+  namespace: otel
+spec:
+  podSelector:
+    matchLabels:
+      app: loki
+  ingress:
+    # OTel Collector pushes logs
+    - from:
+        - podSelector:
+            matchLabels:
+              app: otel-collector
+      ports:
+        - port: 3100
+    # Grafana queries logs
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - port: 3100
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008
+  egress:
+    # DNS
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+    # HBONE — ztunnel tunneling
+    - to: []
+      ports:
+        - port: 15008
+
+---
+# Tempo — receives traces from OTel Collector, queried by Grafana
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tempo-policy
+  namespace: otel
+spec:
+  podSelector:
+    matchLabels:
+      app: tempo
+  ingress:
+    # OTel Collector pushes traces (OTLP HTTP)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: otel-collector
+      ports:
+        - port: 4317
+        - port: 4318
+    # Grafana queries traces (HTTP API)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - port: 3200
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008
+  egress:
+    # DNS
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+    # HBONE — ztunnel tunneling
+    - to: []
+      ports:
+        - port: 15008

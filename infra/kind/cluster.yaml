@@ -11,8 +11,11 @@ nodes:
     # Map NodePorts from the container to the host so that all services are
     # reachable at 127.0.0.1 without kubectl port-forward.
     extraPortMappings:
-      - containerPort: 30000   # Main gateway (UI, APIs, Keycloak)
+      - containerPort: 30000   # Main gateway HTTPS (UI, APIs, Keycloak)
         hostPort: 30000
+        protocol: TCP
+      - containerPort: 30080   # Main gateway HTTP → HTTPS redirect
+        hostPort: 30080
         protocol: TCP
       - containerPort: 31111   # PgAdmin
         hostPort: 31111
@@ -22,6 +25,24 @@ nodes:
         protocol: TCP
       - containerPort: 32100   # Kiali Service Mesh Observability
         hostPort: 32100
+        protocol: TCP
+      - containerPort: 32200   # Flink Web Dashboard
+        hostPort: 32200
+        protocol: TCP
+      - containerPort: 32300   # Debezium Server ecom health API
+        hostPort: 32300
+        protocol: TCP
+      - containerPort: 32301   # Debezium Server inventory health API
+        hostPort: 32301
+        protocol: TCP
+      - containerPort: 32400   # Keycloak Admin Console (direct, bypasses gateway)
+        hostPort: 32400
+        protocol: TCP
+      - containerPort: 32500   # Grafana Dashboard
+        hostPort: 32500
+        protocol: TCP
+      - containerPort: 32600   # Cert Dashboard (operator-managed)
+        hostPort: 32600
         protocol: TCP
     # DATA_DIR is substituted by stack-up.sh / cluster-up.sh at runtime via sed.
     # Do not hardcode an absolute path here — it varies per developer machine.
@@ -40,6 +61,10 @@ nodes:
         containerPath: /data/kafka
       - hostPath: DATA_DIR/redis
         containerPath: /data/redis
+      - hostPath: DATA_DIR/flink
+        containerPath: /data/flink
+      - hostPath: DATA_DIR/grafana
+        containerPath: /data/grafana
     kubeadmConfigPatches:
       - |
         kind: InitConfiguration
@@ -63,6 +88,10 @@ nodes:
         containerPath: /data/kafka
       - hostPath: DATA_DIR/redis
         containerPath: /data/redis
+      - hostPath: DATA_DIR/flink
+        containerPath: /data/flink
+      - hostPath: DATA_DIR/grafana
+        containerPath: /data/grafana
 
   - role: worker
     extraMounts:
@@ -80,6 +109,10 @@ nodes:
         containerPath: /data/kafka
       - hostPath: DATA_DIR/redis
         containerPath: /data/redis
+      - hostPath: DATA_DIR/flink
+        containerPath: /data/flink
+      - hostPath: DATA_DIR/grafana
+        containerPath: /data/grafana
 
 # Add host entries so that the domain names resolve to the kind node.
 # /etc/hosts on the HOST machine must also contain:

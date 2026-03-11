@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { booksApi, Book, Page } from '../api/books'
+import { booksApi, Book, Page, StockResponse } from '../api/books'
 import { cartApi } from '../api/cart'
 import { useAuth } from '../auth/AuthContext'
 import { addToGuestCart } from '../hooks/useGuestCart'
 import { Toast } from '../components/Toast'
+import { StockBadge } from '../components/StockBadge'
 
 export default function SearchPage() {
   const { user } = useAuth()
@@ -13,13 +14,29 @@ export default function SearchPage() {
   const [result, setResult] = useState<Page<Book> | null>(null)
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [stockMap, setStockMap] = useState<Record<string, StockResponse>>({})
+  const [stockLoading, setStockLoading] = useState(false)
 
   useEffect(() => {
     const q = searchParams.get('q')
     if (!q) return
     setLoading(true)
+    setStockMap({})
     booksApi.search(q)
-      .then(setResult)
+      .then(r => {
+        setResult(r)
+        if (r.content.length > 0) {
+          setStockLoading(true)
+          booksApi.getBulkStock(r.content.map(b => b.id))
+            .then(stocks => {
+              const map: Record<string, StockResponse> = {}
+              for (const s of stocks) map[s.book_id] = s
+              setStockMap(map)
+            })
+            .catch(() => { /* graceful degradation */ })
+            .finally(() => setStockLoading(false))
+        }
+      })
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [searchParams])
@@ -30,6 +47,8 @@ export default function SearchPage() {
   }
 
   const handleAdd = async (book: Book) => {
+    const stock = stockMap[book.id]
+    if (stock && stock.available === 0) return
     if (!user) {
       addToGuestCart({ bookId: book.id, title: book.title, price: book.price })
       setToast(`"${book.title}" added to cart`)
@@ -63,18 +82,30 @@ export default function SearchPage() {
         <div>
           <p className="result-count">{result.totalElements} result(s)</p>
           <div className="search-results">
-            {result.content.map(book => (
-              <div key={book.id} className="search-row">
-                <div className="search-row-info">
-                  <div className="search-row-title">{book.title}</div>
-                  <div className="search-row-meta">{book.author}{book.genre ? ` · ${book.genre}` : ''}</div>
+            {result.content.map(book => {
+              const stock = stockMap[book.id]
+              const isOOS = stock !== undefined && stock.available === 0
+              return (
+                <div key={book.id} className="search-row">
+                  <div className="search-row-info">
+                    <div className="search-row-title">{book.title}</div>
+                    <div className="search-row-meta">{book.author}{book.genre ? ` · ${book.genre}` : ''}</div>
+                  </div>
+                  <span className="search-row-price">${book.price.toFixed(2)}</span>
+                  <StockBadge
+                    available={stock !== undefined ? stock.available : Infinity}
+                    loading={stockLoading && stock === undefined}
+                  />
+                  <button
+                    className="btn btn-outline"
+                    onClick={() => handleAdd(book)}
+                    disabled={isOOS}
+                  >
+                    {isOOS ? 'Out of Stock' : 'Add to Cart'}
+                  </button>
                 </div>
-                <span className="search-row-price">${book.price.toFixed(2)}</span>
-                <button className="btn btn-outline" onClick={() => handleAdd(book)}>
-                  Add to Cart
-                </button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

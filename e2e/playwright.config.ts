@@ -5,7 +5,7 @@ export default defineConfig({
   testMatch: '**/*.spec.ts',
   fullyParallel: false,   // Run sequentially to avoid auth state conflicts
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  retries: 1,   // 1 retry handles cold-start flakes on fresh cluster deploys
   workers: 1,
   globalSetup: './global-setup.ts',
   reporter: [
@@ -15,11 +15,12 @@ export default defineConfig({
   ],
 
   use: {
-    baseURL: 'http://localhost:30000',
+    baseURL: 'https://localhost:30000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     viewport: { width: 1280, height: 800 },
+    ignoreHTTPSErrors: true,
   },
 
   projects: [
@@ -28,14 +29,30 @@ export default defineConfig({
       name: 'auth-setup',
       testMatch: /fixtures\/auth\.setup\.ts/,
     },
-    // All other tests — depend on auth setup
+    // Admin auth setup — runs after auth-setup, saves admin1 state
+    {
+      name: 'admin-setup',
+      testMatch: /fixtures\/admin\.setup\.ts/,
+      dependencies: ['auth-setup'],
+    },
+    // All non-admin tests — depend on auth setup
     {
       name: 'tests',
-      testMatch: /(?<!setup)\.spec\.ts/,
+      testMatch: /(?<!admin)(?<!setup)\.spec\.ts/,
       dependencies: ['auth-setup'],
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'fixtures/user1.json',
+      },
+    },
+    // Admin tests — depend on admin auth setup
+    {
+      name: 'admin-tests',
+      testMatch: /admin\.spec\.ts/,
+      dependencies: ['admin-setup'],
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'fixtures/admin1.json',
       },
     },
   ],

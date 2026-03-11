@@ -1,0 +1,68 @@
+---
+# OTel Collector AuthorizationPolicy — defense-in-depth.
+# Currently all pods in otel namespace have ambient.istio.io/redirection: disabled,
+# so ztunnel does NOT enforce this policy. It exists to protect any future
+# mesh-enrolled pods and to document the intended access control.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: otel-collector-policy
+  namespace: otel
+spec:
+  selector:
+    matchLabels:
+      app: otel-collector
+  rules:
+    # App services send OTLP traces/logs
+    - from:
+        - source:
+            namespaces: ["ecom"]
+    - from:
+        - source:
+            namespaces: ["inventory"]
+    # Prometheus scrapes internal metrics
+    - from:
+        - source:
+            namespaces: ["observability"]
+
+---
+# Loki AuthorizationPolicy — defense-in-depth
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: loki-policy
+  namespace: otel
+spec:
+  selector:
+    matchLabels:
+      app: loki
+  rules:
+    # OTel Collector pushes logs (same namespace)
+    - from:
+        - source:
+            namespaces: ["otel"]
+    # Grafana queries logs
+    - from:
+        - source:
+            namespaces: ["observability"]
+
+---
+# Tempo AuthorizationPolicy — defense-in-depth
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: tempo-policy
+  namespace: otel
+spec:
+  selector:
+    matchLabels:
+      app: tempo
+  rules:
+    # OTel Collector pushes traces (same namespace)
+    - from:
+        - source:
+            namespaces: ["otel"]
+    # Grafana queries traces
+    - from:
+        - source:
+            namespaces: ["observability"]

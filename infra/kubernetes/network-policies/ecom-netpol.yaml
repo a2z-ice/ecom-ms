@@ -72,6 +72,14 @@ spec:
               kubernetes.io/metadata.name: inventory
       ports:
         - port: 8000
+    # ecom-service → OTel Collector (traces + logs via OTLP gRPC/HTTP)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: otel
+      ports:
+        - port: 4317
+        - port: 4318
     # Istio Ambient Mesh HBONE — ztunnel uses port 15008 for inter-pod mTLS tunneling.
     # Without this rule, ztunnel cannot establish encrypted tunnels to any destination
     # (ecom-db, inventory-service, etc.) and all connections time out.

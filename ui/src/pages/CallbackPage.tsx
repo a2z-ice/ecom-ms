@@ -12,9 +12,9 @@ export default function CallbackPage() {
         const state = user.state as { returnUrl?: string } | undefined
         const returnUrl = state?.returnUrl || '/'
 
+        // Merge guest cart items to server cart if any exist
         const pending = getGuestCart()
         if (pending.length > 0) {
-          // Sync each guest cart item to the server using the fresh access token
           await Promise.allSettled(
             pending.map(item =>
               fetch('/ecom/cart', {
@@ -28,8 +28,17 @@ export default function CallbackPage() {
             )
           )
           clearGuestCart()
-          // If a specific page was stored, go there; otherwise go to /cart
-          navigate(returnUrl !== '/' ? returnUrl : '/cart')
+        }
+
+        // Cross-origin return (e.g. http://myecom.net:30000/): relay the auth token via
+        // URL hash so the destination origin can restore the session. The hash is not
+        // sent to servers and is cleared immediately by AuthContext on arrival.
+        const isAbsolute = returnUrl.startsWith('http://') || returnUrl.startsWith('https://')
+        if (isAbsolute) {
+          const relay = encodeURIComponent(user.toStorageString())
+          window.location.href = `${returnUrl}#auth=${relay}`
+        } else if (pending.length > 0 && returnUrl === '/') {
+          navigate('/cart')
         } else {
           navigate(returnUrl)
         }

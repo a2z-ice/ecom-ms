@@ -11,6 +11,7 @@ spec:
   parentRefs:
     - name: bookstore-gateway
       namespace: infra
+      sectionName: https
   hostnames:
     - "api.service.net"
   rules:
@@ -24,12 +25,62 @@ spec:
         - name: inventory-service
           namespace: inventory
           port: 8000
-    # Health endpoint (GET /inven/health)
+    # Health endpoints (GET /inven/health, /inven/health/ready)
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /inven/health
+          method: GET
+      backendRefs:
+        - name: inventory-service
+          namespace: inventory
+          port: 8000
+    # Prometheus metrics (GET /inven/metrics)
     - matches:
         - path:
             type: Exact
-            value: /inven/health
+            value: /inven/metrics
           method: GET
+      backendRefs:
+        - name: inventory-service
+          namespace: inventory
+          port: 8000
+    # OpenAPI specification (GET /inven/openapi.json)
+    - matches:
+        - path:
+            type: Exact
+            value: /inven/openapi.json
+          method: GET
+      backendRefs:
+        - name: inventory-service
+          namespace: inventory
+          port: 8000
+    # Swagger UI interactive docs (GET /inven/docs)
+    - matches:
+        - path:
+            type: Exact
+            value: /inven/docs
+          method: GET
+      backendRefs:
+        - name: inventory-service
+          namespace: inventory
+          port: 8000
+    # ReDoc documentation page (GET /inven/redoc)
+    - matches:
+        - path:
+            type: Exact
+            value: /inven/redoc
+          method: GET
+      backendRefs:
+        - name: inventory-service
+          namespace: inventory
+          port: 8000
+    # Admin stock management — GET/PUT/POST /inven/admin/stock/**
+    # JWT authentication enforced by the service (require_role("admin"))
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /inven/admin
       backendRefs:
         - name: inventory-service
           namespace: inventory

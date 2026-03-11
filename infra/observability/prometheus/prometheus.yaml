@@ -13,7 +13,7 @@ metadata:
   name: prometheus
 rules:
   - apiGroups: [""]
-    resources: [nodes, nodes/metrics, services, endpoints, pods]
+    resources: [nodes, nodes/metrics, nodes/proxy, services, endpoints, pods]
     verbs: [get, list, watch]
   - apiGroups: [""]
     resources: [configmaps]
@@ -47,20 +47,72 @@ data:
       scrape_interval: 15s
       evaluation_interval: 15s
 
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: ['alertmanager.observability:9093']
+
+    rule_files:
+      - '/etc/prometheus/rules/*.yaml'
+
     scrape_configs:
-      # Application metrics
+      # ── Application metrics ─────────────────────────────────────────────
       - job_name: 'ecom-service'
         static_configs:
           - targets: ['ecom-service.ecom.svc.cluster.local:8080']
         metrics_path: '/ecom/actuator/prometheus'
 
-      # Istio control-plane metrics
+      - job_name: 'inventory-service'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: [inventory]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: inventory-service
+          - source_labels: [__meta_kubernetes_pod_ip]
+            action: replace
+            target_label: __address__
+            replacement: '$1:8000'
+        metrics_path: '/metrics'
+
+      # ── OTel Collector metrics ──────────────────────────────────────────
+      - job_name: 'otel-collector'
+        static_configs:
+          - targets: ['otel-collector.otel.svc.cluster.local:8888']
+        metrics_path: '/metrics'
+
+      # ── Kubernetes infrastructure ───────────────────────────────────────
+      # kube-state-metrics — pod/deployment/service state metrics
+      - job_name: 'kube-state-metrics'
+        static_configs:
+          - targets: ['kube-state-metrics.observability.svc.cluster.local:8080']
+
+      # kubelet cAdvisor — container CPU/memory/network metrics
+      - job_name: 'kubelet-cadvisor'
+        scheme: https
+        tls_config:
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+          - source_labels: [__meta_kubernetes_node_name]
+            target_label: node
+
+      # ── Istio control-plane metrics ─────────────────────────────────────
       - job_name: 'istiod'
         static_configs:
           - targets: ['istiod.istio-system.svc.cluster.local:15014']
         metrics_path: '/metrics'
 
-      # Istio data-plane metrics — ztunnel DaemonSet (Ambient Mesh L4)
+      # ── Istio data-plane metrics — ztunnel DaemonSet (Ambient Mesh L4) ─
       - job_name: 'ztunnel'
         kubernetes_sd_configs:
           - role: pod
@@ -112,7 +164,10 @@ spec:
             - containerPort: 9090
           volumeMounts:
             - name: config
-              mountPath: /etc/prometheus
+              mountPath: /etc/prometheus/prometheus.yml
+              subPath: prometheus.yml
+            - name: rules
+              mountPath: /etc/prometheus/rules
             - name: data
               mountPath: /prometheus
           resources:
@@ -126,8 +181,52 @@ spec:
         - name: config
           configMap:
             name: prometheus-config
+        - name: rules
+          configMap:
+            name: prometheus-rules
         - name: data
           emptyDir: {}   # Replace with PVC for persistence
+
+---
+# Prometheus alert rules
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: observability
+data:
+  alerts.yaml: |
+    groups:
+      - name: service_alerts
+        rules:
+          - alert: HighErrorRate
+            expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) by (job) / sum(rate(http_server_requests_seconds_count[5m])) by (job) > 0.05
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "High 5xx error rate on {{ $labels.job }}"
+          - alert: PodRestartLoop
+            expr: increase(kube_pod_container_status_restarts_total[1h]) > 3
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Pod {{ $labels.pod }} restarting frequently"
+          - alert: HighLatency
+            expr: http_server_requests_seconds_max{job="ecom-service"} > 5
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High response time on {{ $labels.uri }}"
+          - alert: ServiceDown
+            expr: up{job=~"ecom-service|inventory-service|otel-collector"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "{{ $labels.job }} is down"
 
 ---
 apiVersion: v1

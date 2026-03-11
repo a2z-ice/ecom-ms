@@ -2,10 +2,13 @@ server:
   port: 8080
   servlet:
     context-path: /ecom
+  shutdown: graceful
 
 spring:
   application:
     name: ecom-service
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
 
   datasource:
     url: ${DB_URL}
@@ -65,9 +68,26 @@ management:
       prometheus:
         enabled: true
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: ${SWAGGER_ENABLED:true}
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: ${SWAGGER_ENABLED:true}
+    operationsSorter: alpha
+    tagsSorter: alpha
+    display-request-duration: true
+    try-it-out-enabled: true
+    persist-authorization: true
+  show-actuator: false
+
 logging:
   level:
     root: INFO
     com.bookstore: DEBUG
+  structured:
+    format:
+      console: ecs
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

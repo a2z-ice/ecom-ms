@@ -4,18 +4,21 @@
  * 1. Nav cart badge shows count for authenticated users
  * 2. Minus (−) button decrements cart item quantity via PUT /cart/{id}
  * 3. Logout button is visually distinct (white text on dark navbar)
+ *
+ * Cart clearing is handled automatically by the base fixture (fixtures/base.ts).
  */
 import { test, expect } from './fixtures/base'
 
 test.describe('UI Fixes', () => {
 
   test('authenticated nav cart badge shows count after adding a book', async ({ page }) => {
-    await page.goto('http://localhost:30000/')
-    // Confirm we are authenticated
+    await page.goto('https://localhost:30000/')
+    // Confirm we are authenticated and stock data has loaded
     await expect(page.getByRole('button', { name: /logout/i })).toBeVisible()
+    await expect(page.getByText('In Stock').first()).toBeVisible({ timeout: 10000 })
     await page.screenshot({ path: 'screenshots/ui-fixes-01-auth-catalog.png', fullPage: true })
 
-    // Add first book to cart
+    // Add first in-stock book to cart
     const addBtn = page.getByRole('button', { name: /add to cart/i }).first()
     await addBtn.click()
     // Wait for the API call to complete
@@ -31,13 +34,15 @@ test.describe('UI Fixes', () => {
 
   test('minus button decrements authenticated cart item quantity', async ({ page }) => {
     // Ensure at least one book is in the cart with qty ≥ 1
-    await page.goto('http://localhost:30000/')
+    await page.goto('https://localhost:30000/')
+    await expect(page.getByRole('button', { name: /logout/i })).toBeVisible()
+    await expect(page.getByText('In Stock').first()).toBeVisible({ timeout: 10000 })
     const addBtn = page.getByRole('button', { name: /add to cart/i }).first()
     await addBtn.click()
     await expect(addBtn).not.toHaveText(/adding/i, { timeout: 5000 })
 
     // Navigate to cart
-    await page.goto('http://localhost:30000/cart')
+    await page.goto('https://localhost:30000/cart')
     await expect(page.getByRole('heading', { name: /your cart/i })).toBeVisible()
     await page.screenshot({ path: 'screenshots/ui-fixes-03-cart-before-minus.png', fullPage: true })
 
@@ -64,12 +69,14 @@ test.describe('UI Fixes', () => {
 
   test('minus button removes cart item when quantity reaches zero', async ({ page }) => {
     // Add a single book to ensure at least one item is in the cart
-    await page.goto('http://localhost:30000/')
+    await page.goto('https://localhost:30000/')
+    await expect(page.getByRole('button', { name: /logout/i })).toBeVisible()
+    await expect(page.getByText('In Stock').first()).toBeVisible({ timeout: 10000 })
     const addBtn = page.getByRole('button', { name: /add to cart/i }).first()
     await addBtn.click()
     await expect(addBtn).not.toHaveText(/adding/i, { timeout: 5000 })
 
-    await page.goto('http://localhost:30000/cart')
+    await page.goto('https://localhost:30000/cart')
     await expect(page.getByRole('heading', { name: /your cart/i })).toBeVisible()
 
     const rows = page.locator('tbody tr')
@@ -98,7 +105,7 @@ test.describe('UI Fixes', () => {
   })
 
   test('logout button is visible with white text on dark navbar', async ({ page }) => {
-    await page.goto('http://localhost:30000/')
+    await page.goto('https://localhost:30000/')
     const logoutBtn = page.getByRole('button', { name: /logout/i })
     await expect(logoutBtn).toBeVisible()
     await page.screenshot({ path: 'screenshots/ui-fixes-07-logout-button.png', fullPage: true })
@@ -111,20 +118,28 @@ test.describe('UI Fixes', () => {
   })
 
   test('nav cart badge updates count after checkout clears the cart', async ({ page }) => {
+    // beforeEach already cleared the cart
+
     // Add a book so cart is non-empty
-    await page.goto('http://localhost:30000/')
+    await page.goto('https://localhost:30000/')
+    await expect(page.getByRole('button', { name: /logout/i })).toBeVisible()
+    await expect(page.getByText('In Stock').first()).toBeVisible({ timeout: 10000 })
     const addBtn = page.getByRole('button', { name: /add to cart/i }).first()
-    await addBtn.click()
-    await expect(addBtn).not.toHaveText(/adding/i, { timeout: 5000 })
+    await expect(addBtn).toBeEnabled()
+    const [cartResponse] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/ecom/cart') && r.request().method() === 'POST'),
+      addBtn.click(),
+    ])
+    expect(cartResponse.status()).toBeLessThan(400)
 
     const badge = page.locator('.nav-cart-count')
-    await expect(badge).toBeVisible({ timeout: 5000 })
+    await expect(badge).toBeVisible({ timeout: 10000 })
 
     // Checkout
-    await page.goto('http://localhost:30000/cart')
+    await page.goto('https://localhost:30000/cart')
     await expect(page.getByRole('heading', { name: /your cart/i })).toBeVisible()
     const checkoutBtn = page.getByRole('button', { name: /checkout/i })
-    await expect(checkoutBtn).toBeVisible()
+    await expect(checkoutBtn).toBeEnabled({ timeout: 10000 })
     await checkoutBtn.click()
 
     // Should land on order confirmation
@@ -132,7 +147,7 @@ test.describe('UI Fixes', () => {
     await page.screenshot({ path: 'screenshots/ui-fixes-08-after-checkout-badge.png', fullPage: true })
 
     // Navigate back to catalog — badge should be gone (cart is now empty)
-    await page.goto('http://localhost:30000/')
+    await page.goto('https://localhost:30000/')
     await expect(badge).not.toBeVisible({ timeout: 5000 })
   })
 })

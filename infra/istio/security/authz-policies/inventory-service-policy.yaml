@@ -25,3 +25,7 @@ spec:
     - from:
         - source:
             namespaces: ["ecom"]
+    # Allow Prometheus metrics scraping from observability namespace
+    - from:
+        - source:
+            namespaces: ["observability"]

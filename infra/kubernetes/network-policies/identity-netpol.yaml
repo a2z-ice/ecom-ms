@@ -1,0 +1,71 @@
+---
+# identity namespace — default deny all ingress, then allow explicitly
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: identity
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+
+---
+# Allow Keycloak ingress from ecom, inventory, istio-system (gateway), and host NodePort
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keycloak-ingress
+  namespace: identity
+spec:
+  podSelector:
+    matchLabels:
+      app: keycloak
+  ingress:
+    # ecom-service and inventory-service fetch JWKS for JWT validation
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ecom
+      ports:
+        - port: 8080
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: inventory
+      ports:
+        - port: 8080
+    # Istio gateway proxies OIDC traffic to Keycloak
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - port: 8080
+    # Host NodePort (plaintext from kind hostPort mapping — ports 30000 via gateway, 32400 direct)
+    - ports:
+        - port: 8080
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008
+
+---
+# Allow keycloak-db ingress from identity namespace only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keycloak-db-ingress
+  namespace: identity
+spec:
+  podSelector:
+    matchLabels:
+      app: keycloak-db
+  ingress:
+    - from:
+        - podSelector: {}
+      ports:
+        - port: 5432
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008

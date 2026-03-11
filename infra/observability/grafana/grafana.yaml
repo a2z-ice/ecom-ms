@@ -1,0 +1,727 @@
+---
+# Grafana Secret — admin password
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-secret
+  namespace: observability
+type: Opaque
+data:
+  # CHANGE_ME (base64)
+  admin-password: Q0hBTkdFX01F
+
+---
+# Datasource provisioning — auto-configures Prometheus as default datasource
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: observability
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        uid: prometheus
+        url: http://prometheus.observability.svc.cluster.local:9090
+        access: proxy
+        isDefault: true
+      - name: Tempo
+        type: tempo
+        uid: tempo
+        url: http://tempo.otel.svc.cluster.local:3200
+        access: proxy
+        jsonData:
+          tracesToLogsV2:
+            datasourceUid: loki
+            filterByTraceID: true
+          nodeGraph:
+            enabled: true
+          serviceMap:
+            datasourceUid: prometheus
+      - name: Loki
+        type: loki
+        uid: loki
+        url: http://loki.otel.svc.cluster.local:3100
+        access: proxy
+        jsonData:
+          derivedFields:
+            - datasourceUid: tempo
+              matcherRegex: "\"traceId\":\"(\\w+)\""
+              name: TraceID
+              url: "$${__value.raw}"
+
+---
+# Dashboard provisioning config — tells Grafana where to find dashboard JSON files
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-providers
+  namespace: observability
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards
+          foldersFromFilesStructure: false
+
+---
+# Pre-built dashboards — Service Health + Cluster Overview
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: observability
+data:
+  service-health.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "Request Rate (ecom-service)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{job=\"ecom-service\"}[5m])) by (uri)",
+              "legendFormat": "{{ uri }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Error Rate (5xx)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{job=\"ecom-service\",status=~\"5..\"}[5m]))",
+              "legendFormat": "ecom-service 5xx",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{job=\"inventory-service\",status=~\"5..\"}[5m]))",
+              "legendFormat": "inventory-service 5xx",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 },
+              "color": { "mode": "palette-classic" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 0.1 }
+                ]
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Avg Response Time (ecom-service)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "rate(http_server_requests_seconds_sum{job=\"ecom-service\"}[5m]) / rate(http_server_requests_seconds_count{job=\"ecom-service\"}[5m])",
+              "legendFormat": "{{ uri }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Max Response Time",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "http_server_requests_seconds_max{job=\"ecom-service\"}",
+              "legendFormat": "ecom {{ uri }}",
+              "refId": "A"
+            },
+            {
+              "expr": "http_server_requests_seconds_max{job=\"inventory-service\"}",
+              "legendFormat": "inventory {{ handler }}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Service Up Status",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 8, "x": 0, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "up{job=~\"ecom-service|inventory-service|otel-collector\"}",
+              "legendFormat": "{{ job }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Mesh TCP Connections (ztunnel)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(istio_tcp_connections_opened_total[5m])) by (pod)",
+              "legendFormat": "opened {{ pod }}",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(rate(istio_tcp_connections_closed_total[5m])) by (pod)",
+              "legendFormat": "closed {{ pod }}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cps",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Mesh TCP Throughput (ztunnel)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(istio_tcp_sent_bytes_total[5m]))",
+              "legendFormat": "sent",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(rate(istio_tcp_received_bytes_total[5m]))",
+              "legendFormat": "received",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            },
+            "overrides": []
+          }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["service-health", "opentelemetry"],
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Service Health",
+      "uid": "service-health"
+    }
+  cluster-overview.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "Pods by Phase",
+          "type": "piechart",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(kube_pod_status_phase{namespace=~\"ecom|inventory|identity|infra|analytics|otel|observability\"}) by (phase)",
+              "legendFormat": "{{ phase }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": {}, "overrides": [] }
+        },
+        {
+          "title": "Pod Restart Count (Top 10)",
+          "type": "bargauge",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "topk(10, kube_pod_container_status_restarts_total{namespace=~\"ecom|inventory|identity|infra|analytics|otel|observability\"})",
+              "legendFormat": "{{ namespace }}/{{ pod }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 3 }, { "color": "red", "value": 10 }] } }, "overrides": [] },
+          "options": { "orientation": "horizontal" }
+        },
+        {
+          "title": "Running Pods by Namespace",
+          "type": "bargauge",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(kube_pod_status_phase{phase=\"Running\", namespace=~\"ecom|inventory|identity|infra|analytics|otel|observability\"}) by (namespace)",
+              "legendFormat": "{{ namespace }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": {}, "overrides": [] },
+          "options": { "orientation": "horizontal" }
+        },
+        {
+          "title": "CPU Usage by Container",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\",container!=\"POD\",namespace=~\"ecom|inventory|identity|infra|analytics|otel|observability\"}[5m])) by (namespace, container)",
+              "legendFormat": "{{ namespace }}/{{ container }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Memory Usage by Container",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(container_memory_working_set_bytes{container!=\"\",container!=\"POD\",namespace=~\"ecom|inventory|identity|infra|analytics|otel|observability\"}) by (namespace, container)",
+              "legendFormat": "{{ namespace }}/{{ container }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            },
+            "overrides": []
+          }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["kubernetes", "cluster"],
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Cluster Overview",
+      "uid": "cluster-overview"
+    }
+  distributed-tracing.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "Recent Traces",
+          "type": "table",
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "targets": [
+            {
+              "queryType": "nativeSearch",
+              "refId": "A",
+              "limit": 20
+            }
+          ],
+          "fieldConfig": { "defaults": {}, "overrides": [] }
+        },
+        {
+          "title": "OTel Spans Received (rate/5m)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+          "datasource": { "type": "prometheus", "uid": "" },
+          "targets": [
+            {
+              "expr": "sum(rate(otelcol_receiver_accepted_spans[5m])) by (receiver)",
+              "legendFormat": "{{ receiver }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "OTel Collector Health",
+          "type": "stat",
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 10 },
+          "datasource": { "type": "prometheus", "uid": "" },
+          "targets": [
+            {
+              "expr": "up{job=\"otel-collector\"}",
+              "legendFormat": "otel-collector",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "OTel Spans Dropped",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 10 },
+          "datasource": { "type": "prometheus", "uid": "" },
+          "targets": [
+            {
+              "expr": "sum(rate(otelcol_receiver_refused_spans[5m])) by (receiver)",
+              "legendFormat": "{{ receiver }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "drawStyle": "line", "fillOpacity": 10 }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Service Node Graph",
+          "type": "nodeGraph",
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 18 },
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "targets": [
+            {
+              "queryType": "serviceMap",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": {}, "overrides": [] }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["tracing", "opentelemetry", "tempo"],
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Distributed Tracing",
+      "uid": "distributed-tracing"
+    }
+  application-logs.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "Application Logs — All Services",
+          "type": "logs",
+          "gridPos": { "h": 14, "w": 24, "x": 0, "y": 0 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "expr": "{service_name=~\".+\"}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "showCommonLabels": false,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true,
+            "sortOrder": "Descending",
+            "dedupStrategy": "none"
+          }
+        },
+        {
+          "title": "ecom-service Logs",
+          "type": "logs",
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 14 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "expr": "{service_name=\"ecom-service\"}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "showCommonLabels": false,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true,
+            "sortOrder": "Descending",
+            "dedupStrategy": "none"
+          }
+        },
+        {
+          "title": "inventory-service Logs",
+          "type": "logs",
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 26 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "expr": "{service_name=\"inventory-service\"}",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "showCommonLabels": false,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true,
+            "sortOrder": "Descending",
+            "dedupStrategy": "none"
+          }
+        },
+        {
+          "title": "Log Volume by Service",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 38 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "expr": "sum by (service_name) (count_over_time({service_name=~\".+\"}[5m]))",
+              "legendFormat": "{{ service_name }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "drawStyle": "bars", "fillOpacity": 50, "stacking": { "mode": "normal" } }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Error Logs by Service",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 38 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "expr": "sum by (service_name) (count_over_time({service_name=~\".+\"} |~ \"(?i)(error|exception|fatal)\"[5m]))",
+              "legendFormat": "{{ service_name }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "drawStyle": "bars", "fillOpacity": 50, "stacking": { "mode": "normal" } },
+              "color": { "mode": "fixed", "fixedColor": "red" }
+            },
+            "overrides": []
+          }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["loki", "logs", "opentelemetry"],
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Application Logs",
+      "uid": "application-logs"
+    }
+
+---
+# Grafana PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-pvc
+  namespace: observability
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-hostpath
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# Grafana Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        fsGroup: 472
+      containers:
+        - name: grafana
+          image: grafana/grafana:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: "admin"
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-secret
+                  key: admin-password
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+            - name: GF_SERVER_ROOT_URL
+              value: "http://localhost:32500"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/grafana
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboard-providers
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: grafana-pvc
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+        - name: dashboard-providers
+          configMap:
+            name: grafana-dashboard-providers
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards
+
+---
+# Grafana Service — NodePort 32500
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: observability
+spec:
+  type: NodePort
+  selector:
+    app: grafana
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 32500
