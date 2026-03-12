@@ -56,7 +56,7 @@ spec:
         fsGroup: 1000
       initContainers:
         - name: superset-init
-          image: apache/superset:latest
+          image: apache/superset:4.1.2
           command:
             - sh
             - -c
@@ -85,6 +85,8 @@ spec:
               mountPath: /app/superset_home
             - name: extra-packages
               mountPath: /extra-packages
+            - name: tmp
+              mountPath: /tmp
           resources:
             requests:
               cpu: 200m
@@ -92,9 +94,14 @@ spec:
             limits:
               cpu: 500m
               memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
       containers:
         - name: superset
-          image: apache/superset:latest
+          image: apache/superset:4.1.2
           command: ["gunicorn", "--bind", "0.0.0.0:8088", "--workers", "2", "superset.app:create_app()"]
           ports:
             - containerPort: 8088
@@ -113,6 +120,8 @@ spec:
               mountPath: /app/superset_home
             - name: extra-packages
               mountPath: /extra-packages
+            - name: tmp
+              mountPath: /tmp
           resources:
             requests:
               cpu: 200m
@@ -120,6 +129,11 @@ spec:
             limits:
               cpu: 500m
               memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           readinessProbe:
             httpGet:
               path: /health
@@ -142,6 +156,8 @@ spec:
           persistentVolumeClaim:
             claimName: superset-pvc
         - name: extra-packages
+          emptyDir: {}
+        - name: tmp
           emptyDir: {}
 
 ---

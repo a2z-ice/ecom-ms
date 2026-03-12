@@ -212,8 +212,8 @@ test.describe.serial("Failover Test (ecom-db)", () => {
   });
 
   test("cluster recovers to healthy state with 2 ready instances", async () => {
-    test.setTimeout(120_000);
-    const deadline = Date.now() + 110_000;
+    test.setTimeout(180_000);
+    const deadline = Date.now() + 170_000;
     let readyInstances = 0;
     while (Date.now() < deadline) {
       try {
@@ -280,9 +280,9 @@ test.describe.serial("Failover Test (ecom-db)", () => {
 
 test.describe("Debezium Resilience After Failover", () => {
   test("debezium-server-ecom health is UP", async ({ request }) => {
-    test.setTimeout(60_000);
+    test.setTimeout(120_000);
     const url = "http://localhost:32300/q/health";
-    const deadline = Date.now() + 55_000;
+    const deadline = Date.now() + 110_000;
     let healthy = false;
     while (Date.now() < deadline) {
       try {

@@ -382,7 +382,8 @@ test.describe('Grafana Dashboard UI', () => {
   test('Application Logs dashboard renders', async ({ page }) => {
     await grafanaLogin(page)
     await page.goto(`${GRAFANA_URL}/d/application-logs/application-logs?orgId=1&from=now-1h&to=now`)
-    await page.waitForLoadState('networkidle', { timeout: 15000 })
+    await page.waitForLoadState('domcontentloaded')
+    await page.waitForTimeout(5000)
     await page.waitForTimeout(3000)
     await page.screenshot({ path: 'screenshots/otel-01-application-logs-dashboard.png', fullPage: true })
   })
@@ -390,7 +391,8 @@ test.describe('Grafana Dashboard UI', () => {
   test('Service Health dashboard renders', async ({ page }) => {
     await grafanaLogin(page)
     await page.goto(`${GRAFANA_URL}/d/service-health/service-health?orgId=1&from=now-1h&to=now`)
-    await page.waitForLoadState('networkidle', { timeout: 15000 })
+    await page.waitForLoadState('domcontentloaded')
+    await page.waitForTimeout(5000)
     await page.waitForTimeout(3000)
     await page.screenshot({ path: 'screenshots/otel-02-service-health-dashboard.png', fullPage: true })
   })
@@ -398,7 +400,8 @@ test.describe('Grafana Dashboard UI', () => {
   test('Cluster Overview dashboard renders', async ({ page }) => {
     await grafanaLogin(page)
     await page.goto(`${GRAFANA_URL}/d/cluster-overview/cluster-overview?orgId=1&from=now-1h&to=now`)
-    await page.waitForLoadState('networkidle', { timeout: 15000 })
+    await page.waitForLoadState('domcontentloaded')
+    await page.waitForTimeout(5000)
     await page.waitForTimeout(3000)
     await page.screenshot({ path: 'screenshots/otel-03-cluster-overview-dashboard.png', fullPage: true })
   })
@@ -406,7 +409,8 @@ test.describe('Grafana Dashboard UI', () => {
   test('Distributed Tracing dashboard renders', async ({ page }) => {
     await grafanaLogin(page)
     await page.goto(`${GRAFANA_URL}/d/distributed-tracing/distributed-tracing?orgId=1&from=now-1h&to=now`)
-    await page.waitForLoadState('networkidle', { timeout: 15000 })
+    await page.waitForLoadState('domcontentloaded')
+    await page.waitForTimeout(5000)
     await page.waitForTimeout(3000)
     await page.screenshot({ path: 'screenshots/otel-04-distributed-tracing-dashboard.png', fullPage: true })
   })
@@ -414,7 +418,8 @@ test.describe('Grafana Dashboard UI', () => {
   test('Loki Explore shows service labels', async ({ page }) => {
     await grafanaLogin(page)
     await page.goto(`${GRAFANA_URL}/explore?orgId=1&left=%7B%22datasource%22:%22loki%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22expr%22:%22%7Bservice_name%3D~%5C%22.%2B%5C%22%7D%22%7D%5D%7D`)
-    await page.waitForLoadState('networkidle', { timeout: 15000 })
+    await page.waitForLoadState('domcontentloaded')
+    await page.waitForTimeout(5000)
     await page.screenshot({ path: 'screenshots/otel-05-loki-explore-all-services.png', fullPage: true })
   })
 })

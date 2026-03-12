@@ -4,9 +4,11 @@
  *
  * - architecture.gif: single-frame static screenshot
  * - data-flow.gif: multi-frame animated GIF capturing SVG animations
+ * - ha-postgres-debezium.gif: animated HA PostgreSQL + Debezium CDC diagram
+ * - ha-failover.gif: animated failover sequence diagram
  *
- * Usage: node docs/diagrams/generate-gifs.mjs
- * Requires: playwright (from e2e/node_modules)
+ * Usage: node html/diagrams/generate-gifs.mjs
+ * Requires: playwright (from e2e/node_modules), ImageMagick (brew install imagemagick)
  */
 
 import { chromium } from '../../e2e/node_modules/playwright-core/index.mjs';
@@ -130,11 +132,95 @@ async function generateDataFlowGif() {
   console.log('  data-flow.gif generated.');
 }
 
+async function generateAnimatedSvgGif(svgFile, gifFile, width, height, durationMs = 6000) {
+  console.log(`Generating ${gifFile} (animated)...`);
+
+  const browser = await chromium.launch();
+  const page = await browser.newPage({ viewport: { width, height } });
+
+  const svgPath = resolve(DIAGRAMS_DIR, svgFile);
+  await page.goto(`file://${svgPath}`);
+  await page.waitForTimeout(1000);
+
+  const tmpDir = resolve(DIAGRAMS_DIR, `_gif_frames_${gifFile.replace('.gif', '')}`);
+  if (!existsSync(tmpDir)) mkdirSync(tmpDir);
+
+  const FRAME_INTERVAL_MS = 100;
+  const frameCount = Math.floor(durationMs / FRAME_INTERVAL_MS);
+
+  // Also capture a PNG snapshot
+  const pngPath = resolve(DIAGRAMS_DIR, gifFile.replace('.gif', '.png'));
+  await page.screenshot({ path: pngPath, type: 'png' });
+
+  console.log(`  Capturing ${frameCount} frames at ${1000/FRAME_INTERVAL_MS} fps...`);
+  for (let i = 0; i < frameCount; i++) {
+    const framePath = resolve(tmpDir, `frame_${String(i).padStart(4, '0')}.png`);
+    await page.screenshot({ path: framePath, type: 'png' });
+    await page.waitForTimeout(FRAME_INTERVAL_MS);
+  }
+  await browser.close();
+
+  const gifPath = resolve(DIAGRAMS_DIR, gifFile);
+
+  if (hasCommand('magick')) {
+    console.log('  Assembling with ImageMagick...');
+    execSync(
+      `magick -delay 10 -loop 0 "${tmpDir}/frame_*.png" -layers Optimize "${gifPath}"`,
+      { stdio: 'pipe', timeout: 120000 }
+    );
+  } else if (hasCommand('ffmpeg')) {
+    console.log('  Assembling with ffmpeg...');
+    const palettePath = resolve(tmpDir, 'palette.png');
+    execSync(
+      `ffmpeg -y -framerate 10 -i "${tmpDir}/frame_%04d.png" -vf "palettegen=max_colors=128" "${palettePath}"`,
+      { stdio: 'pipe', timeout: 60000 }
+    );
+    execSync(
+      `ffmpeg -y -framerate 10 -i "${tmpDir}/frame_%04d.png" -i "${palettePath}" -lavfi "paletteuse=dither=bayer:bayer_scale=3" "${gifPath}"`,
+      { stdio: 'pipe', timeout: 120000 }
+    );
+    if (existsSync(palettePath)) unlinkSync(palettePath);
+  } else if (hasCommand('sips')) {
+    console.log('  No animated GIF tool found. Using sips for single-frame fallback...');
+    execSync(`sips -s format gif "${tmpDir}/frame_0000.png" --out "${gifPath}"`, { stdio: 'pipe' });
+    console.log(`  WARNING: ${gifFile} is NOT animated (install ImageMagick: brew install imagemagick)`);
+  }
+
+  if (hasCommand('gifsicle') && existsSync(gifPath)) {
+    console.log('  Optimizing with gifsicle...');
+    const optimizedPath = gifPath + '.opt';
+    try {
+      execSync(`gifsicle -O3 --lossy=80 "${gifPath}" -o "${optimizedPath}"`, { stdio: 'pipe' });
+      unlinkSync(gifPath);
+      execSync(`mv "${optimizedPath}" "${gifPath}"`, { stdio: 'pipe' });
+    } catch { /* optional */ }
+  }
+
+  // Cleanup frames
+  for (let i = 0; i < frameCount; i++) {
+    const framePath = resolve(tmpDir, `frame_${String(i).padStart(4, '0')}.png`);
+    if (existsSync(framePath)) unlinkSync(framePath);
+  }
+  try { execSync(`rmdir "${tmpDir}"`, { stdio: 'pipe' }); } catch { /* may not be empty */ }
+
+  console.log(`  ${gifFile} + ${gifFile.replace('.gif', '.png')} generated.`);
+}
+
 async function main() {
+  const target = process.argv[2]; // optional: 'ha', 'arch', 'flow', or omit for all
+
   try {
-    await generateArchitectureGif();
-    await generateDataFlowGif();
-    console.log('\nDone! Both GIF files regenerated.');
+    if (!target || target === 'arch') {
+      await generateArchitectureGif();
+    }
+    if (!target || target === 'flow') {
+      await generateDataFlowGif();
+    }
+    if (!target || target === 'ha') {
+      await generateAnimatedSvgGif('ha-postgres-debezium-animated.svg', 'ha-postgres-debezium.gif', 1700, 1150, 8000);
+      await generateAnimatedSvgGif('ha-failover-animated.svg', 'ha-failover.gif', 1600, 1100, 10000);
+    }
+    console.log('\nDone! GIF files regenerated.');
   } catch (err) {
     console.error('Error:', err.message);
     process.exit(1);

@@ -96,3 +96,35 @@ spec:
   hostPath:
     path: /data/prometheus
     type: DirectoryOrCreate
+
+---
+# loki PV — Loki log chunks and index
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: loki-pv
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-hostpath
+  hostPath:
+    path: /data/loki
+    type: DirectoryOrCreate
+
+---
+# tempo PV — Tempo trace WAL and blocks
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: tempo-pv
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-hostpath
+  hostPath:
+    path: /data/tempo
+    type: DirectoryOrCreate

@@ -27,6 +27,7 @@ opentelemetry-instrumentation-fastapi = "^0.49b0"
 opentelemetry-instrumentation-sqlalchemy = "^0.49b0"
 opentelemetry-instrumentation-httpx = "^0.49b0"
 opentelemetry-instrumentation-aiohttp-client = "^0.49b0"
+opentelemetry-instrumentation-logging = "^0.49b0"
 setuptools = ">=70.0"
 
 [tool.poetry.group.dev.dependencies]

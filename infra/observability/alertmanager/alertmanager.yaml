@@ -42,7 +42,7 @@ spec:
         fsGroup: 65534
       containers:
         - name: alertmanager
-          image: prom/alertmanager:latest
+          image: prom/alertmanager:v0.28.1
           args:
             - --config.file=/etc/alertmanager/alertmanager.yml
             - --storage.path=/alertmanager

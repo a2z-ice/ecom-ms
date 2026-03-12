@@ -34,7 +34,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: kafka
-          image: confluentinc/cp-kafka:latest
+          image: confluentinc/cp-kafka:7.8.0
           ports:
             - containerPort: 9092
           env:

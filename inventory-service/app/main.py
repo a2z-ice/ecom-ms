@@ -29,6 +29,9 @@ if os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
     _provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
     trace.set_tracer_provider(_provider)
 
+    from opentelemetry.instrumentation.logging import LoggingInstrumentor
+    LoggingInstrumentor().instrument(set_logging_format=True)
+
     # Logging — export Python logs to OTel Collector → Loki
     if os.environ.get("OTEL_LOGS_EXPORTER", "").lower() == "otlp":
         from opentelemetry._logs import set_logger_provider
@@ -51,11 +54,19 @@ from app.api.admin import router as admin_router
 from app.api.stock import router as stock_router
 from app.database import AsyncSessionLocal
 from app.kafka.consumer import run_consumer_supervised
+from app.kafka.dlq_consumer import run_dlq_consumer_supervised
 
 # ── Structured JSON logging ──────────────────────────────────────────────────
 _json_formatter = JsonFormatter(
-    fmt="%(asctime)s %(levelname)s %(name)s %(message)s",
-    rename_fields={"asctime": "timestamp", "levelname": "level", "name": "logger"},
+    fmt="%(asctime)s %(levelname)s %(name)s %(message)s %(otelTraceID)s %(otelSpanID)s %(otelTraceSampled)s",
+    rename_fields={
+        "asctime": "timestamp",
+        "levelname": "level",
+        "name": "logger",
+        "otelTraceID": "trace.id",
+        "otelSpanID": "span.id",
+        "otelTraceSampled": "trace.sampled",
+    },
 )
 
 _handler = logging.StreamHandler(sys.stdout)
@@ -71,18 +82,26 @@ logging.root.setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
 _consumer_task: asyncio.Task | None = None
+_dlq_task: asyncio.Task | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _consumer_task
+    global _consumer_task, _dlq_task
     logger.info("Starting Kafka consumer (supervised)...")
     _consumer_task = asyncio.create_task(run_consumer_supervised())
+    _dlq_task = asyncio.create_task(run_dlq_consumer_supervised())
     yield
     if _consumer_task:
         _consumer_task.cancel()
         try:
             await _consumer_task
+        except asyncio.CancelledError:
+            pass
+    if _dlq_task:
+        _dlq_task.cancel()
+        try:
+            await _dlq_task
         except asyncio.CancelledError:
             pass
     logger.info("Inventory service stopped.")

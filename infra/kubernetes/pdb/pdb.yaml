@@ -21,3 +21,63 @@ spec:
   selector:
     matchLabels:
       app: inventory-service
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ui-service-pdb
+  namespace: ecom
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: ui-service
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: keycloak-pdb
+  namespace: identity
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: keycloak
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kafka-pdb
+  namespace: infra
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: kafka
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis-pdb
+  namespace: infra
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: redis
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: flink-jobmanager-pdb
+  namespace: analytics
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: flink-jobmanager

@@ -140,6 +140,11 @@ spec:
               port: 8080
             initialDelaySeconds: 90
             periodSeconds: 15
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
 
 ---
 apiVersion: v1
