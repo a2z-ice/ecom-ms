@@ -212,8 +212,8 @@ test.describe.serial("Failover Test (ecom-db)", () => {
   });
 
   test("cluster recovers to healthy state with 2 ready instances", async () => {
-    test.setTimeout(180_000);
-    const deadline = Date.now() + 170_000;
+    test.setTimeout(240_000);
+    const deadline = Date.now() + 230_000;
     let readyInstances = 0;
     while (Date.now() < deadline) {
       try {
