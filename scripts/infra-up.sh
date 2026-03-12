@@ -24,19 +24,25 @@ wait_deployment() {
   kubectl rollout status deployment/"${name}" -n "${ns}" --timeout=180s
 }
 
-# ── 1. PostgreSQL instances ─────────────────────────────────────────────────
-info "Deploying ecom-db..."
-kubectl apply -f "${REPO_ROOT}/infra/postgres/ecom-db.yaml"
+# ── 1. CloudNativePG database clusters ─────────────────────────────────────
+info "Installing CloudNativePG operator..."
+bash "${REPO_ROOT}/infra/cnpg/install.sh"
 
-info "Deploying inventory-db..."
-kubectl apply -f "${REPO_ROOT}/infra/postgres/inventory-db.yaml"
+info "Deploying CNPG database clusters..."
+kubectl apply -f "${REPO_ROOT}/infra/cnpg/ecom-db-cluster.yaml"
+kubectl apply -f "${REPO_ROOT}/infra/cnpg/inventory-db-cluster.yaml"
+kubectl apply -f "${REPO_ROOT}/infra/cnpg/analytics-db-cluster.yaml"
+kubectl apply -f "${REPO_ROOT}/infra/cnpg/keycloak-db-cluster.yaml"
 
-info "Deploying analytics-db..."
-kubectl apply -f "${REPO_ROOT}/infra/postgres/analytics-db.yaml"
+info "Waiting for CNPG clusters to be ready (up to 5 min)..."
+kubectl wait --for=condition=Ready cluster/ecom-db -n ecom --timeout=300s &
+kubectl wait --for=condition=Ready cluster/inventory-db -n inventory --timeout=300s &
+kubectl wait --for=condition=Ready cluster/analytics-db -n analytics --timeout=300s &
+kubectl wait --for=condition=Ready cluster/keycloak-db -n identity --timeout=300s &
+wait
 
-wait_deployment ecom-db ecom
-wait_deployment inventory-db inventory
-wait_deployment analytics-db analytics
+info "Applying CNPG Istio peer authentication..."
+kubectl apply -f "${REPO_ROOT}/infra/cnpg/peer-auth.yaml"
 
 # ── 2. Redis ────────────────────────────────────────────────────────────────
 info "Deploying Redis..."
@@ -67,10 +73,10 @@ wait_deployment schema-registry infra
 info "Deploying Debezium Server (ecom + inventory)..."
 # Debezium Server runs in `infra` namespace; DB secrets are in `ecom`/`inventory`.
 # Copy credentials into infra namespace (secrets are namespace-scoped in Kubernetes).
-ECOM_USER=$(kubectl get secret -n ecom ecom-db-secret -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)
-ECOM_PASS=$(kubectl get secret -n ecom ecom-db-secret -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d)
-INV_USER=$(kubectl get secret -n inventory inventory-db-secret -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)
-INV_PASS=$(kubectl get secret -n inventory inventory-db-secret -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d)
+ECOM_USER=$(kubectl get secret -n ecom ecom-db-cnpg-auth -o jsonpath='{.data.username}' | base64 -d)
+ECOM_PASS=$(kubectl get secret -n ecom ecom-db-cnpg-auth -o jsonpath='{.data.password}' | base64 -d)
+INV_USER=$(kubectl get secret -n inventory inventory-db-cnpg-auth -o jsonpath='{.data.username}' | base64 -d)
+INV_PASS=$(kubectl get secret -n inventory inventory-db-cnpg-auth -o jsonpath='{.data.password}' | base64 -d)
 kubectl create secret generic debezium-db-credentials -n infra \
   --from-literal=ECOM_DB_USER="$ECOM_USER" \
   --from-literal=ECOM_DB_PASSWORD="$ECOM_PASS" \
@@ -129,8 +135,8 @@ wait_deployment loki otel
 # ── 8. Summary ──────────────────────────────────────────────────────────────
 echo ""
 info "Infrastructure pod status:"
-kubectl get pods -n ecom -l app=ecom-db
-kubectl get pods -n inventory -l app=inventory-db
+kubectl get pods -n ecom -l cnpg.io/cluster=ecom-db
+kubectl get pods -n inventory -l cnpg.io/cluster=inventory-db
 kubectl get pods -n analytics
 kubectl get pods -n infra
 kubectl get pods -n observability

@@ -50,7 +50,7 @@ spec:
         - port: 15008
 
 ---
-# Allow keycloak-db ingress from identity namespace only
+# Allow keycloak-db (CNPG) ingress from identity namespace, CNPG operator, and inter-pod replication
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -59,12 +59,25 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app: keycloak-db
+      cnpg.io/cluster: keycloak-db
   ingress:
     - from:
         - podSelector: {}
       ports:
         - port: 5432
+    # CNPG operator access from cnpg-system namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cnpg-system
+    # CNPG inter-pod replication (primary ↔ standby)
+    - from:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: keycloak-db
+      ports:
+        - port: 5432
+        - port: 8000
     # HBONE — Istio Ambient mTLS tunneling
     - from: []
       ports:

@@ -907,6 +907,43 @@ When a user starts login at `http://myecom.net:30000` (non-secure context, no `c
 
 ---
 
+## Session 27 — PostgreSQL High Availability with CloudNativePG
+
+**Goal:** Replace single-replica PostgreSQL Deployments with CloudNativePG-managed HA clusters (1 primary + 1 standby per database) providing automatic failover, streaming replication, and zero application downtime on database pod failure.
+
+### Deliverables
+
+- `infra/cnpg/install.sh` — NEW: Install CNPG operator v1.25.1
+- `infra/cnpg/ecom-db-cluster.yaml` — NEW: CNPG Cluster (2 instances, logical WAL, ExternalName alias)
+- `infra/cnpg/inventory-db-cluster.yaml` — NEW: Same pattern
+- `infra/cnpg/analytics-db-cluster.yaml` — NEW: Same (5Gi, no logical WAL)
+- `infra/cnpg/keycloak-db-cluster.yaml` — NEW: Same pattern
+- `infra/cnpg/peer-auth.yaml` — NEW: STRICT mTLS for cnpg-system
+- `infra/postgres/{ecom,inventory,analytics}-db.yaml` — DELETED (replaced by CNPG)
+- `infra/keycloak/keycloak.yaml` — Remove keycloak-db section; update wait-for-db
+- `infra/storage/persistent-volumes.yaml` — Remove 4 DB PVs
+- `infra/kind/cluster.yaml` — Remove 4 DB extraMounts from all nodes
+- `infra/debezium/debezium-server-{ecom,inventory}.yaml` — Kafka offset storage (KafkaOffsetBackingStore)
+- Network policies (4 files) — CNPG labels + inter-pod replication rules + cnpg-system ingress
+- AuthorizationPolicies (4 files) — CNPG labels + cnpg-system source namespace
+- `scripts/{infra-up,up,cluster-up,restart-after-docker,smoke-test,full-stack-test}.sh` — CNPG-aware
+- `e2e/{helpers/db.ts,fixtures/base.ts,debezium-flink.spec.ts,global-setup.ts}` — Label-based pod exec
+
+### Acceptance Criteria
+
+- [ ] `kubectl get clusters -A` — All 4 CNPG clusters show "Cluster in healthy state"
+- [ ] `kubectl get pods -n ecom -l cnpg.io/cluster=ecom-db` — 2 pods (1 primary, 1 standby)
+- [ ] `kubectl get svc ecom-db -n ecom` — ExternalName pointing to `ecom-db-rw`
+- [ ] `curl -sk https://api.service.net:30000/ecom/books` → 200
+- [ ] CNPG failover: delete primary, standby promoted, app reconnects
+- [ ] Debezium health UP after failover
+- [ ] `bash scripts/smoke-test.sh` — all checks pass
+- [ ] E2E tests all passing
+
+### Status: In Progress
+
+---
+
 ## Cross-Session Rules
 
 These apply to every session:
@@ -931,6 +968,7 @@ microservice/
 │   ├── namespaces.yaml
 │   ├── istio/
 │   ├── kgateway/
+│   ├── cnpg/
 │   ├── postgres/
 │   ├── redis/
 │   ├── kafka/

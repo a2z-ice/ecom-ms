@@ -8,8 +8,11 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: keycloak-db
+      cnpg.io/cluster: keycloak-db
   rules:
     - from:
         - source:
             namespaces: ["identity"]
+    - from:
+        - source:
+            namespaces: ["cnpg-system"]

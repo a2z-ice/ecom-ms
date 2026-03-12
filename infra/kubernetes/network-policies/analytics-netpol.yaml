@@ -10,7 +10,7 @@ spec:
   policyTypes: [Ingress]
 
 ---
-# Allow analytics-db ingress from infra (Flink JDBC writes, Debezium reads) and analytics (Superset)
+# Allow analytics-db (CNPG) ingress from Flink, Superset, Debezium, CNPG operator, and inter-pod replication
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -19,14 +19,13 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app: analytics-db
+      cnpg.io/cluster: analytics-db
   ingress:
     # Flink taskmanager writes via JDBC from analytics namespace
     - from:
         - podSelector: {}
       ports:
         - port: 5432
-    # Flink JDBC connector runs in analytics namespace but connects from infra (Flink pods are in analytics)
     # Debezium reads — from infra namespace
     - from:
         - namespaceSelector:
@@ -34,6 +33,19 @@ spec:
               kubernetes.io/metadata.name: infra
       ports:
         - port: 5432
+    # CNPG operator access from cnpg-system namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cnpg-system
+    # CNPG inter-pod replication (primary ↔ standby)
+    - from:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: analytics-db
+      ports:
+        - port: 5432
+        - port: 8000
     # HBONE — Istio Ambient mTLS tunneling
     - from: []
       ports:

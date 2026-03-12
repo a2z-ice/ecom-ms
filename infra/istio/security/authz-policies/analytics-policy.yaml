@@ -9,13 +9,17 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: analytics-db
+      cnpg.io/cluster: analytics-db
   rules:
     # Allow from Debezium (infra namespace)
     - from:
         - source:
             namespaces: ["infra"]
-    # Allow from Superset (same namespace)
+    # Allow from Superset and Flink (same namespace)
     - from:
         - source:
             namespaces: ["analytics"]
+    # Allow from CNPG operator
+    - from:
+        - source:
+            namespaces: ["cnpg-system"]

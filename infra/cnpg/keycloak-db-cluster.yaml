@@ -1,0 +1,72 @@
+---
+# Secret — keycloak-db credentials for CNPG bootstrap
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-db-cnpg-auth
+  namespace: identity
+type: kubernetes.io/basic-auth
+data:
+  username: a2V5Y2xvYWt1c2Vy     # keycloakuser
+  password: Q0hBTkdFX01F         # CHANGE_ME
+
+---
+# Keep the legacy keycloak-db-secret for backwards compatibility
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-db-secret
+  namespace: identity
+type: Opaque
+data:
+  POSTGRES_USER: a2V5Y2xvYWt1c2Vy     # keycloakuser
+  POSTGRES_PASSWORD: Q0hBTkdFX01F     # CHANGE_ME
+  POSTGRES_DB: a2V5Y2xvYWtkYg==       # keycloakdb
+
+---
+# CloudNativePG Cluster — keycloak-db (1 primary + 1 standby)
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: keycloak-db
+  namespace: identity
+spec:
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:17
+
+  # Exclude CNPG pods from Istio Ambient mesh — CNPG manages its own TLS
+  inheritedMetadata:
+    labels:
+      istio.io/dataplane-mode: none
+    annotations:
+      ambient.istio.io/redirection: disabled
+
+  bootstrap:
+    initdb:
+      database: keycloakdb
+      owner: keycloakuser
+      secret:
+        name: keycloak-db-cnpg-auth
+
+  storage:
+    size: 2Gi
+    storageClass: standard
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+
+---
+# ExternalName Service alias
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak-db
+  namespace: identity
+spec:
+  type: ExternalName
+  externalName: keycloak-db-rw.identity.svc.cluster.local

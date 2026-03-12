@@ -1,5 +1,8 @@
 ```txt
+The CNPG webhook is failing too — likely because cnpg-system is in the ambient mesh and the kube-apiserver can't reach it. Let me
+   remove cnpg-system from the mesh: 
 
+   
 Create and deploy a kubernetes operator which will deploy and go base web application which will display current certificate information in its dashboard the main page and also have a renew button so when user click the renew button the cert-manager will kickoff the certificate new process and the dashboard will show the status of renewing the certificate as a ServerSendEvent so that user have a filling to see the process in live on the dashboard. Once user click the certificate new button it will prompt with a modal dialog to take user conformation. The dashboard will show certificate information with expiration date with progress bar and the progress bar will be green initailly and when the certificate expire in 10 days it will apear yellow and when 5 days remaining it will shows red progress bar. Please create go based kubernetes operator using OLM and deploy it to the kubernetes and makesure the OLM can be deployed to any k8s cluster. expose the dashboard as nodeport with hostport mapping and write all the e2e test to test the operator dashboard to ensure everything working as expected
 ```
 

@@ -1,0 +1,379 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#050d1a"/>
+      <stop offset="100%" stop-color="#0a1a2e"/>
+    </linearGradient>
+    <filter id="glow2" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="dot-glow2" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="ng2" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feFlood flood-color="#3b82f6" flood-opacity="0.15" result="color"/>
+      <feComposite in="color" in2="blur" operator="in" result="shadow"/>
+      <feComposite in="SourceGraphic" in2="shadow" operator="over"/>
+    </filter>
+
+    <!-- Animated motion paths for the failover sequence -->
+    <!-- Phase 1: Normal flow App → Primary -->
+    <path id="fp-normal" d="M250,180 L250,280 L250,370" fill="none"/>
+    <!-- Phase 2: Primary fails (X mark appears) -->
+    <!-- Phase 3: CNPG detects failure -->
+    <path id="fp-detect" d="M1050,200 L500,380" fill="none"/>
+    <!-- Phase 4: CNPG promotes standby -->
+    <path id="fp-promote" d="M1050,240 L750,380" fill="none"/>
+    <!-- Phase 5: Service updated to new primary -->
+    <path id="fp-svc-update" d="M500,300 L700,370" fill="none"/>
+    <!-- Phase 6: App reconnects via same alias -->
+    <path id="fp-reconnect" d="M250,180 L250,280 L500,300 L700,380" fill="none"/>
+    <!-- Phase 7: Debezium reconnects -->
+    <path id="fp-deb-reconnect" d="M400,680 L700,500" fill="none"/>
+    <!-- Phase 8: Offset resume from Kafka -->
+    <path id="fp-offset" d="M1100,680 L500,700" fill="none"/>
+
+    <marker id="a-green2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="#22c55e" stroke-width="1.2"/>
+    </marker>
+    <marker id="a-red2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="#ef4444" stroke-width="1.2"/>
+    </marker>
+    <marker id="a-blue2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="#3b82f6" stroke-width="1.2"/>
+    </marker>
+    <marker id="a-amber2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="#f59e0b" stroke-width="1.2"/>
+    </marker>
+    <marker id="a-purple2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="none" stroke="#a855f7" stroke-width="1.2"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg2)"/>
+
+  <!-- Title -->
+  <text x="800" y="42" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="22" font-weight="700" fill="#e2e8f0" letter-spacing="1">
+    CNPG Automatic Failover Sequence
+  </text>
+  <text x="800" y="64" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="11" fill="#475569">
+    8-Phase Recovery: Failure Detection → Promotion → Service Update → Debezium Reconnect → Offset Resume
+  </text>
+
+  <!-- ========== TIMELINE PHASES (top strip) ========== -->
+  <g font-family="'Segoe UI',system-ui,sans-serif">
+    <!-- Phase boxes across the top -->
+    <g>
+      <!-- Phase 1 -->
+      <rect x="50" y="82" width="170" height="32" rx="6" fill="#0f172a" stroke="#22c55e" stroke-width="1" opacity="0.8"/>
+      <text x="135" y="100" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600">1. Normal Operation</text>
+      <circle cx="62" cy="98" r="4" fill="#22c55e">
+        <animate attributeName="opacity" values="1;0.3;1" dur="8s" repeatCount="indefinite" begin="0s"/>
+      </circle>
+
+      <!-- Phase 2 -->
+      <rect x="230" y="82" width="170" height="32" rx="6" fill="#0f172a" stroke="#ef4444" stroke-width="1" opacity="0.8"/>
+      <text x="315" y="100" text-anchor="middle" fill="#fca5a5" font-size="9" font-weight="600">2. Primary Fails</text>
+      <circle cx="242" cy="98" r="4" fill="#ef4444">
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="8s" repeatCount="indefinite" begin="1s"/>
+      </circle>
+
+      <!-- Phase 3 -->
+      <rect x="410" y="82" width="170" height="32" rx="6" fill="#0f172a" stroke="#f59e0b" stroke-width="1" opacity="0.8"/>
+      <text x="495" y="100" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="600">3. CNPG Detects</text>
+      <circle cx="422" cy="98" r="4" fill="#f59e0b">
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="8s" repeatCount="indefinite" begin="2s"/>
+      </circle>
+
+      <!-- Phase 4 -->
+      <rect x="590" y="82" width="170" height="32" rx="6" fill="#0f172a" stroke="#a855f7" stroke-width="1" opacity="0.8"/>
+      <text x="675" y="100" text-anchor="middle" fill="#d8b4fe" font-size="9" font-weight="600">4. Promote Standby</text>
+      <circle cx="602" cy="98" r="4" fill="#a855f7">
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="8s" repeatCount="indefinite" begin="3s"/>
+      </circle>
+
+      <!-- Phase 5 -->
+      <rect x="770" y="82" width="170" height="32" rx="6" fill="#0f172a" stroke="#06b6d4" stroke-width="1" opacity="0.8"/>
+      <text x="855" y="100" text-anchor="middle" fill="#67e8f9" font-size="9" font-weight="600">5. Update -rw Service</text>
+      <circle cx="782" cy="98" r="4" fill="#06b6d4">
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="8s" repeatCount="indefinite" begin="4s"/>
+      </circle>
+
+      <!-- Phase 6 -->
+      <rect x="950" y="82" width="170" height="32" rx="6" fill="#0f172a" stroke="#3b82f6" stroke-width="1" opacity="0.8"/>
+      <text x="1035" y="100" text-anchor="middle" fill="#93c5fd" font-size="9" font-weight="600">6. App Reconnects</text>
+      <circle cx="962" cy="98" r="4" fill="#3b82f6">
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="8s" repeatCount="indefinite" begin="5s"/>
+      </circle>
+
+      <!-- Phase 7 -->
+      <rect x="1130" y="82" width="170" height="32" rx="6" fill="#0f172a" stroke="#f59e0b" stroke-width="1" opacity="0.8"/>
+      <text x="1215" y="100" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="600">7. Debezium Resumes</text>
+      <circle cx="1142" cy="98" r="4" fill="#f59e0b">
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="8s" repeatCount="indefinite" begin="6s"/>
+      </circle>
+
+      <!-- Phase 8 -->
+      <rect x="1310" y="82" width="170" height="32" rx="6" fill="#0f172a" stroke="#22c55e" stroke-width="1" opacity="0.8"/>
+      <text x="1395" y="100" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600">8. Fully Recovered</text>
+      <circle cx="1322" cy="98" r="4" fill="#22c55e">
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="8s" repeatCount="indefinite" begin="7s"/>
+      </circle>
+    </g>
+
+    <!-- Progress bar -->
+    <rect x="50" y="120" width="1430" height="4" rx="2" fill="#1e293b"/>
+    <rect x="50" y="120" width="0" height="4" rx="2" fill="#22c55e">
+      <animate attributeName="width" values="0;180;360;540;720;900;1080;1260;1430" dur="8s" repeatCount="indefinite" calcMode="discrete"/>
+    </rect>
+  </g>
+
+  <!-- ========== MAIN DIAGRAM ========== -->
+  <g font-family="'Segoe UI',system-ui,sans-serif">
+
+    <!-- Application -->
+    <g filter="url(#ng2)">
+      <rect x="140" y="150" width="220" height="55" rx="10" fill="#0f172a" stroke="#3b82f6" stroke-width="1.5" opacity="0.9"/>
+      <text x="250" y="178" text-anchor="middle" fill="#93c5fd" font-size="13" font-weight="600">Application Service</text>
+      <text x="250" y="196" text-anchor="middle" fill="#64748b" font-size="9">JDBC via ExternalName alias</text>
+    </g>
+
+    <!-- ExternalName Service -->
+    <g>
+      <rect x="140" y="250" width="220" height="45" rx="8" fill="#0f172a" stroke="#06b6d4" stroke-width="1.5" opacity="0.9"/>
+      <text x="250" y="275" text-anchor="middle" fill="#67e8f9" font-size="11" font-weight="600">ecom-db (ExternalName)</text>
+      <text x="250" y="290" text-anchor="middle" fill="#0891b2" font-size="8">→ ecom-db-rw.ecom.svc</text>
+    </g>
+
+    <!-- -rw Service (changes target during failover) -->
+    <g>
+      <rect x="380" y="250" width="200" height="45" rx="8" fill="#0f172a" stroke="#22c55e" stroke-width="1.5" opacity="0.9"/>
+      <text x="480" y="275" text-anchor="middle" fill="#86efac" font-size="11" font-weight="600">ecom-db-rw</text>
+      <text x="480" y="290" text-anchor="middle" fill="#15803d" font-size="8">Endpoint updates on failover</text>
+      <!-- Rotating arrow indicator -->
+      <g transform="translate(565,270)">
+        <animateTransform attributeName="transform" type="rotate" values="0,565,270;360,565,270" dur="3s" repeatCount="indefinite"/>
+        <circle r="8" fill="none" stroke="#22c55e" stroke-width="1" stroke-dasharray="6,6" opacity="0.5"/>
+      </g>
+    </g>
+
+    <!-- OLD PRIMARY (fades in/out with failure animation) -->
+    <g>
+      <rect x="140" y="360" width="240" height="80" rx="12" fill="#0f172a" stroke="#ef4444" stroke-width="2" opacity="0.9">
+        <animate attributeName="stroke-opacity" values="1;1;0.3;0.3;0.3;0.3;0.3;0.5;0.5" dur="8s" repeatCount="indefinite"/>
+      </rect>
+      <text x="260" y="390" text-anchor="middle" fill="#fca5a5" font-size="13" font-weight="700">OLD PRIMARY</text>
+      <text x="260" y="408" text-anchor="middle" fill="#e2e8f0" font-size="10">ecom-db-1</text>
+      <text x="260" y="425" text-anchor="middle" fill="#64748b" font-size="9">PostgreSQL 17</text>
+
+      <!-- X mark appears on failure -->
+      <g opacity="0">
+        <animate attributeName="opacity" values="0;0;1;1;1;1;1;1;0.5" dur="8s" repeatCount="indefinite"/>
+        <line x1="320" y1="370" x2="360" y2="410" stroke="#ef4444" stroke-width="4" stroke-linecap="round"/>
+        <line x1="360" y1="370" x2="320" y2="410" stroke="#ef4444" stroke-width="4" stroke-linecap="round"/>
+      </g>
+
+      <!-- "Rebuilding" text appears in later phases -->
+      <text x="260" y="435" text-anchor="middle" fill="#78350f" font-size="7" opacity="0">
+        <animate attributeName="opacity" values="0;0;0;0;0;0;0;0.8;0.8" dur="8s" repeatCount="indefinite"/>
+        Rebuilding as new standby...
+      </text>
+    </g>
+
+    <!-- NEW PRIMARY (was standby, gets promoted) -->
+    <g>
+      <rect x="600" y="360" width="240" height="80" rx="12" fill="#0f172a" stroke-width="2" opacity="0.9">
+        <animate attributeName="stroke" values="#3b82f6;#3b82f6;#3b82f6;#22c55e;#22c55e;#22c55e;#22c55e;#22c55e;#22c55e" dur="8s" repeatCount="indefinite"/>
+      </rect>
+      <text x="720" y="388" text-anchor="middle" font-size="13" font-weight="700">
+        <animate attributeName="fill" values="#93c5fd;#93c5fd;#93c5fd;#86efac;#86efac;#86efac;#86efac;#86efac;#86efac" dur="8s" repeatCount="indefinite"/>
+        <set attributeName="textContent" to="STANDBY" begin="0s"/>
+        STANDBY → PRIMARY
+      </text>
+      <text x="720" y="406" text-anchor="middle" fill="#e2e8f0" font-size="10">ecom-db-2</text>
+      <text x="720" y="423" text-anchor="middle" fill="#64748b" font-size="9">PostgreSQL 17</text>
+
+      <!-- Promotion crown appears -->
+      <g opacity="0">
+        <animate attributeName="opacity" values="0;0;0;0.8;1;1;1;1;1" dur="8s" repeatCount="indefinite"/>
+        <text x="720" y="435" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="600">PROMOTED — Now accepts writes</text>
+      </g>
+
+      <!-- Pulsing indicator changes color -->
+      <circle cx="615" cy="385" r="5">
+        <animate attributeName="fill" values="#3b82f6;#3b82f6;#f59e0b;#22c55e;#22c55e;#22c55e;#22c55e;#22c55e;#22c55e" dur="8s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="1;1;0.5;0.5;1;1;1;1;1" dur="2s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+
+    <!-- CNPG Operator -->
+    <g>
+      <rect x="950" y="180" width="230" height="70" rx="10" fill="#0f172a" stroke="#22c55e" stroke-width="1.5" opacity="0.9"/>
+      <text x="1065" y="210" text-anchor="middle" fill="#86efac" font-size="13" font-weight="600">CNPG Operator</text>
+      <text x="1065" y="228" text-anchor="middle" fill="#15803d" font-size="9">v1.25.1 | Failover Controller</text>
+      <text x="1065" y="243" text-anchor="middle" fill="#475569" font-size="8">Reconcile loop: ~10s interval</text>
+    </g>
+
+    <!-- Debezium Server -->
+    <g>
+      <rect x="300" y="560" width="240" height="65" rx="10" fill="#0f172a" stroke="#f59e0b" stroke-width="1.5" opacity="0.9"/>
+      <text x="420" y="588" text-anchor="middle" fill="#fcd34d" font-size="13" font-weight="600">Debezium Server</text>
+      <text x="420" y="606" text-anchor="middle" fill="#92400e" font-size="9">Loses TCP → Reconnects to -rw</text>
+      <text x="420" y="618" text-anchor="middle" fill="#78350f" font-size="8">Creates new slot on new primary</text>
+    </g>
+
+    <!-- WAL on new primary -->
+    <g>
+      <rect x="600" y="490" width="240" height="45" rx="8" fill="#0f172a" stroke="#ef4444" stroke-width="1" opacity="0.8"/>
+      <text x="720" y="512" text-anchor="middle" fill="#fca5a5" font-size="10" font-weight="600">WAL (wal_level=logical)</text>
+      <text x="720" y="527" text-anchor="middle" fill="#991b1b" font-size="8">wal_keep_size=256MB</text>
+    </g>
+
+    <!-- Kafka (offset storage) -->
+    <g>
+      <rect x="900" y="560" width="240" height="65" rx="10" fill="#0f172a" stroke="#f59e0b" stroke-width="1.5" opacity="0.9"/>
+      <text x="1020" y="588" text-anchor="middle" fill="#fcd34d" font-size="13" font-weight="600">Kafka</text>
+      <text x="1020" y="606" text-anchor="middle" fill="#92400e" font-size="9">debezium.ecom.offsets (compacted)</text>
+      <text x="1020" y="618" text-anchor="middle" fill="#78350f" font-size="8">Last committed LSN preserved</text>
+    </g>
+
+    <!-- Connection lines with animated transitions -->
+
+    <!-- App → ExternalName (always active) -->
+    <line x1="250" y1="205" x2="250" y2="250" stroke="#3b82f6" stroke-width="2" marker-end="url(#a-blue2)" opacity="0.5"/>
+
+    <!-- ExternalName → -rw Service -->
+    <line x1="360" y1="270" x2="380" y2="270" stroke="#06b6d4" stroke-width="2" opacity="0.4"/>
+
+    <!-- -rw → Old Primary (fades out during failover) -->
+    <path d="M420,295 L300,360" stroke="#22c55e" stroke-width="2" marker-end="url(#a-green2)" fill="none">
+      <animate attributeName="opacity" values="0.5;0.5;0.1;0;0;0;0;0;0" dur="8s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- -rw → New Primary (appears during failover) -->
+    <path d="M540,295 L680,360" stroke="#22c55e" stroke-width="2" marker-end="url(#a-green2)" fill="none">
+      <animate attributeName="opacity" values="0;0;0;0;0.5;0.5;0.5;0.5;0.5" dur="8s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- CNPG → Old Primary (monitoring) -->
+    <path d="M950,230 L380,380" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="5,4" fill="none">
+      <animate attributeName="opacity" values="0.3;0.3;0.5;0.1;0;0;0;0;0" dur="8s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- CNPG → New Primary (monitoring + promotion) -->
+    <path d="M970,250 L840,370" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="5,4" fill="none">
+      <animate attributeName="opacity" values="0.3;0.3;0.3;0.6;0.6;0.3;0.3;0.3;0.3" dur="8s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- New Primary → WAL -->
+    <line x1="720" y1="440" x2="720" y2="490" stroke="#ef4444" stroke-width="1.5" marker-end="url(#a-red2)">
+      <animate attributeName="opacity" values="0;0;0;0.3;0.5;0.5;0.5;0.5;0.5" dur="8s" repeatCount="indefinite"/>
+    </line>
+
+    <!-- WAL → Debezium (CDC reconnect) -->
+    <path d="M600,520 Q500,560 480,560" stroke="#ef4444" stroke-width="1.5" fill="none" marker-end="url(#a-red2)">
+      <animate attributeName="opacity" values="0;0;0;0;0;0;0.5;0.5;0.5" dur="8s" repeatCount="indefinite"/>
+    </path>
+
+    <!-- Debezium → Kafka (CDC events) -->
+    <line x1="540" y1="590" x2="900" y2="590" stroke="#f59e0b" stroke-width="2" marker-end="url(#a-amber2)">
+      <animate attributeName="opacity" values="0.4;0.4;0.1;0;0;0;0.3;0.5;0.5" dur="8s" repeatCount="indefinite"/>
+    </line>
+
+    <!-- Kafka → Debezium (offset resume) -->
+    <path d="M900,610 L540,610" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="5,3" fill="none" marker-end="url(#a-purple2)">
+      <animate attributeName="opacity" values="0;0;0;0;0;0;0.5;0.3;0" dur="8s" repeatCount="indefinite"/>
+    </path>
+    <text x="720" y="625" text-anchor="middle" fill="#a855f7" font-size="7" opacity="0">
+      <animate attributeName="opacity" values="0;0;0;0;0;0;0.7;0.5;0" dur="8s" repeatCount="indefinite"/>
+      Resume from last committed offset
+    </text>
+  </g>
+
+  <!-- ========== PHASE DETAIL CARDS ========== -->
+  <g font-family="'Segoe UI',system-ui,sans-serif">
+    <!-- Detail card area -->
+    <rect x="50" y="680" width="1500" height="150" rx="12" fill="#0f172a" stroke="#334155" stroke-width="1" opacity="0.8"/>
+    <text x="80" y="705" fill="#94a3b8" font-size="10" font-weight="700" letter-spacing="2">FAILOVER DETAIL</text>
+
+    <!-- Phase 1 detail -->
+    <g opacity="0">
+      <animate attributeName="opacity" values="1;0;0;0;0;0;0;0;0" dur="8s" repeatCount="indefinite"/>
+      <text x="80" y="730" fill="#22c55e" font-size="12" font-weight="600">Phase 1: Normal Operation</text>
+      <text x="80" y="750" fill="#e2e8f0" font-size="10">App connects via ecom-db (ExternalName) → ecom-db-rw → Primary pod</text>
+      <text x="80" y="770" fill="#94a3b8" font-size="9">Debezium reads WAL via logical replication slot | Offsets stored in Kafka</text>
+      <text x="80" y="790" fill="#94a3b8" font-size="9">Streaming replication: Primary → Standby (synchronous WAL shipping)</text>
+    </g>
+
+    <!-- Phase 2 detail -->
+    <g opacity="0">
+      <animate attributeName="opacity" values="0;1;0;0;0;0;0;0;0" dur="8s" repeatCount="indefinite"/>
+      <text x="80" y="730" fill="#ef4444" font-size="12" font-weight="600">Phase 2: Primary Pod Fails</text>
+      <text x="80" y="750" fill="#e2e8f0" font-size="10">Primary pod crashes, gets OOMKilled, or node goes down</text>
+      <text x="80" y="770" fill="#94a3b8" font-size="9">App JDBC connections break immediately (TCP RST) | Debezium loses TCP connection</text>
+      <text x="80" y="790" fill="#94a3b8" font-size="9">Standby continues running with latest replicated WAL data</text>
+    </g>
+
+    <!-- Phase 3 detail -->
+    <g opacity="0">
+      <animate attributeName="opacity" values="0;0;1;0;0;0;0;0;0" dur="8s" repeatCount="indefinite"/>
+      <text x="80" y="730" fill="#f59e0b" font-size="12" font-weight="600">Phase 3: CNPG Operator Detects Failure</text>
+      <text x="80" y="750" fill="#e2e8f0" font-size="10">Instance manager reports unhealthy | Reconcile loop detects pod not ready</text>
+      <text x="80" y="770" fill="#94a3b8" font-size="9">CNPG evaluates cluster topology: 1 standby available for promotion</text>
+      <text x="80" y="790" fill="#94a3b8" font-size="9">Decision: promote ecom-db-2 (most up-to-date standby based on WAL position)</text>
+    </g>
+
+    <!-- Phase 4 detail -->
+    <g opacity="0">
+      <animate attributeName="opacity" values="0;0;0;1;0;0;0;0;0" dur="8s" repeatCount="indefinite"/>
+      <text x="80" y="730" fill="#a855f7" font-size="12" font-weight="600">Phase 4: Promote Standby to Primary</text>
+      <text x="80" y="750" fill="#e2e8f0" font-size="10">pg_ctl promote on ecom-db-2 | Standby exits recovery mode</text>
+      <text x="80" y="770" fill="#94a3b8" font-size="9">New primary begins accepting write transactions | Timeline ID increments</text>
+      <text x="80" y="790" fill="#94a3b8" font-size="9">CNPG updates instance labels: cnpg.io/instanceRole=primary on ecom-db-2</text>
+    </g>
+
+    <!-- Phase 5 detail -->
+    <g opacity="0">
+      <animate attributeName="opacity" values="0;0;0;0;1;0;0;0;0" dur="8s" repeatCount="indefinite"/>
+      <text x="80" y="730" fill="#06b6d4" font-size="12" font-weight="600">Phase 5: Update -rw Service Endpoint</text>
+      <text x="80" y="750" fill="#e2e8f0" font-size="10">CNPG patches ecom-db-rw Service: Endpoints now point to ecom-db-2 pod IP</text>
+      <text x="80" y="770" fill="#94a3b8" font-size="9">ExternalName alias (ecom-db) resolves to ecom-db-rw → new primary transparently</text>
+      <text x="80" y="790" fill="#94a3b8" font-size="9">Zero configuration change needed in any application or Debezium config</text>
+    </g>
+
+    <!-- Phase 6 detail -->
+    <g opacity="0">
+      <animate attributeName="opacity" values="0;0;0;0;0;1;0;0;0" dur="8s" repeatCount="indefinite"/>
+      <text x="80" y="730" fill="#3b82f6" font-size="12" font-weight="600">Phase 6: Application Reconnects</text>
+      <text x="80" y="750" fill="#e2e8f0" font-size="10">HikariCP / connection pool detects broken connections → creates new ones</text>
+      <text x="80" y="770" fill="#94a3b8" font-size="9">DNS resolves ecom-db → ecom-db-rw → new primary pod IP</text>
+      <text x="80" y="790" fill="#94a3b8" font-size="9">Application resumes normal operation — users experience brief (~5-15s) interruption</text>
+    </g>
+
+    <!-- Phase 7 detail -->
+    <g opacity="0">
+      <animate attributeName="opacity" values="0;0;0;0;0;0;1;0;0" dur="8s" repeatCount="indefinite"/>
+      <text x="80" y="730" fill="#f59e0b" font-size="12" font-weight="600">Phase 7: Debezium Resumes CDC</text>
+      <text x="80" y="750" fill="#e2e8f0" font-size="10">Debezium reconnects to same hostname → reaches new primary</text>
+      <text x="80" y="770" fill="#94a3b8" font-size="9">Creates new logical replication slot on new primary (old slot was on old primary)</text>
+      <text x="80" y="790" fill="#94a3b8" font-size="9">Reads last committed offset from Kafka topic → resumes from that LSN position</text>
+    </g>
+
+    <!-- Phase 8 detail -->
+    <g opacity="0">
+      <animate attributeName="opacity" values="0;0;0;0;0;0;0;1;1" dur="8s" repeatCount="indefinite"/>
+      <text x="80" y="730" fill="#22c55e" font-size="12" font-weight="600">Phase 8: Fully Recovered</text>
+      <text x="80" y="750" fill="#e2e8f0" font-size="10">CNPG recreates old primary pod as new standby | Streaming replication resumes</text>
+      <text x="80" y="770" fill="#94a3b8" font-size="9">Cluster returns to 2 healthy instances (1 primary + 1 standby)</text>
+      <text x="80" y="790" fill="#94a3b8" font-size="9">Total downtime: ~5-15 seconds | Zero data loss (synchronous replication)</text>
+    </g>
+  </g>
+
+  <!-- Footer -->
+  <text x="800" y="860" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="10" fill="#334155">
+    CloudNativePG v1.25.1  &#183;  Automatic Failover  &#183;  KafkaOffsetBackingStore  &#183;  ExternalName Service Aliases  &#183;  Zero App Code Changes
+  </text>
+</svg>

@@ -41,11 +41,11 @@ spec:
         - port: 8000
         - port: 15008
   egress:
-    # inventory-service → inventory-db
+    # inventory-service → inventory-db (CNPG)
     - to:
         - podSelector:
             matchLabels:
-              app: inventory-db
+              cnpg.io/cluster: inventory-db
       ports:
         - port: 5432
     # inventory-service → Kafka
@@ -81,7 +81,7 @@ spec:
           protocol: UDP
 
 ---
-# Allow inventory-db to receive only from inventory-service and Debezium
+# Allow inventory-db (CNPG) to receive from inventory-service, Debezium, CNPG operator, and inter-pod replication
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -90,7 +90,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app: inventory-db
+      cnpg.io/cluster: inventory-db
   ingress:
     - from:
         - podSelector:
@@ -100,4 +100,45 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: infra
-  egress: []
+    # CNPG operator access from cnpg-system namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cnpg-system
+    # CNPG inter-pod replication (primary ↔ standby)
+    - from:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: inventory-db
+      ports:
+        - port: 5432
+        - port: 8000
+  egress:
+    # CNPG inter-pod replication
+    - to:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: inventory-db
+      ports:
+        - port: 5432
+        - port: 8000
+    # CNPG instance manager → K8s API server (kube-system namespace)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 443
+    # K8s API server ClusterIP — direct IP access
+    - ports:
+        - port: 443
+        - port: 6443
+    # DNS
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+    # Istio HBONE
+    - to: []
+      ports:
+        - port: 15008

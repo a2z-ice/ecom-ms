@@ -49,6 +49,23 @@ spec:
                 fi
               }
 
+              # Offset topics must be recreated fresh (stale offsets from previous
+              # DB instances cause "no longer available on the server" errors).
+              recreate_compacted_topic() {
+                local topic=$1
+                if kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --describe --topic "$topic" &>/dev/null; then
+                  echo "Deleting stale topic '$topic'..."
+                  kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 --delete --topic "$topic" || true
+                  sleep 2
+                fi
+                kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 \
+                  --create --topic "$topic" \
+                  --partitions 1 \
+                  --replication-factor 1 \
+                  --config cleanup.policy=compact
+                echo "Topic '$topic' created (compacted)."
+              }
+
               create_topic "order.created"
               create_topic "inventory.updated"
               # Debezium CDC topics (auto-create disabled, must be pre-created)
@@ -56,9 +73,9 @@ spec:
               create_topic "ecom-connector.public.orders"
               create_topic "ecom-connector.public.order_items"
               create_topic "inventory-connector.public.inventory"
-              # Debezium Server offset storage topics (KafkaOffsetBackingStore)
-              create_topic "debezium.ecom.offsets"
-              create_topic "debezium.inventory.offsets"
+              # Debezium Server offset storage topics (KafkaOffsetBackingStore, must be compacted)
+              recreate_compacted_topic "debezium.ecom.offsets"
+              recreate_compacted_topic "debezium.inventory.offsets"
               echo "All topics ready."
           resources:
             requests:

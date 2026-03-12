@@ -15,12 +15,27 @@ import * as path from 'path'
 
 const SESSION_FILE = path.join(__dirname, 'user1-session.json')
 
+/** Resolve CNPG primary pod name, falling back to deploy/ for backward compat */
+function getCnpgPrimaryPod(namespace: string, cluster: string): string {
+  try {
+    return execFileSync('kubectl', [
+      'get', 'pod', '-n', namespace,
+      '-l', `cnpg.io/cluster=${cluster},cnpg.io/instanceRole=primary`,
+      '-o', 'jsonpath={.items[0].metadata.name}',
+    ], { encoding: 'utf-8', timeout: 10_000 }).trim()
+  } catch {
+    return ''
+  }
+}
+
 /** Clear all cart items directly in ecom-db (avoids API rate limits) */
 function clearCartViaDb(): void {
   try {
+    const primaryPod = getCnpgPrimaryPod('ecom', 'ecom-db')
+    const podTarget = primaryPod ? primaryPod : 'deploy/ecom-db'
     execFileSync('kubectl', [
-      'exec', '-n', 'ecom', 'deploy/ecom-db', '--',
-      'psql', '-U', 'ecomuser', '-d', 'ecomdb',
+      'exec', '-n', 'ecom', podTarget, '--',
+      'psql', '-U', 'postgres', '-d', 'ecomdb',
       '-c', 'DELETE FROM cart_items;',
     ], { encoding: 'utf-8', timeout: 10_000 })
   } catch {
