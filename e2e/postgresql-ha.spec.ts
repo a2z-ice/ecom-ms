@@ -17,6 +17,20 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Safety guard: destructive tests (pod deletion, topic deletion) must ONLY run
+ * on the local kind cluster. Abort if kubectl context is not kind-bookstore.
+ */
+const currentContext = execFileSync("kubectl", ["config", "current-context"], {
+  encoding: "utf-8",
+}).trim();
+if (!currentContext.includes("kind-bookstore")) {
+  throw new Error(
+    `postgresql-ha.spec.ts contains destructive tests (pod + topic deletion). ` +
+      `Refusing to run on cluster "${currentContext}". Only kind-bookstore is allowed.`
+  );
+}
+
 /** All 4 CNPG clusters with their namespaces */
 const CLUSTERS = [
   { name: "ecom-db", namespace: "ecom" },

@@ -78,6 +78,9 @@ spec:
           securityContext:
             runAsNonRoot: false
             runAsUser: 0
+            capabilities:
+              drop: ["ALL"]
+              add: ["CHOWN", "FOWNER"]
           volumeMounts:
             - name: data
               mountPath: /var/tempo
