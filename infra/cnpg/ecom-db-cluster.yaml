@@ -53,6 +53,15 @@ spec:
       max_wal_senders: "10"
       wal_keep_size: 256MB
 
+  # Sync logical replication slots from primary to standbys so they survive failover.
+  # Without this, CNPG failover loses Debezium's logical slot → permanent crash loop.
+  replicationSlots:
+    highAvailability:
+      enabled: true
+      slotPrefix: _cnpg_
+    synchronizeReplicas:
+      enabled: true
+
   bootstrap:
     initdb:
       database: ecomdb

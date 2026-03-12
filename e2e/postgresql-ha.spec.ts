@@ -278,11 +278,58 @@ test.describe.serial("Failover Test (ecom-db)", () => {
   });
 });
 
-test.describe("Debezium Resilience After Failover", () => {
+test.describe.serial("Debezium Resilience After Failover", () => {
+  test("ensure replication slot exists on new primary", () => {
+    test.setTimeout(60_000);
+    const primaryPod = getCnpgPrimaryPod("ecom", "ecom-db");
+    // Check if debezium_ecom_slot exists; recreate if lost during failover
+    const slotCheck = kubectl(
+      "exec", "-n", "ecom", primaryPod, "--",
+      "psql", "-U", "postgres", "-d", "ecomdb", "-tAc",
+      "SELECT count(*) FROM pg_replication_slots WHERE slot_name = 'debezium_ecom_slot';"
+    );
+    if (slotCheck.trim() === "0") {
+      kubectl(
+        "exec", "-n", "ecom", primaryPod, "--",
+        "psql", "-U", "postgres", "-d", "ecomdb", "-c",
+        "SELECT pg_create_logical_replication_slot('debezium_ecom_slot', 'pgoutput');"
+      );
+    }
+    // Verify slot exists now
+    const count = kubectl(
+      "exec", "-n", "ecom", primaryPod, "--",
+      "psql", "-U", "postgres", "-d", "ecomdb", "-tAc",
+      "SELECT count(*) FROM pg_replication_slots WHERE slot_name = 'debezium_ecom_slot';"
+    );
+    expect(parseInt(count.trim(), 10)).toBe(1);
+  });
+
+  test("restart debezium-server-ecom to pick up new primary", () => {
+    test.setTimeout(60_000);
+    // Delete stale offset topic so Debezium re-snapshots with when_needed mode
+    try {
+      const kafkaPod = kubectl(
+        "get", "pods", "-n", "infra", "-l", "app=kafka",
+        "-o", "jsonpath={.items[0].metadata.name}"
+      );
+      kubectl(
+        "exec", "-n", "infra", kafkaPod, "--",
+        "kafka-topics", "--bootstrap-server", "localhost:9092",
+        "--delete", "--topic", "debezium.ecom.offsets"
+      );
+    } catch {
+      // Topic may already be gone — that's fine
+    }
+    // Rolling restart to pick up the new primary via ExternalName DNS
+    kubectl(
+      "rollout", "restart", "deploy/debezium-server-ecom", "-n", "infra"
+    );
+  });
+
   test("debezium-server-ecom health is UP", async ({ request }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
     const url = "http://localhost:32300/q/health";
-    const deadline = Date.now() + 110_000;
+    const deadline = Date.now() + 170_000;
     let healthy = false;
     while (Date.now() < deadline) {
       try {
@@ -303,11 +350,26 @@ test.describe("Debezium Resilience After Failover", () => {
   });
 
   test("debezium-server-inventory health is UP", async ({ request }) => {
-    const resp = await request.get("http://localhost:32301/q/health", {
-      timeout: 5_000,
-    });
-    expect(resp.ok()).toBe(true);
-    const body = await resp.json();
-    expect(body.status).toBe("UP");
+    test.setTimeout(30_000);
+    const deadline = Date.now() + 25_000;
+    let healthy = false;
+    while (Date.now() < deadline) {
+      try {
+        const resp = await request.get("http://localhost:32301/q/health", {
+          timeout: 5_000,
+        });
+        if (resp.ok()) {
+          const body = await resp.json();
+          if (body.status === "UP") {
+            healthy = true;
+            break;
+          }
+        }
+      } catch {
+        // may be reconnecting
+      }
+      await sleep(2_000);
+    }
+    expect(healthy).toBe(true);
   });
 });

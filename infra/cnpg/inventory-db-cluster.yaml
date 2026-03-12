@@ -48,6 +48,14 @@ spec:
       max_wal_senders: "10"
       wal_keep_size: 256MB
 
+  # Sync logical replication slots from primary to standbys so they survive failover.
+  replicationSlots:
+    highAvailability:
+      enabled: true
+      slotPrefix: _cnpg_
+    synchronizeReplicas:
+      enabled: true
+
   bootstrap:
     initdb:
       database: inventorydb
