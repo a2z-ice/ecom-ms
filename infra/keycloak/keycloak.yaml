@@ -140,6 +140,15 @@ spec:
               port: 8080
             initialDelaySeconds: 90
             periodSeconds: 15
+          # NOTE: readOnlyRootFilesystem MUST be false for Keycloak.
+          # Quarkus JarResultBuildStep modifies JAR files during startup (not just /tmp).
+          # emptyDir volumes for /tmp don't help — the writes target the JAR ZIP filesystem.
+          # Mitigated by: drop ALL capabilities, no privilege escalation, non-root user.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
 
 ---
 apiVersion: v1

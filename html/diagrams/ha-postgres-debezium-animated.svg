@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1100" width="1600" height="1100">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1700 1150" width="1700" height="1150">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#050d1a"/>
@@ -75,208 +75,277 @@
 
     <!-- ========== MOTION PATHS ========== -->
     <!-- App → ExternalName Service -->
-    <path id="p-app-ext" d="M400,200 L400,290" fill="none"/>
+    <path id="p-app-ext" d="M360,295 L360,365" fill="none"/>
     <!-- ExternalName → -rw Service -->
-    <path id="p-ext-rw" d="M400,340 L400,420" fill="none"/>
+    <path id="p-ext-rw" d="M360,415 L360,475" fill="none"/>
     <!-- -rw Service → Primary -->
-    <path id="p-rw-primary" d="M400,470 L400,530" fill="none"/>
+    <path id="p-rw-primary" d="M360,525 L310,580" fill="none"/>
     <!-- Primary WAL write -->
-    <path id="p-wal-write" d="M300,600 L300,680" fill="none"/>
+    <path id="p-wal-write" d="M280,670 L280,740" fill="none"/>
     <!-- Primary → Standby streaming replication -->
-    <path id="p-repl" d="M500,580 L750,580" fill="none"/>
-    <!-- WAL → Debezium CDC capture -->
-    <path id="p-wal-deb" d="M380,720 L680,720" fill="none"/>
-    <!-- Debezium → Kafka -->
-    <path id="p-deb-kafka" d="M920,620 L1100,620" fill="none"/>
-    <!-- Kafka → Flink -->
-    <path id="p-kafka-flink" d="M1300,620 L1300,750" fill="none"/>
+    <path id="p-repl" d="M440,640 L570,640" fill="none"/>
+    <!-- WAL → Debezium CDC capture (clean horizontal then up) -->
+    <path id="p-wal-deb" d="M370,775 L830,775 L830,680" fill="none"/>
+    <!-- Debezium → Kafka (vertical up) -->
+    <path id="p-deb-kafka" d="M1030,600 L1030,470" fill="none"/>
+    <!-- Kafka → Flink (elbow right then down) -->
+    <path id="p-kafka-flink" d="M1230,420 L1400,420 L1400,685" fill="none"/>
     <!-- CNPG Operator → Primary (health) -->
-    <path id="p-op-primary" d="M1100,240 L550,530" fill="none"/>
+    <path id="p-op-primary" d="M810,195 Q600,380 370,580" fill="none"/>
     <!-- CNPG Operator → Standby (health) -->
-    <path id="p-op-standby" d="M1100,260 L900,530" fill="none"/>
+    <path id="p-op-standby" d="M870,195 Q800,380 670,580" fill="none"/>
     <!-- Standby WAL replay -->
-    <path id="p-standby-wal" d="M850,620 L850,700" fill="none"/>
-    <!-- Debezium offset → Kafka -->
-    <path id="p-offset-kafka" d="M800,680 L1100,680" fill="none"/>
+    <path id="p-standby-wal" d="M680,680 L680,740" fill="none"/>
     <!-- K8s API → CNPG Operator -->
-    <path id="p-k8s-op" d="M1300,160 L1200,200" fill="none"/>
+    <path id="p-k8s-op" d="M1090,157 L970,165" fill="none"/>
   </defs>
 
   <!-- Background -->
-  <rect width="1600" height="1100" fill="url(#bg)"/>
+  <rect width="1700" height="1150" fill="url(#bg)"/>
 
   <!-- Title -->
-  <text x="800" y="45" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="24" font-weight="700" fill="#e2e8f0" letter-spacing="1">
+  <text x="850" y="38" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="24" font-weight="700" fill="#e2e8f0" letter-spacing="1">
     HA PostgreSQL + Debezium CDC Architecture
   </text>
-  <text x="800" y="70" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="12" fill="#475569">
+  <text x="850" y="60" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="12" fill="#475569">
     CloudNativePG Operator | WAL-based Replication | Automatic Failover | Kafka Offset Storage
   </text>
 
-  <!-- ========== CNPG CLUSTER BOX ========== -->
-  <rect x="100" y="410" width="640" height="340" rx="14" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="8,4" opacity="0.4"/>
-  <text x="120" y="435" font-family="'Segoe UI',system-ui,sans-serif" font-size="10" fill="#22c55e" font-weight="700" letter-spacing="2" opacity="0.7">CNPG CLUSTER (ecom-db)</text>
+  <!-- ╔══════════════════════════════════════════════════════════════════╗ -->
+  <!-- ║                   KUBERNETES CLUSTER                            ║ -->
+  <!-- ╚══════════════════════════════════════════════════════════════════╝ -->
+  <rect x="40" y="80" width="1620" height="940" rx="18" fill="none" stroke="#475569" stroke-width="2" opacity="0.5"/>
+  <g font-family="'Segoe UI',system-ui,sans-serif">
+    <rect x="55" y="72" width="220" height="22" rx="4" fill="#0a1a2e"/>
+    <text x="65" y="88" font-size="12" fill="#94a3b8" font-weight="700" letter-spacing="2">
+      &#9096;  KUBERNETES CLUSTER
+    </text>
+    <text x="232" y="88" font-size="9" fill="#475569">(kind: bookstore)</text>
+  </g>
 
-  <!-- ========== APPLICATION SERVICE ========== -->
+  <!-- ╔══════════════════════════════════════════════════════════════════╗ -->
+  <!-- ║               CONTROL PLANE: cnpg-system namespace              ║ -->
+  <!-- ╚══════════════════════════════════════════════════════════════════╝ -->
+  <rect x="700" y="105" width="940" height="100" rx="12" fill="none" stroke="#22c55e" stroke-width="1.2" stroke-dasharray="6,4" opacity="0.35"/>
+  <g font-family="'Segoe UI',system-ui,sans-serif">
+    <rect x="715" y="97" width="140" height="18" rx="3" fill="#0a1a2e"/>
+    <text x="725" y="111" font-size="9" fill="#22c55e" font-weight="700" letter-spacing="1.5" opacity="0.8">cnpg-system</text>
+  </g>
+
+  <!-- K8s API Server -->
   <g filter="url(#node-glow)">
-    <rect x="280" y="140" width="240" height="60" rx="10" fill="#0f172a" stroke="#3b82f6" stroke-width="1.5" opacity="0.9"/>
-    <text x="400" y="170" text-anchor="middle" fill="#93c5fd" font-size="14" font-weight="600" font-family="'Segoe UI',system-ui,sans-serif">E-Commerce Service</text>
-    <text x="400" y="188" text-anchor="middle" fill="#64748b" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">Spring Boot 4.0.3 | JDBC</text>
+    <rect x="1090" y="125" width="200" height="50" rx="10" fill="#0f172a" stroke="#94a3b8" stroke-width="1.5" opacity="0.9"/>
+    <text x="1190" y="150" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="600" font-family="'Segoe UI',system-ui,sans-serif">K8s API Server</text>
+    <text x="1190" y="167" text-anchor="middle" fill="#64748b" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">Cluster CRD | Webhooks</text>
   </g>
 
-  <!-- ========== EXTERNALNAME SERVICE ========== -->
+  <!-- CNPG Operator -->
+  <g filter="url(#glow-green)">
+    <rect x="730" y="125" width="240" height="70" rx="10" fill="#0f172a" stroke="#22c55e" stroke-width="1.5" opacity="0.9"/>
+    <text x="850" y="152" text-anchor="middle" fill="#86efac" font-size="14" font-weight="700" font-family="'Segoe UI',system-ui,sans-serif">CNPG Operator</text>
+    <text x="850" y="170" text-anchor="middle" fill="#15803d" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">v1.25.1 | Controller Manager</text>
+    <text x="850" y="185" text-anchor="middle" fill="#475569" font-size="8" font-family="'Segoe UI',system-ui,sans-serif">Health monitoring | Auto-failover | Service updates</text>
+  </g>
+
+  <!-- ╔══════════════════════════════════════════════════════════════════╗ -->
+  <!-- ║               DATA PLANE: ecom namespace                        ║ -->
+  <!-- ╚══════════════════════════════════════════════════════════════════╝ -->
+  <rect x="60" y="225" width="785" height="620" rx="14" fill="none" stroke="#3b82f6" stroke-width="1.2" stroke-dasharray="6,4" opacity="0.3"/>
+  <g font-family="'Segoe UI',system-ui,sans-serif">
+    <rect x="75" y="217" width="100" height="18" rx="3" fill="#0a1a2e"/>
+    <text x="85" y="231" font-size="9" fill="#3b82f6" font-weight="700" letter-spacing="1.5" opacity="0.8">ecom</text>
+  </g>
+
+  <!-- Application Service -->
+  <g filter="url(#node-glow)">
+    <rect x="240" y="252" width="240" height="55" rx="10" fill="#0f172a" stroke="#3b82f6" stroke-width="1.5" opacity="0.9"/>
+    <text x="360" y="278" text-anchor="middle" fill="#93c5fd" font-size="14" font-weight="600" font-family="'Segoe UI',system-ui,sans-serif">E-Commerce Service</text>
+    <text x="360" y="296" text-anchor="middle" fill="#64748b" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">Spring Boot 4.0.3 | JDBC Connection Pool</text>
+  </g>
+
+  <!-- ExternalName Service -->
   <g filter="url(#glow-cyan)">
-    <rect x="280" y="290" width="240" height="50" rx="10" fill="#0f172a" stroke="#06b6d4" stroke-width="1.5" opacity="0.9"/>
-    <text x="400" y="315" text-anchor="middle" fill="#67e8f9" font-size="12" font-weight="600" font-family="'Segoe UI',system-ui,sans-serif">ExternalName Service</text>
-    <text x="400" y="332" text-anchor="middle" fill="#0891b2" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">ecom-db (alias)</text>
+    <rect x="250" y="365" width="220" height="50" rx="10" fill="#0f172a" stroke="#06b6d4" stroke-width="1.5" opacity="0.9"/>
+    <text x="360" y="390" text-anchor="middle" fill="#67e8f9" font-size="12" font-weight="600" font-family="'Segoe UI',system-ui,sans-serif">ExternalName Service</text>
+    <text x="360" y="407" text-anchor="middle" fill="#0891b2" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">ecom-db &#8594; ecom-db-rw (alias)</text>
   </g>
 
-  <!-- ========== -rw SERVICE ========== -->
+  <!-- -rw Service -->
   <g filter="url(#glow-green)">
-    <rect x="300" y="420" width="200" height="50" rx="10" fill="#0f172a" stroke="#22c55e" stroke-width="1.5" opacity="0.9"/>
-    <text x="400" y="445" text-anchor="middle" fill="#86efac" font-size="12" font-weight="600" font-family="'Segoe UI',system-ui,sans-serif">ecom-db-rw</text>
-    <text x="400" y="462" text-anchor="middle" fill="#15803d" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">Primary Service (auto)</text>
+    <rect x="270" y="475" width="180" height="50" rx="10" fill="#0f172a" stroke="#22c55e" stroke-width="1.5" opacity="0.9"/>
+    <text x="360" y="500" text-anchor="middle" fill="#86efac" font-size="12" font-weight="600" font-family="'Segoe UI',system-ui,sans-serif">ecom-db-rw</text>
+    <text x="360" y="517" text-anchor="middle" fill="#15803d" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">Primary Service (auto-managed)</text>
   </g>
 
-  <!-- ========== PRIMARY POD ========== -->
+  <!-- ── CNPG Cluster boundary ── -->
+  <rect x="80" y="555" width="750" height="275" rx="12" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="8,4" opacity="0.3"/>
+  <text x="100" y="575" font-family="'Segoe UI',system-ui,sans-serif" font-size="10" fill="#22c55e" font-weight="700" letter-spacing="2" opacity="0.6">CNPG CLUSTER (ecom-db) &#8212; 2 instances</text>
+
+  <!-- Primary Pod -->
   <g filter="url(#glow-green)">
-    <rect x="200" y="530" width="260" height="90" rx="12" fill="#0f172a" stroke="#22c55e" stroke-width="2" opacity="0.9"/>
-    <text x="330" y="557" text-anchor="middle" fill="#86efac" font-size="14" font-weight="700" font-family="'Segoe UI',system-ui,sans-serif">PRIMARY</text>
-    <text x="330" y="575" text-anchor="middle" fill="#e2e8f0" font-size="11" font-family="'Segoe UI',system-ui,sans-serif">ecom-db-1</text>
-    <text x="330" y="593" text-anchor="middle" fill="#64748b" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">PostgreSQL 17 | wal_level=logical</text>
-    <text x="330" y="610" text-anchor="middle" fill="#475569" font-size="8" font-family="'Segoe UI',system-ui,sans-serif">REPLICATION slots | Publications</text>
+    <rect x="100" y="590" width="280" height="80" rx="12" fill="#0f172a" stroke="#22c55e" stroke-width="2" opacity="0.9"/>
+    <text x="240" y="614" text-anchor="middle" fill="#86efac" font-size="14" font-weight="700" font-family="'Segoe UI',system-ui,sans-serif">PRIMARY</text>
+    <text x="240" y="632" text-anchor="middle" fill="#e2e8f0" font-size="11" font-family="'Segoe UI',system-ui,sans-serif">ecom-db-1</text>
+    <text x="240" y="648" text-anchor="middle" fill="#64748b" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">PostgreSQL 17 | wal_level=logical</text>
+    <text x="240" y="663" text-anchor="middle" fill="#475569" font-size="8" font-family="'Segoe UI',system-ui,sans-serif">Replication slots | Publications</text>
     <!-- Pulsing green indicator -->
-    <circle cx="220" cy="555" r="5" fill="#22c55e">
+    <circle cx="118" cy="610" r="5" fill="#22c55e">
       <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/>
     </circle>
   </g>
 
-  <!-- ========== WAL SEGMENT ========== -->
-  <g filter="url(#glow-red)">
-    <rect x="180" y="680" width="240" height="55" rx="8" fill="#0f172a" stroke="#ef4444" stroke-width="1.5" opacity="0.9"/>
-    <text x="300" y="705" text-anchor="middle" fill="#fca5a5" font-size="12" font-weight="600" font-family="'Segoe UI',system-ui,sans-serif">Write-Ahead Log (WAL)</text>
-    <text x="300" y="723" text-anchor="middle" fill="#991b1b" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">wal_keep_size=256MB | Logical decoding</text>
-    <!-- WAL activity indicator -->
-    <rect x="195" y="695" width="8" height="20" rx="2" fill="#ef4444" opacity="0.6">
-      <animate attributeName="height" values="8;20;8" dur="1.5s" repeatCount="indefinite"/>
-      <animate attributeName="y" values="701;695;701" dur="1.5s" repeatCount="indefinite"/>
-    </rect>
-    <rect x="207" y="695" width="8" height="20" rx="2" fill="#ef4444" opacity="0.4">
-      <animate attributeName="height" values="14;8;14" dur="1.5s" repeatCount="indefinite" begin="0.3s"/>
-      <animate attributeName="y" values="698;701;698" dur="1.5s" repeatCount="indefinite" begin="0.3s"/>
-    </rect>
-  </g>
-
-  <!-- ========== STANDBY POD ========== -->
+  <!-- Standby Pod -->
   <g filter="url(#node-glow)">
-    <rect x="600" y="530" width="260" height="90" rx="12" fill="#0f172a" stroke="#3b82f6" stroke-width="2" opacity="0.9"/>
-    <text x="730" y="557" text-anchor="middle" fill="#93c5fd" font-size="14" font-weight="700" font-family="'Segoe UI',system-ui,sans-serif">STANDBY</text>
-    <text x="730" y="575" text-anchor="middle" fill="#e2e8f0" font-size="11" font-family="'Segoe UI',system-ui,sans-serif">ecom-db-2</text>
-    <text x="730" y="593" text-anchor="middle" fill="#64748b" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">PostgreSQL 17 | Streaming Replica</text>
-    <text x="730" y="610" text-anchor="middle" fill="#475569" font-size="8" font-family="'Segoe UI',system-ui,sans-serif">Hot standby | Read-only queries</text>
+    <rect x="510" y="590" width="280" height="80" rx="12" fill="#0f172a" stroke="#3b82f6" stroke-width="2" opacity="0.9"/>
+    <text x="650" y="614" text-anchor="middle" fill="#93c5fd" font-size="14" font-weight="700" font-family="'Segoe UI',system-ui,sans-serif">STANDBY</text>
+    <text x="650" y="632" text-anchor="middle" fill="#e2e8f0" font-size="11" font-family="'Segoe UI',system-ui,sans-serif">ecom-db-2</text>
+    <text x="650" y="648" text-anchor="middle" fill="#64748b" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">PostgreSQL 17 | Streaming Replica</text>
+    <text x="650" y="663" text-anchor="middle" fill="#475569" font-size="8" font-family="'Segoe UI',system-ui,sans-serif">Hot standby | Read-only queries</text>
     <!-- Blue indicator -->
-    <circle cx="620" cy="555" r="5" fill="#3b82f6">
+    <circle cx="528" cy="610" r="5" fill="#3b82f6">
       <animate attributeName="opacity" values="1;0.3;1" dur="2.5s" repeatCount="indefinite"/>
     </circle>
   </g>
 
-  <!-- ========== STANDBY WAL REPLAY ========== -->
+  <!-- WAL Segment (under Primary) -->
+  <g filter="url(#glow-red)">
+    <rect x="110" y="740" width="260" height="50" rx="8" fill="#0f172a" stroke="#ef4444" stroke-width="1.5" opacity="0.9"/>
+    <text x="240" y="763" text-anchor="middle" fill="#fca5a5" font-size="12" font-weight="600" font-family="'Segoe UI',system-ui,sans-serif">Write-Ahead Log (WAL)</text>
+    <text x="240" y="780" text-anchor="middle" fill="#991b1b" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">wal_keep_size=256MB | Logical decoding</text>
+    <!-- WAL activity bars -->
+    <rect x="125" y="755" width="7" height="18" rx="2" fill="#ef4444" opacity="0.6">
+      <animate attributeName="height" values="8;18;8" dur="1.5s" repeatCount="indefinite"/>
+      <animate attributeName="y" values="760;755;760" dur="1.5s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="136" y="755" width="7" height="18" rx="2" fill="#ef4444" opacity="0.4">
+      <animate attributeName="height" values="14;8;14" dur="1.5s" repeatCount="indefinite" begin="0.3s"/>
+      <animate attributeName="y" values="757;760;757" dur="1.5s" repeatCount="indefinite" begin="0.3s"/>
+    </rect>
+  </g>
+
+  <!-- Standby WAL Replay -->
   <g>
-    <rect x="620" y="680" width="200" height="45" rx="8" fill="#0f172a" stroke="#3b82f6" stroke-width="1" opacity="0.7"/>
-    <text x="720" y="700" text-anchor="middle" fill="#93c5fd" font-size="10" font-weight="600" font-family="'Segoe UI',system-ui,sans-serif">WAL Replay</text>
-    <text x="720" y="715" text-anchor="middle" fill="#475569" font-size="8" font-family="'Segoe UI',system-ui,sans-serif">Continuous recovery</text>
+    <rect x="540" y="740" width="200" height="45" rx="8" fill="#0f172a" stroke="#3b82f6" stroke-width="1" opacity="0.7"/>
+    <text x="640" y="760" text-anchor="middle" fill="#93c5fd" font-size="10" font-weight="600" font-family="'Segoe UI',system-ui,sans-serif">WAL Replay</text>
+    <text x="640" y="775" text-anchor="middle" fill="#475569" font-size="8" font-family="'Segoe UI',system-ui,sans-serif">Continuous recovery</text>
   </g>
 
-  <!-- ========== DEBEZIUM SERVER ========== -->
+  <!-- ╔══════════════════════════════════════════════════════════════════╗ -->
+  <!-- ║               INFRA NAMESPACE                                    ║ -->
+  <!-- ╚══════════════════════════════════════════════════════════════════╝ -->
+  <rect x="870" y="225" width="420" height="620" rx="14" fill="none" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="6,4" opacity="0.3"/>
+  <g font-family="'Segoe UI',system-ui,sans-serif">
+    <rect x="885" y="217" width="100" height="18" rx="3" fill="#0a1a2e"/>
+    <text x="895" y="231" font-size="9" fill="#f59e0b" font-weight="700" letter-spacing="1.5" opacity="0.8">infra</text>
+  </g>
+
+  <!-- Debezium Server -->
   <g filter="url(#glow-amber)">
-    <rect x="700" y="790" width="260" height="70" rx="10" fill="#0f172a" stroke="#f59e0b" stroke-width="1.5" opacity="0.9"/>
-    <text x="830" y="818" text-anchor="middle" fill="#fcd34d" font-size="13" font-weight="600" font-family="'Segoe UI',system-ui,sans-serif">Debezium Server 3.4</text>
-    <text x="830" y="836" text-anchor="middle" fill="#92400e" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">Logical Replication Slot | Publication</text>
-    <text x="830" y="850" text-anchor="middle" fill="#78350f" font-size="8" font-family="'Segoe UI',system-ui,sans-serif">debezium_ecom_pub | autocreate=disabled</text>
+    <rect x="890" y="600" width="280" height="80" rx="10" fill="#0f172a" stroke="#f59e0b" stroke-width="1.5" opacity="0.9"/>
+    <text x="1030" y="628" text-anchor="middle" fill="#fcd34d" font-size="13" font-weight="600" font-family="'Segoe UI',system-ui,sans-serif">Debezium Server 3.4</text>
+    <text x="1030" y="646" text-anchor="middle" fill="#fbbf24" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">debezium-server-ecom | Port 8080</text>
+    <text x="1030" y="661" text-anchor="middle" fill="#92400e" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">Logical Replication Slot + Publication</text>
+    <text x="1030" y="674" text-anchor="middle" fill="#78350f" font-size="8" font-family="'Segoe UI',system-ui,sans-serif">debezium_ecom_slot | debezium_ecom_pub</text>
   </g>
 
-  <!-- ========== KAFKA ========== -->
+  <!-- Kafka -->
   <g filter="url(#glow-amber)">
-    <rect x="1080" y="560" width="240" height="80" rx="10" fill="#0f172a" stroke="#f59e0b" stroke-width="1.5" opacity="0.9"/>
-    <text x="1200" y="590" text-anchor="middle" fill="#fcd34d" font-size="14" font-weight="600" font-family="'Segoe UI',system-ui,sans-serif">Apache Kafka</text>
-    <text x="1200" y="608" text-anchor="middle" fill="#92400e" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">CDC topics + Offset topics</text>
-    <text x="1200" y="625" text-anchor="middle" fill="#78350f" font-size="8" font-family="'Segoe UI',system-ui,sans-serif">debezium.ecom.offsets (compacted)</text>
+    <rect x="920" y="370" width="310" height="100" rx="10" fill="#0f172a" stroke="#f59e0b" stroke-width="1.5" opacity="0.9"/>
+    <text x="1075" y="398" text-anchor="middle" fill="#fcd34d" font-size="14" font-weight="700" font-family="'Segoe UI',system-ui,sans-serif">Apache Kafka</text>
+    <text x="1075" y="416" text-anchor="middle" fill="#fbbf24" font-size="10" font-family="'Segoe UI',system-ui,sans-serif">KRaft Mode | Single Broker</text>
+    <text x="1075" y="435" text-anchor="middle" fill="#92400e" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">ecom-connector.public.orders</text>
+    <text x="1075" y="449" text-anchor="middle" fill="#92400e" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">ecom-connector.public.order_items</text>
+    <text x="1075" y="463" text-anchor="middle" fill="#78350f" font-size="8" font-family="'Segoe UI',system-ui,sans-serif">debezium.ecom.offsets (compacted)</text>
   </g>
 
-  <!-- ========== FLINK ========== -->
+  <!-- Debezium offset callout -->
+  <g font-family="'Segoe UI',system-ui,sans-serif">
+    <rect x="900" y="500" width="230" height="38" rx="6" fill="#0f172a" stroke="#f59e0b" stroke-width="1" opacity="0.7"/>
+    <text x="1015" y="516" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="600">KafkaOffsetBackingStore</text>
+    <text x="1015" y="530" text-anchor="middle" fill="#92400e" font-size="8">Survives pod restarts + DB failovers</text>
+  </g>
+
+  <!-- ╔══════════════════════════════════════════════════════════════════╗ -->
+  <!-- ║               ANALYTICS NAMESPACE                                ║ -->
+  <!-- ╚══════════════════════════════════════════════════════════════════╝ -->
+  <rect x="1310" y="225" width="330" height="620" rx="14" fill="none" stroke="#a855f7" stroke-width="1.2" stroke-dasharray="6,4" opacity="0.3"/>
+  <g font-family="'Segoe UI',system-ui,sans-serif">
+    <rect x="1325" y="217" width="110" height="18" rx="3" fill="#0a1a2e"/>
+    <text x="1335" y="231" font-size="9" fill="#a855f7" font-weight="700" letter-spacing="1.5" opacity="0.8">analytics</text>
+  </g>
+
+  <!-- Flink -->
   <g filter="url(#glow-purple)">
-    <rect x="1120" y="750" width="200" height="60" rx="10" fill="#0f172a" stroke="#a855f7" stroke-width="1.5" opacity="0.9"/>
-    <text x="1220" y="778" text-anchor="middle" fill="#d8b4fe" font-size="13" font-weight="600" font-family="'Segoe UI',system-ui,sans-serif">Apache Flink</text>
-    <text x="1220" y="798" text-anchor="middle" fill="#7c3aed" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">SQL CDC → analytics-db</text>
+    <rect x="1340" y="685" width="260" height="70" rx="10" fill="#0f172a" stroke="#a855f7" stroke-width="1.5" opacity="0.9"/>
+    <text x="1470" y="712" text-anchor="middle" fill="#d8b4fe" font-size="13" font-weight="700" font-family="'Segoe UI',system-ui,sans-serif">Apache Flink SQL</text>
+    <text x="1470" y="730" text-anchor="middle" fill="#7c3aed" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">4 streaming jobs | CDC sink pipeline</text>
+    <text x="1470" y="745" text-anchor="middle" fill="#6d28d9" font-size="8" font-family="'Segoe UI',system-ui,sans-serif">json format | INSERT INTO analytics views</text>
   </g>
 
-  <!-- ========== CNPG OPERATOR ========== -->
-  <g filter="url(#glow-green)">
-    <rect x="980" y="200" width="280" height="80" rx="10" fill="#0f172a" stroke="#22c55e" stroke-width="1.5" opacity="0.9"/>
-    <text x="1120" y="228" text-anchor="middle" fill="#86efac" font-size="14" font-weight="700" font-family="'Segoe UI',system-ui,sans-serif">CNPG Operator</text>
-    <text x="1120" y="248" text-anchor="middle" fill="#15803d" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">v1.25.1 | cnpg-system namespace</text>
-    <text x="1120" y="265" text-anchor="middle" fill="#475569" font-size="8" font-family="'Segoe UI',system-ui,sans-serif">Health monitoring | Auto-failover | Service updates</text>
-  </g>
-
-  <!-- ========== K8s API SERVER ========== -->
-  <g filter="url(#node-glow)">
-    <rect x="1180" y="120" width="200" height="50" rx="10" fill="#0f172a" stroke="#94a3b8" stroke-width="1.5" opacity="0.9"/>
-    <text x="1280" y="145" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="600" font-family="'Segoe UI',system-ui,sans-serif">K8s API Server</text>
-    <text x="1280" y="162" text-anchor="middle" fill="#64748b" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">Cluster CRD | Webhooks</text>
+  <!-- Analytics DB -->
+  <g filter="url(#glow-purple)">
+    <rect x="1360" y="800" width="220" height="55" rx="10" fill="#0f172a" stroke="#a855f7" stroke-width="1.2" opacity="0.9"/>
+    <text x="1470" y="824" text-anchor="middle" fill="#d8b4fe" font-size="12" font-weight="600" font-family="'Segoe UI',system-ui,sans-serif">analytics-db</text>
+    <text x="1470" y="842" text-anchor="middle" fill="#7c3aed" font-size="9" font-family="'Segoe UI',system-ui,sans-serif">CNPG HA | 10 materialized views</text>
   </g>
 
   <!-- ========== STATIC CONNECTION LINES ========== -->
   <g fill="none" stroke-linecap="round" stroke-linejoin="round" font-family="'Segoe UI',system-ui,sans-serif">
-    <!-- App → ExternalName -->
-    <line x1="400" y1="200" x2="400" y2="290" stroke="#3b82f6" stroke-width="2" marker-end="url(#arr-blue)" opacity="0.5"/>
-    <text x="415" y="250" fill="#3b82f6" font-size="8" font-weight="600">JDBC</text>
 
-    <!-- ExternalName → -rw -->
-    <line x1="400" y1="340" x2="400" y2="420" stroke="#06b6d4" stroke-width="2" marker-end="url(#arr-cyan)" opacity="0.5"/>
-    <text x="418" y="385" fill="#06b6d4" font-size="8">DNS alias</text>
+    <!-- App → ExternalName (vertical, clean) -->
+    <line x1="360" y1="307" x2="360" y2="365" stroke="#3b82f6" stroke-width="2" marker-end="url(#arr-blue)" opacity="0.5"/>
+    <text x="375" y="340" fill="#3b82f6" font-size="8" font-weight="600">JDBC</text>
 
-    <!-- -rw → Primary -->
-    <line x1="400" y1="470" x2="370" y2="530" stroke="#22c55e" stroke-width="2" marker-end="url(#arr-green)" opacity="0.5"/>
-    <text x="360" y="505" fill="#22c55e" font-size="8">route</text>
+    <!-- ExternalName → -rw (vertical, clean) -->
+    <line x1="360" y1="415" x2="360" y2="475" stroke="#06b6d4" stroke-width="2" marker-end="url(#arr-cyan)" opacity="0.5"/>
+    <text x="375" y="450" fill="#06b6d4" font-size="8">DNS alias</text>
 
-    <!-- Primary WAL write -->
-    <line x1="300" y1="620" x2="300" y2="680" stroke="#ef4444" stroke-width="2" marker-end="url(#arr-red)" opacity="0.5"/>
-    <text x="262" y="655" fill="#ef4444" font-size="8">WAL write</text>
+    <!-- -rw → Primary (angled down-left) -->
+    <path d="M320,525 L280,580" stroke="#22c55e" stroke-width="2" marker-end="url(#arr-green)" opacity="0.5"/>
+    <text x="268" y="560" fill="#22c55e" font-size="8">route</text>
 
-    <!-- Primary → Standby streaming replication -->
-    <line x1="460" y1="580" x2="600" y2="580" stroke="#3b82f6" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#arr-blue)" opacity="0.5"/>
-    <text x="530" y="570" fill="#3b82f6" font-size="8" font-weight="600">Streaming replication</text>
+    <!-- Primary → WAL (vertical) -->
+    <line x1="240" y1="670" x2="240" y2="740" stroke="#ef4444" stroke-width="2" marker-end="url(#arr-red)" opacity="0.5"/>
+    <text x="200" y="710" fill="#ef4444" font-size="8">WAL write</text>
 
-    <!-- Standby → WAL Replay -->
-    <line x1="730" y1="620" x2="730" y2="680" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arr-blue)" opacity="0.4"/>
+    <!-- Primary → Standby (horizontal, dashed) -->
+    <line x1="380" y1="630" x2="510" y2="630" stroke="#3b82f6" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#arr-blue)" opacity="0.5"/>
+    <text x="415" y="620" fill="#3b82f6" font-size="8" font-weight="600">Streaming replication</text>
 
-    <!-- WAL → Debezium -->
-    <path d="M420,720 Q550,750 700,825" stroke="#ef4444" stroke-width="2" marker-end="url(#arr-red)" opacity="0.5"/>
-    <text x="530" y="758" fill="#ef4444" font-size="8" font-weight="600">Logical decoding (WAL)</text>
+    <!-- Standby → WAL Replay (vertical) -->
+    <line x1="650" y1="670" x2="650" y2="740" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arr-blue)" opacity="0.4"/>
 
-    <!-- Debezium → Kafka (CDC events) -->
-    <path d="M960,810 Q1050,750 1120,640" stroke="#f59e0b" stroke-width="2" marker-end="url(#arr-orange)" opacity="0.5"/>
-    <text x="1020" y="730" fill="#f59e0b" font-size="8" font-weight="600">CDC events</text>
+    <!-- WAL → Debezium (clean elbow: right along bottom, then up to Debezium) -->
+    <path d="M370,775 L830,775 L830,680" stroke="#ef4444" stroke-width="2" marker-end="url(#arr-red)" opacity="0.5" fill="none"/>
+    <text x="560" y="768" fill="#ef4444" font-size="9" font-weight="600">Logical decoding (WAL CDC)</text>
 
-    <!-- Debezium → Kafka (offset storage) -->
-    <path d="M960,840 Q1100,840 1200,640" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr-orange)" opacity="0.35"/>
-    <text x="1100" y="770" fill="#92400e" font-size="7">offset storage</text>
+    <!-- Debezium → Kafka (clean vertical up) -->
+    <line x1="1030" y1="600" x2="1030" y2="470" stroke="#f59e0b" stroke-width="2" marker-end="url(#arr-orange)" opacity="0.5"/>
+    <text x="1042" y="540" fill="#f59e0b" font-size="8" font-weight="600">CDC events</text>
 
-    <!-- Kafka → Flink -->
-    <line x1="1220" y1="640" x2="1220" y2="750" stroke="#a855f7" stroke-width="2" marker-end="url(#arr-purple)" opacity="0.5"/>
-    <text x="1240" y="700" fill="#a855f7" font-size="8">consume</text>
+    <!-- Debezium → Kafka offset (dashed, parallel) -->
+    <line x1="1060" y1="600" x2="1060" y2="470" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr-orange)" opacity="0.3"/>
+    <text x="1068" y="540" fill="#92400e" font-size="7">offsets</text>
 
-    <!-- CNPG Operator → Primary -->
-    <path d="M1000,260 Q750,380 420,530" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arr-green)" opacity="0.35"/>
-    <text x="720" y="390" fill="#22c55e" font-size="7">health check</text>
+    <!-- Kafka → Flink (right then down, clean elbow) -->
+    <path d="M1230,420 L1400,420 L1400,685" stroke="#a855f7" stroke-width="2" marker-end="url(#arr-purple)" opacity="0.5" fill="none"/>
+    <text x="1280" y="412" fill="#a855f7" font-size="8" font-weight="600">consume</text>
 
-    <!-- CNPG Operator → Standby -->
-    <path d="M1020,270 Q900,400 750,530" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arr-green)" opacity="0.35"/>
-    <text x="910" y="400" fill="#22c55e" font-size="7">health check</text>
+    <!-- Flink → Analytics DB -->
+    <line x1="1470" y1="755" x2="1470" y2="800" stroke="#a855f7" stroke-width="2" marker-end="url(#arr-purple)" opacity="0.5"/>
+    <text x="1490" y="780" fill="#a855f7" font-size="8">sink</text>
 
-    <!-- K8s API → CNPG Operator -->
-    <line x1="1280" y1="170" x2="1200" y2="200" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr-white)" opacity="0.4"/>
-    <text x="1260" y="188" fill="#94a3b8" font-size="7">CRD watch</text>
+    <!-- CNPG Operator → Primary (curved, dashed) -->
+    <path d="M770,195 Q500,360 310,580" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arr-green)" opacity="0.3"/>
+    <text x="510" y="380" fill="#22c55e" font-size="7" font-weight="600">health check</text>
+
+    <!-- CNPG Operator → Standby (curved, dashed) -->
+    <path d="M850,195 Q820,380 690,580" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arr-green)" opacity="0.3"/>
+    <text x="810" y="400" fill="#22c55e" font-size="7" font-weight="600">health check</text>
+
+    <!-- K8s API → CNPG Operator (horizontal) -->
+    <line x1="1090" y1="155" x2="970" y2="155" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr-white)" opacity="0.4"/>
+    <text x="1020" y="147" fill="#94a3b8" font-size="7">CRD watch</text>
   </g>
 
   <!-- ========== ANIMATED DOTS ========== -->
@@ -368,80 +437,90 @@
   <!-- ========== ANNOTATIONS ========== -->
   <g font-family="'Segoe UI',system-ui,sans-serif">
     <!-- Callout: Zero app changes -->
-    <rect x="580" y="265" width="180" height="40" rx="6" fill="#0f172a" stroke="#06b6d4" stroke-width="1" opacity="0.8"/>
-    <text x="670" y="282" text-anchor="middle" fill="#67e8f9" font-size="9" font-weight="600">Zero App Code Changes</text>
-    <text x="670" y="296" text-anchor="middle" fill="#0891b2" font-size="8">Same hostname: ecom-db</text>
+    <rect x="510" y="340" width="185" height="40" rx="6" fill="#0f172a" stroke="#06b6d4" stroke-width="1" opacity="0.8"/>
+    <text x="602" y="357" text-anchor="middle" fill="#67e8f9" font-size="9" font-weight="600">Zero App Code Changes</text>
+    <text x="602" y="372" text-anchor="middle" fill="#0891b2" font-size="8">Same hostname: ecom-db</text>
 
     <!-- Callout: Automatic failover -->
-    <rect x="1000" y="320" width="200" height="50" rx="6" fill="#0f172a" stroke="#22c55e" stroke-width="1" opacity="0.8"/>
-    <text x="1100" y="340" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600">Automatic Failover</text>
-    <text x="1100" y="353" text-anchor="middle" fill="#15803d" font-size="8">Promotes standby → primary</text>
-    <text x="1100" y="364" text-anchor="middle" fill="#15803d" font-size="8">Updates -rw Service endpoint</text>
+    <rect x="100" y="270" width="120" height="45" rx="6" fill="#0f172a" stroke="#22c55e" stroke-width="1" opacity="0.8"/>
+    <text x="160" y="287" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600">Auto Failover</text>
+    <text x="160" y="300" text-anchor="middle" fill="#15803d" font-size="8">Standby &#8594; Primary</text>
+    <text x="160" y="311" text-anchor="middle" fill="#15803d" font-size="8">&#60; 30s recovery</text>
 
     <!-- Callout: Replication slot -->
-    <rect x="130" y="790" width="220" height="50" rx="6" fill="#0f172a" stroke="#ef4444" stroke-width="1" opacity="0.8"/>
-    <text x="240" y="808" text-anchor="middle" fill="#fca5a5" font-size="9" font-weight="600">Logical Replication Slot</text>
-    <text x="240" y="821" text-anchor="middle" fill="#991b1b" font-size="8">debezium_ecom_slot</text>
-    <text x="240" y="833" text-anchor="middle" fill="#7f1d1d" font-size="7">Retains WAL for Debezium consumer</text>
+    <rect x="100" y="800" width="220" height="38" rx="6" fill="#0f172a" stroke="#ef4444" stroke-width="1" opacity="0.8"/>
+    <text x="210" y="816" text-anchor="middle" fill="#fca5a5" font-size="9" font-weight="600">Logical Replication Slot</text>
+    <text x="210" y="830" text-anchor="middle" fill="#991b1b" font-size="8">debezium_ecom_slot | Retains WAL for CDC</text>
 
-    <!-- Callout: Offset storage -->
-    <rect x="1050" y="680" width="200" height="40" rx="6" fill="#0f172a" stroke="#f59e0b" stroke-width="1" opacity="0.8"/>
-    <text x="1150" y="697" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="600">KafkaOffsetBackingStore</text>
-    <text x="1150" y="711" text-anchor="middle" fill="#92400e" font-size="8">Survives pod restarts + failovers</text>
+    <!-- Callout: Istio mTLS -->
+    <rect x="890" y="260" width="200" height="38" rx="6" fill="#0f172a" stroke="#94a3b8" stroke-width="1" opacity="0.6"/>
+    <text x="990" y="276" text-anchor="middle" fill="#cbd5e1" font-size="9" font-weight="600">Istio Ambient Mesh</text>
+    <text x="990" y="290" text-anchor="middle" fill="#64748b" font-size="8">STRICT mTLS between all pods</text>
+
+    <!-- Callout: -ro Service -->
+    <rect x="570" y="475" width="190" height="38" rx="6" fill="#0f172a" stroke="#3b82f6" stroke-width="1" opacity="0.6"/>
+    <text x="665" y="491" text-anchor="middle" fill="#93c5fd" font-size="9" font-weight="600">ecom-db-ro (read replicas)</text>
+    <text x="665" y="505" text-anchor="middle" fill="#64748b" font-size="8">Routes to standby for read scaling</text>
   </g>
 
   <!-- ========== LEGEND ========== -->
-  <g transform="translate(100,920)" font-family="'Segoe UI',system-ui,sans-serif">
-    <rect x="-5" y="-10" width="1410" height="55" rx="8" fill="#0f172a" stroke="#1e293b" stroke-width="1" opacity="0.85"/>
+  <g transform="translate(65,965)" font-family="'Segoe UI',system-ui,sans-serif">
+    <rect x="-5" y="-10" width="1580" height="50" rx="8" fill="#0f172a" stroke="#1e293b" stroke-width="1" opacity="0.85"/>
 
-    <line x1="20" y1="18" x2="55" y2="18" stroke="#3b82f6" stroke-width="2.5"/>
-    <circle cx="40" cy="18" r="3.5" fill="#3b82f6" filter="url(#dot-glow)" opacity="0.9">
+    <line x1="15" y1="15" x2="50" y2="15" stroke="#3b82f6" stroke-width="2.5"/>
+    <circle cx="33" cy="15" r="3.5" fill="#3b82f6" filter="url(#dot-glow)" opacity="0.9">
       <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite"/>
     </circle>
-    <text x="65" y="22" fill="#94a3b8" font-size="10">JDBC / Replication</text>
+    <text x="60" y="19" fill="#94a3b8" font-size="10">JDBC / Replication</text>
 
-    <line x1="210" y1="18" x2="245" y2="18" stroke="#06b6d4" stroke-width="2.5"/>
-    <circle cx="228" cy="18" r="3.5" fill="#06b6d4" filter="url(#dot-glow)" opacity="0.9">
+    <line x1="200" y1="15" x2="235" y2="15" stroke="#06b6d4" stroke-width="2.5"/>
+    <circle cx="218" cy="15" r="3.5" fill="#06b6d4" filter="url(#dot-glow)" opacity="0.9">
       <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" begin="0.3s"/>
     </circle>
-    <text x="255" y="22" fill="#94a3b8" font-size="10">DNS Alias</text>
+    <text x="245" y="19" fill="#94a3b8" font-size="10">DNS Alias</text>
 
-    <line x1="370" y1="18" x2="405" y2="18" stroke="#22c55e" stroke-width="2.5"/>
-    <circle cx="388" cy="18" r="3.5" fill="#22c55e" filter="url(#dot-glow)" opacity="0.9">
+    <line x1="345" y1="15" x2="380" y2="15" stroke="#22c55e" stroke-width="2.5"/>
+    <circle cx="363" cy="15" r="3.5" fill="#22c55e" filter="url(#dot-glow)" opacity="0.9">
       <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" begin="0.6s"/>
     </circle>
-    <text x="415" y="22" fill="#94a3b8" font-size="10">CNPG Management</text>
+    <text x="390" y="19" fill="#94a3b8" font-size="10">CNPG Management</text>
 
-    <line x1="570" y1="18" x2="605" y2="18" stroke="#ef4444" stroke-width="2.5"/>
-    <circle cx="588" cy="18" r="3.5" fill="#ef4444" filter="url(#dot-glow)" opacity="0.9">
+    <line x1="540" y1="15" x2="575" y2="15" stroke="#ef4444" stroke-width="2.5"/>
+    <circle cx="558" cy="15" r="3.5" fill="#ef4444" filter="url(#dot-glow)" opacity="0.9">
       <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" begin="0.9s"/>
     </circle>
-    <text x="615" y="22" fill="#94a3b8" font-size="10">WAL / CDC</text>
+    <text x="585" y="19" fill="#94a3b8" font-size="10">WAL / CDC</text>
 
-    <line x1="720" y1="18" x2="755" y2="18" stroke="#f59e0b" stroke-width="2.5"/>
-    <circle cx="738" cy="18" r="3.5" fill="#f59e0b" filter="url(#dot-glow)" opacity="0.9">
+    <line x1="680" y1="15" x2="715" y2="15" stroke="#f59e0b" stroke-width="2.5"/>
+    <circle cx="698" cy="15" r="3.5" fill="#f59e0b" filter="url(#dot-glow)" opacity="0.9">
       <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" begin="1.2s"/>
     </circle>
-    <text x="765" y="22" fill="#94a3b8" font-size="10">Kafka Events</text>
+    <text x="725" y="19" fill="#94a3b8" font-size="10">Kafka Events</text>
 
-    <line x1="890" y1="18" x2="925" y2="18" stroke="#a855f7" stroke-width="2.5"/>
-    <circle cx="908" cy="18" r="3.5" fill="#a855f7" filter="url(#dot-glow)" opacity="0.9">
+    <line x1="845" y1="15" x2="880" y2="15" stroke="#a855f7" stroke-width="2.5"/>
+    <circle cx="863" cy="15" r="3.5" fill="#a855f7" filter="url(#dot-glow)" opacity="0.9">
       <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" begin="1.5s"/>
     </circle>
-    <text x="935" y="22" fill="#94a3b8" font-size="10">Flink Pipeline</text>
+    <text x="890" y="19" fill="#94a3b8" font-size="10">Flink Pipeline</text>
 
-    <line x1="1060" y1="18" x2="1095" y2="18" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,3"/>
-    <text x="1105" y="22" fill="#94a3b8" font-size="10">Health / API</text>
+    <line x1="1010" y1="15" x2="1045" y2="15" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,3"/>
+    <text x="1055" y="19" fill="#94a3b8" font-size="10">Health / API</text>
 
-    <line x1="1210" y1="18" x2="1245" y2="18" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,3"/>
-    <text x="1255" y="22" fill="#94a3b8" font-size="10">Failover Path</text>
+    <rect x="1160" y="5" width="14" height="14" rx="3" fill="none" stroke="#3b82f6" stroke-width="1.2" stroke-dasharray="4,3" opacity="0.5"/>
+    <text x="1180" y="17" fill="#94a3b8" font-size="10">Namespace</text>
+
+    <rect x="1270" y="5" width="14" height="14" rx="3" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.4"/>
+    <text x="1290" y="17" fill="#94a3b8" font-size="10">CNPG Cluster</text>
+
+    <rect x="1400" y="3" width="18" height="18" rx="3" fill="none" stroke="#475569" stroke-width="2" opacity="0.5"/>
+    <text x="1425" y="17" fill="#94a3b8" font-size="10">K8s Cluster</text>
   </g>
 
   <!-- Footer -->
-  <text x="800" y="1010" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="10" fill="#334155">
-    CloudNativePG v1.25.1  &#183;  PostgreSQL 17  &#183;  Debezium Server 3.4  &#183;  KafkaOffsetBackingStore  &#183;  Istio Ambient Mesh (excluded)
+  <text x="850" y="1060" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="10" fill="#334155">
+    CloudNativePG v1.25.1  &#183;  PostgreSQL 17  &#183;  Debezium Server 3.4  &#183;  KafkaOffsetBackingStore  &#183;  Istio Ambient Mesh mTLS
   </text>
-  <text x="800" y="1030" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9" fill="#1e293b">
-    Session 27 — PostgreSQL High Availability with CloudNativePG
+  <text x="850" y="1078" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9" fill="#1e293b">
+    BookStore Platform — Session 27: PostgreSQL High Availability with CloudNativePG
   </text>
 </svg>

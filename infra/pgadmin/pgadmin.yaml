@@ -48,7 +48,7 @@ spec:
         fsGroup: 5050
       containers:
         - name: pgadmin
-          image: dpage/pgadmin4:latest
+          image: dpage/pgadmin4:9.1
           ports:
             - containerPort: 80
           envFrom:

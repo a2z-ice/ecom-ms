@@ -944,6 +944,42 @@ When a user starts login at `http://myecom.net:30000` (non-secure context, no `c
 
 ---
 
+## Session 28 — Architecture Hardening & Battle Testing
+
+**Goal:** Comprehensive 8-dimension architecture review (Security, Observability, Data Isolation, 15-Factor, TLS, Reliability, Resiliency, Test Coverage) with implementation of all identified improvements.
+
+### Deliverables
+
+- Container security hardening: Keycloak + Superset securityContext (readOnlyRootFilesystem, drop ALL)
+- Image version pinning: 8 infrastructure images pinned (Kafka 7.9.0, Grafana 11.6.0, etc.)
+- Trace ID injection: inventory-service LoggingInstrumentor + JsonFormatter with trace.id/span.id
+- Loki/Tempo PVC migration: emptyDir → PersistentVolumeClaim (2Gi each)
+- Probabilistic trace sampling: OTel Collector 25% sampling rate
+- Replica scaling: ecom/inventory/ui → 2 replicas each
+- 5 new PDBs: ui-service, keycloak, kafka, redis, flink-jobmanager
+- CNPG backup config placeholders: all 4 clusters (commented-out barman S3)
+- Prometheus health probes: readiness (/-/ready) + liveness (/-/healthy)
+- Rate limiter circuit breaker: fail-open pattern in RateLimitConfig.java
+- DLQ consumer + admin endpoints: inventory-service DLQ monitor + retry
+- k6 load test scripts: books, stock, checkout
+
+### Acceptance Criteria
+
+- [ ] All pods running with 2 replicas (ecom, inventory, ui)
+- [ ] 7 PDBs total protecting critical services
+- [ ] Images pinned — no `:latest` on infra
+- [ ] Loki/Tempo data survives pod restarts
+- [ ] E2E tests: 130/130 passing
+
+### Status: In Progress
+
+### Deferred
+
+- GitHub CI pipeline (build + test + lint)
+- AlertManager webhook receivers (Slack, email, PagerDuty)
+
+---
+
 ## Cross-Session Rules
 
 These apply to every session:

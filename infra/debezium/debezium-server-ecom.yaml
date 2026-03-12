@@ -21,7 +21,7 @@ data:
     debezium.source.slot.name=debezium_ecom_slot
     debezium.source.publication.name=debezium_ecom_pub
     debezium.source.publication.autocreate.mode=disabled
-    debezium.source.snapshot.mode=initial
+    debezium.source.snapshot.mode=when_needed
     debezium.source.decimal.handling.mode=double
     debezium.source.time.precision.mode=connect
 

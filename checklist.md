@@ -1,4 +1,9 @@
 ```txt
+
+SECURITY, OBSERVABILITY, DATA ISOLATION, 15-FACTOR, TLS / ENCRYPTION, RELIABILITY, RESILIENCY,TEST COVERAGE
+
+
+
 The CNPG webhook is failing too — likely because cnpg-system is in the ambient mesh and the kube-apiserver can't reach it. Let me
    remove cnpg-system from the mesh: 
 

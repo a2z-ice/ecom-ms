@@ -20,11 +20,18 @@ const FLINK_URL        = 'http://localhost:32200'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-/** GET a Debezium/Flink API endpoint and return parsed JSON. */
-async function apiGet(request: import('@playwright/test').APIRequestContext, url: string) {
-  const resp = await request.get(url)
-  expect(resp.ok(), `GET ${url} → ${resp.status()}`).toBeTruthy()
-  return resp.json()
+/** GET a Debezium/Flink API endpoint and return parsed JSON (retries on ECONNRESET). */
+async function apiGet(request: import('@playwright/test').APIRequestContext, url: string, retries = 5) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const resp = await request.get(url, { timeout: 5_000 })
+      expect(resp.ok(), `GET ${url} → ${resp.status()}`).toBeTruthy()
+      return resp.json()
+    } catch (err) {
+      if (i === retries - 1) throw err
+      await new Promise(r => setTimeout(r, 3000))
+    }
+  }
 }
 
 /** Run a command inside a Kubernetes pod via kubectl exec.
@@ -51,18 +58,14 @@ function kubectlExec(namespace: string, target: string, cmd: string[]): string {
 test.describe('Debezium Server Health API', () => {
 
   test('Debezium ecom server /q/health is accessible (port 32300)', async ({ request, page }) => {
-    const resp = await request.get(`${DEBEZIUM_ECM_URL}/q/health`)
-    expect(resp.ok(), `GET ${DEBEZIUM_ECM_URL}/q/health → ${resp.status()}`).toBeTruthy()
-    const body = await resp.json()
+    const body = await apiGet(request, `${DEBEZIUM_ECM_URL}/q/health`)
     expect(body).toHaveProperty('status')
     await page.goto('about:blank')
     await page.screenshot({ path: 'screenshots/debezium-01-ecom-health-accessible.png' })
   })
 
   test('Debezium inventory server /q/health is accessible (port 32301)', async ({ request, page }) => {
-    const resp = await request.get(`${DEBEZIUM_INV_URL}/q/health`)
-    expect(resp.ok(), `GET ${DEBEZIUM_INV_URL}/q/health → ${resp.status()}`).toBeTruthy()
-    const body = await resp.json()
+    const body = await apiGet(request, `${DEBEZIUM_INV_URL}/q/health`)
     expect(body).toHaveProperty('status')
     await page.goto('about:blank')
     await page.screenshot({ path: 'screenshots/debezium-02-inventory-health-accessible.png' })

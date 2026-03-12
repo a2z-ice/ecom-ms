@@ -53,6 +53,15 @@ spec:
       max_wal_senders: "10"
       wal_keep_size: 256MB
 
+  # Sync logical replication slots from primary to standbys so they survive failover.
+  # Without this, CNPG failover loses Debezium's logical slot → permanent crash loop.
+  replicationSlots:
+    highAvailability:
+      enabled: true
+      slotPrefix: _cnpg_
+    synchronizeReplicas:
+      enabled: true
+
   bootstrap:
     initdb:
       database: ecomdb
@@ -74,6 +83,33 @@ spec:
     limits:
       cpu: 500m
       memory: 512Mi
+
+  # ── Backup Configuration (enable when S3-compatible storage is available) ──
+  # backup:
+  #   barmanObjectStore:
+  #     destinationPath: "s3://bookstore-backups/ecom-db/"
+  #     endpointURL: "https://s3.amazonaws.com"
+  #     s3Credentials:
+  #       accessKeyId:
+  #         name: backup-s3-creds
+  #         key: ACCESS_KEY_ID
+  #       secretAccessKey:
+  #         name: backup-s3-creds
+  #         key: ACCESS_SECRET_KEY
+  #     wal:
+  #       compression: gzip
+  #   retentionPolicy: "7d"
+  # ---
+  # apiVersion: postgresql.cnpg.io/v1
+  # kind: ScheduledBackup
+  # metadata:
+  #   name: ecom-db-daily-backup
+  #   namespace: ecom
+  # spec:
+  #   schedule: "0 2 * * *"
+  #   backupOwnerReference: self
+  #   cluster:
+  #     name: ecom-db
 
 ---
 # ExternalName Service alias — apps connect to "ecom-db" as before.

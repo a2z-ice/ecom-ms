@@ -26,7 +26,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: schema-registry
-          image: confluentinc/cp-schema-registry:latest
+          image: confluentinc/cp-schema-registry:7.8.0
           ports:
             - containerPort: 8081
           env:

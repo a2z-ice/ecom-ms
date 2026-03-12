@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.kafka.dlq_consumer import dlq_monitor, retry_dlq_message
 from app.middleware.auth import require_role
 from app.models.inventory import Inventory
 from app.schemas.inventory import (
@@ -157,3 +158,26 @@ async def adjust_stock(
     await db.commit()
     await db.refresh(inv)
     return _to_response(inv)
+
+
+@router.get("/dlq", tags=["Admin — DLQ"], summary="List DLQ messages")
+async def list_dlq_messages(
+    _user=Depends(require_role("admin")),
+):
+    """Returns dead-letter queue messages (last 100) and total count."""
+    return {
+        "totalCount": dlq_monitor.total_count,
+        "messages": dlq_monitor.messages,
+    }
+
+
+@router.post("/dlq/{msg_id}/retry", tags=["Admin — DLQ"], summary="Retry a DLQ message")
+async def retry_message(
+    msg_id: int,
+    _user=Depends(require_role("admin")),
+):
+    """Re-publish a DLQ message back to the source topic for reprocessing."""
+    result = await retry_dlq_message(msg_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"DLQ message #{msg_id} not found")
+    return result
