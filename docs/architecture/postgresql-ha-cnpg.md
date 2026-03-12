@@ -160,7 +160,7 @@ Animated SVG diagrams are available at:
 - `docs/diagrams/ha-postgres-debezium-animated.svg` — Complete HA architecture with CNPG, Debezium, and Kafka
 - `docs/diagrams/ha-failover-animated.svg` — 8-phase automatic failover sequence
 
-Interactive HTML version with both diagrams: `webpage/postgresql-ha.html`
+Interactive HTML version with both diagrams: `html/postgresql-ha.html`
 
 ### Key Architecture Components
 
