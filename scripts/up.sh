@@ -60,6 +60,7 @@ wait_deploy() {
 bootstrap_fresh() {
   # ── 1. Kind cluster + Istio + KGateway (~4-6 min, sequential) ───────────────
   section "Creating kind cluster 'bookstore'"
+  free_required_ports
   mkdir -p "${REPO_ROOT}/data"/{superset,kafka,redis,flink,grafana,prometheus}
   DATA_DIR="${REPO_ROOT}/data"
   sed "s|DATA_DIR|${DATA_DIR}|g" "${REPO_ROOT}/infra/kind/cluster.yaml" > /tmp/bookstore-cluster.yaml
@@ -609,6 +610,67 @@ _print_endpoints() {
   echo "  HTTP redirect: http://*:30080 → https://*:30000 (301)"
   echo "  TLS: self-signed cert. Run 'bash scripts/trust-ca.sh --install' to trust CA."
   echo "  All ports served directly via kind NodePort (no proxy containers needed)."
+}
+
+# ── Free ports required by kind extraPortMappings ─────────────────────────────
+# kind create cluster fails with "port is already allocated" if another Docker
+# container (e.g. another kind cluster) is listening on any of our host ports.
+# This function stops those containers before cluster creation.
+free_required_ports() {
+  # All hostPorts from infra/kind/cluster.yaml
+  local REQUIRED_PORTS=(30000 30080 31111 32000 32100 32200 32300 32301 32400 32500 32600)
+  local blocked_containers=()
+
+  for port in "${REQUIRED_PORTS[@]}"; do
+    # Find Docker containers binding this host port (format: "container_name")
+    local container
+    container=$(docker ps --format '{{.Names}}' --filter "publish=${port}" 2>/dev/null || true)
+    if [[ -n "$container" ]]; then
+      # Don't stop our own bookstore cluster nodes
+      if [[ "$container" != bookstore-* ]]; then
+        # Deduplicate: same container may bind multiple ports
+        local already_listed=false
+        for c in "${blocked_containers[@]+"${blocked_containers[@]}"}"; do
+          [[ "$c" == "$container" ]] && already_listed=true && break
+        done
+        $already_listed || blocked_containers+=("$container")
+      fi
+    fi
+  done
+
+  if [[ ${#blocked_containers[@]} -eq 0 ]]; then
+    info "All required ports are free."
+    return 0
+  fi
+
+  warn "The following containers are blocking required ports:"
+  for container in "${blocked_containers[@]}"; do
+    local ports
+    ports=$(docker port "$container" 2>/dev/null | grep -oE '0\.0\.0\.0:[0-9]+' | sed 's/0.0.0.0://' | sort -n | tr '\n' ',' | sed 's/,$//')
+    echo "    $container (ports: $ports)"
+  done
+
+  if ! confirm "Stop these containers to free the ports?"; then
+    err "Cannot proceed — required ports are in use. Free them manually or use --yes."
+    exit 1
+  fi
+
+  for container in "${blocked_containers[@]}"; do
+    info "Stopping $container..."
+    docker stop "$container" >/dev/null 2>&1 || warn "Failed to stop $container"
+  done
+
+  # Verify ports are now free
+  sleep 1
+  local still_blocked=false
+  for port in "${REQUIRED_PORTS[@]}"; do
+    if docker ps --format '{{.Names}}' --filter "publish=${port}" 2>/dev/null | grep -qv "^bookstore-"; then
+      err "Port $port is still in use after stopping containers"
+      still_blocked=true
+    fi
+  done
+  $still_blocked && { err "Could not free all required ports — aborting."; exit 1; }
+  info "All required ports are now free."
 }
 
 # ── Pre-flight checks ────────────────────────────────────────────────────────

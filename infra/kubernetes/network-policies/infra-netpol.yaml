@@ -290,6 +290,62 @@ spec:
         - port: 15008
 
 ---
+# Allow Kafka Exporter ingress from Prometheus (observability) for metrics scraping
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kafka-exporter-ingress
+  namespace: infra
+spec:
+  podSelector:
+    matchLabels:
+      app: kafka-exporter
+  ingress:
+    # Prometheus scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - port: 9308
+    # HBONE — Istio Ambient mTLS tunneling
+    - from: []
+      ports:
+        - port: 15008
+
+---
+# Allow Kafka Exporter egress to Kafka (reads consumer group offsets)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kafka-exporter-egress
+  namespace: infra
+spec:
+  podSelector:
+    matchLabels:
+      app: kafka-exporter
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - port: 9092
+    # DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+    # HBONE
+    - to: []
+      ports:
+        - port: 15008
+
+---
 # Allow DNS egress to kube-system for all infra pods
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

@@ -44,6 +44,25 @@ CREATE TABLE IF NOT EXISTS fact_inventory (
     synced_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- CDC parse errors table — captures malformed messages for investigation
+CREATE TABLE IF NOT EXISTS cdc_parse_errors (
+    id            BIGSERIAL PRIMARY KEY,
+    topic         VARCHAR(255) NOT NULL,
+    raw_message   TEXT,
+    error_message TEXT,
+    captured_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- CDC reconciliation log — source-to-analytics row count comparison
+CREATE TABLE IF NOT EXISTS cdc_reconciliation_log (
+    id                 BIGSERIAL PRIMARY KEY,
+    table_name         VARCHAR(255) NOT NULL,
+    source_count       BIGINT,
+    analytics_count    BIGINT,
+    drift              BIGINT,
+    checked_at         TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Views used by Superset dashboards
 
 -- Product Sales Volume: units sold per book
@@ -168,6 +187,16 @@ LEFT JOIN fact_order_items oi ON oi.book_id = b.id
 LEFT JOIN fact_orders o ON o.id = oi.order_id AND o.status != 'CANCELLED'
 GROUP BY b.id, b.title, b.author, i.quantity
 ORDER BY turnover_rate_pct DESC;
+
+-- CDC End-to-End Latency: measures DB-write → analytics-arrival latency
+CREATE OR REPLACE VIEW vw_cdc_latency AS
+SELECT
+    id,
+    created_at,
+    synced_at,
+    EXTRACT(EPOCH FROM (synced_at - created_at)) AS latency_seconds
+FROM fact_orders
+WHERE synced_at IS NOT NULL AND created_at IS NOT NULL;
 
 -- Book Price Distribution: books bucketed by price range
 CREATE OR REPLACE VIEW vw_book_price_distribution AS

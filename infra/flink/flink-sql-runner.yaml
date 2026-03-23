@@ -251,8 +251,8 @@ metadata:
   name: flink-sql-runner
   namespace: analytics
 spec:
-  # Never auto-retry — if the job fails, investigate and fix the SQL
-  backoffLimit: 0
+  # Retry up to 3 times — SQL Gateway may be temporarily unavailable during startup
+  backoffLimit: 3
   template:
     spec:
       restartPolicy: Never

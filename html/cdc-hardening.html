@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CDC Pipeline Production Hardening — BookStore Platform</title>
+  <meta property="og:title" content="CDC Pipeline Production Hardening — BookStore Platform" />
+  <meta property="og:description" content="Production-grade improvements to the CDC pipeline: Flink restart resilience, Kafka idempotent producer, consumer lag monitoring, Prometheus metrics, latency measurement, and CDC alert rules." />
+  <meta property="og:image" content="diagrams/data-flow.gif" />
+  <meta property="og:type" content="article" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #f97316, #ef4444); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 24px 0 8px; color: #cbd5e1; }
+    p { margin-bottom: 16px; color: var(--text); }
+    img { width: 100%; border-radius: 12px; border: 1px solid var(--border); margin: 16px 0 24px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.85rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.05); }
+    code { background: var(--card); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: #f59e0b; }
+    pre { background: var(--card); padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.85rem; line-height: 1.6; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+    /* Before/After comparison cards */
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0 24px; }
+    @media (max-width: 700px) { .compare-grid { grid-template-columns: 1fr; } }
+    .compare-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .compare-card.before { border-left: 4px solid #ef4444; }
+    .compare-card.after { border-left: 4px solid #10b981; }
+    .compare-card h4 { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+    .compare-card.before h4 { color: #ef4444; }
+    .compare-card.after h4 { color: #10b981; }
+    .compare-card ul { margin: 0; padding-left: 16px; }
+    .compare-card li { font-size: 0.88rem; color: var(--muted); margin-bottom: 4px; }
+    /* Callout boxes */
+    .callout { border-radius: 8px; padding: 16px 20px; margin: 16px 0 24px; border-left: 4px solid; }
+    .callout.info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+    .callout.warning { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
+    .callout.success { background: rgba(16,185,129,0.08); border-color: #10b981; }
+    .callout.danger { background: rgba(239,68,68,0.08); border-color: #ef4444; }
+    .callout strong { color: #f1f5f9; }
+    .callout p { margin-bottom: 0; font-size: 0.9rem; }
+    /* Pipeline diagram */
+    .pipeline { display: flex; align-items: center; gap: 0; margin: 20px 0 28px; flex-wrap: wrap; justify-content: center; }
+    .pipeline-node { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; text-align: center; font-size: 0.82rem; font-weight: 600; min-width: 120px; }
+    .pipeline-node.source { border-color: #3b82f6; color: #60a5fa; }
+    .pipeline-node.capture { border-color: #f59e0b; color: #fbbf24; }
+    .pipeline-node.stream { border-color: #8b5cf6; color: #a78bfa; }
+    .pipeline-node.process { border-color: #06b6d4; color: #22d3ee; }
+    .pipeline-node.sink { border-color: #10b981; color: #34d399; }
+    .pipeline-node.viz { border-color: #f97316; color: #fb923c; }
+    .pipeline-arrow { color: var(--muted); font-size: 1.2rem; padding: 0 4px; }
+    /* Alert rule cards */
+    .alert-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 16px 0 24px; }
+    .alert-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    .alert-card .alert-name { font-weight: 700; font-size: 0.92rem; margin-bottom: 6px; }
+    .alert-card .alert-name.critical { color: #ef4444; }
+    .alert-card .alert-name.warning { color: #f59e0b; }
+    .alert-card .alert-desc { font-size: 0.82rem; color: var(--muted); }
+    .alert-card code { font-size: 0.78rem; }
+    /* Metric highlight */
+    .metric-row { display: flex; gap: 16px; margin: 16px 0 24px; flex-wrap: wrap; }
+    .metric-box { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; flex: 1; min-width: 140px; text-align: center; }
+    .metric-box .metric-value { font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .metric-box .metric-label { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+  </style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="#pipeline">Pipeline</a>
+      <a href="#resilience">Resilience</a>
+      <a href="#observability">Observability</a>
+      <a href="#alerts">Alerts</a>
+      <a href="#availability">Availability</a>
+      <a href="#tests">Tests</a>
+      <a href="index.html" class="highlight">Home</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>CDC Pipeline Production Hardening</h1>
+  <p>Preventing data loss, eliminating silent corruption, and adding operational visibility to the real-time analytics pipeline</p>
+
+  <div class="badges">
+    <span class="badge green">50 E2E Tests Passing</span>
+    <span class="badge orange">Session 29</span>
+    <span class="badge purple">9 Improvements</span>
+    <span class="badge cyan">16 Files Changed</span>
+  </div>
+
+  <div class="metric-row">
+    <div class="metric-box">
+      <div class="metric-value">4</div>
+      <div class="metric-label">Alert Rules Added</div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-value">3</div>
+      <div class="metric-label">New Prometheus Targets</div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-value">2</div>
+      <div class="metric-label">New PDBs</div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-value">0</div>
+      <div class="metric-label">Silent Data Loss Paths</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="pipeline">CDC Pipeline Architecture</h2>
+
+  <div class="pipeline">
+    <div class="pipeline-node source">PostgreSQL<br><small>CNPG HA</small></div>
+    <span class="pipeline-arrow">&rarr;</span>
+    <div class="pipeline-node capture">Debezium 3.4<br><small>WAL capture</small></div>
+    <span class="pipeline-arrow">&rarr;</span>
+    <div class="pipeline-node stream">Kafka KRaft<br><small>event bus</small></div>
+    <span class="pipeline-arrow">&rarr;</span>
+    <div class="pipeline-node process">Flink SQL 1.20<br><small>stream ETL</small></div>
+    <span class="pipeline-arrow">&rarr;</span>
+    <div class="pipeline-node sink">Analytics DB<br><small>star schema</small></div>
+    <span class="pipeline-arrow">&rarr;</span>
+    <div class="pipeline-node viz">Superset<br><small>dashboards</small></div>
+  </div>
+
+  <p>The CDC (Change Data Capture) pipeline replicates every database change from the ecom and inventory PostgreSQL databases into a central analytics database in real time. Debezium Server reads the PostgreSQL WAL (Write-Ahead Log), publishes change events to Kafka, where Apache Flink transforms and loads them into a star schema for Superset dashboards.</p>
+
+  <div class="callout danger">
+    <p><strong>Problem:</strong> The existing pipeline had a solid foundation but several critical gaps that would cause data loss, silent corruption, or operational blindness at production scale. This session addresses all of them.</p>
+  </div>
+
+  <img src="diagrams/data-flow.gif" alt="CDC Data Flow — Animated" />
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="resilience">Phase 1: Prevent Data Loss</h2>
+
+  <h3>1. Flink Restart Strategy &amp; Job Submission Resilience</h3>
+
+  <div class="compare-grid">
+    <div class="compare-card before">
+      <h4>Before</h4>
+      <ul>
+        <li>SQL Runner <code>backoffLimit: 0</code> &mdash; if SQL Gateway is temporarily unavailable, pipeline never starts</li>
+        <li>No restart strategy &mdash; a transient JDBC sink failure kills streaming jobs permanently</li>
+        <li>Zero tolerance for checkpoint failures</li>
+      </ul>
+    </div>
+    <div class="compare-card after">
+      <h4>After</h4>
+      <ul>
+        <li>SQL Runner <code>backoffLimit: 3</code> &mdash; retries on cold-start timing issues</li>
+        <li><code>fixed-delay</code> restart: 10 attempts, 30s delay between retries</li>
+        <li>Tolerates up to 3 consecutive checkpoint failures before aborting</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <p><strong>Why:</strong> The Flink SQL Runner submits 4 streaming INSERT statements via SQL Gateway. During cold starts, the Gateway may not be ready when the Job runs. With <code>backoffLimit: 0</code>, the entire CDC pipeline fails permanently. The restart strategy prevents transient JDBC connection hiccups from killing long-running streaming jobs.</p>
+  </div>
+
+  <h3>2. Kafka Producer Idempotency</h3>
+
+  <div class="compare-grid">
+    <div class="compare-card before">
+      <h4>Before</h4>
+      <ul>
+        <li><code>acks=all</code> + <code>retries=3</code> but no idempotent producer</li>
+        <li>Retries after network timeout could produce duplicate <code>order.created</code> events</li>
+        <li>No <code>max.in.flight.requests.per.connection</code> cap</li>
+      </ul>
+    </div>
+    <div class="compare-card after">
+      <h4>After</h4>
+      <ul>
+        <li><code>enable.idempotence=true</code> &mdash; broker deduplicates retried messages</li>
+        <li><code>max.in.flight.requests.per.connection=5</code> &mdash; optimal for idempotent mode</li>
+        <li>Exactly-once delivery from ecom-service producer to Kafka broker</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <p><strong>Why:</strong> The ecom-service publishes <code>order.created</code> events on checkout. Without idempotency, a retry after a timeout could produce duplicate messages, leading to double-counted orders in analytics. Kafka's idempotent producer assigns sequence numbers for transparent deduplication.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="observability">Phase 2: Observability &amp; Monitoring</h2>
+
+  <h3>3. Kafka Consumer Lag Monitoring</h3>
+
+  <div class="compare-grid">
+    <div class="compare-card before">
+      <h4>Before</h4>
+      <ul>
+        <li>No visibility into whether Flink is falling behind on consumption</li>
+        <li>No Kafka broker metrics in Prometheus at all</li>
+        <li>Stale analytics dashboards undetectable</li>
+      </ul>
+    </div>
+    <div class="compare-card after">
+      <h4>After</h4>
+      <ul>
+        <li><code>kafka-exporter</code> (v1.9.0) deployed in infra namespace</li>
+        <li><code>kafka_consumergroup_lag</code> per group, topic, and partition</li>
+        <li>NetworkPolicy: Prometheus scrapes port 9308, exporter reads from Kafka 9092</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>4. Flink Prometheus Metrics Reporter</h3>
+
+  <div class="compare-grid">
+    <div class="compare-card before">
+      <h4>Before</h4>
+      <ul>
+        <li>Flink Web Dashboard (:32200) is visual only &mdash; no history, no alerting</li>
+        <li>No Flink metrics in Prometheus/Grafana</li>
+        <li>Checkpoint health invisible to monitoring</li>
+      </ul>
+    </div>
+    <div class="compare-card after">
+      <h4>After</h4>
+      <ul>
+        <li><code>flink-metrics-prometheus-1.20.0.jar</code> baked into Flink image</li>
+        <li>Prometheus reporter on port 9249 (JobManager + TaskManager)</li>
+        <li>All Flink metrics flow to Prometheus: checkpoints, throughput, GC, buffers</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>5. CDC End-to-End Latency Measurement</h3>
+
+  <div class="compare-grid">
+    <div class="compare-card before">
+      <h4>Before</h4>
+      <ul>
+        <li><code>synced_at DEFAULT NOW()</code> column exists in analytics tables</li>
+        <li>No view or dashboard to measure DB-write &rarr; analytics-arrival latency</li>
+      </ul>
+    </div>
+    <div class="compare-card after">
+      <h4>After</h4>
+      <ul>
+        <li><code>vw_cdc_latency</code> view: <code>latency_seconds = synced_at - created_at</code></li>
+        <li>Ready for P50/P95/P99 latency dashboarding in Grafana or Superset</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>6. Data Quality Tables</h3>
+  <p>Two new tables provide the schema for future data quality monitoring:</p>
+  <table>
+    <tr><th>Table</th><th>Purpose</th><th>Key Columns</th></tr>
+    <tr><td><code>cdc_parse_errors</code></td><td>Captures malformed Kafka messages dropped by <code>json.ignore-parse-errors=true</code></td><td>topic, raw_message, error_message, captured_at</td></tr>
+    <tr><td><code>cdc_reconciliation_log</code></td><td>Source-to-analytics row count comparison for drift detection</td><td>table_name, source_count, analytics_count, drift, checked_at</td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="alerts">CDC Alert Rules</h2>
+
+  <p>Four new Prometheus alert rules provide automated detection of CDC pipeline failures:</p>
+
+  <div class="alert-grid">
+    <div class="alert-card">
+      <div class="alert-name critical">FlinkJobNotRunning</div>
+      <div class="alert-desc">Flink JobManager or TaskManager is down for 2+ minutes. CDC pipeline is completely stopped.</div>
+      <p style="margin-top:8px;margin-bottom:0"><code>up{job=~"flink-*"} == 0</code></p>
+    </div>
+    <div class="alert-card">
+      <div class="alert-name warning">FlinkCheckpointsFailing</div>
+      <div class="alert-desc">More than 3 checkpoint failures in 10 minutes. Potential data loss risk if jobs crash.</div>
+      <p style="margin-top:8px;margin-bottom:0"><code>increase(...numberOfFailedCheckpoints[10m]) &gt; 3</code></p>
+    </div>
+    <div class="alert-card">
+      <div class="alert-name warning">KafkaConsumerLagHigh</div>
+      <div class="alert-desc">Flink analytics consumer is 1000+ messages behind for 5+ minutes. Dashboards showing stale data.</div>
+      <p style="margin-top:8px;margin-bottom:0"><code>kafka_consumergroup_lag &gt; 1000</code></p>
+    </div>
+    <div class="alert-card">
+      <div class="alert-name critical">DebeziumPodNotReady</div>
+      <div class="alert-desc">Debezium Server pod is not ready for 2+ minutes. CDC events are not being captured from source databases.</div>
+      <p style="margin-top:8px;margin-bottom:0"><code>kube_pod_status_ready == 0</code></p>
+    </div>
+  </div>
+
+  <div class="callout success">
+    <p><strong>Combined with existing alerts:</strong> These CDC-specific rules complement the existing <code>ServiceDown</code>, <code>HighErrorRate</code>, <code>PodRestartLoop</code>, and <code>HighLatency</code> alerts, providing full pipeline coverage from source databases through to analytics.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="availability">Phase 3: Availability</h2>
+
+  <h3>Debezium PodDisruptionBudgets</h3>
+
+  <div class="compare-grid">
+    <div class="compare-card before">
+      <h4>Before</h4>
+      <ul>
+        <li>No PDB for Debezium Server pods</li>
+        <li>Both pods could be evicted simultaneously during node drain</li>
+        <li>CDC capture stops entirely during cluster maintenance</li>
+      </ul>
+    </div>
+    <div class="compare-card after">
+      <h4>After</h4>
+      <ul>
+        <li><code>minAvailable: 1</code> PDB for debezium-server-ecom</li>
+        <li><code>minAvailable: 1</code> PDB for debezium-server-inventory</li>
+        <li>At least one Debezium pod always available during voluntary disruptions</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Bootstrap Port Conflict Resolution</h3>
+
+  <div class="compare-grid">
+    <div class="compare-card before">
+      <h4>Before</h4>
+      <ul>
+        <li><code>kind create cluster</code> fails with opaque "port already allocated" error</li>
+        <li>Manual <code>docker stop</code> required to find and stop conflicting containers</li>
+      </ul>
+    </div>
+    <div class="compare-card after">
+      <h4>After</h4>
+      <ul>
+        <li><code>free_required_ports()</code> auto-detects containers blocking any of 11 required ports</li>
+        <li>Shows container names and their bound ports, prompts to stop them</li>
+        <li>Verifies all ports are free before proceeding with cluster creation</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="debezium-discovery">Debezium Metrics: Discovery</h2>
+
+  <div class="callout warning">
+    <p><strong>Debezium Server 3.4 limitation:</strong> The Debezium Server image bundles OpenTelemetry Prometheus exporter JARs but does <strong>not</strong> include the Quarkus Micrometer extension. Setting <code>quarkus.micrometer.export.prometheus.enabled=true</code> in <code>application.properties</code> is silently ignored &mdash; <code>/q/metrics</code> returns 404.</p>
+  </div>
+
+  <p><strong>Mitigation:</strong> Consumer lag (the most critical metric) is now tracked via kafka-exporter. Pod readiness is monitored via <code>kube_pod_status_ready</code>. Full Debezium JMX metrics require a <code>jmx_exporter</code> sidecar container (deferred to a future session).</p>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="tests">E2E Test Coverage</h2>
+
+  <p>The <code>e2e/cdc-hardening.spec.ts</code> file provides <strong>50 tests</strong> across 9 suites, all passing:</p>
+
+  <table>
+    <tr><th>Suite</th><th>Tests</th><th>What It Validates</th></tr>
+    <tr><td>Flink Restart Strategy &amp; Resilience</td><td>7</td><td>backoffLimit, fixed-delay config, tolerable checkpoints, EXACTLY_ONCE, 4 running jobs</td></tr>
+    <tr><td>Kafka Producer Idempotency</td><td>2</td><td>Pod running, Spring Boot health check (validates config loaded)</td></tr>
+    <tr><td>Kafka Consumer Lag Exporter</td><td>6</td><td>Pod, service, Prometheus metrics, consumer group lag, topic metrics, NetworkPolicy</td></tr>
+    <tr><td>Debezium Health &amp; Observability</td><td>6</td><td>/q/health UP on both instances, /q/health/ready UP, Kafka-backed offset storage</td></tr>
+    <tr><td>Flink Prometheus Reporter</td><td>7</td><td>Config, container ports, service port, live metrics accessibility, NetworkPolicy</td></tr>
+    <tr><td>CDC Latency &amp; Data Quality Tables</td><td>6</td><td>vw_cdc_latency view, cdc_parse_errors schema, cdc_reconciliation_log schema</td></tr>
+    <tr><td>CDC Prometheus Alert Rules</td><td>8</td><td>All 4 alert rules present, all 3 scrape configs present</td></tr>
+    <tr><td>Debezium PDBs</td><td>4</td><td>PDB existence, minAvailable=1, correct pod selectors</td></tr>
+    <tr><td>Pipeline End-to-End Health</td><td>6</td><td>Debezium UP, Kafka reachable, 4+ Flink jobs, analytics data, PVC bound</td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="files">Files Modified</h2>
+
+  <table>
+    <tr><th>File</th><th>Change</th></tr>
+    <tr><td><code>analytics/flink/Dockerfile</code></td><td>Added flink-metrics-prometheus-1.20.0.jar</td></tr>
+    <tr><td><code>analytics/schema/analytics-ddl.sql</code></td><td>cdc_parse_errors, cdc_reconciliation_log tables, vw_cdc_latency view</td></tr>
+    <tr><td><code>ecom-service/.../KafkaConfig.java</code></td><td>Idempotent producer (enable.idempotence + max.in.flight)</td></tr>
+    <tr><td><code>infra/debezium/debezium-server-*.yaml</code></td><td>Documented Micrometer limitation</td></tr>
+    <tr><td><code>infra/flink/flink-cluster.yaml</code></td><td>Restart strategy, Prometheus reporter, port 9249</td></tr>
+    <tr><td><code>infra/flink/flink-sql-runner.yaml</code></td><td>backoffLimit: 0 &rarr; 3</td></tr>
+    <tr><td><code>infra/kafka/kafka-exporter.yaml</code></td><td><strong>New</strong> &mdash; Deployment + ClusterIP Service</td></tr>
+    <tr><td><code>infra/kubernetes/network-policies/*.yaml</code></td><td>kafka-exporter + Flink metrics scraping rules</td></tr>
+    <tr><td><code>infra/kubernetes/pdb/pdb.yaml</code></td><td>2 new Debezium PDBs</td></tr>
+    <tr><td><code>infra/observability/prometheus/prometheus.yaml</code></td><td>3 scrape configs + 4 CDC alert rules</td></tr>
+    <tr><td><code>scripts/up.sh</code>, <code>scripts/cluster-up.sh</code></td><td>free_required_ports() function</td></tr>
+    <tr><td><code>scripts/infra-up.sh</code></td><td>kafka-exporter deploy step</td></tr>
+    <tr><td><code>e2e/cdc-hardening.spec.ts</code></td><td><strong>New</strong> &mdash; 50 E2E tests</td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="future">Future Work</h2>
+
+  <table>
+    <tr><th>Item</th><th>Why Deferred</th></tr>
+    <tr><td>Debezium JMX Prometheus exporter sidecar</td><td>Requires custom sidecar; kafka-exporter covers consumer lag</td></tr>
+    <tr><td>Kafka multi-broker HA (RF=3)</td><td>Resource-intensive; requires StatefulSet migration</td></tr>
+    <tr><td>Schema Registry wiring</td><td>Deployed but unused; needs Debezium custom image</td></tr>
+    <tr><td>Flink JobManager HA</td><td>Requires RBAC for ConfigMap/lease management</td></tr>
+    <tr><td>Reconciliation CronJob</td><td>Schema ready; CronJob implementation pending</td></tr>
+    <tr><td>Transactional outbox pattern</td><td>Significant refactoring of checkout flow</td></tr>
+  </table>
+
+  <footer>
+    <p>Session 29 &mdash; CDC Pipeline Production-Grade Hardening &mdash; BookStore Platform</p>
+    <p style="margin-top: 12px;"><a href="index.html">Home</a> &middot; <a href="architecture.html">Architecture Deep Dive</a> &middot; <a href="postgresql-ha.html">PostgreSQL HA</a></p>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -21,6 +21,10 @@ RUN curl -fsSL -o postgresql-42.7.10.jar \
 RUN curl -fsSL -o kafka-clients-3.9.2.jar \
   "https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.9.2/kafka-clients-3.9.2.jar"
 
+# Prometheus metrics reporter (for Flink 1.20)
+RUN curl -fsSL -o flink-metrics-prometheus-1.20.0.jar \
+  "https://repo1.maven.org/maven2/org/apache/flink/flink-metrics-prometheus/1.20.0/flink-metrics-prometheus-1.20.0.jar"
+
 # Stage 2: Flink runtime image with connectors baked in
 # NOTE: flink-connector-jdbc has no Flink 2.x release yet; staying on Flink 1.20
 FROM flink:1.20-scala_2.12-java17
