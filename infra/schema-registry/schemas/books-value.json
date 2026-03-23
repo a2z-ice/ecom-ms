@@ -1,0 +1,44 @@
+{
+  "type": "object",
+  "title": "Debezium CDC Envelope — books",
+  "description": "CDC change event for ecom-db public.books table. Produced by Debezium Server 3.4.",
+  "properties": {
+    "before": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/BookRow" }
+      ]
+    },
+    "after": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/BookRow" }
+      ]
+    },
+    "op": {
+      "type": "string",
+      "enum": ["c", "u", "d", "r"]
+    },
+    "ts_ms": { "type": "integer" },
+    "source": { "type": "object" }
+  },
+  "required": ["op"],
+  "$defs": {
+    "BookRow": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "title": { "type": "string", "maxLength": 255 },
+        "author": { "type": "string", "maxLength": 255 },
+        "price": { "type": "number", "minimum": 0 },
+        "description": { "type": "string" },
+        "cover_url": { "type": "string" },
+        "isbn": { "type": "string", "maxLength": 20 },
+        "genre": { "type": "string", "maxLength": 100 },
+        "published_year": { "type": "integer" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "title", "author", "price"]
+    }
+  }
+}

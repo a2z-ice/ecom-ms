@@ -1,0 +1,38 @@
+{
+  "type": "object",
+  "title": "Debezium CDC Envelope — inventory",
+  "description": "CDC change event for inventory-db public.inventory table. Produced by Debezium Server 3.4.",
+  "properties": {
+    "before": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/InventoryRow" }
+      ]
+    },
+    "after": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/InventoryRow" }
+      ]
+    },
+    "op": {
+      "type": "string",
+      "enum": ["c", "u", "d", "r"]
+    },
+    "ts_ms": { "type": "integer" },
+    "source": { "type": "object" }
+  },
+  "required": ["op"],
+  "$defs": {
+    "InventoryRow": {
+      "type": "object",
+      "properties": {
+        "book_id": { "type": "string", "format": "uuid" },
+        "quantity": { "type": "integer", "minimum": 0 },
+        "reserved": { "type": "integer", "minimum": 0 },
+        "updated_at": { "type": "string" }
+      },
+      "required": ["book_id", "quantity", "reserved"]
+    }
+  }
+}

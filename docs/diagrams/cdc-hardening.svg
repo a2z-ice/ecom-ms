@@ -133,6 +133,16 @@
     <text x="1155" y="419" text-anchor="middle" fill="white" font-size="8" font-weight="800">NEW</text>
   </g>
 
+  <!-- ═══ SCHEMA REGISTRY ═══ -->
+  <g font-family="'Segoe UI',system-ui,sans-serif" filter="url(#glow)">
+    <rect x="170" y="420" width="170" height="58" rx="8" fill="rgba(139,92,246,0.06)" stroke="#8b5cf6" stroke-width="2"/>
+    <text x="255" y="443" text-anchor="middle" fill="#a78bfa" font-size="12" font-weight="700">Schema Registry</text>
+    <text x="255" y="459" text-anchor="middle" fill="#7c3aed" font-size="9">Confluent 7.8.0</text>
+    <text x="255" y="472" text-anchor="middle" fill="#6d28d9" font-size="8">6 JSON Schemas &#8226; BACKWARD</text>
+    <rect x="295" y="408" width="40" height="16" rx="8" fill="#8b5cf6"/>
+    <text x="315" y="419" text-anchor="middle" fill="white" font-size="8" font-weight="800">NEW</text>
+  </g>
+
   <!-- ═══ TIER 3: FLINK ═══ -->
   <g font-family="'Segoe UI',system-ui,sans-serif" filter="url(#glow)">
     <rect x="640" y="605" width="180" height="85" rx="10" fill="#0f172a" stroke="#a855f7" stroke-width="2"/>
@@ -225,6 +235,8 @@
     <path d="M1300,310 L1040,310 L1040,620 L820,620" stroke="#f97316" stroke-width="1.5" marker-end="url(#a-teal)" opacity="0.35" stroke-dasharray="4,3"/>
     <!-- kafka-exporter -> Kafka (reads) -->
     <line x1="1020" y1="455" x2="1000" y2="455" stroke="#10b981" stroke-width="1.5" opacity="0.35" stroke-dasharray="3,3"/>
+    <!-- Schema Registry -> Kafka (_schemas topic) -->
+    <path d="M340,450 L520,450 L520,420 L820,420" stroke="#8b5cf6" stroke-width="1.5" opacity="0.35" stroke-dasharray="4,3"/>
     <!-- Prometheus -> Alert Rules -->
     <path d="M1400,200 L1400,185 L1350,185" stroke="#ef4444" stroke-width="1.5" opacity="0.35" stroke-dasharray="3,3"/>
   </g>

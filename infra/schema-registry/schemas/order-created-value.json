@@ -1,0 +1,25 @@
+{
+  "type": "object",
+  "title": "Application Event — order.created",
+  "description": "Published by ecom-service on checkout. Consumed by inventory-service for stock deduction.",
+  "properties": {
+    "orderId": { "type": "string", "format": "uuid" },
+    "userId": { "type": "string" },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "bookId": { "type": "string", "format": "uuid" },
+          "quantity": { "type": "integer", "minimum": 1 },
+          "price": { "type": "number", "minimum": 0 }
+        },
+        "required": ["bookId", "quantity", "price"]
+      },
+      "minItems": 1
+    },
+    "total": { "type": "number", "minimum": 0 },
+    "timestamp": { "type": "string", "format": "date-time" }
+  },
+  "required": ["orderId", "userId", "items", "total", "timestamp"]
+}

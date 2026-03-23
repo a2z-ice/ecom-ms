@@ -418,7 +418,7 @@
     <tr><th>Item</th><th>Why Deferred</th></tr>
     <tr><td>Debezium JMX Prometheus exporter sidecar</td><td>Requires custom sidecar; kafka-exporter covers consumer lag</td></tr>
     <tr><td>Kafka multi-broker HA (RF=3)</td><td>Resource-intensive; requires StatefulSet migration</td></tr>
-    <tr><td>Schema Registry wiring</td><td>Deployed but unused; needs Debezium custom image</td></tr>
+    <tr><td><s>Schema Registry wiring</s></td><td><strong>DONE</strong> &mdash; 6 JSON Schemas registered. See <a href="schema-registry.html" style="color:var(--accent)">Schema Registry Guide</a></td></tr>
     <tr><td>Flink JobManager HA</td><td>Requires RBAC for ConfigMap/lease management</td></tr>
     <tr><td>Reconciliation CronJob</td><td>Schema ready; CronJob implementation pending</td></tr>
     <tr><td>Transactional outbox pattern</td><td>Significant refactoring of checkout flow</td></tr>
