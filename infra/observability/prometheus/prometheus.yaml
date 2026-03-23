@@ -112,6 +112,39 @@ data:
           - targets: ['istiod.istio-system.svc.cluster.local:15014']
         metrics_path: '/metrics'
 
+      # ── Kafka Exporter — consumer group lag and topic metrics ──────────
+      - job_name: 'kafka-exporter'
+        static_configs:
+          - targets: ['kafka-exporter.infra.svc.cluster.local:9308']
+        metrics_path: '/metrics'
+
+      # ── Debezium Server health probes (no Prometheus metrics — Server 3.4
+      #    bundles OTel exporter JARs but lacks Quarkus Micrometer extension;
+      #    full /q/metrics requires jmx_exporter sidecar — deferred) ──────
+      # Consumer lag is monitored via kafka-exporter above.
+      # Health checked via Kubernetes probes (/q/health/ready, /q/health/live).
+
+      # ── Flink Prometheus metrics ───────────────────────────────────────
+      - job_name: 'flink-jobmanager'
+        static_configs:
+          - targets: ['flink-jobmanager.analytics.svc.cluster.local:9249']
+        metrics_path: '/metrics'
+
+      - job_name: 'flink-taskmanager'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: [analytics]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: flink-taskmanager
+          - source_labels: [__meta_kubernetes_pod_ip]
+            action: replace
+            target_label: __address__
+            replacement: '$1:9249'
+        metrics_path: '/metrics'
+
       # ── Istio data-plane metrics — ztunnel DaemonSet (Ambient Mesh L4) ─
       - job_name: 'ztunnel'
         kubernetes_sd_configs:
@@ -274,6 +307,40 @@ data:
               severity: critical
             annotations:
               summary: "{{ $labels.job }} is down"
+
+      - name: cdc_alerts
+        rules:
+          - alert: FlinkJobNotRunning
+            expr: up{job=~"flink-jobmanager|flink-taskmanager"} == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Flink {{ $labels.job }} is down — CDC pipeline stopped"
+
+          - alert: FlinkCheckpointsFailing
+            expr: increase(flink_jobmanager_job_numberOfFailedCheckpoints[10m]) > 3
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Flink checkpoints failing — potential data loss risk"
+
+          - alert: KafkaConsumerLagHigh
+            expr: kafka_consumergroup_lag{group="flink-analytics-consumer"} > 1000
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Kafka consumer lag high on topic {{ $labels.topic }} ({{ $value }} messages behind)"
+
+          - alert: DebeziumPodNotReady
+            expr: kube_pod_status_ready{namespace="infra",pod=~"debezium-server-.*"} == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Debezium pod {{ $labels.pod }} is not ready — CDC events not captured"
 
 ---
 apiVersion: v1

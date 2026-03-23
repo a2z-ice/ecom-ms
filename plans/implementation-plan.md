@@ -980,6 +980,40 @@ When a user starts login at `http://myecom.net:30000` (non-secure context, no `c
 
 ---
 
+## Session 29 — CDC Pipeline Production-Grade Hardening
+
+**Goal:** Harden the CDC pipeline against data loss, silent corruption, and operational blindness. Flink restart resilience, Kafka producer idempotency, full CDC observability stack (Debezium metrics, Kafka consumer lag, Flink Prometheus), CDC latency measurement, CDC alerts, and Debezium PDBs.
+
+### Deliverables
+
+- Flink restart strategy: fixed-delay (10 attempts, 30s), tolerable failed checkpoints (3), SQL runner backoffLimit 3
+- Kafka idempotent producer: `enable.idempotence=true` + `max.in.flight.requests.per.connection=5`
+- Kafka Exporter: `danielqsj/kafka-exporter:v1.9.0` in infra namespace, Prometheus scrape config
+- Debezium Prometheus metrics: Micrometer enabled on both Debezium Server instances (`/q/metrics`)
+- Flink Prometheus reporter: `flink-metrics-prometheus` JAR baked into Flink image, port 9249
+- CDC latency view: `vw_cdc_latency` in analytics DDL
+- CDC tables: `cdc_parse_errors`, `cdc_reconciliation_log` for future DLQ and reconciliation use
+- CDC alert rules: FlinkJobNotRunning, FlinkCheckpointsFailing, KafkaConsumerLagHigh, DebeziumDown, DebeziumStreamingLagHigh
+- Debezium PDBs: `minAvailable: 1` for both ecom and inventory
+- NetworkPolicy updates: kafka-exporter ingress/egress, Flink metrics scraping from Prometheus
+
+### Acceptance Criteria
+
+- [x] `backoffLimit: 3` on flink-sql-runner Job
+- [x] Flink restart strategy in JobManager + TaskManager
+- [x] Kafka producer idempotency enabled
+- [x] kafka-exporter deployment + service created
+- [x] Debezium `/q/metrics` Prometheus endpoint configured
+- [x] Flink Prometheus metrics on port 9249
+- [x] `vw_cdc_latency` view in analytics DDL
+- [x] 5 CDC alert rules in Prometheus
+- [x] 2 Debezium PDBs
+- [x] NetworkPolicies updated for all new scrape targets
+
+### Status: Complete
+
+---
+
 ## Cross-Session Rules
 
 These apply to every session:

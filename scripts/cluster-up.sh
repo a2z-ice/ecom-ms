@@ -21,17 +21,64 @@ warning() { echo -e "${YELLOW}WARN:${NC} $*"; }
 
 # ── Preflight checks ────────────────────────────────────────────────────────
 info "Checking prerequisites..."
-for cmd in kind kubectl helm istioctl; do
+for cmd in kind kubectl helm istioctl docker; do
   if ! command -v "$cmd" &>/dev/null; then
     echo "ERROR: '$cmd' not found on PATH. Please install it before running this script."
     exit 1
   fi
 done
 
+# ── Free ports required by kind extraPortMappings ─────────────────────────────
+# kind create cluster fails with "port is already allocated" if another Docker
+# container (e.g. another kind cluster) is listening on any of our host ports.
+free_required_ports() {
+  local REQUIRED_PORTS=(30000 30080 31111 32000 32100 32200 32300 32301 32400 32500 32600)
+  local blocked_containers=()
+
+  for port in "${REQUIRED_PORTS[@]}"; do
+    local container
+    container=$(docker ps --format '{{.Names}}' --filter "publish=${port}" 2>/dev/null || true)
+    if [[ -n "$container" && "$container" != ${CLUSTER_NAME}-* ]]; then
+      local already_listed=false
+      for c in "${blocked_containers[@]+"${blocked_containers[@]}"}"; do
+        [[ "$c" == "$container" ]] && already_listed=true && break
+      done
+      $already_listed || blocked_containers+=("$container")
+    fi
+  done
+
+  if [[ ${#blocked_containers[@]} -eq 0 ]]; then
+    info "All required ports are free."
+    return 0
+  fi
+
+  warning "The following containers are blocking required ports:"
+  for container in "${blocked_containers[@]}"; do
+    local ports
+    ports=$(docker port "$container" 2>/dev/null | grep -oE '0\.0\.0\.0:[0-9]+' | sed 's/0.0.0.0://' | sort -n | tr '\n' ',' | sed 's/,$//')
+    echo "    $container (ports: $ports)"
+  done
+
+  local ans
+  read -r -p "Stop these containers to free the ports? [y/N] " ans
+  if [[ ! "$ans" =~ ^[Yy] ]]; then
+    echo "ERROR: Cannot proceed — required ports are in use. Free them manually."
+    exit 1
+  fi
+
+  for container in "${blocked_containers[@]}"; do
+    info "Stopping $container..."
+    docker stop "$container" >/dev/null 2>&1 || warning "Failed to stop $container"
+  done
+  sleep 1
+  info "Ports freed."
+}
+
 # ── 1. Create kind cluster ──────────────────────────────────────────────────
 if kind get clusters 2>/dev/null | grep -q "^${CLUSTER_NAME}$"; then
   info "kind cluster '${CLUSTER_NAME}' already exists, skipping creation."
 else
+  free_required_ports
   info "Creating kind cluster '${CLUSTER_NAME}'..."
   # Create data directories so extraMounts have valid host paths
   DATA_DIR="${REPO_ROOT}/data"

@@ -50,6 +50,12 @@ data:
     # HTTP port (Quarkus health API)
     quarkus.http.port=8080
 
+    # Prometheus metrics — Debezium Server 3.4 bundles OTel Prometheus exporter
+    # but not Quarkus Micrometer extension. Metrics available via /q/health
+    # and JMX. Full Prometheus scraping requires jmx_exporter sidecar (future).
+    # quarkus.micrometer.export.prometheus.enabled=true
+    # quarkus.micrometer.export.prometheus.path=/q/metrics
+
 ---
 # Deployment — Debezium Server inventory instance
 apiVersion: apps/v1

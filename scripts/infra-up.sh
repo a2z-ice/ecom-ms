@@ -64,7 +64,12 @@ kubectl delete job kafka-topic-init -n infra --ignore-not-found
 kubectl apply -f "${REPO_ROOT}/infra/kafka/kafka-topics-init.yaml"
 kubectl wait --for=condition=complete job/kafka-topic-init -n infra --timeout=300s
 
-# ── 3b. Schema Registry ───────────────────────────────────────────────────────
+# ── 3b. Kafka Exporter (Prometheus metrics for consumer lag) ─────────────────
+info "Deploying Kafka Exporter..."
+kubectl apply -f "${REPO_ROOT}/infra/kafka/kafka-exporter.yaml"
+wait_deployment kafka-exporter infra
+
+# ── 3c. Schema Registry ───────────────────────────────────────────────────────
 info "Deploying Schema Registry..."
 kubectl apply -f "${REPO_ROOT}/infra/schema-registry/schema-registry.yaml"
 wait_deployment schema-registry infra
