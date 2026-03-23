@@ -59,6 +59,55 @@ npm run test:headed               # headed browser
 npm run report                    # open last HTML report
 ```
 
+### Running a Single Test
+
+```bash
+# Maven — single test class or method
+cd ecom-service
+mvn test -Dtest=BookControllerTest
+mvn test -Dtest=BookControllerTest#testGetBooks
+
+# pytest — single file or test function
+cd inventory-service
+poetry run pytest tests/test_stock.py
+poetry run pytest tests/test_stock.py::test_get_stock -v
+
+# Playwright — single spec file or grep by test name
+cd e2e
+npx playwright test checkout.spec.ts
+npx playwright test -g "should display book catalog"
+npx playwright test checkout.spec.ts --headed    # watch it run
+```
+
+### Debugging Quick Reference
+
+```bash
+# Pod logs (follow)
+kubectl logs -n ecom deploy/ecom-service -f
+kubectl logs -n inventory deploy/inventory-service -f
+kubectl logs -n identity deploy/keycloak -f
+
+# DB shell access (via CNPG primary pod)
+kubectl exec -n ecom -it ecom-db-1 -- psql -U ecom
+kubectl exec -n inventory -it inventory-db-1 -- psql -U inventory
+kubectl exec -n analytics -it analytics-db-1 -- psql -U analytics
+
+# Kafka topics and consumer groups
+kubectl exec -n infra deploy/kafka -- /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+kubectl exec -n infra deploy/kafka -- /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list
+
+# Debezium health
+curl -s http://localhost:32300/q/health | jq .   # ecom
+curl -s http://localhost:32301/q/health | jq .   # inventory
+
+# Flink jobs
+curl -s http://localhost:32200/jobs | jq .
+
+# Gateway endpoint check (self-signed TLS — always use -sk)
+curl -sk https://api.service.net:30000/ecom/books | jq .
+curl -sk https://api.service.net:30000/inven/health
+```
+
 ### Cluster Lifecycle
 
 **Recommended — use the smart master script:**
@@ -127,6 +176,24 @@ See `docs/operations/restart-app.md` for the full explanation and root cause ana
 - **Messaging**: Kafka for event streaming; Debezium for CDC from all PostgreSQL DBs
 - **Session/CSRF/Rate-limiting**: Central Redis instance
 - **Reporting**: Apache Superset connected to the central analytics PostgreSQL
+
+### NodePort Map
+
+All ports exposed via kind `extraPortMappings` on control-plane node. Declared in `infra/kind/cluster.yaml`. Adding new ports requires `up.sh --fresh`.
+
+| Service | NodePort | Host URL |
+|---------|----------|----------|
+| Main Gateway (HTTPS) | 30000 | `https://myecom.net:30000` |
+| HTTP→HTTPS Redirect | 30080 | `http://*:30080` → 301 → `https://*:30000` |
+| PgAdmin | 31111 | `http://localhost:31111` |
+| Superset | 32000 | `http://localhost:32000` |
+| Kiali | 32100 | `http://localhost:32100/kiali` |
+| Flink | 32200 | `http://localhost:32200` |
+| Debezium ecom | 32300 | `http://localhost:32300/q/health` |
+| Debezium inventory | 32301 | `http://localhost:32301/q/health` |
+| Keycloak Admin | 32400 | `http://localhost:32400/admin` |
+| Grafana | 32500 | `http://localhost:32500` |
+| Cert Dashboard | 32600 | `http://localhost:32600` |
 
 ### Data Flow
 
@@ -458,93 +525,17 @@ Individual session files for chunk-by-chunk reading: `plans/session-01-*.md` thr
 
 ---
 
-## Current Implementation State (as of 2026-03-11)
+## Current Implementation State
 
-**Sessions 1–27 in progress. E2E: 130/130 passing.**
+Mutable runtime state (pod status, session history, verification checklist, next session pointer) is tracked in `docs/architecture/cluster-state.md`. Session-by-session history is in `docs/architecture/session-history.md`.
 
-### Cluster: `bookstore` (kind, 3 nodes) — RUNNING
+**Quick status check:** `bash scripts/smoke-test.sh` or `bash scripts/sanity-test.sh`
 
-| Namespace | Service | Status |
-|---|---|---|
-| ecom | ecom-service | Running ✓ |
-| ecom | ui-service | Running ✓ |
-| ecom | ecom-db (CNPG 2 instances) | Running ✓ |
-| inventory | inventory-service | Running ✓ |
-| inventory | inventory-db (CNPG 2 instances) | Running ✓ |
-| identity | keycloak | Running ✓ |
-| identity | keycloak-db (CNPG 2 instances) | Running ✓ |
-| identity | keycloak-realm-import | Completed ✓ |
-| infra | kafka (KRaft) | Running ✓ |
-| infra | debezium-server-ecom | Running ✓ (Debezium Server 3.4, health at :32300/q/health) |
-| infra | debezium-server-inventory | Running ✓ (Debezium Server 3.4, health at :32301/q/health) |
-| infra | redis | Running ✓ |
-| infra | pgadmin | Running ✓ |
-| analytics | analytics-db (CNPG 2 instances) | Running ✓ |
-| analytics | flink-jobmanager | Running ✓ |
-| analytics | flink-taskmanager | Running ✓ |
-| analytics | superset | Running ✓ |
-| observability | prometheus | Running ✓ |
-| cnpg-system | cnpg-controller-manager | Running ✓ (v1.25.1, manages all 4 DB clusters) |
-| cert-manager | cert-manager | Running ✓ (v1.17.2, self-signed CA) |
-| istio-system | kiali | Running ✓ (Prometheus connected) |
-
-### Verified
-- `GET https://api.service.net:30000/ecom/books` → 200 with 10 seeded books (use `curl -sk`) ✓
-- TLS: cert-manager self-signed CA → gateway cert (30d rotation, 7d renewBefore) ✓
-- HTTP→HTTPS redirect: `http://*:30080` → 301 → `https://*:30000` ✓
-- Keycloak realm `bookstore` imported ✓, JWT validation working ✓
-- CDC pipeline: Debezium Server → Kafka → Flink SQL → analytics-db ✓
-- Flink REST API `/jobs` shows 4 streaming jobs in RUNNING state ✓
-- Flink Web Dashboard: `http://localhost:32200` (kind hostPort, NodePort 32200) ✓
-- Debezium ecom health: `http://localhost:32300/q/health` → `{"status":"UP"}` ✓
-- Debezium inventory health: `http://localhost:32301/q/health` → `{"status":"UP"}` ✓
-- Superset: 3 dashboards, 16 charts (Book Store Analytics, Sales & Revenue Analytics, Inventory Analytics) ✓
-- Analytics DB: 10 views (`\dv vw_*`) ✓
-- Kiali: traffic graph populated (10 nodes, 12 edges for ecom+inventory), Prometheus scraping ztunnel + istiod ✓
-- **E2E tests: 130/130 passing** ✓ (Sessions 1–22 complete)
-- ecom-service → inventory-service synchronous mTLS reserve call on checkout ✓
-- All Istio AuthorizationPolicies L4-only (ztunnel-compatible) ✓
-
-### NodePort Map
-
-All ports are exposed directly via kind `extraPortMappings` on the control-plane node — no proxy containers needed.
-
-| Service | NodePort | Host URL |
-|---------|----------|----------|
-| Main Gateway (HTTPS) | 30000 | `https://myecom.net:30000` |
-| HTTP→HTTPS Redirect | 30080 | `http://*:30080` → 301 → `https://*:30000` |
-| PgAdmin | 31111 | `http://localhost:31111` |
-| Superset | 32000 | `http://localhost:32000` |
-| Kiali | 32100 | `http://localhost:32100/kiali` |
-| Flink | 32200 | `http://localhost:32200` |
-| Debezium ecom | 32300 | `http://localhost:32300/q/health` |
-| Debezium inventory | 32301 | `http://localhost:32301/q/health` |
-| Keycloak Admin | 32400 | `http://localhost:32400/admin` |
-| Grafana | 32500 | `http://localhost:32500` |
-| Cert Dashboard | 32600 | `http://localhost:32600` |
-
-All 12 ports are declared in `infra/kind/cluster.yaml` under `extraPortMappings` on the `control-plane` role node. kind binds them directly from host to the container port — no socat or proxy containers required. Port 30080 was added for HTTP→HTTPS redirect, port 32600 for cert-dashboard (`up.sh --fresh` required for new port mappings).
-
-### Session History (Sessions 14–25)
-
-Detailed per-session implementation history is in `docs/architecture/session-history.md`.
-
-Key facts:
-- Sessions 1–27 (27 in progress). E2E: 130/130 passing.
-- **Session 27**: CloudNativePG HA — 4 CNPG clusters (2 instances each), ExternalName aliases, Kafka offset storage for Debezium
-- Flink CDC: Debezium Server 3.4 → Kafka → Flink SQL → analytics-db → Superset (3 dashboards, 16 charts)
+Key implementation facts that affect patterns:
 - Flink SQL uses plain `json` format (NOT `debezium-json`). `WHERE after IS NOT NULL` skips deletes/tombstones.
 - Admin panel: `admin1`/`CHANGE_ME` (customer+admin roles), ecom `/admin/books` + `/admin/orders`, inventory `/admin/stock`
 - OIDC: dynamic `redirect_uri = ${window.location.origin}/callback`, `crypto.subtle` check for PKCE fallback
-- Stock UI: `/inven/stock/bulk?book_ids=...`, StockBadge component (gray/red/orange/green)
-- TLS: cert-manager v1.17.2, self-signed CA (10yr) → leaf cert (30d, 7d renewBefore)
-- Cert Dashboard: Go operator at NodePort 32600, SSE renewal, TokenReview auth
-- DB storage: CNPG uses kind `standard` StorageClass (dynamic PVC). Non-DB PVCs still use host `data/` dirs.
 - Superset working viz types: `echarts_timeseries_bar`, `echarts_timeseries_line`, `pie`, `table`, `big_number_total` (NOT `echarts_bar`/`echarts_pie`)
-
-### NEXT SESSION — Start Here
-
-**Session 27 in progress.** CloudNativePG HA migration. Run `bash scripts/up.sh --fresh --yes` to deploy.
 
 ---
 
