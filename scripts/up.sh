@@ -224,6 +224,14 @@ bootstrap_fresh() {
   kubectl apply -f "${REPO_ROOT}/infra/kafka/kafka-topics-init.yaml"
   kubectl wait --for=condition=complete job/kafka-topic-init -n infra --timeout=300s
 
+  # ── 5b. Schema Registry + JSON Schema registration ─────────────────────────
+  info "Deploying Schema Registry..."
+  kubectl apply -f "${REPO_ROOT}/infra/schema-registry/schema-registry.yaml"
+  wait_deploy schema-registry infra
+  info "Registering JSON Schemas..."
+  bash "${REPO_ROOT}/infra/schema-registry/register-schemas.sh" || \
+    warn "Schema registration failed — non-fatal, continuing"
+
   # ── 6. Debezium Server + PgAdmin ─────────────────────────────────────────────
   section "Deploying Debezium Server (ecom + inventory) + PgAdmin"
   # Debezium Server pods run in `infra` namespace; DB secrets live in `ecom`/`inventory`.

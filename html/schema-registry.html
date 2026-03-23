@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Schema Registry Guide — BookStore Platform</title>
+  <meta property="og:title" content="Schema Registry Guide — BookStore Platform" />
+  <meta property="og:description" content="Confluent Schema Registry 7.8.0 with JSON Schemas for all CDC and application Kafka topics. Centralized schema governance, versioning, and backward compatibility." />
+  <meta property="og:type" content="article" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #8b5cf6, #06b6d4); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 24px 0 8px; color: #cbd5e1; }
+    p { margin-bottom: 16px; color: var(--text); }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.85rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.05); }
+    code { background: var(--card); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: #f59e0b; }
+    pre { background: var(--card); padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.85rem; line-height: 1.6; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+    .callout { border-radius: 8px; padding: 16px 20px; margin: 16px 0 24px; border-left: 4px solid; }
+    .callout.info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+    .callout.success { background: rgba(16,185,129,0.08); border-color: #10b981; }
+    .callout.warning { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
+    .callout strong { color: #f1f5f9; }
+    .callout p { margin-bottom: 0; font-size: 0.9rem; }
+    .step { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 16px 0; }
+    .step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .step-num { background: linear-gradient(135deg, #8b5cf6, #06b6d4); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.9rem; flex-shrink: 0; }
+    .step-title { font-weight: 700; font-size: 1rem; color: #f1f5f9; }
+    .step p { font-size: 0.9rem; color: var(--muted); }
+    .step pre { margin-top: 8px; }
+    .expected { color: #10b981; font-size: 0.85rem; margin-top: 8px; }
+    .metric-row { display: flex; gap: 16px; margin: 16px 0 24px; flex-wrap: wrap; }
+    .metric-box { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; flex: 1; min-width: 140px; text-align: center; }
+    .metric-box .metric-value { font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #8b5cf6, #06b6d4); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .metric-box .metric-label { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+  </style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="#overview">Overview</a>
+      <a href="#schemas">Schemas</a>
+      <a href="#manual-test">Manual Testing</a>
+      <a href="#e2e">E2E Tests</a>
+      <a href="#troubleshooting">Troubleshooting</a>
+      <a href="index.html" class="highlight">Home</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>Schema Registry Guide</h1>
+  <p>Centralized schema governance for all Kafka topics in the CDC pipeline</p>
+
+  <div class="badges">
+    <span class="badge green">24 E2E Tests Passing</span>
+    <span class="badge purple">Confluent 7.8.0</span>
+    <span class="badge orange">6 JSON Schemas</span>
+    <span class="badge cyan">BACKWARD Compatible</span>
+  </div>
+
+  <div class="metric-row">
+    <div class="metric-box"><div class="metric-value">6</div><div class="metric-label">Registered Schemas</div></div>
+    <div class="metric-box"><div class="metric-value">4</div><div class="metric-label">CDC Topic Schemas</div></div>
+    <div class="metric-box"><div class="metric-value">2</div><div class="metric-label">App Event Schemas</div></div>
+    <div class="metric-box"><div class="metric-value">24</div><div class="metric-label">E2E Tests</div></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="overview">What the Schema Registry Provides</h2>
+
+  <table>
+    <tr><th>Capability</th><th>Description</th></tr>
+    <tr><td><strong>Schema Catalog</strong></td><td>Central repository of all event schemas &mdash; single source of truth for CDC and application events</td></tr>
+    <tr><td><strong>Versioning</strong></td><td>Every schema change creates a new version; full history retained for auditing</td></tr>
+    <tr><td><strong>Compatibility</strong></td><td>BACKWARD compatibility enforced &mdash; new schemas can always read data written by old schemas</td></tr>
+    <tr><td><strong>Validation</strong></td><td>REST API allows producers/consumers to validate messages against registered schemas</td></tr>
+    <tr><td><strong>Documentation</strong></td><td>Each schema includes title, description, field types, constraints, and required fields</td></tr>
+  </table>
+
+  <div class="callout info">
+    <p><strong>Deployment:</strong> Confluent Schema Registry 7.8.0 runs as a ClusterIP service in the <code>infra</code> namespace at <code>schema-registry.infra.svc.cluster.local:8081</code>. It uses Kafka as its backend store (topic: <code>_schemas</code>). NetworkPolicies restrict access to infra-namespace pods only.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="schemas">Registered Schemas</h2>
+
+  <h3>CDC Topics (Debezium Change Events)</h3>
+  <table>
+    <tr><th>Subject</th><th>Source Table</th><th>Key Fields</th></tr>
+    <tr><td><code>ecom-connector.public.orders-value</code></td><td>ecom-db.public.orders</td><td>id, user_id, total, status, created_at</td></tr>
+    <tr><td><code>ecom-connector.public.order_items-value</code></td><td>ecom-db.public.order_items</td><td>id, order_id, book_id, quantity, price_at_purchase</td></tr>
+    <tr><td><code>ecom-connector.public.books-value</code></td><td>ecom-db.public.books</td><td>id, title, author, price, isbn, genre</td></tr>
+    <tr><td><code>inventory-connector.public.inventory-value</code></td><td>inventory-db.public.inventory</td><td>book_id, quantity, reserved, updated_at</td></tr>
+  </table>
+
+  <p>All CDC schemas follow the <strong>Debezium envelope format</strong>:</p>
+  <pre><code>{
+  "before": null | { &lt;row data&gt; },
+  "after":  null | { &lt;row data&gt; },
+  "op": "c|u|d|r",
+  "ts_ms": 1234567890,
+  "source": { ... }
+}</code></pre>
+
+  <h3>Application Event Topics</h3>
+  <table>
+    <tr><th>Subject</th><th>Producer</th><th>Consumer</th><th>Key Fields</th></tr>
+    <tr><td><code>order.created-value</code></td><td>ecom-service</td><td>inventory-service</td><td>orderId, userId, items[], total, timestamp</td></tr>
+    <tr><td><code>inventory.updated-value</code></td><td>inventory-service</td><td>analytics pipeline</td><td>bookId, previousQuantity, newQuantity, orderId, timestamp</td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="manual-test">Step-by-Step Manual Testing Guide</h2>
+
+  <div class="callout warning">
+    <p><strong>Prerequisites:</strong> Cluster running (<code>bash scripts/up.sh</code>) and Schema Registry pod in Running state (<code>kubectl get pod -n infra -l app=schema-registry</code>).</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">1</div><div class="step-title">Verify Schema Registry is Healthy</div></div>
+    <pre><code>kubectl exec -n infra deploy/schema-registry -- \
+  curl -sf http://localhost:8081/subjects</code></pre>
+    <p class="expected">Expected: JSON array of subject names (e.g. <code>["ecom-connector.public.orders-value", ...]</code>)</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">2</div><div class="step-title">Register Schemas (if not already done)</div></div>
+    <pre><code>bash infra/schema-registry/register-schemas.sh</code></pre>
+    <p class="expected">Expected: "6 registered, 0 failed"</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">3</div><div class="step-title">List All Registered Subjects</div></div>
+    <pre><code>kubectl exec -n infra deploy/schema-registry -- \
+  curl -sf http://localhost:8081/subjects | python3 -m json.tool</code></pre>
+    <p class="expected">Expected: 6 subjects listed alphabetically</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">4</div><div class="step-title">View Schema Versions</div></div>
+    <pre><code>kubectl exec -n infra deploy/schema-registry -- \
+  curl -sf http://localhost:8081/subjects/ecom-connector.public.orders-value/versions</code></pre>
+    <p class="expected">Expected: <code>[1]</code></p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">5</div><div class="step-title">Retrieve Latest Schema Content</div></div>
+    <pre><code>kubectl exec -n infra deploy/schema-registry -- \
+  curl -sf http://localhost:8081/subjects/ecom-connector.public.orders-value/versions/latest \
+  | python3 -c "import sys,json; schema=json.loads(json.load(sys.stdin)['schema']); print(json.dumps(schema, indent=2))"</code></pre>
+    <p class="expected">Expected: Full JSON Schema with properties (before, after, op), $defs (OrderRow)</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">6</div><div class="step-title">Check Global Compatibility Mode</div></div>
+    <pre><code>kubectl exec -n infra deploy/schema-registry -- \
+  curl -sf http://localhost:8081/config</code></pre>
+    <p class="expected">Expected: <code>{"compatibilityLevel":"BACKWARD"}</code></p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">7</div><div class="step-title">Test Backward Compatibility (Schema Evolution)</div></div>
+    <p>Adding an optional field should be backward-compatible:</p>
+    <pre><code>kubectl exec -i -n infra deploy/schema-registry -- \
+  curl -sf -X POST \
+  http://localhost:8081/compatibility/subjects/order.created-value/versions/latest \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{"schemaType":"JSON","schema":"{\"type\":\"object\",\"properties\":{\"orderId\":{\"type\":\"string\"},\"userId\":{\"type\":\"string\"},\"items\":{\"type\":\"array\"},\"total\":{\"type\":\"number\"},\"timestamp\":{\"type\":\"string\"},\"newField\":{\"type\":\"string\"}},\"required\":[\"orderId\",\"userId\",\"items\",\"total\",\"timestamp\"]}"}'</code></pre>
+    <p class="expected">Expected: <code>{"is_compatible":true}</code></p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">8</div><div class="step-title">Retrieve Schema by Global ID</div></div>
+    <pre><code># Get schema ID
+SCHEMA_ID=$(kubectl exec -n infra deploy/schema-registry -- \
+  curl -sf http://localhost:8081/subjects/ecom-connector.public.orders-value/versions/latest \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+
+# Fetch by ID
+kubectl exec -n infra deploy/schema-registry -- \
+  curl -sf http://localhost:8081/schemas/ids/$SCHEMA_ID | python3 -m json.tool</code></pre>
+    <p class="expected">Expected: Schema JSON with schemaType and schema fields</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">9</div><div class="step-title">Verify Idempotent Re-registration</div></div>
+    <pre><code># Run again
+bash infra/schema-registry/register-schemas.sh
+
+# Check versions — should still be [1]
+kubectl exec -n infra deploy/schema-registry -- \
+  curl -sf http://localhost:8081/subjects/ecom-connector.public.orders-value/versions</code></pre>
+    <p class="expected">Expected: <code>[1]</code> (no new version created)</p>
+  </div>
+
+  <div class="step">
+    <div class="step-header"><div class="step-num">10</div><div class="step-title">Run Automated E2E Tests</div></div>
+    <pre><code>cd e2e && npx playwright test schema-registry.spec.ts --reporter=list</code></pre>
+    <p class="expected">Expected: 24 tests passed</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="e2e">E2E Test Coverage</h2>
+
+  <table>
+    <tr><th>Suite</th><th>Tests</th><th>What It Validates</th></tr>
+    <tr><td>Schema Registry Health</td><td>5</td><td>Pod running, service port, /subjects endpoint, image version, compatibility mode</td></tr>
+    <tr><td>CDC Topic Schemas</td><td>7</td><td>All 6 subjects registered, each has &ge; 1 version</td></tr>
+    <tr><td>Schema Content Validation</td><td>7</td><td>Debezium envelope structure, row fields, required fields, schemaType=JSON</td></tr>
+    <tr><td>Schema Versioning</td><td>2</td><td>Unique schema IDs, idempotent re-registration</td></tr>
+    <tr><td>NetworkPolicy</td><td>3</td><td>Ingress/egress policies exist, port 8081 allowed</td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="troubleshooting">Troubleshooting</h2>
+
+  <table>
+    <tr><th>Issue</th><th>Cause</th><th>Fix</th></tr>
+    <tr><td>Pod CrashLoopBackOff</td><td>Kafka not ready or <code>enableServiceLinks</code> not <code>false</code></td><td>Check Kafka status; verify deployment YAML</td></tr>
+    <tr><td><code>curl: (7) Failed to connect</code></td><td>Schema Registry not ready</td><td><code>kubectl wait --for=condition=Ready pod -l app=schema-registry -n infra</code></td></tr>
+    <tr><td><code>409 Conflict</code></td><td>Schema exists with different content</td><td>Check compatibility; update schema version</td></tr>
+    <tr><td><code>422 Unprocessable Entity</code></td><td>Invalid JSON Schema</td><td><code>python3 -m json.tool &lt; schema.json</code></td></tr>
+    <tr><td>Empty <code>/subjects</code></td><td>Schemas not registered</td><td><code>bash infra/schema-registry/register-schemas.sh</code></td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="files">Files Reference</h2>
+
+  <table>
+    <tr><th>File</th><th>Purpose</th></tr>
+    <tr><td><code>infra/schema-registry/schema-registry.yaml</code></td><td>Deployment + ClusterIP Service</td></tr>
+    <tr><td><code>infra/schema-registry/register-schemas.sh</code></td><td>Idempotent registration script (6 schemas)</td></tr>
+    <tr><td><code>infra/schema-registry/schemas/*.json</code></td><td>JSON Schema definitions (6 files)</td></tr>
+    <tr><td><code>e2e/schema-registry.spec.ts</code></td><td>24 E2E tests</td></tr>
+  </table>
+
+  <footer>
+    <p>Schema Registry Guide &mdash; BookStore Platform</p>
+    <p style="margin-top: 12px;"><a href="index.html">Home</a> &middot; <a href="cdc-hardening.html">CDC Hardening</a> &middot; <a href="architecture.html">Architecture Deep Dive</a> &middot; <a href="postgresql-ha.html">PostgreSQL HA</a></p>
+  </footer>
+
+</div>
+</body>
+</html>

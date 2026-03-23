@@ -1,0 +1,40 @@
+{
+  "type": "object",
+  "title": "Debezium CDC Envelope — orders",
+  "description": "CDC change event for ecom-db public.orders table. Produced by Debezium Server 3.4.",
+  "properties": {
+    "before": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/OrderRow" }
+      ]
+    },
+    "after": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/OrderRow" }
+      ]
+    },
+    "op": {
+      "type": "string",
+      "enum": ["c", "u", "d", "r"],
+      "description": "Operation type: c=create, u=update, d=delete, r=read (snapshot)"
+    },
+    "ts_ms": { "type": "integer", "description": "Debezium event timestamp (ms)" },
+    "source": { "type": "object" }
+  },
+  "required": ["op"],
+  "$defs": {
+    "OrderRow": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "user_id": { "type": "string" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["PENDING", "CONFIRMED", "CANCELLED"] },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "user_id", "total", "status"]
+    }
+  }
+}

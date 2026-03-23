@@ -74,6 +74,11 @@ info "Deploying Schema Registry..."
 kubectl apply -f "${REPO_ROOT}/infra/schema-registry/schema-registry.yaml"
 wait_deployment schema-registry infra
 
+# ── 3d. Register JSON Schemas ────────────────────────────────────────────────
+info "Registering JSON Schemas with Schema Registry..."
+bash "${REPO_ROOT}/infra/schema-registry/register-schemas.sh" || \
+  warn "Schema registration failed — non-fatal, continuing"
+
 # ── 4. Debezium Server (replaces Kafka Connect) ──────────────────────────────
 info "Deploying Debezium Server (ecom + inventory)..."
 # Debezium Server runs in `infra` namespace; DB secrets are in `ecom`/`inventory`.

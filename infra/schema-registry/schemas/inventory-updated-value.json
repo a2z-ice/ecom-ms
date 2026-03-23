@@ -1,0 +1,13 @@
+{
+  "type": "object",
+  "title": "Application Event — inventory.updated",
+  "description": "Published by inventory-service after stock deduction. Consumed by analytics pipeline.",
+  "properties": {
+    "bookId": { "type": "string", "format": "uuid" },
+    "previousQuantity": { "type": "integer", "minimum": 0 },
+    "newQuantity": { "type": "integer", "minimum": 0 },
+    "orderId": { "type": "string", "format": "uuid" },
+    "timestamp": { "type": "string", "format": "date-time" }
+  },
+  "required": ["bookId", "previousQuantity", "newQuantity", "orderId", "timestamp"]
+}
