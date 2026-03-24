@@ -126,7 +126,8 @@
     <div class="sidebar-section-title">Security</div>
     <a href="gateway-csrf-service.html" class="sidebar-link">Gateway CSRF Service</a>
     <a href="csrf-redis-implementation.html" class="sidebar-link">App-Level CSRF (Spring Boot)</a>
-    <a href="csrf-production-readiness.html" class="sidebar-link">CSRF Production Readiness</a>
+    <a href="csrf-production-readiness.html" class="sidebar-link">CSRF Production Audit</a>
+    <a href="csrf-production-enhancement.html" class="sidebar-link">CSRF Production Enhancement</a>
   </div>
 
   <div class="sidebar-divider"></div>
@@ -327,9 +328,13 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
       <h3>App-Level CSRF (Spring Boot)</h3>
       <p>Redis-backed CSRF token implementation at the Spring Boot application level. CsrfValidationFilter, CsrfTokenService, auto-retry on expiry, fail-open design, and 11-step manual testing guide.</p>
     </a>
-    <a href="csrf-production-readiness.html" class="doc-card" style="border-color: #d97706; border-width: 2px;">
-      <h3>CSRF Production Readiness Audit</h3>
-      <p>Score: 62/100. Gap analysis with 15 findings across security, resilience, observability, and Kubernetes. 3 critical, 6 high, 6 medium issues with code-level remediation for each. Comparison against ecom-service and cert-dashboard-operator.</p>
+    <a href="csrf-production-readiness.html" class="doc-card" style="border-color: #d97706;">
+      <h3>CSRF Production Audit (62/100)</h3>
+      <p>Gap analysis with 15 findings across security, resilience, observability, and Kubernetes. 3 critical, 6 high, 6 medium issues with code-level remediation.</p>
+    </a>
+    <a href="csrf-production-enhancement.html" class="doc-card" style="border-color: #10b981; border-width: 2px;">
+      <h3>CSRF Production Enhancement (95/100)</h3>
+      <p>All 15 audit findings resolved. Graceful shutdown, Prometheus metrics, timing-safe comparison, 2-replica HA with HPA/PDB, 19 unit tests, 33 E2E tests. Before/after code for every fix.</p>
     </a>
     <a href="https://github.com/a2z-ice/ecom-ms" class="doc-card" target="_blank" rel="noopener">
       <h3>GitHub Repository</h3>

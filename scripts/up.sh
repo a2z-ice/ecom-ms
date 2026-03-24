@@ -138,7 +138,7 @@ bootstrap_fresh() {
   section "Starting parallel Docker image builds (background)"
   GIT_SHA=$(cd "${REPO_ROOT}" && git rev-parse --short HEAD 2>/dev/null || echo "unknown")
   info "  Git SHA: ${GIT_SHA}"
-  _ECOM_PID="" _INV_PID="" _FLINK_PID="" _UI_PID=""
+  _ECOM_PID="" _INV_PID="" _FLINK_PID="" _UI_PID="" _CSRF_PID=""
   if docker image inspect bookstore/ecom-service:latest &>/dev/null; then
     info "  bookstore/ecom-service:latest already exists — skipping build."
   else
@@ -165,6 +165,15 @@ bootstrap_fresh() {
       docker tag bookstore/flink:latest "bookstore/flink:${GIT_SHA}") \
       >/tmp/build-flink.log 2>&1 &
     _FLINK_PID=$!
+  fi
+  if docker image inspect bookstore/csrf-service:latest &>/dev/null; then
+    info "  bookstore/csrf-service:latest already exists — skipping build."
+  else
+    info "  Building bookstore/csrf-service:latest (background)..."
+    (docker build -t bookstore/csrf-service:latest "${REPO_ROOT}/csrf-service" && \
+      docker tag bookstore/csrf-service:latest "bookstore/csrf-service:${GIT_SHA}") \
+      >/tmp/build-csrf.log 2>&1 &
+    _CSRF_PID=$!
   fi
   # UI always rebuilt — VITE vars are baked in at build time
   info "  Building bookstore/ui-service:latest (background)..."
@@ -282,6 +291,7 @@ bootstrap_fresh() {
   _wait_build "bookstore/inventory-service:latest" "$_INV_PID"   "/tmp/build-inventory.log"
   _wait_build "bookstore/flink:latest"             "$_FLINK_PID" "/tmp/build-flink.log"
   _wait_build "bookstore/ui-service:latest"        "$_UI_PID"    "/tmp/build-ui.log"
+  _wait_build "bookstore/csrf-service:latest"     "$_CSRF_PID"  "/tmp/build-csrf.log"
   $_BUILD_OK || { err "One or more Docker builds failed — aborting."; exit 1; }
 
   section "Loading images into kind cluster (serialized)"
@@ -289,7 +299,8 @@ bootstrap_fresh() {
     "bookstore/ecom-service:latest" \
     "bookstore/inventory-service:latest" \
     "bookstore/flink:latest" \
-    "bookstore/ui-service:latest"; do
+    "bookstore/ui-service:latest" \
+    "bookstore/csrf-service:latest"; do
     info "  Loading $_img..."
     kind load docker-image "$_img" --name bookstore
   done
@@ -355,12 +366,128 @@ bootstrap_fresh() {
   kubectl rollout status deployment/ui-service        -n ecom      --timeout=300s & _P3=$!
   wait $_P1 $_P2 $_P3 || warn "One or more app service rollouts timed out — check pod logs"
 
+  # ── 10b. Deploy CSRF service (gateway-level CSRF protection) ────────────────
+  section "Deploying CSRF service"
+  kubectl apply -f "${REPO_ROOT}/csrf-service/k8s/csrf-service.yaml"
+  wait_deploy csrf-service infra
+
+  # Register Istio extensionProvider for CSRF ext_authz (if not already present)
+  _MESH_CFG=$(kubectl get configmap istio -n istio-system -o jsonpath='{.data.mesh}' 2>/dev/null)
+  if ! echo "$_MESH_CFG" | grep -q "csrf-ext-authz"; then
+    info "Registering csrf-ext-authz extensionProvider in Istio mesh config..."
+    kubectl get configmap istio -n istio-system -o json | python3 -c "
+import sys, json, yaml
+cm = json.load(sys.stdin)
+mesh = yaml.safe_load(cm['data']['mesh'])
+if 'extensionProviders' not in mesh:
+    mesh['extensionProviders'] = []
+mesh['extensionProviders'].append({
+    'name': 'csrf-ext-authz',
+    'envoyExtAuthzHttp': {
+        'service': 'csrf-service.infra.svc.cluster.local',
+        'port': 8080,
+        'failOpen': True,
+        'headersToUpstreamOnAllow': [],
+        'includeRequestHeadersInCheck': ['authorization', 'x-csrf-token'],
+    }
+})
+cm['data']['mesh'] = yaml.dump(mesh, default_flow_style=False)
+json.dump(cm, sys.stdout)
+" | kubectl apply -f -
+  fi
+
+  # CSRF NetworkPolicies
+  kubectl apply -f - <<'CSRF_NP_EOF'
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: csrf-service-ingress
+  namespace: infra
+spec:
+  podSelector:
+    matchLabels:
+      app: csrf-service
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              gateway.networking.k8s.io/gateway-name: bookstore-gateway
+      ports:
+        - port: 8080
+    - from: []
+      ports:
+        - port: 15008
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: csrf-service-egress
+  namespace: infra
+spec:
+  podSelector:
+    matchLabels:
+      app: csrf-service
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - port: 6379
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+    - to: []
+      ports:
+        - port: 15008
+CSRF_NP_EOF
+
+  # CSRF PeerAuthentication (PERMISSIVE for gateway access)
+  kubectl apply -f - <<'CSRF_PA_EOF'
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: csrf-service-permissive
+  namespace: infra
+spec:
+  selector:
+    matchLabels:
+      app: csrf-service
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "8080":
+      mode: PERMISSIVE
+CSRF_PA_EOF
+
+  # Patch gateway-egress to allow csrf-service
+  _GW_EGRESS=$(kubectl get networkpolicy gateway-egress -n infra -o json 2>/dev/null || echo "")
+  if [[ -n "$_GW_EGRESS" ]] && ! echo "$_GW_EGRESS" | grep -q "csrf-service"; then
+    info "Patching gateway-egress for csrf-service..."
+    echo "$_GW_EGRESS" | python3 -c "
+import sys, json
+pol = json.load(sys.stdin)
+pol['spec']['egress'].insert(0, {
+    'to': [{'podSelector': {'matchLabels': {'app': 'csrf-service'}}}],
+    'ports': [{'port': 8080, 'protocol': 'TCP'}]
+})
+json.dump(pol, sys.stdout)
+" | kubectl apply -f -
+  fi
+
   # ── 11. Networking + policies ─────────────────────────────────────────────────
   section "Applying HTTPRoutes (kgateway)"
   kubectl apply -R -f "${REPO_ROOT}/infra/kgateway/"
 
   section "Applying Istio security policies"
   kubectl apply -R -f "${REPO_ROOT}/infra/istio/security/"
+
+  # Apply CSRF AuthorizationPolicy (ext_authz on gateway)
+  kubectl apply -f "${REPO_ROOT}/infra/istio/csrf-envoy-filter.yaml"
 
   section "Applying Kubernetes policies (HPA, PDB, NetworkPolicies)"
   kubectl apply -R -f "${REPO_ROOT}/infra/kubernetes/"
@@ -479,6 +606,7 @@ recovery() {
   kubectl rollout restart deploy/debezium-server-ecom -n infra
   kubectl rollout restart deploy/debezium-server-inventory -n infra
   kubectl rollout restart deploy/pgadmin -n infra
+  kubectl rollout restart deploy/csrf-service -n infra 2>/dev/null || true
   kubectl rollout restart deploy/flink-jobmanager -n analytics
   kubectl rollout restart deploy/flink-taskmanager -n analytics
   kubectl rollout restart deploy/superset -n analytics

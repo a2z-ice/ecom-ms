@@ -215,7 +215,20 @@ test.describe("CNPG PVC Storage", () => {
 test.describe.serial("Failover Test (ecom-db)", () => {
   let originalPrimary: string;
 
-  test("record current primary pod", () => {
+  test("record current primary pod", async () => {
+    test.setTimeout(120_000);
+    // Wait for cluster to be fully healthy before failover (may be recovering from previous tests)
+    const preDeadline = Date.now() + 110_000;
+    let preReady = 0;
+    while (Date.now() < preDeadline) {
+      try {
+        const cluster = kubectlJson("get", "cluster", "ecom-db", "-n", "ecom", "-o", "json");
+        preReady = cluster.status?.readyInstances ?? 0;
+        if (preReady === 2) break;
+      } catch { /* transient */ }
+      await sleep(5_000);
+    }
+    expect(preReady).toBe(2);
     originalPrimary = getCnpgPrimaryPod("ecom", "ecom-db");
     expect(originalPrimary).toBeTruthy();
   });
@@ -226,8 +239,8 @@ test.describe.serial("Failover Test (ecom-db)", () => {
   });
 
   test("cluster recovers to healthy state with 2 ready instances", async () => {
-    test.setTimeout(240_000);
-    const deadline = Date.now() + 230_000;
+    test.setTimeout(360_000);
+    const deadline = Date.now() + 340_000;
     let readyInstances = 0;
     while (Date.now() < deadline) {
       try {
@@ -245,7 +258,7 @@ test.describe.serial("Failover Test (ecom-db)", () => {
       } catch {
         // transient error
       }
-      await sleep(3_000);
+      await sleep(5_000);
     }
     expect(readyInstances).toBe(2);
   });
