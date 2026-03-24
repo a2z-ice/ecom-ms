@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-add-idempotency-key
+      author: session-34
+      changes:
+        - addColumn:
+            tableName: orders
+            columns:
+              - column:
+                  name: idempotency_key
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: true
+        - addUniqueConstraint:
+            tableName: orders
+            columnNames: idempotency_key
+            constraintName: uq_orders_idempotency_key

@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Infrastructure &amp; Ops Hardening - Sessions 34-35 | BookStore Platform</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-secondary: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+      --cyan: #39d4e8;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+    /* Header */
+    .hero {
+      text-align: center;
+      padding: 4rem 2rem;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1f2e 50%, #161b22 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .hero h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .hero .subtitle { color: var(--text-secondary); font-size: 1.2rem; }
+    .hero .badge {
+      display: inline-block;
+      margin-top: 1rem;
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .badge-green { background: rgba(63, 185, 80, 0.15); color: var(--green); border: 1px solid rgba(63, 185, 80, 0.3); }
+    .badge-blue { background: rgba(88, 166, 255, 0.15); color: var(--accent); border: 1px solid rgba(88, 166, 255, 0.3); }
+
+    /* Navigation */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 2rem;
+    }
+    nav .nav-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    nav a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      padding: 0.3rem 0;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    nav a:hover, nav a.active { color: var(--accent); border-bottom-color: var(--accent); }
+    nav .back-link { color: var(--accent); font-weight: 600; margin-right: auto; }
+
+    /* Sections */
+    section { padding: 3rem 0; border-bottom: 1px solid var(--border); }
+    section:last-child { border-bottom: none; }
+    h2 { font-size: 1.8rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
+    h3 { font-size: 1.2rem; margin: 1.5rem 0 0.75rem; color: var(--accent); }
+
+    /* Summary Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.5rem;
+      margin: 2rem 0;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .stat-card .number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .stat-card .label { color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.25rem; }
+    .stat-green .number { color: var(--green); }
+    .stat-blue .number { color: var(--accent); }
+    .stat-purple .number { color: var(--purple); }
+    .stat-cyan .number { color: var(--cyan); }
+
+    /* Session Cards */
+    .session-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+    }
+    .session-header {
+      padding: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .session-header:hover { background: rgba(88, 166, 255, 0.05); }
+    .session-header h3 { margin: 0; color: var(--text); font-size: 1.15rem; }
+    .session-header .tag {
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .tag-infra { background: rgba(210, 153, 34, 0.15); color: var(--yellow); }
+    .tag-ops { background: rgba(188, 140, 255, 0.15); color: var(--purple); }
+    .tag-resilience { background: rgba(57, 212, 232, 0.15); color: var(--cyan); }
+    .tag-security { background: rgba(248, 81, 73, 0.15); color: var(--red); }
+    .session-body { padding: 0 1.5rem 1.5rem; }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+    th {
+      text-align: left;
+      padding: 0.75rem;
+      background: rgba(88, 166, 255, 0.08);
+      border-bottom: 2px solid var(--border);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    td {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    tr:hover td { background: rgba(88, 166, 255, 0.03); }
+
+    /* Benefits */
+    .benefit-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    .benefit-item {
+      padding: 1rem;
+      background: rgba(63, 185, 80, 0.05);
+      border: 1px solid rgba(63, 185, 80, 0.15);
+      border-radius: 8px;
+    }
+    .benefit-item strong { color: var(--green); }
+    .benefit-item p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.25rem; }
+
+    /* Code blocks */
+    code {
+      font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+      background: rgba(110, 118, 129, 0.15);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+    pre {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    pre code { background: none; padding: 0; }
+
+    /* Test results */
+    .test-result {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0;
+    }
+    .test-icon { font-size: 1.2rem; width: 1.5rem; text-align: center; }
+    .test-pass .test-icon { color: var(--green); }
+
+    /* Flow diagram */
+    .flow-diagram {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 1.5rem 0;
+      text-align: center;
+    }
+    .flow-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin: 0.5rem 0;
+    }
+    .flow-box {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .flow-arrow { color: var(--text-secondary); font-size: 1.2rem; }
+    .flow-infra { background: rgba(210, 153, 34, 0.15); color: var(--yellow); border: 1px solid rgba(210, 153, 34, 0.3); }
+    .flow-app { background: rgba(88, 166, 255, 0.15); color: var(--accent); border: 1px solid rgba(88, 166, 255, 0.3); }
+    .flow-ops { background: rgba(188, 140, 255, 0.15); color: var(--purple); border: 1px solid rgba(188, 140, 255, 0.3); }
+    .flow-resilience { background: rgba(57, 212, 232, 0.15); color: var(--cyan); border: 1px solid rgba(57, 212, 232, 0.3); }
+
+    /* Lists */
+    ul.detail-list { list-style: none; margin: 0.5rem 0; }
+    ul.detail-list li {
+      padding: 0.3rem 0 0.3rem 1.2rem;
+      position: relative;
+      color: var(--text-secondary);
+    }
+    ul.detail-list li::before {
+      content: "\2022";
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      border-top: 1px solid var(--border);
+    }
+
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 1.8rem; }
+      .container { padding: 1rem; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="back-link">&larr; Docs Index</a>
+    <a href="#overview">Overview</a>
+    <a href="#session34">Session 34</a>
+    <a href="#session35">Session 35</a>
+    <a href="#files">Files Changed</a>
+    <a href="#testing">Testing</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <h1>Infrastructure &amp; Ops Hardening</h1>
+  <p class="subtitle">Sessions 34-35 &mdash; Infrastructure, Resilience &amp; Operational Excellence</p>
+  <span class="badge badge-green">~23 New Tests</span>
+  <span class="badge badge-blue">2 Sessions</span>
+</div>
+
+<div class="container">
+
+  <!-- Overview -->
+  <section id="overview">
+    <h2>Executive Summary</h2>
+    <p>Two sessions focused on <strong>infrastructure production-readiness</strong>, <strong>application resilience</strong>, and <strong>operational excellence</strong> for the BookStore microservices platform. Changes span Kafka and Redis production configs, resource quotas, checkout idempotency, backup/restore tooling, and developer documentation.</p>
+
+    <div class="stats-grid">
+      <div class="stat-card stat-green">
+        <div class="number">~23</div>
+        <div class="label">New E2E Tests</div>
+      </div>
+      <div class="stat-card stat-blue">
+        <div class="number">9</div>
+        <div class="label">Hardening Items (S34)</div>
+      </div>
+      <div class="stat-card stat-purple">
+        <div class="number">3</div>
+        <div class="label">Ops Deliverables (S35)</div>
+      </div>
+      <div class="stat-card stat-cyan">
+        <div class="number">22+</div>
+        <div class="label">Files Changed</div>
+      </div>
+    </div>
+
+    <div class="flow-diagram">
+      <h3 style="margin-bottom: 1rem; color: var(--text);">Hardening Scope</h3>
+      <div class="flow-row">
+        <div class="flow-box flow-infra">Kafka Configs</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box flow-infra">Redis Configs</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box flow-app">Connection Pooling</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box flow-app">Resource Quotas</div>
+      </div>
+      <div style="color: var(--text-secondary); margin: 0.5rem 0;">&darr;</div>
+      <div class="flow-row">
+        <div class="flow-box flow-resilience">Commit Safety</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box flow-resilience">Idempotency</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box flow-ops">Backup/Restore</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box flow-ops">Developer Docs</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Session 34 -->
+  <section id="session34">
+    <h2><span style="color: var(--yellow);">&#9632;</span> Session 34 &mdash; Infrastructure &amp; Application Hardening</h2>
+
+    <h3>34.1 Kafka Production Configs</h3>
+    <table>
+      <thead>
+        <tr><th>Setting</th><th>Value</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>compression.type</code></td><td><code>lz4</code></td><td>Reduced disk/network I/O</td></tr>
+        <tr><td><code>log.retention.hours</code></td><td><code>168</code></td><td>7-day message retention</td></tr>
+        <tr><td><code>delete.retention.ms</code></td><td><code>86400000</code></td><td>24h tombstone retention</td></tr>
+        <tr><td><code>min.insync.replicas</code></td><td><code>1</code></td><td>Documents single-broker intent</td></tr>
+        <tr><td><code>unclean.leader.election.enable</code></td><td><code>false</code></td><td>Prevents data loss</td></tr>
+        <tr><td><code>num.partitions</code></td><td><code>3</code></td><td>Explicit default for auto-created topics</td></tr>
+      </tbody>
+    </table>
+
+    <h3>34.2 Kafka Liveness Probe</h3>
+    <ul class="detail-list">
+      <li>Replaced TCP socket probe with exec probe using <code>kafka-broker-api-versions</code></li>
+      <li>Validates actual broker API availability, not just port binding</li>
+      <li>Readiness probe remains TCP (DNS chicken-and-egg)</li>
+    </ul>
+
+    <h3>34.3 Redis Production Configs</h3>
+    <table>
+      <thead>
+        <tr><th>Setting</th><th>Value</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>maxmemory</code></td><td><code>200mb</code></td><td>Prevents OOMKill (container limit 256Mi)</td></tr>
+        <tr><td><code>maxmemory-policy</code></td><td><code>allkeys-lru</code></td><td>LRU eviction for cache/session store</td></tr>
+        <tr><td><code>tcp-backlog</code></td><td><code>511</code></td><td>Matches Linux default</td></tr>
+        <tr><td><code>timeout</code></td><td><code>300</code></td><td>Closes idle connections after 5 min</td></tr>
+        <tr><td><code>tcp-keepalive</code></td><td><code>60</code></td><td>Detects dead connections</td></tr>
+      </tbody>
+    </table>
+
+    <h3>34.4 Spring Redis Connection Pool</h3>
+    <ul class="detail-list">
+      <li>Added Lettuce connection pooling (max-active: 8, max-idle: 4, min-idle: 1)</li>
+      <li>Added <code>commons-pool2</code> dependency (required for Lettuce pooling)</li>
+      <li>Connection and command timeouts (3s connect, 5s command)</li>
+    </ul>
+
+    <h3>34.5 ResourceQuota &amp; LimitRange</h3>
+    <table>
+      <thead>
+        <tr><th>Namespace</th><th>CPU Requests</th><th>Memory Requests</th><th>CPU Limits</th><th>Memory Limits</th><th>Max Pods</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>ecom</td><td>2</td><td>4Gi</td><td>4</td><td>8Gi</td><td>10</td></tr>
+        <tr><td>inventory</td><td>1500m</td><td>3Gi</td><td>3</td><td>6Gi</td><td>10</td></tr>
+      </tbody>
+    </table>
+    <ul class="detail-list">
+      <li>LimitRange defaults: 500m/512Mi limits, 100m/128Mi requests per container</li>
+      <li>Applied via <code>infra-up.sh</code></li>
+    </ul>
+
+    <h3>34.6 Kafka Consumer Commit Safety</h3>
+    <ul class="detail-list">
+      <li>Wrapped <code>consumer.commit()</code> in try/except in main consumer</li>
+      <li>Reprocessing is safe: <code>_deduct_stock</code> uses <code>SELECT ... FOR UPDATE</code> + quantity check</li>
+      <li>Error logged with orderId for debugging</li>
+    </ul>
+
+    <h3>34.7 DLQ Consumer Manual Commit</h3>
+    <ul class="detail-list">
+      <li>Changed from <code>enable_auto_commit=True</code> to <code>False</code></li>
+      <li>Added explicit <code>consumer.commit()</code> after processing, wrapped in try/except</li>
+      <li>Prevents message loss on consumer crash between auto-commit intervals</li>
+    </ul>
+
+    <h3>34.8 Checkout Idempotency Key</h3>
+    <ul class="detail-list">
+      <li>New <code>idempotency_key</code> column (VARCHAR(64), unique) on <code>orders</code> table</li>
+      <li>Liquibase migration <code>006-add-idempotency-key.yaml</code></li>
+      <li><code>Idempotency-Key</code> request header (optional, backward compatible)</li>
+      <li>If key exists &rarr; return existing order (HTTP 200, no side effects)</li>
+      <li>If key absent &rarr; normal checkout flow</li>
+    </ul>
+
+    <h3>34.9 Swagger Disabled in Production</h3>
+    <ul class="detail-list">
+      <li><code>SWAGGER_ENABLED=false</code> env var in Kubernetes deployment</li>
+      <li>SecurityConfig conditionally permits Swagger paths only when enabled</li>
+      <li>springdoc <code>api-docs.enabled</code> and <code>swagger-ui.enabled</code> driven by same env var</li>
+    </ul>
+
+    <div class="benefit-grid">
+      <div class="benefit-item">
+        <strong>Production-Grade Messaging</strong>
+        <p>Kafka LZ4 compression, explicit retention, and safe leader election prevent data loss and reduce I/O</p>
+      </div>
+      <div class="benefit-item">
+        <strong>Memory-Safe Caching</strong>
+        <p>Redis maxmemory + LRU eviction prevents OOMKill while maintaining session/cache availability</p>
+      </div>
+      <div class="benefit-item">
+        <strong>Idempotent Checkout</strong>
+        <p>Duplicate checkout requests return the same order without creating duplicates or double-charging</p>
+      </div>
+      <div class="benefit-item">
+        <strong>Resource Governance</strong>
+        <p>ResourceQuota prevents runaway pods from starving other workloads in shared namespaces</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Session 35 -->
+  <section id="session35">
+    <h2><span style="color: var(--purple);">&#9632;</span> Session 35 &mdash; Operational Excellence &amp; Documentation</h2>
+
+    <h3>35.1 Backup Script</h3>
+    <ul class="detail-list">
+      <li><code>scripts/backup.sh</code> creates timestamped backups in <code>backups/&lt;timestamp&gt;/</code></li>
+      <li>Dumps all 4 CNPG databases in parallel via <code>pg_dump</code></li>
+      <li>Snapshots Kafka consumer group offsets</li>
+      <li>Exports Keycloak realm</li>
+      <li>Reports file sizes and total backup size</li>
+    </ul>
+
+    <h3>35.2 Restore Script</h3>
+    <ul class="detail-list">
+      <li><code>scripts/restore.sh &lt;timestamp&gt;</code> restores from backup</li>
+      <li>Confirmation prompt before overwriting (skip with <code>--yes</code>)</li>
+      <li>Drops and recreates public schema before restore</li>
+      <li>Lists available backups if timestamp not found</li>
+    </ul>
+
+    <h3>35.3 Developer Documentation</h3>
+    <table>
+      <thead>
+        <tr><th>Document</th><th>Content</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>CONTRIBUTING.md</code></td><td>Prerequisites, Quick Start, Project Structure, Development Workflow, Code Conventions, Testing Requirements, Debugging Tips, Session Planning Convention</td></tr>
+        <tr><td><code>docs/guides/performance-baseline.md</code></td><td>Measurement methodology, k6 test templates, resource baselines, known bottlenecks, capacity planning</td></tr>
+        <tr><td><code>docs/guides/api-error-reference.md</code></td><td>All HTTP error codes for both services, Idempotency-Key documentation, response format examples</td></tr>
+      </tbody>
+    </table>
+
+    <div class="benefit-grid">
+      <div class="benefit-item">
+        <strong>Disaster Recovery</strong>
+        <p>One-command backup and restore for all 4 databases, Kafka offsets, and Keycloak realm config</p>
+      </div>
+      <div class="benefit-item">
+        <strong>Developer Onboarding</strong>
+        <p>CONTRIBUTING.md provides a complete quickstart path from prerequisites to running tests</p>
+      </div>
+      <div class="benefit-item">
+        <strong>Performance Baselines</strong>
+        <p>Documented resource baselines and k6 templates enable consistent load testing and capacity planning</p>
+      </div>
+      <div class="benefit-item">
+        <strong>API Reference</strong>
+        <p>Complete error code reference with examples reduces debugging time for frontend and integration teams</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Files Changed -->
+  <section id="files">
+    <h2>Files Changed</h2>
+
+    <h3>Session 34</h3>
+    <table>
+      <thead>
+        <tr><th>File</th><th>Change</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>infra/kafka/kafka.yaml</code></td><td>Production configs + exec liveness probe</td></tr>
+        <tr><td><code>infra/redis/redis.yaml</code></td><td>maxmemory, eviction, keepalive</td></tr>
+        <tr><td><code>ecom-service/src/main/resources/application.yml</code></td><td>Lettuce pool config</td></tr>
+        <tr><td><code>ecom-service/pom.xml</code></td><td>commons-pool2 dependency</td></tr>
+        <tr><td><code>infra/kubernetes/resource-limits/*.yaml</code></td><td>New: ResourceQuota + LimitRange</td></tr>
+        <tr><td><code>scripts/infra-up.sh</code></td><td>Apply resource limits step</td></tr>
+        <tr><td><code>inventory-service/app/kafka/consumer.py</code></td><td>Commit error handling</td></tr>
+        <tr><td><code>inventory-service/app/kafka/dlq_consumer.py</code></td><td>Manual commit</td></tr>
+        <tr><td><code>ecom-service/.../model/Order.java</code></td><td>idempotencyKey field</td></tr>
+        <tr><td><code>ecom-service/.../repository/OrderRepository.java</code></td><td>findByIdempotencyKey</td></tr>
+        <tr><td><code>ecom-service/.../controller/OrderController.java</code></td><td>Idempotency-Key header</td></tr>
+        <tr><td><code>ecom-service/.../service/OrderService.java</code></td><td>Idempotency logic</td></tr>
+        <tr><td><code>ecom-service/.../config/SecurityConfig.java</code></td><td>Conditional Swagger</td></tr>
+        <tr><td><code>ecom-service/k8s/ecom-service.yaml</code></td><td>SWAGGER_ENABLED=false</td></tr>
+        <tr><td><code>ecom-service/.../db/changelog/006-add-idempotency-key.yaml</code></td><td>New migration</td></tr>
+        <tr><td><code>e2e/infra-app-hardening.spec.ts</code></td><td>~15 E2E tests</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Session 35</h3>
+    <table>
+      <thead>
+        <tr><th>File</th><th>Change</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>scripts/backup.sh</code></td><td>New: database backup</td></tr>
+        <tr><td><code>scripts/restore.sh</code></td><td>New: database restore</td></tr>
+        <tr><td><code>CONTRIBUTING.md</code></td><td>New: developer guide</td></tr>
+        <tr><td><code>docs/guides/performance-baseline.md</code></td><td>New: performance docs</td></tr>
+        <tr><td><code>docs/guides/api-error-reference.md</code></td><td>New: API error reference</td></tr>
+        <tr><td><code>e2e/ops-excellence.spec.ts</code></td><td>~8 E2E tests</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Testing -->
+  <section id="testing">
+    <h2>Test Coverage</h2>
+
+    <div class="stats-grid">
+      <div class="stat-card stat-green">
+        <div class="number">~15</div>
+        <div class="label">Session 34 Tests</div>
+      </div>
+      <div class="stat-card stat-green">
+        <div class="number">~8</div>
+        <div class="label">Session 35 Tests</div>
+      </div>
+    </div>
+
+    <h3>New Test Suites</h3>
+    <div class="test-result test-pass"><span class="test-icon">&#10003;</span> <code>infra-app-hardening.spec.ts</code> &mdash; Kafka configs, Redis configs, ResourceQuota, idempotency, Swagger (~15 tests)</div>
+    <div class="test-result test-pass"><span class="test-icon">&#10003;</span> <code>ops-excellence.spec.ts</code> &mdash; Backup/restore scripts, documentation files (~8 tests)</div>
+
+    <h3>Verification Commands</h3>
+    <pre><code># Run new session tests
+cd e2e
+npx playwright test infra-app-hardening.spec.ts
+npx playwright test ops-excellence.spec.ts
+
+# Full regression
+cd e2e &amp;&amp; npm run test
+
+# Verify Kafka configs
+kubectl exec -n infra deploy/kafka -- /opt/kafka/bin/kafka-configs.sh \
+  --bootstrap-server localhost:9092 --describe --broker 0
+
+# Verify Redis configs
+kubectl exec -n infra deploy/redis -- redis-cli CONFIG GET maxmemory
+
+# Verify ResourceQuota
+kubectl describe resourcequota -n ecom
+kubectl describe resourcequota -n inventory
+
+# Smoke test
+bash scripts/smoke-test.sh</code></pre>
+  </section>
+
+</div>
+
+<footer>
+  BookStore E-Commerce Platform &mdash; Infrastructure &amp; Ops Hardening Sessions 34-35 &mdash; Generated 2026-03-23
+</footer>
+
+</body>
+</html>

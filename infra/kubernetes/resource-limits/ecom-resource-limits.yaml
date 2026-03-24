@@ -1,0 +1,31 @@
+---
+# ResourceQuota — caps total resource consumption in the ecom namespace.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ecom-quota
+  namespace: ecom
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: 4Gi
+    limits.cpu: "4"
+    limits.memory: 8Gi
+    pods: "10"
+
+---
+# LimitRange — default container requests/limits for pods without explicit values.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: ecom-limit-range
+  namespace: ecom
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 500m
+        memory: 512Mi
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi

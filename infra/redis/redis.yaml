@@ -58,6 +58,16 @@ spec:
             - "yes"
             - --save
             - "60 1"
+            - --maxmemory
+            - 200mb
+            - --maxmemory-policy
+            - allkeys-lru
+            - --tcp-backlog
+            - "511"
+            - --timeout
+            - "300"
+            - --tcp-keepalive
+            - "60"
           env:
             - name: REDIS_PASSWORD
               valueFrom:

@@ -95,7 +95,7 @@ class OrderServiceTest {
             return order;
         });
 
-        Order result = orderService.checkout(USER_ID);
+        Order result = orderService.checkout(USER_ID, null);
 
         // Verify order properties
         assertThat(result.getUserId()).isEqualTo(USER_ID);
@@ -127,7 +127,7 @@ class OrderServiceTest {
     void checkout_emptyCart_throwsBusinessException() {
         when(cartService.getCart(USER_ID)).thenReturn(new ArrayList<>());
 
-        assertThatThrownBy(() -> orderService.checkout(USER_ID))
+        assertThatThrownBy(() -> orderService.checkout(USER_ID, null))
             .isInstanceOf(BusinessException.class)
             .hasMessageContaining("cart is empty");
 
@@ -148,7 +148,7 @@ class OrderServiceTest {
         when(inventoryClient.reserve(eq(book1.getId()), eq(100)))
             .thenThrow(new BusinessException("Insufficient stock for book: " + book1.getId()));
 
-        assertThatThrownBy(() -> orderService.checkout(USER_ID))
+        assertThatThrownBy(() -> orderService.checkout(USER_ID, null))
             .isInstanceOf(BusinessException.class)
             .hasMessageContaining("Insufficient stock");
 
@@ -167,7 +167,7 @@ class OrderServiceTest {
         when(inventoryClient.reserve(eq(book1.getId()), eq(1)))
             .thenThrow(new BusinessException("Inventory service temporarily unavailable"));
 
-        assertThatThrownBy(() -> orderService.checkout(USER_ID))
+        assertThatThrownBy(() -> orderService.checkout(USER_ID, null))
             .isInstanceOf(BusinessException.class)
             .hasMessageContaining("Inventory service temporarily unavailable");
 
@@ -189,7 +189,7 @@ class OrderServiceTest {
             return order;
         });
 
-        Order result = orderService.checkout(USER_ID);
+        Order result = orderService.checkout(USER_ID, null);
 
         assertThat(result.getItems()).hasSize(1);
         assertThat(result.getItems().get(0).getQuantity()).isEqualTo(3);

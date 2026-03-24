@@ -1059,3 +1059,59 @@ microservice/
 ├── e2e/                   # Playwright tests
 └── scripts/
 ```
+
+---
+
+## Session 34 — Infrastructure & Application Hardening
+
+**Goal:** Harden Kafka/Redis production configs, add namespace resource limits, fix Kafka consumer commit safety, add checkout idempotency, disable Swagger in production.
+
+### Deliverables
+
+- Kafka production configs (compression, retention, min ISR, unclean election, partitions)
+- Kafka exec liveness probe (replaces TCP)
+- Redis production configs (maxmemory, eviction, keepalive)
+- Spring Redis Lettuce connection pool + commons-pool2
+- ResourceQuota + LimitRange for ecom/inventory namespaces
+- Kafka consumer commit error handling (try/except)
+- DLQ consumer manual commit (enable_auto_commit=False)
+- Checkout idempotency key (Idempotency-Key header, Liquibase migration)
+- Swagger disabled in production (SWAGGER_ENABLED=false)
+- ~15 E2E tests (infra-app-hardening.spec.ts)
+
+### Acceptance Criteria
+
+- [x] `kafka-configs --describe` shows `compression.type=lz4`, `log.retention.hours=168`
+- [x] Kafka liveness probe uses exec
+- [x] Redis maxmemory 200mb, allkeys-lru eviction
+- [x] ResourceQuota/LimitRange in ecom and inventory
+- [x] Consumer commit wrapped in try/except
+- [x] DLQ consumer manual commit
+- [x] Idempotent checkout with same key returns same order
+- [x] Swagger returns non-200 in cluster
+- [x] All E2E tests pass
+
+---
+
+## Session 35 — Operational Excellence & Documentation
+
+**Goal:** Add backup/restore capability, developer onboarding guide, performance baseline docs, API error reference, and comprehensive documentation.
+
+### Deliverables
+
+- `scripts/backup.sh` — timestamped database dumps + Kafka offsets + Keycloak realm
+- `scripts/restore.sh` — restore from backup timestamp
+- `CONTRIBUTING.md` — developer onboarding guide
+- `docs/guides/performance-baseline.md` — k6 templates, resource baselines, capacity planning
+- `docs/guides/api-error-reference.md` — all HTTP error codes, Idempotency-Key docs
+- ~8 E2E tests (ops-excellence.spec.ts)
+- Review documents (HTML + Markdown)
+
+### Acceptance Criteria
+
+- [x] backup.sh creates timestamped backup with DB dumps
+- [x] restore.sh accepts timestamp and restores
+- [x] CONTRIBUTING.md exists with all required sections
+- [x] Performance baseline and API error docs exist
+- [x] All E2E tests pass
+- [x] HTML documentation updated with navigation

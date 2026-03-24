@@ -31,6 +31,9 @@ public class Order {
     @Column(name = "status", nullable = false)
     private String status = "PENDING";
 
+    @Column(name = "idempotency_key", unique = true)
+    private String idempotencyKey;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 

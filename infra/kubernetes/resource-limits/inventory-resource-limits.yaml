@@ -1,0 +1,31 @@
+---
+# ResourceQuota — caps total resource consumption in the inventory namespace.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: inventory-quota
+  namespace: inventory
+spec:
+  hard:
+    requests.cpu: 1500m
+    requests.memory: 3Gi
+    limits.cpu: "3"
+    limits.memory: 6Gi
+    pods: "10"
+
+---
+# LimitRange — default container requests/limits for pods without explicit values.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: inventory-limit-range
+  namespace: inventory
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 500m
+        memory: 512Mi
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi

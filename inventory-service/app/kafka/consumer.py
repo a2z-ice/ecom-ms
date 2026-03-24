@@ -134,8 +134,16 @@ async def _run_consumer_loop() -> None:
 
             await _process_message_with_retry(order_event, producer, msg)
 
-            # Always commit offset — failed messages go to DLQ, don't block the consumer
-            await consumer.commit()
+            # Always commit offset — failed messages go to DLQ, don't block the consumer.
+            # Wrapped in try/except: if commit fails, reprocessing is safe because
+            # _deduct_stock uses SELECT ... FOR UPDATE and checks inv.available < quantity.
+            try:
+                await consumer.commit()
+            except Exception as exc:
+                logger.error(
+                    "Failed to commit offset for orderId=%s: %s — may be reprocessed on restart",
+                    order_event.get("orderId"), exc,
+                )
     finally:
         await consumer.stop()
         await producer.stop()

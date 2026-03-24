@@ -76,7 +76,9 @@
       <a href="#tech-stack">Tech Stack</a>
       <a href="cdc-hardening.html">CDC Hardening</a>
       <a href="schema-registry.html">Schema Registry</a>
-      <a href="architecture.html" class="highlight">Deep Dive</a>
+      <a href="comprehensive-platform-enhancements.html">Enhancements</a>
+      <a href="user-guide.html" class="highlight">User Guide</a>
+      <a href="architecture.html">Deep Dive</a>
     </div>
   </div>
 </nav>
@@ -86,8 +88,8 @@
   <p>Production-grade microservices e-commerce bookstore on Kubernetes</p>
 
   <div class="badges">
-    <span class="badge green">200+ E2E Tests Passing</span>
-    <span class="badge purple">25 Sessions Complete</span>
+    <span class="badge green">430+ E2E Tests Passing</span>
+    <span class="badge purple">35 Sessions Complete</span>
     <span class="badge orange">TLS Everywhere + mTLS</span>
     <span class="badge red">Zero Trust</span>
   </div>
@@ -201,13 +203,21 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
 
   <h2 id="docs">Documentation</h2>
   <div class="doc-cards">
-    <a href="postgresql-ha.html" class="doc-card">
-      <h3>PostgreSQL HA with CloudNativePG</h3>
-      <p>High availability, automatic failover, Debezium CDC from WAL, Kafka offset storage, and AWS RDS/Aurora migration guide.</p>
+    <a href="user-guide.html" class="doc-card" style="border-color: #10b981;">
+      <h3>Complete User Guide</h3>
+      <p>Step-by-step walkthrough of every interface — application, admin panel, Superset, Grafana, Kiali, Cert Dashboard, PgAdmin, Flink, APIs — with screenshots and credentials.</p>
+    </a>
+    <a href="comprehensive-platform-enhancements.html" class="doc-card" style="border-color: var(--accent);">
+      <h3>Comprehensive Enhancement Report</h3>
+      <p>Full analysis of all 35 sessions — why each enhancement produces the best outcome, with detailed before/after comparisons and architecture quality scorecard.</p>
     </a>
     <a href="architecture.html" class="doc-card">
       <h3>Architecture Deep Dive</h3>
       <p>Security layers, reliability, resiliency, observability, 15-Factor App compliance, and architecture scorecard.</p>
+    </a>
+    <a href="postgresql-ha.html" class="doc-card">
+      <h3>PostgreSQL HA with CloudNativePG</h3>
+      <p>High availability, automatic failover, Debezium CDC from WAL, Kafka offset storage, and AWS RDS/Aurora migration guide.</p>
     </a>
     <a href="cdc-hardening.html" class="doc-card">
       <h3>CDC Pipeline Hardening</h3>
@@ -216,6 +226,14 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
     <a href="schema-registry.html" class="doc-card">
       <h3>Schema Registry Guide</h3>
       <p>Confluent Schema Registry with JSON Schemas for all 6 CDC and application Kafka topics. Versioning, BACKWARD compatibility, and manual testing guide.</p>
+    </a>
+    <a href="sessions-30-33-architecture-hardening.html" class="doc-card">
+      <h3>Sessions 30-33: Architecture Hardening</h3>
+      <p>Security, resilience, and observability hardening. Circuit breaker, rate limiting, DLQ, HPA, PDB, JWT audience, NetworkPolicies, and 55 new E2E tests.</p>
+    </a>
+    <a href="sessions-34-35-infra-ops-hardening.html" class="doc-card">
+      <h3>Sessions 34-35: Infrastructure & Ops</h3>
+      <p>Kafka/Redis production configs, ResourceQuota, checkout idempotency, Swagger disable, backup/restore, developer documentation.</p>
     </a>
     <a href="https://github.com/a2z-ice/ecom-ms" class="doc-card" target="_blank" rel="noopener">
       <h3>GitHub Repository</h3>
@@ -229,7 +247,7 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
 
   <footer>
     <p>Built as a production-grade proof of concept demonstrating microservices best practices, zero-trust security, TLS everywhere, event-driven architecture, and real-time analytics.</p>
-    <p style="margin-top: 12px;"><a href="architecture.html">Architecture Deep Dive</a> · <a href="cdc-hardening.html">CDC Hardening</a> · <a href="schema-registry.html">Schema Registry</a> · <a href="postgresql-ha.html">PostgreSQL HA</a> · <a href="https://github.com/a2z-ice/ecom-ms">GitHub Repository</a></p>
+    <p style="margin-top: 12px;"><a href="user-guide.html">User Guide</a> · <a href="comprehensive-platform-enhancements.html">Enhancement Report</a> · <a href="architecture.html">Architecture Deep Dive</a> · <a href="cdc-hardening.html">CDC Hardening</a> · <a href="schema-registry.html">Schema Registry</a> · <a href="postgresql-ha.html">PostgreSQL HA</a> · <a href="sessions-30-33-architecture-hardening.html">Sessions 30-33</a> · <a href="sessions-34-35-infra-ops-hardening.html">Sessions 34-35</a> · <a href="https://github.com/a2z-ice/ecom-ms">GitHub Repository</a></p>
   </footer>
 
 </div>
