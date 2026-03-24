@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Redis-Backed CSRF Token Implementation — BookStore Platform</title>
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 24px 0 8px; color: #cbd5e1; }
+    p { margin-bottom: 16px; color: var(--text); }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.85rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.05); }
+    code { background: var(--card); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: #f59e0b; }
+    pre { background: var(--card); padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; color: #e2e8f0; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+    .flow-diagram { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; font-family: monospace; font-size: 0.9rem; line-height: 2; }
+    .flow-diagram .arrow { color: var(--accent); }
+    .flow-diagram .label { color: var(--green); font-weight: 600; }
+    .flow-diagram .fail { color: var(--red); font-weight: 600; }
+    .step-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 16px 0; }
+    .step-card h3 { margin-top: 0; color: var(--accent); }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: white; font-weight: 700; font-size: 0.85rem; margin-right: 10px; flex-shrink: 0; }
+    .result { padding: 12px 16px; border-radius: 8px; margin: 8px 0 16px; font-size: 0.9rem; }
+    .result.pass { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: var(--green); }
+    .result.fail { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: var(--red); }
+    .before-after { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+    .before-after > div { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; }
+    .before-after .label-tag { font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-bottom: 12px; display: inline-block; }
+    .before-after .before .label-tag { background: rgba(239,68,68,0.2); color: var(--red); }
+    .before-after .after .label-tag { background: rgba(16,185,129,0.2); color: var(--green); }
+    @media (max-width: 700px) { .before-after { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+      <a href="user-guide.html">User Guide</a>
+    </div>
+  </div>
+</nav>
+<div class="container">
+
+  <h1>Redis-Backed CSRF Token Implementation</h1>
+  <p>Defense-in-depth CSRF protection for the E-Commerce Service using Redis-stored tokens</p>
+
+  <div class="badges">
+    <span class="badge green">430+ E2E Tests Passing</span>
+    <span class="badge purple">Redis-Backed</span>
+    <span class="badge orange">30min TTL + Auto-Refresh</span>
+    <span class="badge red">Fail-Open on Redis Errors</span>
+  </div>
+
+  <!-- ───────────────────────────────────────────────────────────── -->
+  <h2 id="overview">1. What is CSRF and Why It Matters</h2>
+
+  <p><strong>Cross-Site Request Forgery (CSRF)</strong> is an attack where a malicious website tricks a user's browser into making unintended requests to another site where the user is authenticated. If the target site relies on cookies, the browser automatically includes them, allowing the attacker to act as the user.</p>
+
+  <h3>Why CSRF Protection Even with JWT?</h3>
+  <ul>
+    <li>If a future change introduces cookie-based sessions, CSRF protection is already in place</li>
+    <li>Prevents token relay attacks where an attacker's page could potentially extract and replay tokens</li>
+    <li>Satisfies security audit requirements for financial/e-commerce applications</li>
+    <li>Validates that requests originate from our UI, not any client with a valid JWT</li>
+  </ul>
+
+  <!-- ───────────────────────────────────────────────────────────── -->
+  <h2 id="before">2. Before the Change</h2>
+
+  <div class="before-after">
+    <div class="before">
+      <span class="label-tag">BEFORE</span>
+      <h3>SecurityConfig.java</h3>
+      <pre><code>.csrf(csrf -> csrf.disable())
+// "CSRF handled at gateway/UI level"
+// Reality: NOT handled anywhere</code></pre>
+    </div>
+    <div class="before">
+      <span class="label-tag">BEFORE</span>
+      <h3>UI API Client</h3>
+      <pre><code>const headers = {
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${token}`,
+  // No CSRF header
+}</code></pre>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Aspect</th><th>Status Before</th></tr>
+    <tr><td>CSRF protection</td><td><code>csrf.disable()</code> &mdash; completely disabled</td></tr>
+    <tr><td>Redis usage for CSRF</td><td>None (Redis configured but unused)</td></tr>
+    <tr><td>X-CSRF-Token header</td><td>Never sent by UI</td></tr>
+    <tr><td>CSRF endpoint</td><td>Does not exist</td></tr>
+    <tr><td>Mutating requests</td><td>Only JWT required</td></tr>
+  </table>
+
+  <!-- ───────────────────────────────────────────────────────────── -->
+  <h2 id="after">3. After the Change</h2>
+
+  <h3>Request Flow</h3>
+  <div class="flow-diagram">
+    <span class="label">User Login</span> <span class="arrow">&rarr;</span> <code>GET /ecom/csrf-token</code> (JWT required) <span class="arrow">&rarr;</span> Token stored in Redis &amp; returned<br>
+    <span class="label">User Action</span> <span class="arrow">&rarr;</span> <code>POST/PUT/DELETE</code> with <code>X-CSRF-Token</code> header <span class="arrow">&rarr;</span> CsrfValidationFilter<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="arrow">&rarr;</span> Redis lookup: <code>csrf:{userId}</code> <span class="arrow">&rarr;</span> compare token<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="label">Match?</span> <span class="arrow">&rarr;</span> Allow request (refresh TTL to 30min)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="fail">No match?</span> <span class="arrow">&rarr;</span> <span class="fail">403 Forbidden</span>
+  </div>
+
+  <div class="before-after">
+    <div class="after">
+      <span class="label-tag">AFTER</span>
+      <h3>SecurityConfig.java</h3>
+      <pre><code>.csrf(csrf -> csrf.disable())
+// Spring's built-in CSRF disabled;
+// custom Redis-backed filter below
+.addFilterAfter(
+  new CsrfValidationFilter(
+    csrfTokenService, csrfEnabled),
+  BearerTokenAuthenticationFilter.class
+)</code></pre>
+    </div>
+    <div class="after">
+      <span class="label-tag">AFTER</span>
+      <h3>UI API Client</h3>
+      <pre><code>const headers = {
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${token}`,
+  // Auto-injected on mutations:
+  'X-CSRF-Token': csrfToken,
+}
+// + auto-retry on 403 (expired token)</code></pre>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Aspect</th><th>Status After</th></tr>
+    <tr><td>CSRF protection</td><td>Enabled &mdash; custom Redis-backed filter</td></tr>
+    <tr><td>Redis key format</td><td><code>csrf:{userId}</code> with 30min TTL</td></tr>
+    <tr><td>X-CSRF-Token header</td><td>Sent on all POST/PUT/DELETE/PATCH</td></tr>
+    <tr><td>CSRF endpoint</td><td><code>GET /ecom/csrf-token</code> (JWT required)</td></tr>
+    <tr><td>Mutating requests</td><td>JWT + CSRF token required</td></tr>
+    <tr><td>Safe methods (GET)</td><td>No CSRF required</td></tr>
+    <tr><td>Token expiry</td><td>Auto-retry on 403</td></tr>
+    <tr><td>Redis failure</td><td>Fail-open (log warning, allow request)</td></tr>
+    <tr><td>Integration tests</td><td><code>csrf.enabled=false</code> in test profile</td></tr>
+  </table>
+
+  <!-- ───────────────────────────────────────────────────────────── -->
+  <h2 id="files-created">3.1 Files Created</h2>
+
+  <h3>CsrfTokenService.java</h3>
+  <p><code>ecom-service/src/main/java/com/bookstore/ecom/config/CsrfTokenService.java</code></p>
+  <pre><code>@Service
+public class CsrfTokenService {
+    private static final String KEY_PREFIX = "csrf:";
+    private static final Duration TOKEN_TTL = Duration.ofMinutes(30);
+
+    public String generateToken(String userId) {
+        String token = UUID.randomUUID().toString();
+        redisTemplate.opsForValue().set(KEY_PREFIX + userId, token, TOKEN_TTL);
+        return token;
+    }
+
+    public boolean validateAndRefresh(String userId, String token) {
+        if (token == null || token.isBlank()) return false;
+        try {
+            String stored = redisTemplate.opsForValue().get(KEY_PREFIX + userId);
+            if (stored != null && stored.equals(token)) {
+                redisTemplate.expire(KEY_PREFIX + userId, TOKEN_TTL);
+                return true;
+            }
+            return false;
+        } catch (Exception e) {
+            log.warn("Redis error -- failing open: {}", e.getMessage());
+            return true;  // JWT is the primary defense
+        }
+    }
+}</code></pre>
+
+  <h3>CsrfValidationFilter.java</h3>
+  <p><code>ecom-service/src/main/java/com/bookstore/ecom/config/CsrfValidationFilter.java</code></p>
+  <pre><code>public class CsrfValidationFilter extends OncePerRequestFilter {
+    // Skip safe methods (GET, HEAD, OPTIONS, TRACE)
+    // Skip actuator + swagger paths
+    // Extract user from SecurityContextHolder (JWT sub claim)
+    // Read X-CSRF-Token header
+    // Validate via CsrfTokenService
+    // Return 403 ProblemDetail on failure
+    // Pass through if no auth present (Spring Security rejects later)
+}</code></pre>
+
+  <h3>CsrfTokenController.java</h3>
+  <p><code>ecom-service/src/main/java/com/bookstore/ecom/controller/CsrfTokenController.java</code></p>
+  <pre><code>@RestController
+public class CsrfTokenController {
+    @GetMapping("/csrf-token")
+    public Map&lt;String, String&gt; getCsrfToken(JwtAuthenticationToken auth) {
+        String userId = auth.getToken().getSubject();
+        String token = csrfTokenService.generateToken(userId);
+        return Map.of("token", token);
+    }
+}</code></pre>
+
+  <h3>csrf.spec.ts</h3>
+  <p><code>e2e/csrf.spec.ts</code> &mdash; 8 dedicated CSRF E2E tests</p>
+
+  <!-- ───────────────────────────────────────────────────────────── -->
+  <h2 id="edge-cases">4. Edge Cases</h2>
+
+  <table>
+    <tr><th>Scenario</th><th>Behavior</th></tr>
+    <tr><td>User clicks button before CSRF token fetched</td><td>403 returned &rarr; auto-retry fetches token &rarr; request succeeds</td></tr>
+    <tr><td>Token expires after 30min idle</td><td>Same 403-retry mechanism</td></tr>
+    <tr><td>Redis is unavailable</td><td>Fail-open: request allowed with warning log</td></tr>
+    <tr><td>Unauthenticated mutating request</td><td>CSRF filter passes through; Spring Security returns 401</td></tr>
+    <tr><td>GET requests</td><td>Always exempt from CSRF</td></tr>
+    <tr><td>Guest cart merge during OIDC callback</td><td>CSRF token fetched first, included in all POST calls</td></tr>
+  </table>
+
+  <!-- ───────────────────────────────────────────────────────────── -->
+  <h2 id="manual-testing">5. Manual Testing Guide</h2>
+
+  <div class="step-card">
+    <h3><span class="step-num">1</span>Obtain a JWT Token</h3>
+    <pre><code>TOKEN=$(curl -sk -X POST \
+  "https://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token" \
+  -d "grant_type=password&amp;client_id=ui-client&amp;username=user1&amp;password=CHANGE_ME" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+echo "JWT obtained: ${#TOKEN} chars"</code></pre>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">2</span>POST Without CSRF Token &rarr; 403</h3>
+    <pre><code>curl -sk -w "\nHTTP Status: %{http_code}\n" \
+  -X POST https://api.service.net:30000/ecom/cart \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"bookId":"00000000-0000-0000-0000-000000000001","quantity":1}'</code></pre>
+    <div class="result fail">Expected: HTTP 403 &mdash; <code>{"detail":"Invalid or missing CSRF token"}</code></div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">3</span>POST With Invalid CSRF Token &rarr; 403</h3>
+    <pre><code>curl -sk -w "\nHTTP Status: %{http_code}\n" \
+  -X POST https://api.service.net:30000/ecom/cart \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-CSRF-Token: this-is-not-valid" \
+  -H "Content-Type: application/json" \
+  -d '{"bookId":"00000000-0000-0000-0000-000000000001","quantity":1}'</code></pre>
+    <div class="result fail">Expected: HTTP 403 &mdash; <code>{"detail":"Invalid or missing CSRF token"}</code></div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">4</span>Fetch a Valid CSRF Token</h3>
+    <pre><code>CSRF=$(curl -sk https://api.service.net:30000/ecom/csrf-token \
+  -H "Authorization: Bearer $TOKEN" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
+
+echo "CSRF token: $CSRF"</code></pre>
+    <div class="result pass">Expected: UUID string like <code>ec235d14-549e-4486-9c39-2d7c8fffd2f3</code></div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">5</span>POST With Valid CSRF Token &rarr; 200</h3>
+    <pre><code>curl -sk -w "\nHTTP Status: %{http_code}\n" \
+  -X POST https://api.service.net:30000/ecom/cart \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-CSRF-Token: $CSRF" \
+  -H "Content-Type: application/json" \
+  -d '{"bookId":"00000000-0000-0000-0000-000000000001","quantity":1}'</code></pre>
+    <div class="result pass">Expected: HTTP 200 &mdash; Cart item JSON returned</div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">6</span>GET Requests Are Unaffected</h3>
+    <pre><code>curl -sk -o /dev/null -w "HTTP Status: %{http_code}\n" \
+  https://api.service.net:30000/ecom/books</code></pre>
+    <div class="result pass">Expected: HTTP 200 &mdash; No CSRF token needed for GET</div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">7</span>CSRF Endpoint Requires JWT</h3>
+    <pre><code>curl -sk -o /dev/null -w "HTTP Status: %{http_code}\n" \
+  https://api.service.net:30000/ecom/csrf-token</code></pre>
+    <div class="result fail">Expected: HTTP 401 &mdash; No JWT provided</div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">8</span>Verify Redis Contains the CSRF Key</h3>
+    <pre><code>kubectl exec -n infra deploy/redis -- redis-cli -a CHANGE_ME KEYS 'csrf:*'</code></pre>
+    <div class="result pass">Expected: <code>csrf:d4d573f8-178d-4843-92e2-d0e3596ee18e</code></div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">9</span>Verify Token TTL in Redis</h3>
+    <pre><code>kubectl exec -n infra deploy/redis -- redis-cli -a CHANGE_ME TTL 'csrf:&lt;user-id&gt;'</code></pre>
+    <div class="result pass">Expected: Value between 0 and 1800 (30 minutes in seconds)</div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">10</span>Run CSRF E2E Tests</h3>
+    <pre><code>cd e2e && npx playwright test csrf.spec.ts</code></pre>
+    <div class="result pass">Expected: All 8 tests pass</div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">11</span>Run Full E2E Regression</h3>
+    <pre><code>cd e2e && npm run test</code></pre>
+    <div class="result pass">Expected: 430+ tests pass, zero CSRF-related failures</div>
+  </div>
+
+  <!-- ───────────────────────────────────────────────────────────── -->
+  <h2 id="files">6. Files Changed Summary</h2>
+
+  <table>
+    <tr><th>File</th><th>Action</th><th>Description</th></tr>
+    <tr><td><code>ecom-service/.../config/CsrfTokenService.java</code></td><td><span class="badge green">Created</span></td><td>Redis-backed token store (generate, validate, refresh TTL)</td></tr>
+    <tr><td><code>ecom-service/.../config/CsrfValidationFilter.java</code></td><td><span class="badge green">Created</span></td><td>Validates X-CSRF-Token on POST/PUT/DELETE/PATCH</td></tr>
+    <tr><td><code>ecom-service/.../controller/CsrfTokenController.java</code></td><td><span class="badge green">Created</span></td><td>GET /csrf-token endpoint (JWT required)</td></tr>
+    <tr><td><code>e2e/csrf.spec.ts</code></td><td><span class="badge green">Created</span></td><td>8 CSRF-specific E2E tests</td></tr>
+    <tr><td><code>ecom-service/.../config/SecurityConfig.java</code></td><td><span class="badge orange">Modified</span></td><td>Register CSRF filter after BearerTokenAuthenticationFilter</td></tr>
+    <tr><td><code>ecom-service/src/test/.../application-test.yml</code></td><td><span class="badge orange">Modified</span></td><td><code>csrf.enabled: false</code> for integration tests</td></tr>
+    <tr><td><code>ui/src/api/client.ts</code></td><td><span class="badge orange">Modified</span></td><td>CSRF token inject on mutations + 403 auto-retry</td></tr>
+    <tr><td><code>ui/src/App.tsx</code></td><td><span class="badge orange">Modified</span></td><td>Fetch CSRF token after user authenticates</td></tr>
+    <tr><td><code>ui/src/pages/CallbackPage.tsx</code></td><td><span class="badge orange">Modified</span></td><td>Fetch CSRF before guest cart merge</td></tr>
+    <tr><td><code>e2e/admin.spec.ts</code></td><td><span class="badge orange">Modified</span></td><td>CSRF header on admin POST/PUT/DELETE</td></tr>
+    <tr><td><code>e2e/input-validation.spec.ts</code></td><td><span class="badge orange">Modified</span></td><td>CSRF header on cart validation tests</td></tr>
+    <tr><td><code>e2e/infra-app-hardening.spec.ts</code></td><td><span class="badge orange">Modified</span></td><td>CSRF header on idempotent checkout test</td></tr>
+  </table>
+
+  <!-- ───────────────────────────────────────────────────────────── -->
+  <h2 id="test-results">7. E2E Test Results</h2>
+
+  <table>
+    <tr><th>Test File</th><th>Tests</th><th>Result</th></tr>
+    <tr><td><code>csrf.spec.ts</code></td><td>8</td><td><span class="badge green">All Pass</span></td></tr>
+    <tr><td><code>admin.spec.ts</code></td><td>20</td><td><span class="badge green">All Pass</span></td></tr>
+    <tr><td><code>input-validation.spec.ts</code></td><td>12</td><td><span class="badge green">All Pass</span></td></tr>
+    <tr><td><code>infra-app-hardening.spec.ts</code></td><td>12</td><td><span class="badge green">All Pass</span></td></tr>
+    <tr><td>All browser-based tests</td><td>380+</td><td><span class="badge green">All Pass</span></td></tr>
+    <tr style="font-weight: 700;"><td>Total Regression</td><td>430+</td><td><span class="badge green">All Pass</span></td></tr>
+  </table>
+
+  <footer>
+    <p>BookStore Platform &mdash; Redis-Backed CSRF Token Implementation<br>
+    <a href="index.html">&larr; Back to Documentation Index</a></p>
+  </footer>
+</div>
+</body>
+</html>

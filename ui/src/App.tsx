@@ -1,7 +1,7 @@
-import React, { Suspense } from 'react'
+import React, { Suspense, useEffect } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthContext'
-import { setTokenProvider } from './api/client'
+import { setTokenProvider, fetchCsrfToken } from './api/client'
 import NavBar from './components/NavBar'
 import ErrorBoundary from './components/ErrorBoundary'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -22,9 +22,16 @@ const AdminStockPage = React.lazy(() => import('./pages/admin/AdminStockPage'))
 const AdminOrdersPage = React.lazy(() => import('./pages/admin/AdminOrdersPage'))
 
 function AppWithAuth() {
-  const { getAccessToken } = useAuth()
+  const { getAccessToken, user } = useAuth()
   // Wire the in-memory token into the API client once
   setTokenProvider(getAccessToken)
+
+  // Fetch CSRF token from ecom-service after authentication
+  useEffect(() => {
+    if (user) {
+      fetchCsrfToken().catch(err => console.warn('CSRF token fetch failed:', err))
+    }
+  }, [user])
 
   return (
     <BrowserRouter>

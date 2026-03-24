@@ -30,6 +30,15 @@ async function getToken(request: any, username: string, password: string): Promi
   return body.access_token
 }
 
+// Helper: get a CSRF token from ecom-service (required for POST/PUT/DELETE)
+async function getCsrfToken(request: any, bearerToken: string): Promise<string> {
+  const resp = await request.get(`${ECOM_BASE}/csrf-token`, {
+    headers: { Authorization: `Bearer ${bearerToken}` },
+  })
+  const body = await resp.json()
+  return body.token
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // API security tests — no browser needed
 // ─────────────────────────────────────────────────────────────────────────────
@@ -111,8 +120,9 @@ test.describe('Admin Book CRUD', () => {
 
   test('POST /ecom/admin/books creates a new book', async ({ request }) => {
     const token = await getToken(request, 'admin1', 'CHANGE_ME')
+    const csrf = await getCsrfToken(request, token)
     const resp = await request.post(`${ECOM_BASE}/admin/books`, {
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
       data: {
         title: 'E2E Test Book',
         author: 'Test Author',
@@ -131,6 +141,7 @@ test.describe('Admin Book CRUD', () => {
 
   test('PUT /ecom/admin/books/{id} updates a book', async ({ request }) => {
     const token = await getToken(request, 'admin1', 'CHANGE_ME')
+    const csrf = await getCsrfToken(request, token)
 
     // First get a book to update
     const listResp = await request.get(`${ECOM_BASE}/admin/books?size=1`, {
@@ -141,7 +152,7 @@ test.describe('Admin Book CRUD', () => {
     const originalTitle = list.content[0].title
 
     const resp = await request.put(`${ECOM_BASE}/admin/books/${bookId}`, {
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
       data: {
         title: originalTitle,  // keep original title
         author: list.content[0].author,
@@ -157,6 +168,7 @@ test.describe('Admin Book CRUD', () => {
 
   test('DELETE /ecom/admin/books/{id} deletes the test book', async ({ request }) => {
     const token = await getToken(request, 'admin1', 'CHANGE_ME')
+    const csrf = await getCsrfToken(request, token)
 
     // Find the E2E test book we created
     const listResp = await request.get(
@@ -171,7 +183,7 @@ test.describe('Admin Book CRUD', () => {
     }
 
     const resp = await request.delete(`${ECOM_BASE}/admin/books/${testBook.id}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}`, 'X-CSRF-Token': csrf },
     })
     expect(resp.status()).toBe(204)
 

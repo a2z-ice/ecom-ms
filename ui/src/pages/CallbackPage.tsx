@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { userManager } from '../auth/oidcConfig'
 import { getGuestCart, clearGuestCart } from '../hooks/useGuestCart'
+import { setCsrfToken } from '../api/client'
 
 export default function CallbackPage() {
   const navigate = useNavigate()
@@ -11,6 +12,21 @@ export default function CallbackPage() {
       .then(async (user) => {
         const state = user.state as { returnUrl?: string } | undefined
         const returnUrl = state?.returnUrl || '/'
+
+        // Fetch CSRF token before any mutating requests
+        let csrfToken: string | null = null
+        try {
+          const csrfResp = await fetch('/ecom/csrf-token', {
+            headers: { Authorization: `Bearer ${user.access_token}` },
+          })
+          if (csrfResp.ok) {
+            const csrfData = await csrfResp.json()
+            csrfToken = csrfData.token
+            setCsrfToken(csrfToken)
+          }
+        } catch {
+          // CSRF fetch failed — guest cart merge may fail with 403 but is best-effort
+        }
 
         // Merge guest cart items to server cart if any exist
         const pending = getGuestCart()
@@ -22,6 +38,7 @@ export default function CallbackPage() {
                 headers: {
                   'Content-Type': 'application/json',
                   'Authorization': `Bearer ${user.access_token}`,
+                  ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
                 },
                 body: JSON.stringify({ bookId: item.bookId, quantity: item.quantity }),
               })

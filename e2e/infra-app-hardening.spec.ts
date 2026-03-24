@@ -189,9 +189,17 @@ test.describe('Idempotent Checkout', () => {
     const token = JSON.parse(tokenJson).access_token
     expect(token).toBeTruthy()
 
+    // Fetch CSRF token for mutating requests
+    const csrfResp = await request.get(`${ECOM_API}/csrf-token`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      ignoreHTTPSErrors: true,
+    })
+    const csrfToken = (await csrfResp.json()).token
+
     const headers = {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
+      'X-CSRF-Token': csrfToken,
     }
 
     // First, add an item to cart
