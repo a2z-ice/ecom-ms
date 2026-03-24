@@ -6,11 +6,11 @@
   <title>BookStore Platform — Technical Reference Manual</title>
   <meta property="og:title" content="BookStore Platform — Technical Reference Manual" />
   <meta property="og:description" content="Production-grade microservices e-commerce platform on Kubernetes. Complete technical reference covering architecture, operations, security, CDC, monitoring, and API documentation." />
-  <meta property="og:image" content="diagrams/architecture.gif" />
+  <meta property="og:image" content="diagrams/architecture.png" />
   <meta property="og:type" content="article" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="BookStore Platform — Technical Reference Manual" />
-  <meta name="twitter:image" content="diagrams/architecture.gif" />
+  <meta name="twitter:image" content="diagrams/architecture.png" />
   <style>
     /* ── DESIGN TOKENS ── */
     :root {
@@ -428,11 +428,11 @@
 
   <h3 id="ch1-arch">Infrastructure Architecture</h3>
   <p>The BookStore platform runs on a local Kubernetes (kind) cluster with Istio Ambient Mesh providing zero-trust networking. All external traffic is encrypted via TLS with certificates managed by cert-manager. The diagram below shows the complete infrastructure topology.</p>
-  <img src="diagrams/architecture.gif" alt="BookStore Platform — Infrastructure Architecture Diagram" />
+  <img src="diagrams/architecture.svg" alt="BookStore Platform — Infrastructure Architecture Diagram" />
 
   <h3>Live Data Flow</h3>
   <p>Data flows from the user's browser through TLS-terminated gateway endpoints, across mTLS-encrypted service mesh, through event-driven CDC pipelines, and into real-time analytics dashboards.</p>
-  <img src="diagrams/data-flow.gif" alt="BookStore Platform — Live Data Flow (Animated)" />
+  <img src="diagrams/data-flow-animated.svg" alt="BookStore Platform — Live Data Flow (Animated)" />
 
   <h3 id="ch1-stack">Technology Stack</h3>
   <table>
