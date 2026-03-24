@@ -21,7 +21,7 @@ export async function fetchCsrfToken(): Promise<string | null> {
   if (!token) return null
 
   try {
-    const resp = await fetch('/ecom/csrf-token', {
+    const resp = await fetch('/csrf/token', {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (resp.ok) {

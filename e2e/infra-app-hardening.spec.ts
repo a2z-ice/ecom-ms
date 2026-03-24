@@ -190,7 +190,7 @@ test.describe('Idempotent Checkout', () => {
     expect(token).toBeTruthy()
 
     // Fetch CSRF token for mutating requests
-    const csrfResp = await request.get(`${ECOM_API}/csrf-token`, {
+    const csrfResp = await request.get(`https://api.service.net:30000/csrf/token`, {
       headers: { 'Authorization': `Bearer ${token}` },
       ignoreHTTPSErrors: true,
     })

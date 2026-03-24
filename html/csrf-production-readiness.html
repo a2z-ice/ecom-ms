@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CSRF Service Production Readiness Audit</title>
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p.subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 24px 0 8px; color: #cbd5e1; }
+    p { margin-bottom: 16px; color: var(--text); }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.85rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.05); }
+    code { background: var(--card); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: #f59e0b; }
+    pre { background: var(--card); padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.85em; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+
+    /* Score gauge */
+    .score-gauge { width: 120px; height: 120px; border-radius: 50%; background: conic-gradient(#f59e0b 0% 62%, var(--border) 62% 100%); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+    .score-gauge-inner { width: 96px; height: 96px; border-radius: 50%; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 800; color: #f59e0b; }
+    .score-section { text-align: center; margin: 32px 0 40px; }
+    .score-label { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+
+    /* Issue cards */
+    .issue-card { background: var(--card); border-left: 4px solid var(--red); border-radius: 0 12px 12px 0; padding: 16px 20px; margin: 16px 0; }
+    .issue-card.critical { border-left-color: #ef4444; }
+    .issue-card.high { border-left-color: #f59e0b; }
+    .issue-card.medium { border-left-color: var(--accent); }
+    .issue-card.strength { border-left-color: #10b981; }
+    .issue-card h4 { margin-bottom: 8px; font-size: 0.95rem; }
+    .issue-card.critical h4 { color: #ef4444; }
+    .issue-card.high h4 { color: #f59e0b; }
+    .issue-card.medium h4 { color: var(--accent); }
+    .issue-card.strength h4 { color: #10b981; }
+    .issue-card p { margin-bottom: 8px; font-size: 0.9rem; }
+    .issue-card p:last-child { margin-bottom: 0; }
+
+    /* Before/After */
+    .before-after { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+    .before-after > div { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; }
+    .before-after .label-tag { font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-bottom: 12px; display: inline-block; }
+    .before-after .before .label-tag { background: rgba(239,68,68,0.2); color: var(--red); }
+    .before-after .after .label-tag { background: rgba(16,185,129,0.2); color: var(--green); }
+    @media (max-width: 700px) { .before-after { grid-template-columns: 1fr; } }
+
+    /* Scoring bar */
+    .score-bar-container { margin: 8px 0 4px; }
+    .score-bar { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; }
+    .score-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+    .score-bar-fill.green { background: linear-gradient(90deg, #059669, #10b981); }
+    .score-bar-fill.orange { background: linear-gradient(90deg, #d97706, #f59e0b); }
+    .score-bar-fill.red { background: linear-gradient(90deg, #dc2626, #ef4444); }
+    .score-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; margin-bottom: 2px; }
+    .score-row .cat { color: var(--text); font-weight: 500; }
+    .score-row .val { color: var(--muted); font-weight: 600; }
+
+    /* Roadmap */
+    .roadmap-phase { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 16px 0; }
+    .roadmap-phase h4 { margin-bottom: 12px; font-size: 0.95rem; }
+    .roadmap-phase.p1 h4 { color: #ef4444; }
+    .roadmap-phase.p2 h4 { color: #f59e0b; }
+    .roadmap-phase.p3 h4 { color: var(--accent); }
+    .roadmap-phase ul { margin-left: 20px; }
+    .roadmap-phase li { font-size: 0.9rem; }
+
+    /* Comparison table */
+    .comparison-table { font-size: 0.82rem; }
+    .comparison-table td, .comparison-table th { padding: 8px 10px; white-space: nowrap; }
+    .comparison-table .yes { color: var(--green); font-weight: 600; }
+    .comparison-table .no { color: var(--red); font-weight: 600; }
+    .comparison-table .partial { color: var(--yellow); font-weight: 600; }
+
+    /* Verdict box */
+    .verdict { background: var(--card); border: 2px solid var(--border); border-radius: 12px; padding: 24px 28px; margin: 32px 0; }
+    .verdict h3 { color: var(--accent); margin-top: 0; margin-bottom: 12px; font-size: 1.1rem; }
+    .verdict p { font-size: 0.95rem; margin-bottom: 0; }
+
+    /* TOC */
+    .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 0 0 32px; }
+    .toc h3 { margin-top: 0; color: var(--accent); font-size: 0.95rem; margin-bottom: 12px; }
+    .toc ol { margin: 0 0 0 20px; }
+    .toc li { margin-bottom: 4px; }
+    .toc a { color: var(--muted); text-decoration: none; font-size: 0.88rem; }
+    .toc a:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="gateway-csrf-service.html">Gateway CSRF</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>CSRF Service Production Readiness Audit</h1>
+  <p class="subtitle">Gap analysis, scoring, and remediation plan for the gateway-level CSRF microservice</p>
+
+  <div class="badges">
+    <span class="badge orange">Score: 62/100</span>
+    <span class="badge red">15 Issues Found</span>
+    <span class="badge red">3 Critical</span>
+    <span class="badge green">12 Strengths</span>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#summary">Executive Summary</a></li>
+      <li><a href="#strengths">What's Already Production-Grade</a></li>
+      <li><a href="#critical">Critical Issues (Must Fix)</a></li>
+      <li><a href="#high">High-Priority Issues (Should Fix)</a></li>
+      <li><a href="#medium">Medium-Priority Issues (Nice to Have)</a></li>
+      <li><a href="#comparison">Comparison with Other Services</a></li>
+      <li><a href="#roadmap">Remediation Roadmap</a></li>
+      <li><a href="#verdict">Verdict</a></li>
+    </ol>
+  </div>
+
+  <!-- 1. EXECUTIVE SUMMARY -->
+  <h2 id="summary">1. Executive Summary</h2>
+
+  <p>The csrf-service is a functional POC with solid fundamentals (fail-open resilience, proper security context, distroless image, gateway-level enforcement). However, it has gaps in <strong>3 critical areas</strong> that must be addressed before production deployment: server hardening, high availability, and observability.</p>
+
+  <div class="score-section">
+    <div class="score-gauge">
+      <div class="score-gauge-inner">62</div>
+    </div>
+    <div class="score-label">Overall Production Readiness Score (out of 100)</div>
+  </div>
+
+  <!-- Scoring breakdown -->
+  <h3>Scoring Breakdown</h3>
+
+  <div style="max-width: 600px; margin: 16px 0 32px;">
+    <div style="margin-bottom: 16px;">
+      <div class="score-row"><span class="cat">Security</span><span class="val">14 / 20</span></div>
+      <div class="score-bar"><div class="score-bar-fill orange" style="width: 70%;"></div></div>
+    </div>
+    <div style="margin-bottom: 16px;">
+      <div class="score-row"><span class="cat">Resilience</span><span class="val">10 / 20</span></div>
+      <div class="score-bar"><div class="score-bar-fill red" style="width: 50%;"></div></div>
+    </div>
+    <div style="margin-bottom: 16px;">
+      <div class="score-row"><span class="cat">Observability</span><span class="val">4 / 20</span></div>
+      <div class="score-bar"><div class="score-bar-fill red" style="width: 20%;"></div></div>
+    </div>
+    <div style="margin-bottom: 16px;">
+      <div class="score-row"><span class="cat">Kubernetes</span><span class="val">16 / 20</span></div>
+      <div class="score-bar"><div class="score-bar-fill green" style="width: 80%;"></div></div>
+    </div>
+    <div style="margin-bottom: 16px;">
+      <div class="score-row"><span class="cat">Code Quality</span><span class="val">12 / 10</span></div>
+      <div class="score-bar"><div class="score-bar-fill green" style="width: 100%;"></div></div>
+    </div>
+    <div style="margin-bottom: 16px;">
+      <div class="score-row"><span class="cat">Testing</span><span class="val">6 / 10</span></div>
+      <div class="score-bar"><div class="score-bar-fill orange" style="width: 60%;"></div></div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Category</th><th>Score</th><th>Max</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Security</td><td>14</td><td>20</td><td>Good: non-root, drop-all-caps, fail-open. Gap: timing-safe compare, no rate limiting</td></tr>
+      <tr><td>Resilience</td><td>10</td><td>20</td><td>Good: fail-open, context timeouts. Gap: no graceful shutdown, no circuit breaker, single replica</td></tr>
+      <tr><td>Observability</td><td>4</td><td>20</td><td>Good: structured JSON logging. Gap: no Prometheus metrics, no OTel tracing, no Redis health check</td></tr>
+      <tr><td>Kubernetes</td><td>16</td><td>20</td><td>Good: probes, security context, resource limits. Gap: 1 replica, no HPA, no PDB</td></tr>
+      <tr><td>Code Quality</td><td>12</td><td>10</td><td>Good: clean code, proper error handling. Minor: expire error not logged</td></tr>
+      <tr><td>Testing</td><td>6</td><td>10</td><td>Good: 11 E2E tests. Gap: no unit tests, no integration tests</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 2. STRENGTHS -->
+  <h2 id="strengths">2. What's Already Production-Grade</h2>
+
+  <div class="issue-card strength">
+    <h4>Fail-Open Design</h4>
+    <p>Redis errors don't block requests. JWT remains the primary defense. When Redis is unreachable, the service logs a warning and returns HTTP 200, allowing the request through. This prevents a Redis outage from becoming a total platform outage.</p>
+  </div>
+
+  <div class="issue-card strength">
+    <h4>Gateway-Level Enforcement</h4>
+    <p>Protects ALL services (Java Spring Boot, Python FastAPI, future Node.js) from a single point. The Istio <code>AuthorizationPolicy</code> with <code>action: CUSTOM</code> routes every gateway request through the csrf-service via ext_authz. No per-service CSRF middleware needed.</p>
+  </div>
+
+  <div class="issue-card strength">
+    <h4>Security Context</h4>
+    <p>Non-root (<code>runAsUser: 65532</code>), <code>readOnlyRootFilesystem: true</code>, <code>drop: ["ALL"]</code> capabilities, <code>seccompProfile: RuntimeDefault</code>. This matches or exceeds the security posture of ecom-service and inventory-service.</p>
+  </div>
+
+  <div class="issue-card strength">
+    <h4>Distroless Image</h4>
+    <p><code>gcr.io/distroless/static:nonroot</code> -- minimal attack surface. No shell, no package manager, no libc. The smallest possible Go runtime image.</p>
+  </div>
+
+  <div class="issue-card strength">
+    <h4>Static Binary</h4>
+    <p><code>CGO_ENABLED=0</code> produces a fully static binary with no C dependencies. Deterministic builds, no dynamic linking surprises.</p>
+  </div>
+
+  <div class="issue-card strength">
+    <h4>Structured Logging</h4>
+    <p><code>slog.NewJSONHandler</code> produces machine-parseable JSON logs on stdout, compatible with the platform's log aggregation pipeline (OTel Collector to Loki).</p>
+  </div>
+
+  <div class="issue-card strength">
+    <h4>Context Timeouts</h4>
+    <p>2-second timeout for all Redis operations via <code>context.WithTimeout</code>, 5-second timeout for startup health check. Prevents goroutine leaks from hung Redis connections.</p>
+  </div>
+
+  <div class="issue-card strength">
+    <h4>ProblemDetail Error Responses</h4>
+    <p>RFC 9457-style JSON on 403 responses with <code>type</code>, <code>title</code>, <code>status</code>, and <code>detail</code> fields. Consistent with ecom-service's <code>GlobalExceptionHandler</code>.</p>
+  </div>
+
+  <div class="issue-card strength">
+    <h4>UUID v4 Tokens</h4>
+    <p><code>google/uuid</code> uses <code>crypto/rand</code> internally, providing 122 bits of cryptographic randomness per token. Not guessable or predictable.</p>
+  </div>
+
+  <div class="issue-card strength">
+    <h4>Istio ext_authz Integration</h4>
+    <p><code>AuthorizationPolicy</code> with <code>action: CUSTOM</code> and <code>provider: csrf-ext-authz</code> -- the correct Istio 1.28+ approach for gateway-level external authorization.</p>
+  </div>
+
+  <div class="issue-card strength">
+    <h4>HTTPRoute Configuration</h4>
+    <p>Clean <code>csrf-route.yaml</code> exposes <code>GET /csrf/token</code> through the Kubernetes Gateway API on <code>api.service.net</code>.</p>
+  </div>
+
+  <div class="issue-card strength">
+    <h4>PeerAuthentication</h4>
+    <p>PERMISSIVE on port 8080 for gateway ext_authz compatibility. The gateway connects directly to the csrf-service, not through the Istio mesh HBONE tunnel.</p>
+  </div>
+
+  <!-- 3. CRITICAL ISSUES -->
+  <h2 id="critical">3. Critical Issues (Must Fix)</h2>
+
+  <div class="issue-card critical">
+    <h4>3.1 No Graceful Shutdown</h4>
+    <p><strong>Current:</strong> <code>http.ListenAndServe()</code> at line 62 blocks forever; SIGTERM kills in-flight requests immediately.</p>
+    <p><strong>Impact:</strong> During rolling updates, active ext_authz checks are terminated mid-flight, causing 503 errors. Since every mutating request passes through this service, even a brief disruption affects checkout, cart operations, and admin actions.</p>
+    <p><strong>Fix:</strong> Implement <code>signal.NotifyContext()</code> + <code>server.Shutdown()</code> with 10-second drain period.</p>
+  </div>
+
+  <div class="before-after">
+    <div class="before">
+      <div class="label-tag">BEFORE (line 62)</div>
+      <pre><code>if err := http.ListenAndServe(":"+port, mux); err != nil {
+    slog.Error("Server failed", "error", err)
+    os.Exit(1)
+}</code></pre>
+    </div>
+    <div class="after">
+      <div class="label-tag">AFTER</div>
+      <pre><code>srv := &amp;http.Server{Addr: ":" + port, Handler: mux}
+go func() {
+    if err := srv.ListenAndServe(); err != nil &amp;&amp;
+       err != http.ErrServerClosed {
+        slog.Error("Server failed", "error", err)
+        os.Exit(1)
+    }
+}()
+ctx, stop := signal.NotifyContext(
+    context.Background(),
+    syscall.SIGTERM, syscall.SIGINT,
+)
+defer stop()
+&lt;-ctx.Done()
+slog.Info("Shutting down gracefully...")
+shutdownCtx, cancel := context.WithTimeout(
+    context.Background(), 10*time.Second,
+)
+defer cancel()
+srv.Shutdown(shutdownCtx)</code></pre>
+    </div>
+  </div>
+
+  <div class="issue-card critical">
+    <h4>3.2 HTTP Server Missing Timeouts</h4>
+    <p><strong>Current:</strong> No <code>ReadTimeout</code>, <code>WriteTimeout</code>, <code>IdleTimeout</code> configured on the HTTP server.</p>
+    <p><strong>Impact:</strong> Vulnerable to Slowloris attacks; connections can hang indefinitely, exhausting file descriptors. Although Istio mesh provides some protection, the service itself should be defensively hardened.</p>
+    <p><strong>Fix:</strong> Configure <code>*http.Server</code> with explicit timeouts:</p>
+  </div>
+
+  <pre><code>srv := &amp;http.Server{
+    Addr:         ":" + port,
+    Handler:      mux,
+    ReadTimeout:  5 * time.Second,
+    WriteTimeout: 10 * time.Second,
+    IdleTimeout:  60 * time.Second,
+}</code></pre>
+
+  <div class="issue-card critical">
+    <h4>3.3 Bootstrap Integration Missing</h4>
+    <p><strong>Current:</strong> csrf-service is NOT in <code>scripts/up.sh</code> or <code>scripts/infra-up.sh</code>.</p>
+    <p><strong>Impact:</strong> Fresh cluster bootstrap doesn't deploy the CSRF service; the <code>csrf-ext-authz</code> extension provider is unreachable. Because <code>failOpen: true</code> is set, the system degrades gracefully -- but CSRF protection is <em>silently absent</em>.</p>
+    <p><strong>Fix:</strong> Add docker build + kind load + kubectl apply steps to bootstrap scripts:</p>
+  </div>
+
+  <pre><code># In scripts/up.sh or infra-up.sh
+docker build -t bookstore/csrf-service:latest ./csrf-service
+kind load docker-image bookstore/csrf-service:latest --name bookstore
+kubectl apply -f csrf-service/k8s/csrf-service.yaml
+kubectl apply -f infra/istio/csrf-envoy-filter.yaml
+kubectl apply -f infra/kgateway/routes/csrf-route.yaml</code></pre>
+
+  <!-- 4. HIGH-PRIORITY ISSUES -->
+  <h2 id="high">4. High-Priority Issues (Should Fix)</h2>
+
+  <div class="issue-card high">
+    <h4>4.1 Single Replica (No HA)</h4>
+    <p><strong>Current:</strong> <code>replicas: 1</code> in the Deployment -- single point of failure.</p>
+    <p><strong>Impact:</strong> Pod eviction, node drain, or OOM kill means ext_authz calls timeout. With <code>failOpen: true</code>, requests pass through but CSRF protection is silently disabled.</p>
+    <p><strong>Fix:</strong> Scale to <code>replicas: 2</code>, add PodDisruptionBudget (<code>minAvailable: 1</code>), and HPA (2-5 replicas, 70% CPU target). For comparison, ecom-service already uses <code>replicas: 2</code> with HPA.</p>
+  </div>
+
+  <pre><code># PodDisruptionBudget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: csrf-service-pdb
+  namespace: infra
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: csrf-service</code></pre>
+
+  <div class="issue-card high">
+    <h4>4.2 No Prometheus Metrics</h4>
+    <p><strong>Current:</strong> No <code>/metrics</code> endpoint, no request counters, no latency histograms.</p>
+    <p><strong>Impact:</strong> Cannot monitor error rates, Redis latency, token generation rate, or validation failures. The csrf-service is invisible to Grafana dashboards.</p>
+    <p><strong>Fix:</strong> Add <code>prometheus/client_golang</code> with counters (<code>csrf_requests_total{method,status}</code>, <code>csrf_redis_errors_total</code>) and histogram (<code>csrf_request_duration_seconds{handler}</code>).</p>
+  </div>
+
+  <div class="issue-card high">
+    <h4>4.3 No Unit Tests</h4>
+    <p><strong>Current:</strong> Zero Go test files in <code>csrf-service/</code>.</p>
+    <p><strong>Impact:</strong> Regressions undetected; <code>extractSubFromJWT</code>, token validation logic, Redis error paths, and safe-method detection are untested at the unit level.</p>
+    <p><strong>Fix:</strong> Add <code>main_test.go</code> with table-driven tests for JWT extraction, token validation, and safe method detection.</p>
+  </div>
+
+  <div class="issue-card high">
+    <h4>4.4 Redis Client Missing Pool/Timeout Config</h4>
+    <p><strong>Current:</strong> Default <code>redis.Options{}</code> with no <code>DialTimeout</code>, <code>ReadTimeout</code>, <code>WriteTimeout</code>, or pool size configuration.</p>
+    <p><strong>Impact:</strong> Under load, Redis connections may exhaust the default pool; slow queries block goroutines indefinitely.</p>
+    <p><strong>Fix:</strong> Configure explicit pool and timeouts:</p>
+  </div>
+
+  <pre><code>rdb = redis.NewClient(&amp;redis.Options{
+    Addr:         addr,
+    Password:     redisPass,
+    DB:           0,
+    DialTimeout:  2 * time.Second,
+    ReadTimeout:  1 * time.Second,
+    WriteTimeout: 1 * time.Second,
+    PoolSize:     10,
+    MinIdleConns: 2,
+})</code></pre>
+
+  <!-- 5. MEDIUM-PRIORITY ISSUES -->
+  <h2 id="medium">5. Medium-Priority Issues (Nice to Have)</h2>
+
+  <div class="issue-card medium">
+    <h4>5.1 Non-Timing-Safe Token Comparison</h4>
+    <p><strong>Current:</strong> <code>stored != csrfToken</code> at line 135 uses standard string comparison.</p>
+    <p><strong>Impact:</strong> Theoretically exploitable via timing side-channel attack. Very low risk with UUID tokens (122 bits of entropy), but defense-in-depth recommends constant-time comparison.</p>
+    <p><strong>Fix:</strong> <code>subtle.ConstantTimeCompare([]byte(stored), []byte(csrfToken)) != 1</code></p>
+  </div>
+
+  <div class="issue-card medium">
+    <h4>5.2 Redis Expire Error Not Logged</h4>
+    <p><strong>Current:</strong> <code>rdb.Expire(ctx, ...)</code> at line 143 discards the error return value.</p>
+    <p><strong>Impact:</strong> Silent failures in TTL refresh could lead to unexpected token expiration.</p>
+    <p><strong>Fix:</strong> Log the error for observability:</p>
+  </div>
+
+  <pre><code>if err := rdb.Expire(ctx, redisKeyPrefix+userID, tokenTTL).Err(); err != nil {
+    slog.Warn("Failed to refresh CSRF token TTL",
+        "user", userID, "error", err)
+}</code></pre>
+
+  <div class="issue-card medium">
+    <h4>5.3 Health Endpoint Doesn't Check Redis</h4>
+    <p><strong>Current:</strong> <code>/healthz</code> always returns <code>{"status":"ok"}</code> regardless of Redis connectivity.</p>
+    <p><strong>Impact:</strong> Kubernetes readiness probe passes even when Redis is completely down, so the pod continues receiving traffic but cannot validate tokens (falls back to fail-open).</p>
+    <p><strong>Fix:</strong> Add <code>rdb.Ping()</code> check in readiness probe (not liveness -- liveness should stay simple to avoid restart loops).</p>
+  </div>
+
+  <div class="issue-card medium">
+    <h4>5.4 No OpenTelemetry Tracing</h4>
+    <p><strong>Current:</strong> No trace context propagation; W3C <code>traceparent</code> header is not forwarded.</p>
+    <p><strong>Impact:</strong> CSRF validation requests are invisible in Kiali service graph and Tempo traces.</p>
+    <p><strong>Fix:</strong> Add OTel HTTP middleware for W3C trace-context propagation.</p>
+  </div>
+
+  <div class="issue-card medium">
+    <h4>5.5 No Rate Limiting on Token Generation</h4>
+    <p><strong>Current:</strong> <code>GET /csrf/token</code> has no rate limit.</p>
+    <p><strong>Impact:</strong> A compromised or malicious client could flood Redis with token writes, consuming memory.</p>
+    <p><strong>Fix:</strong> Add simple in-memory rate limiter (<code>golang.org/x/time/rate</code>) or rely on gateway-level rate limiting.</p>
+  </div>
+
+  <div class="issue-card medium">
+    <h4>5.6 CPU Request Too Low</h4>
+    <p><strong>Current:</strong> <code>cpu: 25m</code> request in the Deployment manifest.</p>
+    <p><strong>Impact:</strong> May be throttled under concurrent ext_authz checks during traffic spikes.</p>
+    <p><strong>Fix:</strong> Increase to <code>cpu: 50m</code> to provide adequate baseline.</p>
+  </div>
+
+  <!-- 6. COMPARISON -->
+  <h2 id="comparison">6. Comparison with Other Services</h2>
+
+  <table class="comparison-table">
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th>csrf-service</th>
+        <th>ecom-service</th>
+        <th>cert-dashboard-operator</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Language</td><td>Go 1.25</td><td>Java 21 (Spring Boot 4.0.3)</td><td>Go 1.24</td></tr>
+      <tr><td>Replicas</td><td class="no">1</td><td class="yes">2</td><td class="no">1</td></tr>
+      <tr><td>HPA</td><td class="no">No</td><td class="yes">Yes (2-5)</td><td class="no">No</td></tr>
+      <tr><td>PDB</td><td class="no">No</td><td class="yes">Yes (minAvailable: 1)</td><td class="no">No</td></tr>
+      <tr><td>Graceful shutdown</td><td class="no">No</td><td class="yes">Yes (Spring lifecycle)</td><td class="yes">Yes (context cancel)</td></tr>
+      <tr><td>HTTP timeouts</td><td class="no">No</td><td class="yes">Yes (Spring defaults)</td><td class="no">No</td></tr>
+      <tr><td>Prometheus metrics</td><td class="no">No</td><td class="yes">Yes (/actuator/prometheus)</td><td class="no">No</td></tr>
+      <tr><td>OTel tracing</td><td class="no">No</td><td class="yes">Yes (Java agent)</td><td class="no">No</td></tr>
+      <tr><td>Unit tests</td><td class="no">No</td><td class="yes">Yes (42 tests)</td><td class="no">No</td></tr>
+      <tr><td>E2E tests</td><td class="yes">Yes (11 tests)</td><td class="yes">Yes (full suite)</td><td class="yes">Yes (29 tests)</td></tr>
+      <tr><td>Security context</td><td class="yes">Excellent</td><td class="yes">Excellent</td><td class="yes">Excellent</td></tr>
+      <tr><td>Distroless image</td><td class="yes">Yes</td><td class="no">No (Eclipse Temurin)</td><td class="yes">Yes</td></tr>
+      <tr><td>Health probes</td><td class="partial">Basic (/healthz)</td><td class="yes">Full (live + ready + startup)</td><td class="partial">Basic (/healthz)</td></tr>
+      <tr><td>NetworkPolicy</td><td class="no">No</td><td class="yes">Yes</td><td class="no">No</td></tr>
+      <tr><td>Rate limiting</td><td class="no">No</td><td class="yes">Yes (Bucket4j)</td><td class="no">No</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 7. ROADMAP -->
+  <h2 id="roadmap">7. Remediation Roadmap</h2>
+
+  <div class="roadmap-phase p1">
+    <h4>Phase 1 -- Critical (Day 1)</h4>
+    <ul>
+      <li>Graceful shutdown with <code>signal.NotifyContext</code> + 10s drain</li>
+      <li>HTTP server timeouts (<code>ReadTimeout</code>, <code>WriteTimeout</code>, <code>IdleTimeout</code>)</li>
+      <li>Add csrf-service to <code>scripts/up.sh</code> and <code>scripts/infra-up.sh</code> bootstrap</li>
+    </ul>
+  </div>
+
+  <div class="roadmap-phase p2">
+    <h4>Phase 2 -- High Priority (Week 1)</h4>
+    <ul>
+      <li>Scale to <code>replicas: 2</code></li>
+      <li>Add HPA (2-5 replicas, 70% CPU target)</li>
+      <li>Add PodDisruptionBudget (<code>minAvailable: 1</code>)</li>
+      <li>Add Prometheus metrics (<code>/metrics</code> endpoint)</li>
+      <li>Configure Redis client pool and timeouts</li>
+    </ul>
+  </div>
+
+  <div class="roadmap-phase p3">
+    <h4>Phase 3 -- Medium Priority (Week 2)</h4>
+    <ul>
+      <li>Add unit tests (<code>main_test.go</code>, table-driven)</li>
+      <li>Timing-safe token comparison (<code>crypto/subtle</code>)</li>
+      <li>OTel tracing middleware</li>
+      <li>Readiness probe with Redis health check</li>
+      <li>Log <code>rdb.Expire()</code> errors</li>
+      <li>Increase CPU request to 50m</li>
+    </ul>
+  </div>
+
+  <!-- 8. VERDICT -->
+  <h2 id="verdict">8. Verdict</h2>
+
+  <div class="verdict">
+    <h3>Assessment</h3>
+    <p>The csrf-service is a <strong>well-designed POC</strong> with the right architectural decisions (gateway-level enforcement, fail-open, proper K8s security). It is <strong>NOT production-grade yet</strong> -- primarily due to missing graceful shutdown, single replica, and no observability metrics. The remediation is straightforward (estimated 1-2 days of work) and does not require architectural changes.</p>
+  </div>
+
+  <!-- FILE REFERENCE -->
+  <h2>Appendix: File Reference</h2>
+
+  <table>
+    <thead>
+      <tr><th>File</th><th>Purpose</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>csrf-service/main.go</code></td><td>Service implementation (185 lines)</td></tr>
+      <tr><td><code>csrf-service/Dockerfile</code></td><td>Multi-stage build, distroless runtime</td></tr>
+      <tr><td><code>csrf-service/go.mod</code></td><td>Go 1.25, google/uuid, go-redis/v9</td></tr>
+      <tr><td><code>csrf-service/k8s/csrf-service.yaml</code></td><td>Secret + Deployment + Service</td></tr>
+      <tr><td><code>infra/istio/csrf-envoy-filter.yaml</code></td><td>AuthorizationPolicy (ext_authz CUSTOM)</td></tr>
+      <tr><td><code>infra/kgateway/routes/csrf-route.yaml</code></td><td>HTTPRoute for /csrf/token</td></tr>
+      <tr><td><code>e2e/csrf.spec.ts</code></td><td>11 E2E tests (Playwright)</td></tr>
+    </tbody>
+  </table>
+
+  <footer>
+    BookStore Platform &mdash; CSRF Service Production Readiness Audit &mdash; <a href="gateway-csrf-service.html">Gateway CSRF Docs</a> &middot; <a href="index.html">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -16,7 +16,7 @@ export default function CallbackPage() {
         // Fetch CSRF token before any mutating requests
         let csrfToken: string | null = null
         try {
-          const csrfResp = await fetch('/ecom/csrf-token', {
+          const csrfResp = await fetch('/csrf/token', {
             headers: { Authorization: `Bearer ${user.access_token}` },
           })
           if (csrfResp.ok) {

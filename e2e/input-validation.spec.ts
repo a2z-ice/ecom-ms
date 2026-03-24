@@ -17,7 +17,7 @@ const ECOM_API = 'https://api.service.net:30000/ecom'
 const INVENTORY_API = 'https://api.service.net:30000/inven'
 
 async function getCsrfToken(request: any, bearerToken: string): Promise<string> {
-  const resp = await request.get(`${ECOM_API}/csrf-token`, {
+  const resp = await request.get(`https://api.service.net:30000/csrf/token`, {
     headers: { Authorization: `Bearer ${bearerToken}` },
     ignoreHTTPSErrors: true,
   })

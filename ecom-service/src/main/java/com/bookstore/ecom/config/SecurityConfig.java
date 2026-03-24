@@ -17,7 +17,6 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.Collection;
@@ -39,15 +38,6 @@ public class SecurityConfig {
 
     @Value("${springdoc.swagger-ui.enabled:true}")
     private boolean swaggerEnabled;
-
-    @Value("${csrf.enabled:true}")
-    private boolean csrfEnabled;
-
-    private final CsrfTokenService csrfTokenService;
-
-    public SecurityConfig(CsrfTokenService csrfTokenService) {
-        this.csrfTokenService = csrfTokenService;
-    }
 
     /**
      * Custom JwtDecoder that fetches JWKS from the internal cluster URL
@@ -71,9 +61,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .csrf(csrf -> csrf.disable())   // Spring's built-in CSRF disabled; custom Redis-backed filter below
-            .addFilterAfter(new CsrfValidationFilter(csrfTokenService, csrfEnabled),
-                    BearerTokenAuthenticationFilter.class)
+            .csrf(csrf -> csrf.disable())   // CSRF enforced at Istio gateway level via ext_authz
             .authorizeHttpRequests(auth -> {
                 // Public endpoints — no token required
                 auth.requestMatchers(HttpMethod.GET, "/books", "/books/search", "/books/*").permitAll();

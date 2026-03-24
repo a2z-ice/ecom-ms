@@ -43,9 +43,6 @@ management:
       exposure:
         include: health
 
-csrf:
-  enabled: false
-
 logging:
   level:
     root: WARN

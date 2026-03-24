@@ -32,7 +32,7 @@ async function getToken(request: any, username: string, password: string): Promi
 
 // Helper: get a CSRF token from ecom-service (required for POST/PUT/DELETE)
 async function getCsrfToken(request: any, bearerToken: string): Promise<string> {
-  const resp = await request.get(`${ECOM_BASE}/csrf-token`, {
+  const resp = await request.get(`https://api.service.net:30000/csrf/token`, {
     headers: { Authorization: `Bearer ${bearerToken}` },
   })
   const body = await resp.json()
@@ -204,10 +204,11 @@ test.describe('Admin Stock Management', () => {
 
   test('PUT /inven/admin/stock/{id} sets absolute quantity', async ({ request }) => {
     const token = await getToken(request, 'admin1', 'CHANGE_ME')
+    const csrf = await getCsrfToken(request, token)
 
     const bookId = '00000000-0000-0000-0000-000000000001'
     const resp = await request.put(`${INVEN_BASE}/admin/stock/${bookId}`, {
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
       data: { quantity: 75 },
     })
     expect(resp.status()).toBe(200)
@@ -218,13 +219,14 @@ test.describe('Admin Stock Management', () => {
 
     // Restore to 50
     await request.put(`${INVEN_BASE}/admin/stock/${bookId}`, {
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
       data: { quantity: 50 },
     })
   })
 
   test('POST /inven/admin/stock/{id}/adjust adjusts by positive delta', async ({ request }) => {
     const token = await getToken(request, 'admin1', 'CHANGE_ME')
+    const csrf = await getCsrfToken(request, token)
     const bookId = '00000000-0000-0000-0000-000000000002'
 
     // Get current qty
@@ -233,7 +235,7 @@ test.describe('Admin Stock Management', () => {
     const originalQty = beforeData.quantity
 
     const resp = await request.post(`${INVEN_BASE}/admin/stock/${bookId}/adjust`, {
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
       data: { delta: 5 },
     })
     expect(resp.status()).toBe(200)
@@ -242,17 +244,18 @@ test.describe('Admin Stock Management', () => {
 
     // Restore
     await request.post(`${INVEN_BASE}/admin/stock/${bookId}/adjust`, {
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
       data: { delta: -5 },
     })
   })
 
   test('POST /inven/admin/stock/{id}/adjust returns 400 for negative result', async ({ request }) => {
     const token = await getToken(request, 'admin1', 'CHANGE_ME')
+    const csrf = await getCsrfToken(request, token)
     const bookId = '00000000-0000-0000-0000-000000000003'
 
     const resp = await request.post(`${INVEN_BASE}/admin/stock/${bookId}/adjust`, {
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
       data: { delta: -9999 },
     })
     expect(resp.status()).toBe(400)
