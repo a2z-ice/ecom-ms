@@ -127,17 +127,42 @@ The service integrates with Istio via three layers:
 
 ```
 csrf-service/
-├── main.go              # HTTP server, Redis client, ext_authz handler, Prometheus metrics
-├── main_test.go         # 19 unit tests (miniredis, httptest)
-├── Dockerfile           # Multi-stage: golang:1.25-alpine → distroless
-├── go.mod               # Dependencies: uuid, go-redis, prometheus
-├── go.sum               # Checksums
-├── README.md            # This file
+├── main.go                        # Thin wiring: config → store → handler → server
+├── internal/
+│   ├── config/config.go           # Config struct + env var loading
+│   ├── jwt/
+│   │   ├── extract.go             # JWT sub claim extraction (base64 decode only)
+│   │   └── extract_test.go        # 8 JWT extraction tests
+│   ├── store/
+│   │   ├── redis.go               # TokenStore interface + Redis implementation
+│   │   └── redis_test.go          # 6 store tests (miniredis)
+│   ├── handler/
+│   │   ├── token.go               # GET /csrf/token handler
+│   │   ├── authz.go               # ext_authz check handler
+│   │   ├── health.go              # /healthz (readiness) + /livez (liveness)
+│   │   └── handler_test.go        # 11 handler tests
+│   └── middleware/
+│       └── metrics.go             # Prometheus metrics registration
+├── Dockerfile                     # Multi-stage: golang:1.25-alpine → distroless
+├── go.mod                         # Dependencies: uuid, go-redis, prometheus, miniredis
+├── go.sum                         # Checksums
+├── README.md                      # This file
 ├── scripts/
-│   └── csrf-service-up.sh  # Build, test, deploy script
+│   └── csrf-service-up.sh         # Build, test, deploy script
 └── k8s/
-    └── csrf-service.yaml    # Secret + Deployment + Service
+    └── csrf-service.yaml          # Secret + Deployment + Service
 ```
+
+### Package Responsibilities
+
+| Package | Responsibility |
+|---------|---------------|
+| `main` | Wiring: load config, create store, create handlers, start server, graceful shutdown |
+| `internal/config` | Environment variable loading into typed Config struct |
+| `internal/jwt` | JWT payload decoding (base64 only — Istio verifies signatures) |
+| `internal/store` | `TokenStore` interface + Redis implementation (generate, validate, ping) |
+| `internal/handler` | HTTP handlers (token generation, ext_authz check, health probes) |
+| `internal/middleware` | Prometheus metrics (counters, histograms) |
 
 ## Security
 
