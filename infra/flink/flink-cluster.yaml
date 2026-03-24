@@ -69,6 +69,10 @@ spec:
                 secretKeyRef:
                   name: analytics-db-secret
                   key: POSTGRES_PASSWORD
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 10"]
           volumeMounts:
             - name: checkpoints
               mountPath: /opt/flink/checkpoints
@@ -286,6 +290,10 @@ spec:
                 secretKeyRef:
                   name: analytics-db-secret
                   key: POSTGRES_PASSWORD
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 10"]
           volumeMounts:
             - name: checkpoints
               mountPath: /opt/flink/checkpoints

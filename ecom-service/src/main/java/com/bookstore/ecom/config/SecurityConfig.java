@@ -9,6 +9,10 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
@@ -29,16 +33,24 @@ public class SecurityConfig {
     @Value("${KEYCLOAK_ISSUER_URI}")
     private String issuerUri;
 
+    @Value("${JWT_AUDIENCE:account}")
+    private String jwtAudience;
+
     /**
      * Custom JwtDecoder that fetches JWKS from the internal cluster URL
      * but validates the issuer claim against the external Keycloak URL.
+     * Also validates the audience claim to prevent token misuse across clients.
      * This avoids Spring Boot's auto-discovery which would try to reach
      * the external idp.keycloak.net host from inside the cluster.
      */
     @Bean
     public JwtDecoder jwtDecoder() {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwksUri).build();
-        decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(issuerUri));
+        OAuth2TokenValidator<Jwt> issuerValidator = JwtValidators.createDefaultWithIssuer(issuerUri);
+        OAuth2TokenValidator<Jwt> audienceValidator = new JwtClaimValidator<List<String>>(
+            "aud", aud -> aud != null && aud.contains(jwtAudience)
+        );
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(issuerValidator, audienceValidator));
         return decoder;
     }
 

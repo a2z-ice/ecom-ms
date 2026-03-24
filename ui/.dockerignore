@@ -1,0 +1,12 @@
+.git
+.gitignore
+node_modules/
+dist/
+*.md
+.idea/
+.vscode/
+.env
+.env.*
+docker-compose*.yml
+e2e/
+coverage/

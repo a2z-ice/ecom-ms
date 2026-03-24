@@ -1,25 +1,30 @@
 ---
 # ecom — E-Commerce Service + its PostgreSQL
-# baseline: allows postgres to run; application containers enforce their own securityContext
+# restricted: all containers must comply with Pod Security Standards restricted profile
 apiVersion: v1
 kind: Namespace
 metadata:
   name: ecom
   labels:
     istio.io/dataplane-mode: ambient
-    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
 
 ---
 # inventory — Inventory Service + its PostgreSQL
+# restricted: all containers must comply with Pod Security Standards restricted profile
 apiVersion: v1
 kind: Namespace
 metadata:
   name: inventory
   labels:
     istio.io/dataplane-mode: ambient
-    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
 
 ---
 # analytics — Analytics DB + Apache Superset

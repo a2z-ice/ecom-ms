@@ -94,6 +94,10 @@ spec:
                 secretKeyRef:
                   name: debezium-db-credentials
                   key: ECOM_DB_PASSWORD
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
           volumeMounts:
             - name: config
               mountPath: /debezium/config/application.properties

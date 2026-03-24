@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation Index | BookStore Platform</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-secondary: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
+
+    .hero {
+      text-align: center;
+      padding: 3rem 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .hero h1 { font-size: 2.2rem; margin-bottom: 0.5rem; }
+    .hero p { color: var(--text-secondary); font-size: 1.1rem; }
+
+    h2 {
+      font-size: 1.4rem;
+      margin: 2.5rem 0 1rem;
+      color: var(--accent);
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .doc-list { list-style: none; }
+    .doc-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1rem;
+      margin: 0.5rem 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      transition: border-color 0.2s;
+    }
+    .doc-item:hover { border-color: var(--accent); }
+    .doc-icon {
+      font-size: 1.5rem;
+      min-width: 2rem;
+      text-align: center;
+      padding-top: 0.1rem;
+    }
+    .doc-content { flex: 1; }
+    .doc-content a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 1.05rem;
+    }
+    .doc-content a:hover { text-decoration: underline; }
+    .doc-content p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.2rem; }
+    .doc-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.4rem; }
+    .tag {
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .tag-html { background: rgba(248, 81, 73, 0.15); color: var(--red); }
+    .tag-md { background: rgba(88, 166, 255, 0.15); color: var(--accent); }
+    .tag-new { background: rgba(63, 185, 80, 0.15); color: var(--green); }
+    .tag-security { background: rgba(248, 81, 73, 0.1); color: var(--red); }
+    .tag-arch { background: rgba(188, 140, 255, 0.1); color: var(--purple); }
+    .tag-ops { background: rgba(210, 153, 34, 0.1); color: var(--yellow); }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      margin-top: 2rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>BookStore Platform Documentation</h1>
+  <p>Reviews, Audits &amp; Architecture Documents</p>
+</div>
+
+<div class="container">
+
+  <h2>Hardening &amp; Security Reviews</h2>
+  <ul class="doc-list">
+    <li class="doc-item">
+      <div class="doc-icon">&#128736;</div>
+      <div class="doc-content">
+        <a href="sessions-30-33-architecture-hardening.html">Architecture Hardening &mdash; Sessions 30-33</a>
+        <p>Comprehensive hardening across Security, Resilience &amp; Observability. 55 new E2E tests, 395 total passing.</p>
+        <div class="doc-tags">
+          <span class="tag tag-html">HTML</span>
+          <span class="tag tag-new">NEW</span>
+          <span class="tag tag-security">Security</span>
+          <span class="tag tag-ops">Resilience</span>
+          <span class="tag tag-arch">Observability</span>
+        </div>
+      </div>
+    </li>
+    <li class="doc-item">
+      <div class="doc-icon">&#128274;</div>
+      <div class="doc-content">
+        <a href="sessions-30-33-architecture-hardening.md">Architecture Hardening &mdash; Sessions 30-33 (Markdown)</a>
+        <p>Same content in Markdown format for Git/code review workflows.</p>
+        <div class="doc-tags">
+          <span class="tag tag-md">Markdown</span>
+          <span class="tag tag-new">NEW</span>
+        </div>
+      </div>
+    </li>
+    <li class="doc-item">
+      <div class="doc-icon">&#128737;</div>
+      <div class="doc-content">
+        <a href="session-28-architecture-hardening-review.md">Session 28 Architecture Hardening Review</a>
+        <p>CDC hardening, Schema Registry, Kafka exporter, Debezium PDBs.</p>
+        <div class="doc-tags"><span class="tag tag-md">Markdown</span><span class="tag tag-security">Security</span></div>
+      </div>
+    </li>
+    <li class="doc-item">
+      <div class="doc-icon">&#128270;</div>
+      <div class="doc-content">
+        <a href="observability-security-review.md">Observability Security Review</a>
+        <p>OTel namespace NetworkPolicy, AuthorizationPolicies, non-root containers.</p>
+        <div class="doc-tags"><span class="tag tag-md">Markdown</span><span class="tag tag-security">Security</span></div>
+      </div>
+    </li>
+    <li class="doc-item">
+      <div class="doc-icon">&#128272;</div>
+      <div class="doc-content">
+        <a href="review-security-performance-quality.md">Security, Performance &amp; Quality Review</a>
+        <p>Full audit of security posture, performance characteristics, and code quality.</p>
+        <div class="doc-tags"><span class="tag tag-md">Markdown</span><span class="tag tag-security">Security</span></div>
+      </div>
+    </li>
+  </ul>
+
+  <h2>Architecture Reviews</h2>
+  <ul class="doc-list">
+    <li class="doc-item">
+      <div class="doc-icon">&#127959;</div>
+      <div class="doc-content">
+        <a href="review-technical-architecture.md">Technical Architecture Review</a>
+        <p>Microservices architecture, data flow, infrastructure stack analysis.</p>
+        <div class="doc-tags"><span class="tag tag-md">Markdown</span><span class="tag tag-arch">Architecture</span></div>
+      </div>
+    </li>
+    <li class="doc-item">
+      <div class="doc-icon">&#127912;</div>
+      <div class="doc-content">
+        <a href="review-ux-architecture.md">UX Architecture Review</a>
+        <p>React frontend patterns, OIDC flow, component architecture.</p>
+        <div class="doc-tags"><span class="tag tag-md">Markdown</span><span class="tag tag-arch">Architecture</span></div>
+      </div>
+    </li>
+    <li class="doc-item">
+      <div class="doc-icon">&#128230;</div>
+      <div class="doc-content">
+        <a href="review-infrastructure-portability.md">Infrastructure &amp; Portability Review</a>
+        <p>Kubernetes patterns, kind cluster design, portability considerations.</p>
+        <div class="doc-tags"><span class="tag tag-md">Markdown</span><span class="tag tag-arch">Architecture</span></div>
+      </div>
+    </li>
+    <li class="doc-item">
+      <div class="doc-icon">&#128187;</div>
+      <div class="doc-content">
+        <a href="cert-dashboard-operator-review.md">Cert Dashboard Operator Review</a>
+        <p>Go-based K8s operator design, CRD, SSE renewal flow.</p>
+        <div class="doc-tags"><span class="tag tag-md">Markdown</span><span class="tag tag-arch">Architecture</span></div>
+      </div>
+    </li>
+    <li class="doc-item">
+      <div class="doc-icon">&#128202;</div>
+      <div class="doc-content">
+        <a href="diagram-comparison-ha-postgres.md">HA PostgreSQL Architecture Diagram</a>
+        <p>CloudNativePG cluster design, failover patterns.</p>
+        <div class="doc-tags"><span class="tag tag-md">Markdown</span><span class="tag tag-arch">Architecture</span></div>
+      </div>
+    </li>
+  </ul>
+
+  <h2>Session Reviews</h2>
+  <ul class="doc-list">
+    <li class="doc-item">
+      <div class="doc-icon">&#128196;</div>
+      <div class="doc-content">
+        <a href="production-improvements-session-review.md">Production Improvements Session Review</a>
+        <p>Rate limiting, E2E stability, OTel log pipeline, Debezium fixes.</p>
+        <div class="doc-tags"><span class="tag tag-md">Markdown</span><span class="tag tag-ops">Operations</span></div>
+      </div>
+    </li>
+  </ul>
+
+</div>
+
+<footer>
+  BookStore E-Commerce Platform &mdash; Documentation Index &mdash; Last updated 2026-03-23
+</footer>
+
+</body>
+</html>

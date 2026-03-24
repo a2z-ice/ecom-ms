@@ -136,12 +136,15 @@ bootstrap_fresh() {
   # Using plain variables (not associative arrays) for bash 3.2 compatibility
   # (macOS ships bash 3.2 as /bin/bash).
   section "Starting parallel Docker image builds (background)"
+  GIT_SHA=$(cd "${REPO_ROOT}" && git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+  info "  Git SHA: ${GIT_SHA}"
   _ECOM_PID="" _INV_PID="" _FLINK_PID="" _UI_PID=""
   if docker image inspect bookstore/ecom-service:latest &>/dev/null; then
     info "  bookstore/ecom-service:latest already exists — skipping build."
   else
     info "  Building bookstore/ecom-service:latest (background)..."
-    docker build -t bookstore/ecom-service:latest "${REPO_ROOT}/ecom-service" \
+    (docker build -t bookstore/ecom-service:latest "${REPO_ROOT}/ecom-service" && \
+      docker tag bookstore/ecom-service:latest "bookstore/ecom-service:${GIT_SHA}") \
       >/tmp/build-ecom.log 2>&1 &
     _ECOM_PID=$!
   fi
@@ -149,7 +152,8 @@ bootstrap_fresh() {
     info "  bookstore/inventory-service:latest already exists — skipping build."
   else
     info "  Building bookstore/inventory-service:latest (background)..."
-    docker build -t bookstore/inventory-service:latest "${REPO_ROOT}/inventory-service" \
+    (docker build -t bookstore/inventory-service:latest "${REPO_ROOT}/inventory-service" && \
+      docker tag bookstore/inventory-service:latest "bookstore/inventory-service:${GIT_SHA}") \
       >/tmp/build-inventory.log 2>&1 &
     _INV_PID=$!
   fi
@@ -157,17 +161,19 @@ bootstrap_fresh() {
     info "  bookstore/flink:latest already exists — skipping build."
   else
     info "  Building bookstore/flink:latest (background)..."
-    docker build -t bookstore/flink:latest "${REPO_ROOT}/analytics/flink" \
+    (docker build -t bookstore/flink:latest "${REPO_ROOT}/analytics/flink" && \
+      docker tag bookstore/flink:latest "bookstore/flink:${GIT_SHA}") \
       >/tmp/build-flink.log 2>&1 &
     _FLINK_PID=$!
   fi
   # UI always rebuilt — VITE vars are baked in at build time
   info "  Building bookstore/ui-service:latest (background)..."
-  docker build \
+  (docker build \
     --build-arg VITE_KEYCLOAK_AUTHORITY=https://idp.keycloak.net:30000/realms/bookstore \
     --build-arg VITE_KEYCLOAK_CLIENT_ID=ui-client \
     --build-arg VITE_REDIRECT_URI=https://localhost:30000/callback \
-    -t bookstore/ui-service:latest "${REPO_ROOT}/ui" \
+    -t bookstore/ui-service:latest "${REPO_ROOT}/ui" && \
+    docker tag bookstore/ui-service:latest "bookstore/ui-service:${GIT_SHA}") \
     >/tmp/build-ui.log 2>&1 &
   _UI_PID=$!
 

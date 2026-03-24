@@ -35,9 +35,10 @@ class ReserveRequest(BaseModel):
         examples=["00000000-0000-0000-0000-000000000001"],
     )
     quantity: int = Field(
-        description="Number of units to reserve (must be >= 1)",
+        description="Number of units to reserve (must be 1-99)",
         examples=[2],
         ge=1,
+        le=99,
     )
 
 

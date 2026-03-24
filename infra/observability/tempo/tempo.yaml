@@ -24,7 +24,7 @@ data:
       max_block_duration: 5m
     compactor:
       compaction:
-        block_retention: 1h
+        block_retention: 72h
     storage:
       trace:
         backend: local

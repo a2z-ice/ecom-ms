@@ -1,0 +1,16 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+*.md
+.idea/
+.vscode/
+.env
+.env.*
+docker-compose*.yml
+htmlcov/
+.coverage
+dist/

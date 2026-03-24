@@ -66,6 +66,13 @@ spec:
                   key: REDIS_PASSWORD
           ports:
             - containerPort: 6379
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - redis-cli -a $REDIS_PASSWORD shutdown save
           volumeMounts:
             - name: data
               mountPath: /data
