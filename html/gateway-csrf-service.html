@@ -120,6 +120,8 @@
 
   <p>The CSRF service integrates with Istio's external authorization (ext_authz) mechanism. The gateway delegates authorization decisions to the CSRF service before forwarding requests to backend services.</p>
 
+  <img src="diagrams/csrf-architecture.svg" alt="Gateway-Level CSRF Architecture — Istio ext_authz + Go CSRF Service + Redis" style="width:100%; border-radius:12px; border:1px solid #334155; margin:16px 0 24px;" />
+
   <div class="flow-diagram"><span class="label">Browser (HTTPS)</span> <span class="arrow">--&gt;</span> <span class="label">Istio Gateway</span> <span class="arrow">--&gt;</span> <span class="label">AuthorizationPolicy (CUSTOM)</span>
                                           <span class="arrow">|</span>
                                     <span class="label">csrf-service (ext_authz)</span>

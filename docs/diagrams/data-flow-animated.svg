@@ -169,10 +169,23 @@
 
     <!-- Row 2: Istio Gateway -->
     <g filter="url(#node-glow)">
-      <rect x="720" y="200" width="160" height="44" rx="8" fill="#0f172a" stroke="#6366f1" stroke-width="1.5" opacity="0.9"/>
-      <text x="800" y="224" text-anchor="middle" fill="#c7d2fe" font-size="13" font-weight="600">Istio Gateway</text>
-      <text x="800" y="237" text-anchor="middle" fill="#64748b" font-size="8">K8s Gateway API | HTTPS</text>
+      <rect x="680" y="200" width="160" height="44" rx="8" fill="#0f172a" stroke="#6366f1" stroke-width="1.5" opacity="0.9"/>
+      <text x="760" y="224" text-anchor="middle" fill="#c7d2fe" font-size="13" font-weight="600">Istio Gateway</text>
+      <text x="760" y="237" text-anchor="middle" fill="#64748b" font-size="8">K8s Gateway API | HTTPS</text>
     </g>
+
+    <!-- Row 2: CSRF Service (ext_authz) -->
+    <g filter="url(#node-glow)">
+      <rect x="900" y="200" width="150" height="44" rx="8" fill="#0f172a" stroke="#f43f5e" stroke-width="1.5" opacity="0.9"/>
+      <text x="975" y="220" text-anchor="middle" fill="#fda4af" font-size="12" font-weight="600">CSRF Service</text>
+      <text x="975" y="236" text-anchor="middle" fill="#64748b" font-size="8">ext_authz | Go</text>
+    </g>
+    <!-- Gateway → CSRF ext_authz -->
+    <line x1="840" y1="222" x2="898" y2="222" stroke="#f43f5e" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.6"/>
+    <text x="870" y="216" text-anchor="middle" fill="#fda4af" font-size="7">ext_authz</text>
+    <!-- CSRF → Redis -->
+    <line x1="975" y1="244" x2="1185" y2="320" stroke="#ef4444" stroke-width="1.2" stroke-dasharray="4,3" opacity="0.4"/>
+    <text x="1060" y="278" text-anchor="middle" fill="#fca5a5" font-size="7">csrf:{userId}</text>
 
     <!-- Row 2: Keycloak -->
     <g filter="url(#node-glow)">
@@ -206,7 +219,7 @@
     <g filter="url(#node-glow)">
       <rect x="1120" y="320" width="130" height="50" rx="8" fill="#0f172a" stroke="#ef4444" stroke-width="1.5" opacity="0.9"/>
       <text x="1185" y="345" text-anchor="middle" fill="#fca5a5" font-size="13" font-weight="600">Redis</text>
-      <text x="1185" y="360" text-anchor="middle" fill="#64748b" font-size="9">Session / CSRF</text>
+      <text x="1185" y="360" text-anchor="middle" fill="#64748b" font-size="9">CSRF Tokens | Rate Limit</text>
     </g>
 
     <!-- Row 4: ecom-db -->
