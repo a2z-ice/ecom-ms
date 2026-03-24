@@ -88,6 +88,13 @@ spec:
             # Keeps NAT table entries alive for legitimate long-lived connections (consumer fetch loop).
             - name: KAFKA_SOCKET_KEEPALIVE_ENABLE
               value: "true"
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - /bin/kafka-server-stop && sleep 5
           volumeMounts:
             # Mount directly at /var/lib/kafka/data (the Docker VOLUME path) so the
             # PVC bind mount overrides the anonymous Docker volume Docker would otherwise

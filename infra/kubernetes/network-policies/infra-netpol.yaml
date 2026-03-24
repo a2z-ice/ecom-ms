@@ -33,8 +33,17 @@ spec:
               kubernetes.io/metadata.name: inventory
       ports:
         - port: 9092
+    # From Debezium, Schema Registry, and Kafka Exporter (infra namespace)
     - from:
-        - podSelector: {}
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - debezium-server-ecom
+                  - debezium-server-inventory
+                  - schema-registry
+                  - kafka-exporter
       ports:
         - port: 9092
     - from:
@@ -139,7 +148,7 @@ spec:
   policyTypes: [Ingress]
 
 ---
-# Allow Gateway pod egress to all namespaces (routes traffic to ecom, inventory, identity)
+# Allow Gateway pod egress to backend services only (not open egress)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -151,7 +160,46 @@ spec:
       gateway.networking.k8s.io/gateway-name: bookstore-gateway
   policyTypes: [Egress]
   egress:
-    - {}
+    # To ecom-service
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ecom
+      ports:
+        - port: 8080
+    # To inventory-service
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: inventory
+      ports:
+        - port: 8000
+    # To Keycloak (identity)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: identity
+      ports:
+        - port: 8080
+    # To UI service (ecom namespace)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ecom
+      ports:
+        - port: 80
+    # DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+    # HBONE — Istio Ambient mTLS tunneling
+    - to: []
+      ports:
+        - port: 15008
 
 ---
 # Allow Debezium egress to source databases and Kafka

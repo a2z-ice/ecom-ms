@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     database_url: str
     keycloak_jwks_uri: str
     keycloak_issuer_uri: str
+    jwt_audience: str = "account"
     kafka_bootstrap_servers: str
     kafka_group_id: str = "inventory-service"
 

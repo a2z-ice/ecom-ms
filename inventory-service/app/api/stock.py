@@ -8,8 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.inventory import Inventory
 from app.schemas.inventory import ReserveRequest, ReserveResponse, StockResponse
+from prometheus_client import Counter
 
 router = APIRouter(prefix="/stock", tags=["stock"])
+
+inventory_reserved_total = Counter(
+    "inventory_reserved_total",
+    "Total number of inventory units reserved",
+)
 
 
 @router.get(
@@ -163,6 +169,7 @@ async def reserve_stock(
         )
     inv.reserved += request.quantity
     await db.commit()
+    inventory_reserved_total.inc(request.quantity)
     return ReserveResponse(
         book_id=inv.book_id,
         quantity_reserved=request.quantity,

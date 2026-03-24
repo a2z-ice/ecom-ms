@@ -60,6 +60,8 @@ spec:
         runAsNonRoot: true
         runAsUser: 1001
         fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: ecom-service
           image: bookstore/ecom-service:latest

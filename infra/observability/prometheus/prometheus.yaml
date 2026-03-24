@@ -209,6 +209,9 @@ spec:
           securityContext:
             runAsNonRoot: false
             runAsUser: 0
+            capabilities:
+              drop: ["ALL"]
+              add: ["CHOWN", "FOWNER"]
           volumeMounts:
             - name: data
               mountPath: /prometheus
@@ -341,6 +344,32 @@ data:
               severity: critical
             annotations:
               summary: "Debezium pod {{ $labels.pod }} is not ready — CDC events not captured"
+
+      - name: security_alerts
+        rules:
+          - alert: High401Rate
+            expr: sum(rate(http_server_requests_seconds_count{status="401"}[5m])) by (job) > 1
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High 401 Unauthorized rate on {{ $labels.job }} ({{ $value | humanize }} req/s)"
+
+          - alert: High403Rate
+            expr: sum(rate(http_server_requests_seconds_count{status="403"}[5m])) by (job) > 0.5
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High 403 Forbidden rate on {{ $labels.job }} ({{ $value | humanize }} req/s)"
+
+          - alert: RateLimitBreaches
+            expr: sum(rate(http_server_requests_seconds_count{status="429"}[5m])) by (job) > 0.5
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Rate limit breaches detected on {{ $labels.job }} ({{ $value | humanize }} req/s)"
 
 ---
 apiVersion: v1

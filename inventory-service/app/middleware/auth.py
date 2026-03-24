@@ -43,7 +43,8 @@ async def get_current_user(
             token,
             jwks,
             algorithms=["RS256"],
-            options={"verify_aud": False},
+            options={"verify_aud": True},
+            audience=settings.jwt_audience,
             issuer=settings.keycloak_issuer_uri,
         )
         return payload

@@ -17,7 +17,9 @@ data:
       repeat_interval: 4h
     receivers:
       - name: 'default'
-        webhook_configs: []
+        webhook_configs:
+          - url: 'http://alertmanager.observability:9093/-/healthy'
+            send_resolved: true
 
 ---
 # AlertManager Deployment

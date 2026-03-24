@@ -207,7 +207,7 @@ Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://myecom.net:30000", "https://localhost:30000"],
-    allow_methods=["GET", "PUT", "POST", "DELETE"],
+    allow_methods=["GET", "PUT", "POST"],
     allow_headers=["Authorization", "Content-Type"],
 )
 

@@ -87,8 +87,8 @@ springdoc:
 
 logging:
   level:
-    root: INFO
-    com.bookstore: DEBUG
+    root: ${LOG_LEVEL:INFO}
+    com.bookstore: ${LOG_LEVEL:INFO}
   structured:
     format:
       console: ecs

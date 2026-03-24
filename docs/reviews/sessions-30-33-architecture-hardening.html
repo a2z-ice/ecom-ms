@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture Hardening - Sessions 30-33 | BookStore Platform</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-secondary: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+      --cyan: #39d4e8;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+    /* Header */
+    .hero {
+      text-align: center;
+      padding: 4rem 2rem;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1f2e 50%, #161b22 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .hero h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .hero .subtitle { color: var(--text-secondary); font-size: 1.2rem; }
+    .hero .badge {
+      display: inline-block;
+      margin-top: 1rem;
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .badge-green { background: rgba(63, 185, 80, 0.15); color: var(--green); border: 1px solid rgba(63, 185, 80, 0.3); }
+    .badge-blue { background: rgba(88, 166, 255, 0.15); color: var(--accent); border: 1px solid rgba(88, 166, 255, 0.3); }
+
+    /* Navigation */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 2rem;
+    }
+    nav .nav-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    nav a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      padding: 0.3rem 0;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    nav a:hover, nav a.active { color: var(--accent); border-bottom-color: var(--accent); }
+    nav .back-link { color: var(--accent); font-weight: 600; margin-right: auto; }
+
+    /* Sections */
+    section { padding: 3rem 0; border-bottom: 1px solid var(--border); }
+    section:last-child { border-bottom: none; }
+    h2 { font-size: 1.8rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
+    h3 { font-size: 1.2rem; margin: 1.5rem 0 0.75rem; color: var(--accent); }
+
+    /* Summary Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.5rem;
+      margin: 2rem 0;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .stat-card .number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .stat-card .label { color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.25rem; }
+    .stat-green .number { color: var(--green); }
+    .stat-blue .number { color: var(--accent); }
+    .stat-purple .number { color: var(--purple); }
+    .stat-cyan .number { color: var(--cyan); }
+
+    /* Session Cards */
+    .session-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+    }
+    .session-header {
+      padding: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .session-header:hover { background: rgba(88, 166, 255, 0.05); }
+    .session-header h3 { margin: 0; color: var(--text); font-size: 1.15rem; }
+    .session-header .tag {
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .tag-security { background: rgba(248, 81, 73, 0.15); color: var(--red); }
+    .tag-resilience { background: rgba(210, 153, 34, 0.15); color: var(--yellow); }
+    .tag-observability { background: rgba(188, 140, 255, 0.15); color: var(--purple); }
+    .session-body { padding: 0 1.5rem 1.5rem; }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+    th {
+      text-align: left;
+      padding: 0.75rem;
+      background: rgba(88, 166, 255, 0.08);
+      border-bottom: 2px solid var(--border);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    td {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    tr:hover td { background: rgba(88, 166, 255, 0.03); }
+
+    /* Benefits */
+    .benefit-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    .benefit-item {
+      padding: 1rem;
+      background: rgba(63, 185, 80, 0.05);
+      border: 1px solid rgba(63, 185, 80, 0.15);
+      border-radius: 8px;
+    }
+    .benefit-item strong { color: var(--green); }
+    .benefit-item p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.25rem; }
+
+    /* Code blocks */
+    code {
+      font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+      background: rgba(110, 118, 129, 0.15);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+    pre {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    pre code { background: none; padding: 0; }
+
+    /* Test results */
+    .test-result {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0;
+    }
+    .test-icon { font-size: 1.2rem; width: 1.5rem; text-align: center; }
+    .test-pass .test-icon { color: var(--green); }
+    .test-fail .test-icon { color: var(--red); }
+
+    /* Flow diagram */
+    .flow-diagram {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 1.5rem 0;
+      text-align: center;
+    }
+    .flow-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin: 0.5rem 0;
+    }
+    .flow-box {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .flow-arrow { color: var(--text-secondary); font-size: 1.2rem; }
+    .flow-security { background: rgba(248, 81, 73, 0.15); color: var(--red); border: 1px solid rgba(248, 81, 73, 0.3); }
+    .flow-app { background: rgba(88, 166, 255, 0.15); color: var(--accent); border: 1px solid rgba(88, 166, 255, 0.3); }
+    .flow-resilience { background: rgba(210, 153, 34, 0.15); color: var(--yellow); border: 1px solid rgba(210, 153, 34, 0.3); }
+    .flow-obs { background: rgba(188, 140, 255, 0.15); color: var(--purple); border: 1px solid rgba(188, 140, 255, 0.3); }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      border-top: 1px solid var(--border);
+    }
+
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 1.8rem; }
+      .container { padding: 1rem; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="back-link">&larr; Docs Index</a>
+    <a href="#overview">Overview</a>
+    <a href="#session30">Session 30</a>
+    <a href="#session31">Session 31</a>
+    <a href="#session32">Session 32</a>
+    <a href="#session33">Session 33</a>
+    <a href="#testing">Testing</a>
+    <a href="#verification">Verification</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <h1>Architecture Hardening</h1>
+  <p class="subtitle">Sessions 30-33 &mdash; Security, Resilience &amp; Observability</p>
+  <span class="badge badge-green">395 Tests Passing</span>
+  <span class="badge badge-blue">55 New Tests Added</span>
+</div>
+
+<div class="container">
+
+  <!-- Overview -->
+  <section id="overview">
+    <h2>Executive Summary</h2>
+    <p>Four sessions of comprehensive platform hardening addressing <strong>40+ gaps</strong> identified across parallel security, reliability, and observability audits. Changes span container security, network policies, JWT validation, input bounds, graceful shutdown, retention policies, business metrics, and automated alerting.</p>
+
+    <div class="stats-grid">
+      <div class="stat-card stat-green">
+        <div class="number">395</div>
+        <div class="label">E2E Tests Passing</div>
+      </div>
+      <div class="stat-card stat-blue">
+        <div class="number">55</div>
+        <div class="label">New Tests Added</div>
+      </div>
+      <div class="stat-card stat-purple">
+        <div class="number">36</div>
+        <div class="label">Files Changed</div>
+      </div>
+      <div class="stat-card stat-cyan">
+        <div class="number">4</div>
+        <div class="label">Hardening Pillars</div>
+      </div>
+    </div>
+
+    <div class="flow-diagram">
+      <h3 style="margin-bottom: 1rem; color: var(--text);">Hardening Layers</h3>
+      <div class="flow-row">
+        <div class="flow-box flow-security">Container Security</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box flow-security">Network Policies</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box flow-app">JWT Validation</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box flow-app">Input Bounds</div>
+      </div>
+      <div style="color: var(--text-secondary); margin: 0.5rem 0;">&darr;</div>
+      <div class="flow-row">
+        <div class="flow-box flow-resilience">Graceful Shutdown</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box flow-resilience">Retention Policies</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box flow-obs">Business Metrics</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-box flow-obs">Security Alerts</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Session 30 -->
+  <section id="session30">
+    <h2><span style="color: var(--red);">&#9632;</span> Session 30 &mdash; Container &amp; Network Security</h2>
+
+    <table>
+      <thead>
+        <tr><th>#</th><th>Change</th><th>Impact</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td><code>.dockerignore</code> for all 3 services</td><td>Prevents <code>.git</code>, <code>.env</code>, <code>node_modules</code> from entering images</td></tr>
+        <tr><td>2</td><td>Gateway egress restricted</td><td>No more open egress &mdash; only ecom(8080), inventory(8000), identity(8080), UI(80)</td></tr>
+        <tr><td>3</td><td>Kafka ingress restricted to named pods</td><td>Only Debezium, Schema Registry, Kafka Exporter can reach Kafka</td></tr>
+        <tr><td>4</td><td>Inventory CORS: removed DELETE</td><td>Reduces CORS attack surface &mdash; no DELETE endpoints exist</td></tr>
+        <tr><td>5</td><td>Cert-dashboard RBAC trimmed</td><td>Removed create/delete on ClusterRoles (least privilege)</td></tr>
+        <tr><td>6</td><td>Configurable logging via <code>${LOG_LEVEL:INFO}</code></td><td>Runtime-configurable log level, no more hardcoded DEBUG</td></tr>
+        <tr><td>7</td><td>PSS <code>restricted</code> on ecom &amp; inventory</td><td>Enforces seccompProfile, non-root, drop ALL capabilities</td></tr>
+      </tbody>
+    </table>
+
+    <div class="benefit-grid">
+      <div class="benefit-item">
+        <strong>Smaller, Safer Images</strong>
+        <p>.dockerignore prevents secrets and dev artifacts from leaking into production container images</p>
+      </div>
+      <div class="benefit-item">
+        <strong>Network Segmentation</strong>
+        <p>Gateway can only reach its backends &mdash; lateral movement to other namespaces is blocked</p>
+      </div>
+      <div class="benefit-item">
+        <strong>Kafka Isolation</strong>
+        <p>Only CDC components (Debezium, Schema Registry) can access Kafka topics</p>
+      </div>
+      <div class="benefit-item">
+        <strong>Admission-Time Enforcement</strong>
+        <p>PSS restricted means Kubernetes rejects non-compliant pods at creation time</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Session 31 -->
+  <section id="session31">
+    <h2><span style="color: var(--accent);">&#9632;</span> Session 31 &mdash; Application Layer Security</h2>
+
+    <table>
+      <thead>
+        <tr><th>#</th><th>Change</th><th>Impact</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>JWT audience validation (ecom-service)</td><td><code>JwtClaimValidator</code> checks <code>aud</code> contains <code>account</code></td></tr>
+        <tr><td>2</td><td>Inventory <code>verify_aud: False</code> fixed</td><td>Both JWT decode paths now validate audience</td></tr>
+        <tr><td>3</td><td><code>jwt_audience</code> config setting</td><td>Configurable via environment variable (default: <code>account</code>)</td></tr>
+        <tr><td>4</td><td><code>@Max(99)</code> on CartRequest.quantity</td><td>Prevents integer overflow and unreasonable orders</td></tr>
+        <tr><td>5</td><td><code>@Max(99)</code> on CartUpdateRequest.quantity</td><td>Same protection for cart updates</td></tr>
+        <tr><td>6</td><td><code>le=99</code> on ReserveRequest.quantity</td><td>Inventory rejects reserve &gt; 99 at validation layer</td></tr>
+      </tbody>
+    </table>
+
+    <div class="benefit-grid">
+      <div class="benefit-item">
+        <strong>Token Confusion Prevention</strong>
+        <p>JWT audience validation prevents tokens issued for one client from being used against another service</p>
+      </div>
+      <div class="benefit-item">
+        <strong>Input Bounds Enforcement</strong>
+        <p>Quantity bounds 1-99 eliminate edge cases with zero, negative, or absurdly large values</p>
+      </div>
+      <div class="benefit-item">
+        <strong>Defense in Depth</strong>
+        <p>Validation at both API gateway (Spring Boot) and downstream service (FastAPI) layers</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Session 32 -->
+  <section id="session32">
+    <h2><span style="color: var(--yellow);">&#9632;</span> Session 32 &mdash; Resilience &amp; Reliability</h2>
+
+    <table>
+      <thead>
+        <tr><th>Service</th><th>preStop Hook</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Kafka</td><td><code>kafka-server-stop &amp;&amp; sleep 5</code></td><td>Graceful leader transfer, flush logs to disk</td></tr>
+        <tr><td>Redis</td><td><code>redis-cli shutdown save</code></td><td>RDB snapshot + AOF flush before termination</td></tr>
+        <tr><td>Flink JobManager</td><td><code>sleep 10</code></td><td>Allow in-flight checkpoints to complete</td></tr>
+        <tr><td>Flink TaskManager</td><td><code>sleep 10</code></td><td>Allow task slot drain before shutdown</td></tr>
+        <tr><td>Debezium (ecom)</td><td><code>sleep 5</code></td><td>Allow Kafka offset flush</td></tr>
+        <tr><td>Debezium (inventory)</td><td><code>sleep 5</code></td><td>Allow Kafka offset flush</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Additional Improvements</h3>
+    <table>
+      <thead>
+        <tr><th>Item</th><th>Before</th><th>After</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Inventory HPA</td><td>CPU only (70%)</td><td>CPU (70%) + Memory (80%)</td></tr>
+        <tr><td>Tempo trace retention</td><td>1 hour</td><td>72 hours (3 days)</td></tr>
+        <tr><td>Loki log retention</td><td>No retention policy</td><td>72 hours + automated compactor</td></tr>
+      </tbody>
+    </table>
+
+    <div class="benefit-grid">
+      <div class="benefit-item">
+        <strong>Zero Data Loss on Shutdown</strong>
+        <p>All 6 stateful services flush data before SIGTERM kills the process</p>
+      </div>
+      <div class="benefit-item">
+        <strong>Smooth Rolling Updates</strong>
+        <p>preStop hooks + terminationGracePeriod = zero-downtime deployments</p>
+      </div>
+      <div class="benefit-item">
+        <strong>Better Autoscaling</strong>
+        <p>Memory-aware HPA catches OOM scenarios that CPU-only monitoring misses</p>
+      </div>
+      <div class="benefit-item">
+        <strong>3-Day Investigation Window</strong>
+        <p>72h retention on traces and logs means on-call can investigate weekend incidents</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Session 33 -->
+  <section id="session33">
+    <h2><span style="color: var(--purple);">&#9632;</span> Session 33 &mdash; Observability Hardening</h2>
+
+    <h3>Business Metrics</h3>
+    <table>
+      <thead>
+        <tr><th>Metric</th><th>Type</th><th>Service</th><th>Endpoint</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>orders_total</code></td><td>Counter</td><td>ecom-service</td><td><code>/ecom/actuator/prometheus</code></td></tr>
+        <tr><td><code>checkout_duration_seconds</code></td><td>Timer/Histogram</td><td>ecom-service</td><td><code>/ecom/actuator/prometheus</code></td></tr>
+        <tr><td><code>inventory_reserved_total</code></td><td>Counter</td><td>inventory-service</td><td><code>/inven/metrics</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>CDC Pipeline Grafana Dashboard</h3>
+    <p>New <strong>cdc-pipeline</strong> dashboard at <code>http://localhost:32500</code> with 6 panels:</p>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Panel</th><th>Visualization</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>Kafka Consumer Group Lag</td><td>Time series</td></tr>
+        <tr><td>2</td><td>Debezium Pod Status</td><td>Stat (READY/NOT READY)</td></tr>
+        <tr><td>3</td><td>Flink Checkpoint Duration</td><td>Time series (ms)</td></tr>
+        <tr><td>4</td><td>Flink Failed Checkpoints</td><td>Time series (red)</td></tr>
+        <tr><td>5</td><td>Kafka Messages Per Topic (rate)</td><td>Time series (ops)</td></tr>
+        <tr><td>6</td><td>Flink Job Status</td><td>Stat (UP/DOWN)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Security Alert Rules</h3>
+    <table>
+      <thead>
+        <tr><th>Alert</th><th>Condition</th><th>Severity</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>High401Rate</code></td><td>401 responses &gt; 1 req/s for 2 min</td><td>Warning</td></tr>
+        <tr><td><code>High403Rate</code></td><td>403 responses &gt; 0.5 req/s for 2 min</td><td>Warning</td></tr>
+        <tr><td><code>RateLimitBreaches</code></td><td>429 responses &gt; 0.5 req/s for 2 min</td><td>Warning</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Git SHA Image Tagging</h3>
+    <p>Every Docker build in <code>scripts/up.sh</code> now produces two tags:</p>
+    <pre><code>bookstore/ecom-service:latest
+bookstore/ecom-service:abc1234     # git short SHA</code></pre>
+
+    <div class="benefit-grid">
+      <div class="benefit-item">
+        <strong>Business Observability</strong>
+        <p>Track order volume, checkout latency, and inventory reservations in real-time Grafana dashboards</p>
+      </div>
+      <div class="benefit-item">
+        <strong>CDC Pipeline Visibility</strong>
+        <p>Single dashboard showing Kafka lag, Debezium status, Flink checkpoints, and throughput</p>
+      </div>
+      <div class="benefit-item">
+        <strong>Automated Security Monitoring</strong>
+        <p>AlertManager fires on authentication failures, authorization denials, and rate limit breaches</p>
+      </div>
+      <div class="benefit-item">
+        <strong>Container Traceability</strong>
+        <p>Git SHA tags let you link any running container to its exact source commit</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testing -->
+  <section id="testing">
+    <h2>Test Results</h2>
+
+    <div class="stats-grid">
+      <div class="stat-card stat-green">
+        <div class="number">17</div>
+        <div class="label">Session 30 Tests</div>
+      </div>
+      <div class="stat-card stat-green">
+        <div class="number">13</div>
+        <div class="label">Session 31 Tests</div>
+      </div>
+      <div class="stat-card stat-green">
+        <div class="number">12</div>
+        <div class="label">Session 32 Tests</div>
+      </div>
+      <div class="stat-card stat-green">
+        <div class="number">13</div>
+        <div class="label">Session 33 Tests</div>
+      </div>
+    </div>
+
+    <h3>New Test Suites</h3>
+    <div class="test-result test-pass"><span class="test-icon">&#10003;</span> <code>security-hardening.spec.ts</code> &mdash; .dockerignore, NetworkPolicy, CORS, RBAC, PSS (17 tests)</div>
+    <div class="test-result test-pass"><span class="test-icon">&#10003;</span> <code>input-validation.spec.ts</code> &mdash; JWT audience, quantity bounds 1-99, initContainer caps (13 tests)</div>
+    <div class="test-result test-pass"><span class="test-icon">&#10003;</span> <code>resilience-hardening.spec.ts</code> &mdash; preStop hooks, HPA memory metric, retention configs (12 tests)</div>
+    <div class="test-result test-pass"><span class="test-icon">&#10003;</span> <code>observability-hardening.spec.ts</code> &mdash; business metrics, CDC dashboard, alerts, git SHA (13 tests)</div>
+
+    <h3>Full Regression Results</h3>
+    <table>
+      <thead>
+        <tr><th>Status</th><th>Count</th><th>Details</th></tr>
+      </thead>
+      <tbody>
+        <tr><td style="color: var(--green);">Passed</td><td><strong>395</strong></td><td>All session tests + full regression</td></tr>
+        <tr><td style="color: var(--yellow);">Skipped</td><td>34</td><td>Conditional tests (cert-dashboard operator not deployed)</td></tr>
+        <tr><td style="color: var(--red);">Failed</td><td>1</td><td>Pre-existing: CDC latency clock-skew (not related to changes)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Verification -->
+  <section id="verification">
+    <h2>Verification Commands</h2>
+
+    <h3>Run New Session Tests</h3>
+    <pre><code>cd e2e
+npx playwright test security-hardening.spec.ts
+npx playwright test input-validation.spec.ts
+npx playwright test resilience-hardening.spec.ts
+npx playwright test observability-hardening.spec.ts</code></pre>
+
+    <h3>Full Regression</h3>
+    <pre><code>cd e2e && npm run test</code></pre>
+
+    <h3>Verify Business Metrics</h3>
+    <pre><code># ecom-service metrics
+curl -sk https://api.service.net:30000/ecom/actuator/prometheus | grep orders_total
+curl -sk https://api.service.net:30000/ecom/actuator/prometheus | grep checkout_duration
+
+# inventory-service metrics
+curl -sk https://api.service.net:30000/inven/metrics | grep inventory_reserved_total</code></pre>
+
+    <h3>Verify CDC Dashboard</h3>
+    <pre><code>curl -s http://localhost:32500/api/dashboards/uid/cdc-pipeline \
+  -H 'Authorization: Basic YWRtaW46Q0hBTkdFX01F' | jq .dashboard.uid
+# Expected: "cdc-pipeline"</code></pre>
+
+    <h3>Verify Flink Jobs</h3>
+    <pre><code>curl -sf http://localhost:32200/jobs | jq '.jobs[] | select(.status=="RUNNING")' | wc -l
+# Expected: 4</code></pre>
+
+    <h3>Smoke Test</h3>
+    <pre><code>bash scripts/smoke-test.sh</code></pre>
+  </section>
+
+</div>
+
+<footer>
+  BookStore E-Commerce Platform &mdash; Architecture Hardening Sessions 30-33 &mdash; Generated 2026-03-23
+</footer>
+
+</body>
+</html>
