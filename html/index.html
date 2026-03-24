@@ -7,11 +7,11 @@
   <!-- OpenGraph for LinkedIn / Twitter preview -->
   <meta property="og:title" content="BookStore Platform — Microservices Architecture" />
   <meta property="og:description" content="Production-grade microservices e-commerce bookstore on Kubernetes with TLS everywhere, Istio mTLS, Flink 2.2.0 CDC, Keycloak OIDC, Grafana/Loki/Tempo observability, Cert Dashboard Operator, and Superset analytics." />
-  <meta property="og:image" content="diagrams/architecture.gif" />
+  <meta property="og:image" content="diagrams/architecture.png" />
   <meta property="og:type" content="article" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="BookStore Platform — Microservices Architecture" />
-  <meta name="twitter:image" content="diagrams/architecture.gif" />
+  <meta name="twitter:image" content="diagrams/architecture.png" />
   <style>
     :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -177,7 +177,7 @@ document.addEventListener('keydown', function(e) {
   </div>
 
   <h2 id="architecture">Infrastructure Architecture</h2>
-  <img src="diagrams/architecture.gif" alt="BookStore Platform — Infrastructure Architecture" />
+  <img src="diagrams/architecture.svg" alt="BookStore Platform — Infrastructure Architecture" />
 
   <h2 id="at-a-glance">Architecture at a Glance</h2>
   <table>
@@ -219,7 +219,7 @@ document.addEventListener('keydown', function(e) {
   <p>The cert-dashboard-operator is a Go-based Kubernetes operator (OLM-managed) that deploys a web dashboard for monitoring and renewing cert-manager certificates. It displays certificate lifecycle with color-coded progress bars, provides one-click renewal with SSE live streaming, and auto-refreshes every 30 seconds. Accessible at NodePort 32600.</p>
 
   <h2 id="data-flow">Live Data Flow</h2>
-  <img src="diagrams/data-flow.gif" alt="BookStore Platform — Live Data Flow (Animated)" />
+  <img src="diagrams/data-flow-animated.svg" alt="BookStore Platform — Live Data Flow (Animated)" />
 
   <h3>User Request Flow</h3>
   <pre><code>Browser (HTTPS) → Istio Gateway (TLS termination) → UI Service (React SPA)

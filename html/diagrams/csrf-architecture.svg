@@ -241,6 +241,92 @@
   <text x="1020" y="490" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">403 Forbidden</text>
   <text x="1020" y="504" text-anchor="middle" fill="#fecaca" font-size="8">Request blocked</text>
 
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- ANIMATED DATA FLOW DOTS -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <defs>
+    <filter id="dotGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feFlood flood-color="#f43f5e" flood-opacity="0.6"/>
+      <feComposite in2="b" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="dotGlowG" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feFlood flood-color="#22c55e" flood-opacity="0.6"/>
+      <feComposite in2="b" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="dotGlowB" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feFlood flood-color="#3b82f6" flood-opacity="0.6"/>
+      <feComposite in2="b" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="dotGlowR" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feFlood flood-color="#ef4444" flood-opacity="0.6"/>
+      <feComposite in2="b" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="dotGlowC" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feFlood flood-color="#06b6d4" flood-opacity="0.6"/>
+      <feComposite in2="b" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <!-- Animation paths (invisible, for animateMotion) -->
+    <path id="p-browser-gw" d="M600,128 L230,188" fill="none"/>
+    <path id="p-gw-csrf" d="M380,238 L470,218" fill="none"/>
+    <path id="p-csrf-redis" d="M755,240 L860,240" fill="none"/>
+    <path id="p-csrf-gw-back" d="M475,260 L380,260" fill="none"/>
+    <path id="p-gw-ecom" d="M180,288 L180,344" fill="none"/>
+    <path id="p-gw-inven" d="M280,288 L520,344" fill="none"/>
+  </defs>
+
+  <!-- Dot 1: Browser → Gateway (cyan) -->
+  <circle r="5" fill="#06b6d4" filter="url(#dotGlowC)" opacity="0.9">
+    <animateMotion dur="2s" repeatCount="indefinite" begin="0s">
+      <mpath href="#p-browser-gw"/>
+    </animateMotion>
+  </circle>
+
+  <!-- Dot 2: Gateway → CSRF Service ext_authz (rose) -->
+  <circle r="5" fill="#f43f5e" filter="url(#dotGlow)" opacity="0.95">
+    <animateMotion dur="1.2s" repeatCount="indefinite" begin="0.5s">
+      <mpath href="#p-gw-csrf"/>
+    </animateMotion>
+  </circle>
+
+  <!-- Dot 3: CSRF Service → Redis (red) -->
+  <circle r="4" fill="#ef4444" filter="url(#dotGlowR)" opacity="0.9">
+    <animateMotion dur="1.5s" repeatCount="indefinite" begin="1s">
+      <mpath href="#p-csrf-redis"/>
+    </animateMotion>
+  </circle>
+
+  <!-- Dot 4: CSRF Service → Gateway 200/403 response (green) -->
+  <circle r="5" fill="#22c55e" filter="url(#dotGlowG)" opacity="0.9">
+    <animateMotion dur="1.2s" repeatCount="indefinite" begin="1.8s">
+      <mpath href="#p-csrf-gw-back"/>
+    </animateMotion>
+  </circle>
+
+  <!-- Dot 5: Gateway → ecom-service (blue) -->
+  <circle r="4" fill="#3b82f6" filter="url(#dotGlowB)" opacity="0.85">
+    <animateMotion dur="2s" repeatCount="indefinite" begin="2.5s">
+      <mpath href="#p-gw-ecom"/>
+    </animateMotion>
+  </circle>
+
+  <!-- Dot 6: Gateway → inventory-service (blue) -->
+  <circle r="4" fill="#3b82f6" filter="url(#dotGlowB)" opacity="0.85">
+    <animateMotion dur="2.5s" repeatCount="indefinite" begin="3s">
+      <mpath href="#p-gw-inven"/>
+    </animateMotion>
+  </circle>
+
   <!-- Legend -->
   <g transform="translate(80, 615)">
     <rect width="1060" height="55" rx="8" fill="#0f172a" stroke="#334155" stroke-width="0.5"/>

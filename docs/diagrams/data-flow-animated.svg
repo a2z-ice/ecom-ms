@@ -85,6 +85,11 @@
     <path id="path-oidc" d="M900,108 Q1150,60 1250,195" fill="none"/>
     <!-- 15. E-Commerce -> Inventory mTLS -->
     <path id="path-ecom-inven-mtls" d="M720,345 L840,345" fill="none"/>
+
+    <!-- CSRF flow paths -->
+    <path id="path-gateway-csrf" d="M840,222 L898,222" fill="none"/>
+    <path id="path-csrf-redis" d="M975,244 L1120,310 L1185,320" fill="none"/>
+    <path id="path-csrf-gateway-back" d="M898,230 L840,230" fill="none"/>
   </defs>
 
   <!-- Background -->
@@ -356,6 +361,27 @@
   <circle r="4" fill="#f59e0b" filter="url(#dot-glow)" opacity="0.85">
     <animateMotion dur="4s" repeatCount="indefinite" begin="3.5s">
       <mpath href="#path-inven-to-kafka"/>
+    </animateMotion>
+  </circle>
+
+  <!-- Flow 12: Gateway -> CSRF Service ext_authz (rose) -->
+  <circle r="4" fill="#f43f5e" filter="url(#dot-glow)" opacity="0.9">
+    <animateMotion dur="1.5s" repeatCount="indefinite" begin="0.2s">
+      <mpath href="#path-gateway-csrf"/>
+    </animateMotion>
+  </circle>
+
+  <!-- Flow 13: CSRF Service -> Redis token check (red) -->
+  <circle r="3.5" fill="#ef4444" filter="url(#dot-glow)" opacity="0.85">
+    <animateMotion dur="2.5s" repeatCount="indefinite" begin="0.8s">
+      <mpath href="#path-csrf-redis"/>
+    </animateMotion>
+  </circle>
+
+  <!-- Flow 14: CSRF Service -> Gateway response (green = allow) -->
+  <circle r="4" fill="#22c55e" filter="url(#dot-glow)" opacity="0.85">
+    <animateMotion dur="1.5s" repeatCount="indefinite" begin="1.5s">
+      <mpath href="#path-csrf-gateway-back"/>
     </animateMotion>
   </circle>
 

@@ -6,7 +6,7 @@
   <title>PostgreSQL HA with CloudNativePG &amp; Debezium CDC — BookStore Platform</title>
   <meta property="og:title" content="PostgreSQL HA with CloudNativePG &amp; Debezium CDC" />
   <meta property="og:description" content="Comprehensive guide to PostgreSQL High Availability using CloudNativePG operator with Debezium CDC from Write-Ahead Log, automatic failover, and Kafka offset storage." />
-  <meta property="og:image" content="diagrams/ha-postgres-debezium.gif" />
+  <meta property="og:image" content="diagrams/ha-postgres-debezium.png" />
   <meta property="og:type" content="article" />
   <meta name="twitter:card" content="summary_large_image" />
   <style>
@@ -280,7 +280,7 @@ PostgreSQL Primary
 
   <div class="svg-container">
     <object type="image/svg+xml" data="diagrams/ha-postgres-debezium-animated.svg" width="100%">
-      <img src="diagrams/ha-postgres-debezium.gif" alt="HA PostgreSQL + Debezium CDC Architecture" />
+      <img src="diagrams/ha-postgres-debezium-animated.svg" alt="HA PostgreSQL + Debezium CDC Architecture" />
     </object>
   </div>
   <p class="diagram-caption">Animated: HA PostgreSQL cluster with CloudNativePG operator, ExternalName service aliases, WAL-based CDC, and Kafka offset storage</p>
@@ -468,7 +468,7 @@ PostgreSQL Primary
 
   <div class="svg-container">
     <object type="image/svg+xml" data="diagrams/ha-failover-animated.svg" width="100%">
-      <img src="diagrams/ha-failover.gif" alt="CNPG Automatic Failover Sequence" />
+      <img src="diagrams/ha-failover-animated.svg" alt="CNPG Automatic Failover Sequence" />
     </object>
   </div>
   <p class="diagram-caption">Animated: 8-phase automatic failover — failure detection, promotion, service update, Debezium reconnect, offset resume</p>
