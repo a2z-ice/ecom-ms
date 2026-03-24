@@ -80,6 +80,12 @@
       <artifactId>spring-boot-starter-data-redis</artifactId>
     </dependency>
 
+    <!-- Commons Pool2 — required for Lettuce connection pooling -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-pool2</artifactId>
+    </dependency>
+
     <!-- Rate limiting via Bucket4j -->
     <dependency>
       <groupId>com.bucket4j</groupId>

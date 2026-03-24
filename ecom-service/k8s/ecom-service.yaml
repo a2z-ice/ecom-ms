@@ -98,6 +98,8 @@ spec:
               value: "otlp"
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "service.namespace=ecom,deployment.environment=production"
+            - name: SWAGGER_ENABLED
+              value: "false"
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

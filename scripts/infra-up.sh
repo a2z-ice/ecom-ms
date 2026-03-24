@@ -142,7 +142,11 @@ wait_deployment otel-collector otel
 wait_deployment tempo otel
 wait_deployment loki otel
 
-# ── 8. Summary ──────────────────────────────────────────────────────────────
+# ── 8. ResourceQuota + LimitRange ──────────────────────────────────────────
+info "Applying ResourceQuota + LimitRange for ecom and inventory namespaces..."
+kubectl apply -f "${REPO_ROOT}/infra/kubernetes/resource-limits/"
+
+# ── 9. Summary ──────────────────────────────────────────────────────────────
 echo ""
 info "Infrastructure pod status:"
 kubectl get pods -n ecom -l cnpg.io/cluster=ecom-db

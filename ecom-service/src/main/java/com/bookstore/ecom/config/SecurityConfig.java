@@ -36,6 +36,9 @@ public class SecurityConfig {
     @Value("${JWT_AUDIENCE:account}")
     private String jwtAudience;
 
+    @Value("${springdoc.swagger-ui.enabled:true}")
+    private boolean swaggerEnabled;
+
     /**
      * Custom JwtDecoder that fetches JWKS from the internal cluster URL
      * but validates the issuer claim against the external Keycloak URL.
@@ -59,16 +62,18 @@ public class SecurityConfig {
         http
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .csrf(csrf -> csrf.disable())   // CSRF handled at gateway/UI level for this stateless API
-            .authorizeHttpRequests(auth -> auth
+            .authorizeHttpRequests(auth -> {
                 // Public endpoints — no token required
-                .requestMatchers(HttpMethod.GET, "/books", "/books/search", "/books/*").permitAll()
+                auth.requestMatchers(HttpMethod.GET, "/books", "/books/search", "/books/*").permitAll();
                 // Actuator health — public (wildcard covers /health/liveness and /health/readiness)
-                .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
-                // OpenAPI / Swagger UI — public read-only documentation
-                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                auth.requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll();
+                // OpenAPI / Swagger UI — only permit when enabled (disabled in production)
+                if (swaggerEnabled) {
+                    auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll();
+                }
                 // All other endpoints require authentication
-                .anyRequest().authenticated()
-            )
+                auth.anyRequest().authenticated();
+            })
             .oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
             );

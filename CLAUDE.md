@@ -397,6 +397,8 @@ CMD ["<entrypoint>"]
 - Kafka: use `KafkaTemplate<String, Object>`; events serialized as JSON with `JsonSerializer`
 - Rate limiting: Bucket4j with Redis as token bucket store
 - Error handling: `GlobalExceptionHandler` (`@RestControllerAdvice`) returns `ProblemDetail` responses for `ResourceNotFoundException`, `BusinessException`, and `MethodArgumentNotValidException`
+- Checkout idempotency: `Idempotency-Key` header (optional); `findByIdempotencyKey()` returns existing order if key matches; Liquibase migration `006-add-idempotency-key.yaml`
+- Swagger: disabled in production via `SWAGGER_ENABLED=false` env var; SecurityConfig conditionally permits Swagger paths
 
 ### FastAPI (inventory-service) Patterns
 
@@ -510,6 +512,8 @@ All `scripts/` files must be idempotent (safe to run multiple times):
 - `sanity-test.sh` — comprehensive cluster health check (pods + routes + Kafka + Debezium)
 - `restart-after-docker.sh` — full recovery after Docker Desktop restart (ztunnel + pod restarts in dependency order + Debezium re-registration)
 - `trust-ca.sh` — extract self-signed CA cert from cluster to `certs/bookstore-ca.crt`; `--install` adds to macOS Keychain
+- `backup.sh` — timestamped backup of all 4 CNPG databases + Kafka consumer offsets + Keycloak realm
+- `restore.sh <timestamp>` — restore from backup; `--yes` to skip confirmation
 
 ---
 

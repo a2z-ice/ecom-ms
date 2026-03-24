@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -59,8 +60,10 @@ public class OrderController {
                 example = "{\"status\":422,\"detail\":\"Cart is empty\"}"))),
     })
     @PostMapping
-    public ResponseEntity<OrderResponse> checkout(@AuthenticationPrincipal Jwt jwt) {
-        Order order = orderService.checkout(jwt.getSubject());
+    public ResponseEntity<OrderResponse> checkout(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        Order order = orderService.checkout(jwt.getSubject(), idempotencyKey);
         return ResponseEntity.ok(OrderResponse.from(order));
     }
 }

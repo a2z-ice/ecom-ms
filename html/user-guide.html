@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BookStore Platform — Complete User Guide</title>
+  <meta property="og:title" content="BookStore Platform — Complete User Guide" />
+  <meta property="og:description" content="Step-by-step walkthrough of every interface, dashboard, and API in the BookStore microservices platform." />
+  <meta property="og:type" content="article" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 24px 0 8px; color: #cbd5e1; }
+    p { margin-bottom: 16px; color: var(--text); }
+    img { width: 100%; border-radius: 12px; border: 1px solid var(--border); margin: 16px 0 24px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.85rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.05); }
+    code { background: var(--card); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: #f59e0b; }
+    pre { background: var(--card); padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; color: #e2e8f0; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badges { margin-bottom: 24px; }
+    .cta-banner { display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(139,92,246,0.12)); border: 1px solid rgba(99,102,241,0.3); border-radius: 12px; padding: 20px 28px; margin: 32px 0 40px; flex-wrap: wrap; gap: 16px; }
+    .cta-banner .cta-text { color: var(--text); font-size: 0.95rem; }
+    .cta-banner .cta-text strong { color: #a78bfa; }
+    .cta-btn { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 0.88rem; transition: transform 0.15s, box-shadow 0.15s; }
+    .cta-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(59,130,246,0.3); }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    /* -- NAV -- */
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+    /* -- DOC CARDS -- */
+    .doc-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 20px 0 32px; }
+    .doc-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; text-decoration: none; color: var(--text); transition: transform 0.15s, border-color 0.15s; }
+    .doc-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+    .doc-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; color: #f1f5f9; }
+    .doc-card p { font-size: 0.85rem; color: var(--muted); margin: 0; }
+    /* -- USER GUIDE STYLES -- */
+    .step { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 16px 0; }
+    .step-number { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: white; font-weight: 700; font-size: 0.9rem; margin-right: 12px; flex-shrink: 0; }
+    .step h3 { display: flex; align-items: center; margin: 0 0 12px; }
+    .screenshot { width: 100%; max-width: 900px; border-radius: 8px; border: 1px solid var(--border); margin: 12px 0; }
+    .credentials-box { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; padding: 16px; margin: 12px 0; }
+    .credentials-box code { color: #f59e0b; }
+    .url-highlight { color: var(--accent); font-family: monospace; font-weight: 600; }
+    .warning-box { background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.3); border-radius: 8px; padding: 16px; margin: 12px 0; }
+    .info-box { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; padding: 16px; margin: 12px 0; }
+    .section-divider { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+  </style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Back to Main</a>
+      <a href="#prerequisites">Prerequisites</a>
+      <a href="#application">Application</a>
+      <a href="#admin-panel">Admin Panel</a>
+      <a href="#superset">Superset</a>
+      <a href="#grafana">Grafana</a>
+      <a href="#kiali">Kiali</a>
+      <a href="#cert-dashboard">Cert Dashboard</a>
+      <a href="#pgadmin">PgAdmin</a>
+      <a href="#flink">Flink</a>
+      <a href="#api-reference" class="highlight">API Reference</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>BookStore Platform — Complete User Guide</h1>
+  <p>Step-by-step walkthrough of every interface, dashboard, and API</p>
+
+  <div class="badges">
+    <span class="badge green">27 Screenshots</span>
+    <span class="badge purple">12 Dashboards</span>
+    <span class="badge orange">20+ Endpoints</span>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- SECTION 1: PREREQUISITES -->
+  <!-- ================================================================== -->
+  <h2 id="prerequisites">1. Prerequisites &amp; Initial Setup</h2>
+
+  <div class="step">
+    <h3><span class="step-number">1</span>Configure /etc/hosts</h3>
+    <p>Add the following entries to your <code>/etc/hosts</code> file so that the platform hostnames resolve to localhost:</p>
+    <pre><code>127.0.0.1  idp.keycloak.net myecom.net api.service.net</code></pre>
+    <div class="warning-box">
+      <strong>Required:</strong> Without these entries, the browser will not be able to reach the gateway endpoints. On macOS, edit with <code>sudo nano /etc/hosts</code>.
+    </div>
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">2</span>Bootstrap the Cluster</h3>
+    <p>Run the smart startup script. It auto-detects whether to perform a fresh bootstrap, recovery, or health check:</p>
+    <pre><code>bash scripts/up.sh</code></pre>
+    <p>For a full teardown and rebuild from scratch:</p>
+    <pre><code>bash scripts/up.sh --fresh</code></pre>
+    <div class="info-box">
+      <strong>First run:</strong> The initial bootstrap takes 5-10 minutes. It creates a kind cluster, installs Istio, deploys all infrastructure, imports the Keycloak realm, and registers Debezium connectors.
+    </div>
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">3</span>Trust the Self-Signed CA</h3>
+    <p>All gateway endpoints use HTTPS with a self-signed CA managed by cert-manager. To avoid browser warnings:</p>
+    <pre><code>bash scripts/trust-ca.sh --install</code></pre>
+    <p>This extracts the CA certificate from the cluster and adds it to the macOS Keychain. For curl commands, use the <code>-sk</code> flag.</p>
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">4</span>Verify the Stack</h3>
+    <p>Run the smoke test to confirm all services are healthy:</p>
+    <pre><code>bash scripts/smoke-test.sh</code></pre>
+    <p>For a more comprehensive check including Kafka consumer lag and Debezium health:</p>
+    <pre><code>bash scripts/sanity-test.sh</code></pre>
+  </div>
+
+  <h3>Quick Reference: All Platform URLs</h3>
+  <table>
+    <tr><th>Interface</th><th>URL</th><th>Credentials</th><th>Purpose</th></tr>
+    <tr><td>Book Store UI</td><td><span class="url-highlight">https://myecom.net:30000</span></td><td><code>user1</code> / <code>CHANGE_ME</code></td><td>Shopping</td></tr>
+    <tr><td>Admin Panel</td><td><span class="url-highlight">https://myecom.net:30000/admin</span></td><td><code>admin1</code> / <code>CHANGE_ME</code></td><td>Management</td></tr>
+    <tr><td>E-Commerce API</td><td><span class="url-highlight">https://api.service.net:30000/ecom</span></td><td>JWT token</td><td>REST API</td></tr>
+    <tr><td>Inventory API</td><td><span class="url-highlight">https://api.service.net:30000/inven</span></td><td>JWT token</td><td>Stock API</td></tr>
+    <tr><td>Keycloak Admin</td><td><span class="url-highlight">http://localhost:32400/admin</span></td><td><code>admin</code> / <code>CHANGE_ME</code></td><td>Identity</td></tr>
+    <tr><td>PgAdmin</td><td><span class="url-highlight">http://localhost:31111</span></td><td><code>admin@bookstore.local</code> / <code>CHANGE_ME</code></td><td>Database</td></tr>
+    <tr><td>Superset</td><td><span class="url-highlight">http://localhost:32000</span></td><td><code>admin</code> / <code>CHANGE_ME</code></td><td>Analytics</td></tr>
+    <tr><td>Grafana</td><td><span class="url-highlight">http://localhost:32500</span></td><td><code>admin</code> / <code>admin</code></td><td>Monitoring</td></tr>
+    <tr><td>Kiali</td><td><span class="url-highlight">http://localhost:32100/kiali</span></td><td>(none)</td><td>Service Mesh</td></tr>
+    <tr><td>Flink Dashboard</td><td><span class="url-highlight">http://localhost:32200</span></td><td>(none)</td><td>CDC Pipeline</td></tr>
+    <tr><td>Cert Dashboard</td><td><span class="url-highlight">http://localhost:32600</span></td><td>(none)</td><td>Certificates</td></tr>
+    <tr><td>Debezium ecom</td><td><span class="url-highlight">http://localhost:32300/q/health</span></td><td>(none)</td><td>CDC Health</td></tr>
+    <tr><td>Debezium inventory</td><td><span class="url-highlight">http://localhost:32301/q/health</span></td><td>(none)</td><td>CDC Health</td></tr>
+  </table>
+
+  <hr class="section-divider">
+
+  <!-- ================================================================== -->
+  <!-- SECTION 2: BOOK STORE APPLICATION -->
+  <!-- ================================================================== -->
+  <h2 id="application">2. Book Store Application (Customer Experience)</h2>
+
+  <div class="step">
+    <h3><span class="step-number">1</span>Open the Store</h3>
+    <p>Navigate to <span class="url-highlight">https://myecom.net:30000</span> in your browser. You will see the book catalog with cover images, prices, and real-time stock availability badges.</p>
+    <img src="screenshots/auth-setup-01-homepage.png" alt="BookStore homepage showing the book catalog with cover images, prices, and stock badges" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">2</span>Login via Keycloak</h3>
+    <p>Click the <strong>Login</strong> button in the navigation bar. You will be redirected to the Keycloak login page at <span class="url-highlight">https://idp.keycloak.net:30000/realms/bookstore/...</span></p>
+    <div class="credentials-box">
+      <strong>Customer credentials:</strong> Username: <code>user1</code> &mdash; Password: <code>CHANGE_ME</code>
+    </div>
+    <p>The login uses OIDC Authorization Code Flow with PKCE (S256). Tokens are stored in memory only and never persisted to localStorage.</p>
+    <img src="screenshots/auth-setup-02-keycloak-login.png" alt="Keycloak login page for the bookstore realm with username and password fields" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">3</span>Browse &amp; Add to Cart</h3>
+    <p>After login, your name appears in the navbar alongside a <strong>Logout</strong> button. Each book displays a stock status badge:</p>
+    <ul>
+      <li><span class="badge green" style="font-size:0.7rem;">In Stock</span> &mdash; Sufficient inventory available</li>
+      <li><span class="badge orange" style="font-size:0.7rem;">Only X left</span> &mdash; Low stock warning (fewer than 5 units)</li>
+      <li><span class="badge red" style="font-size:0.7rem;">Out of Stock</span> &mdash; Button disabled, cannot add to cart</li>
+    </ul>
+    <p>Click <strong>Add to Cart</strong> on any in-stock book. The cart badge in the navbar updates with the item count.</p>
+    <img src="screenshots/auth-setup-04-logged-in.png" alt="BookStore catalog after login showing user name, logout button, and stock badges on each book" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">4</span>Checkout</h3>
+    <p>Click the cart icon to open the Cart page. It displays items with quantities, prices, and per-item stock availability. Click <strong>Checkout</strong> to complete the purchase.</p>
+    <div class="info-box">
+      <strong>What happens behind the scenes:</strong>
+      <ol>
+        <li>E-Commerce Service validates the cart and JWT token</li>
+        <li>Stock is reserved via mTLS call to Inventory Service</li>
+        <li>Order is persisted and an <code>order.created</code> event is published to Kafka</li>
+        <li>Debezium captures the DB change, Flink transforms it into the analytics schema</li>
+        <li>Cart is cleared after successful checkout</li>
+      </ol>
+    </div>
+    <div class="warning-box">
+      <strong>Checkout button:</strong> Only enabled when all items in the cart have sufficient stock. If any item exceeds available inventory, a warning banner appears and checkout is blocked.
+    </div>
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">5</span>Guest Cart (No Login Required)</h3>
+    <p>Guest users can browse the catalog and add items to cart without logging in. The guest cart is stored in <code>localStorage</code> under the key <code>bookstore_guest_cart</code>.</p>
+    <p>When a guest later logs in, all guest cart items are automatically merged into the server-side cart. Checkout always requires authentication.</p>
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- ================================================================== -->
+  <!-- SECTION 3: ADMIN PANEL -->
+  <!-- ================================================================== -->
+  <h2 id="admin-panel">3. Admin Panel</h2>
+
+  <div class="step">
+    <h3><span class="step-number">1</span>Login as Admin</h3>
+    <p>Navigate to <span class="url-highlight">https://myecom.net:30000</span> and log in with admin credentials.</p>
+    <div class="credentials-box">
+      <strong>Admin credentials:</strong> Username: <code>admin1</code> &mdash; Password: <code>CHANGE_ME</code><br>
+      <small>This user has both <code>customer</code> and <code>admin</code> realm roles.</small>
+    </div>
+    <p>After login, an <strong>Admin</strong> link appears in the navigation bar (only visible to users with the admin role).</p>
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">2</span>Admin Dashboard</h3>
+    <p>URL: <span class="url-highlight">https://myecom.net:30000/admin</span></p>
+    <p>The dashboard displays summary statistics cards: Total Books, Total Orders, Low Stock Items, and Out of Stock Items.</p>
+    <img src="screenshots/admin-02-dashboard.png" alt="Admin dashboard showing stats cards for total books, total orders, low stock items, and out of stock items" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">3</span>Book Management</h3>
+    <p>URL: <span class="url-highlight">https://myecom.net:30000/admin/books</span></p>
+    <p>View all books in a table with title, author, price, and ISBN columns. You can create new books, edit existing entries, and delete books.</p>
+    <img src="screenshots/admin-03-books-list.png" alt="Admin book management table showing all books with title, author, price, and ISBN columns" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">4</span>Stock Management</h3>
+    <p>URL: <span class="url-highlight">https://myecom.net:30000/admin/stock</span></p>
+    <p>View all inventory levels with available, reserved, and total quantities. Adjust stock by setting an absolute quantity or applying a delta (+/-).</p>
+    <img src="screenshots/admin-05-stock-management.png" alt="Admin stock management page showing inventory levels with available, reserved, and total quantities per book" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">5</span>Order Management</h3>
+    <p>URL: <span class="url-highlight">https://myecom.net:30000/admin/orders</span></p>
+    <p>View all orders across all users. Each order shows line items, totals, and timestamps.</p>
+    <img src="screenshots/admin-06-orders-list.png" alt="Admin order management page displaying all orders with line items, totals, and timestamps" class="screenshot">
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- ================================================================== -->
+  <!-- SECTION 4: SUPERSET -->
+  <!-- ================================================================== -->
+  <h2 id="superset">4. Apache Superset (Analytics Dashboards)</h2>
+
+  <div class="step">
+    <h3><span class="step-number">1</span>Login to Superset</h3>
+    <p>URL: <span class="url-highlight">http://localhost:32000</span></p>
+    <div class="credentials-box">
+      <strong>Superset credentials:</strong> Username: <code>admin</code> &mdash; Password: <code>CHANGE_ME</code>
+    </div>
+    <img src="screenshots/superset-00-login.png" alt="Apache Superset login page with username and password fields" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">2</span>Book Store Analytics Dashboard</h3>
+    <p>Navigate to <strong>Dashboards</strong> tab and select <strong>Book Store Analytics</strong>.</p>
+    <ul>
+      <li><strong>Product Sales Volume</strong> &mdash; Bar chart showing units sold per book</li>
+      <li><strong>Sales Over Time</strong> &mdash; Trend line of order volume over time</li>
+      <li><strong>Revenue by Top Books</strong> &mdash; Top revenue-generating titles</li>
+    </ul>
+    <img src="screenshots/superset-dash-book-store-analytics.png" alt="Superset Book Store Analytics dashboard with product sales volume bar chart and sales over time trend line" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">3</span>Sales &amp; Revenue Analytics Dashboard</h3>
+    <p>Select <strong>Sales &amp; Revenue Analytics</strong> from the Dashboards tab.</p>
+    <ul>
+      <li><strong>Revenue by Author</strong> &mdash; Breakdown of revenue per author</li>
+      <li><strong>Revenue by Genre</strong> &mdash; Genre-based revenue distribution</li>
+      <li><strong>Average Order Value</strong> &mdash; Trend of mean order value</li>
+      <li><strong>Order Status Distribution</strong> &mdash; Pie chart of order statuses</li>
+    </ul>
+    <img src="screenshots/superset-dash-sales---revenue-analytics.png" alt="Superset Sales and Revenue Analytics dashboard with revenue by author, genre, average order value, and status distribution charts" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">4</span>Inventory Analytics Dashboard</h3>
+    <p>Select <strong>Inventory Analytics</strong> from the Dashboards tab.</p>
+    <ul>
+      <li><strong>Inventory Health</strong> &mdash; OK / Low / Critical stock distribution</li>
+      <li><strong>Stock Turnover Ratio</strong> &mdash; How quickly inventory sells through</li>
+      <li><strong>Price Distribution</strong> &mdash; Histogram of book prices</li>
+    </ul>
+    <img src="screenshots/superset-dash-inventory-analytics.png" alt="Superset Inventory Analytics dashboard showing inventory health, stock turnover, and price distribution charts" class="screenshot">
+  </div>
+
+  <div class="info-box">
+    <strong>Data source:</strong> All Superset data comes from the <code>analytics-db</code> PostgreSQL database, populated in real-time by the CDC pipeline (Debezium Server &rarr; Kafka &rarr; Flink SQL &rarr; analytics-db). 10 SQL views power the 16 charts across 3 dashboards.
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- ================================================================== -->
+  <!-- SECTION 5: GRAFANA -->
+  <!-- ================================================================== -->
+  <h2 id="grafana">5. Grafana (Metrics, Logs &amp; Traces)</h2>
+
+  <div class="step">
+    <h3><span class="step-number">1</span>Login to Grafana</h3>
+    <p>URL: <span class="url-highlight">http://localhost:32500</span></p>
+    <div class="credentials-box">
+      <strong>Grafana credentials:</strong> Username: <code>admin</code> &mdash; Password: <code>admin</code>
+    </div>
+    <img src="screenshots/guide-01-grafana-login.png" alt="Grafana login page with username and password fields" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">2</span>Home Dashboard</h3>
+    <p>After login, you see the Grafana home page with quick links to dashboards, data sources, and configuration.</p>
+    <img src="screenshots/guide-02-grafana-home.png" alt="Grafana home page showing quick links to dashboards, recently viewed items, and useful links" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">3</span>Application Logs Dashboard</h3>
+    <p>Navigate to <strong>Dashboards &rarr; Application Logs</strong>. This dashboard has 5 panels:</p>
+    <ul>
+      <li><strong>All Services Logs</strong> &mdash; Combined log stream from both backend services</li>
+      <li><strong>ecom-service</strong> &mdash; Filtered logs from the Java Spring Boot service</li>
+      <li><strong>inventory-service</strong> &mdash; Filtered logs from the Python FastAPI service</li>
+      <li><strong>Log Volume</strong> &mdash; Time-series chart of log volume per service</li>
+      <li><strong>Error Volume</strong> &mdash; Time-series chart of ERROR/WARN log counts</li>
+    </ul>
+    <p>Filter by <code>service_name</code>, <code>level</code> (DEBUG, INFO, WARN, ERROR), <code>service_namespace</code>, and <code>deployment_environment</code>.</p>
+    <img src="screenshots/guide-09-application-logs-dashboard.png" alt="Grafana Application Logs dashboard showing log streams, log volume, and error volume panels" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">4</span>Service Health Dashboard</h3>
+    <p>Navigate to <strong>Dashboards &rarr; Service Health</strong>. Displays key health metrics:</p>
+    <ul>
+      <li>Request rate (requests/sec per service)</li>
+      <li>Error rate (percentage of 4xx/5xx responses)</li>
+      <li>Response latency (p50, p95, p99 percentiles)</li>
+    </ul>
+    <img src="screenshots/guide-11-service-health-dashboard.png" alt="Grafana Service Health dashboard showing request rate, error rate, and response latency panels" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">5</span>Distributed Tracing (Tempo)</h3>
+    <p>Navigate to <strong>Explore &rarr; Select Tempo</strong> as the datasource. Choose a service (ecom-service or inventory-service) and view trace waterfalls with span details.</p>
+    <img src="screenshots/guide-13-tempo-service-graph.png" alt="Grafana Tempo service graph showing connections between services with request rates and latencies" class="screenshot">
+    <img src="screenshots/guide-14-tempo-recent-traces.png" alt="Grafana Tempo recent traces view showing individual trace spans with duration and status" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">6</span>Log Exploration (Loki)</h3>
+    <p>Navigate to <strong>Explore &rarr; Select Loki</strong> as the datasource. Use the label browser to filter by service, namespace, or log level.</p>
+    <img src="screenshots/guide-04-loki-label-browser.png" alt="Grafana Loki Explore view showing the label browser with service_name, level, and namespace filter options" class="screenshot">
+  </div>
+
+  <h3>Grafana Datasources</h3>
+  <table>
+    <tr><th>Name</th><th>Type</th><th>Internal URL</th></tr>
+    <tr><td>Prometheus</td><td>prometheus</td><td><code>http://prometheus.observability:9090</code></td></tr>
+    <tr><td>Loki</td><td>loki</td><td><code>http://loki.otel:3100</code></td></tr>
+    <tr><td>Tempo</td><td>tempo</td><td><code>http://tempo.otel:3200</code></td></tr>
+  </table>
+
+  <hr class="section-divider">
+
+  <!-- ================================================================== -->
+  <!-- SECTION 6: KIALI -->
+  <!-- ================================================================== -->
+  <h2 id="kiali">6. Kiali (Service Mesh Visualization)</h2>
+
+  <div class="step">
+    <h3><span class="step-number">1</span>Open Kiali</h3>
+    <p>URL: <span class="url-highlight">http://localhost:32100/kiali</span></p>
+    <p>No authentication is required. The overview page shows all namespaces with their health status and Istio configuration validation.</p>
+    <img src="screenshots/kiali-01-overview.png" alt="Kiali overview page showing all namespaces with health status indicators and Istio config validation" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">2</span>Traffic Graph</h3>
+    <p>Navigate to <strong>Graph</strong> and select the namespaces you want to visualize. The graph shows real-time traffic flow between services:</p>
+    <ul>
+      <li>mTLS lock icons indicate encrypted connections</li>
+      <li>Color coding: green = healthy, yellow = degraded, red = errors</li>
+      <li>Edge labels show request rate and response time</li>
+    </ul>
+    <img src="screenshots/kiali-02-traffic-graph.png" alt="Kiali traffic graph showing real-time request flow between services with mTLS lock icons and color-coded health" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">3</span>Mesh Topology</h3>
+    <p>View all namespaces, workloads, and services in the mesh. Istio configuration validation shows green checkmarks for correctly configured resources.</p>
+    <img src="screenshots/kiali-05-mesh-topology.png" alt="Kiali mesh topology view showing all namespaces, workloads, and Istio config validation status" class="screenshot">
+  </div>
+
+  <div class="info-box">
+    <strong>Key features:</strong> Real-time request rate, error rate, and response time per service. Istio config validation for PeerAuthentication, AuthorizationPolicy, and RequestAuthentication resources. mTLS status verification (STRICT/PERMISSIVE) per namespace.
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- ================================================================== -->
+  <!-- SECTION 7: CERT DASHBOARD -->
+  <!-- ================================================================== -->
+  <h2 id="cert-dashboard">7. Cert Dashboard (Certificate Management)</h2>
+
+  <div class="step">
+    <h3><span class="step-number">1</span>Open the Dashboard</h3>
+    <p>URL: <span class="url-highlight">http://localhost:32600</span></p>
+    <p>No authentication required for viewing. The dashboard is managed by a Go-based Kubernetes operator (OLM-managed) and auto-refreshes every 30 seconds.</p>
+    <img src="screenshots/cert-dashboard-01-full-page.png" alt="Cert Dashboard full page showing certificate cards with progress bars and status indicators" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">2</span>View Certificates</h3>
+    <p>Two certificates are monitored:</p>
+
+    <h3 style="display:block; margin-top:16px;">bookstore-ca (Root CA)</h3>
+    <table>
+      <tr><th>Property</th><th>Value</th></tr>
+      <tr><td>Issuer</td><td>selfsigned-bootstrap</td></tr>
+      <tr><td>Duration</td><td>10 years (3652 days)</td></tr>
+      <tr><td>Algorithm</td><td>ECDSA P-256</td></tr>
+      <tr><td>Status</td><td><span class="badge green" style="font-size:0.7rem;">Ready</span></td></tr>
+    </table>
+
+    <h3 style="display:block; margin-top:16px;">bookstore-gateway-cert (Leaf Certificate)</h3>
+    <table>
+      <tr><th>Property</th><th>Value</th></tr>
+      <tr><td>Issuer</td><td>bookstore-ca-issuer</td></tr>
+      <tr><td>Duration</td><td>30 days</td></tr>
+      <tr><td>Renew Before</td><td>7 days remaining</td></tr>
+      <tr><td>DNS Names</td><td>myecom.net, api.service.net, idp.keycloak.net, localhost</td></tr>
+      <tr><td>IP Addresses</td><td>127.0.0.1</td></tr>
+    </table>
+    <p>The progress bar uses color coding: <span class="badge green" style="font-size:0.7rem;">green</span> = more than 10 days remaining, <span class="badge orange" style="font-size:0.7rem;">yellow</span> = 6-10 days, <span class="badge red" style="font-size:0.7rem;">red</span> = 0-5 days.</p>
+    <img src="screenshots/cert-dashboard-03-gateway-cert-card.png" alt="Cert Dashboard gateway certificate card showing issuer, duration, DNS names, and progress bar" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">3</span>Force Renewal (Advanced)</h3>
+    <p>To manually trigger certificate renewal via the API, you need a Kubernetes ServiceAccount token:</p>
+    <pre><code># Get a ServiceAccount token
+TOKEN=$(kubectl create token bookstore-certs -n cert-dashboard --duration=10m)
+
+# Trigger renewal via API
+curl -X POST http://localhost:32600/api/renew \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"bookstore-gateway-cert","namespace":"infra"}'</code></pre>
+    <p>The dashboard shows SSE live progress through phases: <code>deleting-secret</code> &rarr; <code>waiting-issuing</code> &rarr; <code>issued</code> &rarr; <code>ready</code> &rarr; <code>complete</code>.</p>
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- ================================================================== -->
+  <!-- SECTION 8: PGADMIN -->
+  <!-- ================================================================== -->
+  <h2 id="pgadmin">8. PgAdmin (Database Administration)</h2>
+
+  <div class="step">
+    <h3><span class="step-number">1</span>Login to PgAdmin</h3>
+    <p>URL: <span class="url-highlight">http://localhost:31111</span></p>
+    <div class="credentials-box">
+      <strong>PgAdmin credentials:</strong> Email: <code>admin@bookstore.local</code> &mdash; Password: <code>CHANGE_ME</code>
+    </div>
+    <img src="screenshots/pgadmin-01-login.png" alt="PgAdmin login page with email and password fields" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">2</span>Add Database Servers</h3>
+    <p>Right-click <strong>Servers</strong> &rarr; <strong>Register</strong> &rarr; <strong>Server</strong>. Configure each database:</p>
+    <table>
+      <tr><th>Database</th><th>Hostname</th><th>Port</th><th>DB Name</th><th>Username</th><th>Password</th></tr>
+      <tr><td>E-Commerce</td><td><code>ecom-db-rw.ecom.svc.cluster.local</code></td><td>5432</td><td><code>ecomdb</code></td><td><code>ecomuser</code></td><td><code>CHANGE_ME</code></td></tr>
+      <tr><td>Inventory</td><td><code>inventory-db-rw.inventory.svc.cluster.local</code></td><td>5432</td><td><code>inventorydb</code></td><td><code>inventoryuser</code></td><td><code>CHANGE_ME</code></td></tr>
+      <tr><td>Analytics</td><td><code>analytics-db-rw.analytics.svc.cluster.local</code></td><td>5432</td><td><code>analyticsdb</code></td><td><code>analyticsuser</code></td><td><code>CHANGE_ME</code></td></tr>
+      <tr><td>Keycloak</td><td><code>keycloak-db-rw.identity.svc.cluster.local</code></td><td>5432</td><td><code>keycloakdb</code></td><td><code>keycloakuser</code></td><td><code>CHANGE_ME</code></td></tr>
+    </table>
+    <div class="info-box">
+      <strong>Note:</strong> Use the <code>-rw</code> (read-write) ExternalName services to always connect to the CNPG primary instance. Each service owns its database exclusively &mdash; no cross-database access is permitted.
+    </div>
+    <img src="screenshots/pgadmin-02-dashboard.png" alt="PgAdmin dashboard showing connected database servers with activity graphs and statistics" class="screenshot">
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- ================================================================== -->
+  <!-- SECTION 9: FLINK -->
+  <!-- ================================================================== -->
+  <h2 id="flink">9. Apache Flink (CDC Pipeline Monitoring)</h2>
+
+  <div class="step">
+    <h3><span class="step-number">1</span>Open the Dashboard</h3>
+    <p>URL: <span class="url-highlight">http://localhost:32200</span></p>
+    <p>No authentication required. The overview page shows the Flink cluster status, available task slots, and running jobs count.</p>
+    <img src="screenshots/flink-01-overview.png" alt="Apache Flink dashboard overview showing cluster status, task slots, and running jobs summary" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">2</span>View Running Jobs</h3>
+    <p>Navigate to <strong>Jobs &rarr; Running Jobs</strong>. There are 4 streaming SQL jobs that transform CDC events into the analytics star schema:</p>
+    <table>
+      <tr><th>Job</th><th>Description</th><th>Source</th><th>Target</th></tr>
+      <tr><td><code>dim_books</code></td><td>Dimension table for books</td><td>Debezium CDC (ecom-db)</td><td>analytics-db</td></tr>
+      <tr><td><code>fact_orders</code></td><td>Fact table for orders</td><td>Debezium CDC (ecom-db)</td><td>analytics-db</td></tr>
+      <tr><td><code>fact_order_items</code></td><td>Fact table for order line items</td><td>Debezium CDC (ecom-db)</td><td>analytics-db</td></tr>
+      <tr><td><code>fact_inventory</code></td><td>Fact table for inventory changes</td><td>Debezium CDC (inventory-db)</td><td>analytics-db</td></tr>
+    </table>
+    <img src="screenshots/flink-03-job-detail.png" alt="Flink job detail page showing the streaming SQL job execution plan, task timeline, and checkpoint status" class="screenshot">
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">3</span>Check Checkpoints</h3>
+    <p>Click on a job and navigate to the <strong>Checkpoints</strong> tab. Verify that "Exactly Once" semantics are enabled and checkpoints are completing successfully (green checkmarks).</p>
+    <div class="info-box">
+      <strong>Pipeline flow:</strong> Source databases &rarr; Debezium Server 3.4 (PostgreSQL WAL) &rarr; Kafka topics &rarr; Flink SQL (streaming) &rarr; analytics-db &rarr; Superset dashboards. Data propagates in near real-time.
+    </div>
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- ================================================================== -->
+  <!-- SECTION 10: DEBEZIUM -->
+  <!-- ================================================================== -->
+  <h2 id="debezium">10. Debezium CDC Health</h2>
+
+  <div class="step">
+    <h3><span class="step-number">1</span>Check Health Endpoints</h3>
+    <p>Debezium Server instances expose health-only endpoints (no UI). Two pods capture PostgreSQL WAL changes and publish to Kafka topics.</p>
+
+    <p><strong>E-Commerce Debezium Server:</strong></p>
+    <pre><code>curl -s http://localhost:32300/q/health | jq .
+# Returns: {"status":"UP","checks":[...]}</code></pre>
+
+    <p><strong>Inventory Debezium Server:</strong></p>
+    <pre><code>curl -s http://localhost:32301/q/health | jq .
+# Returns: {"status":"UP","checks":[...]}</code></pre>
+
+    <div class="info-box">
+      <strong>Kafka topics produced by Debezium:</strong>
+      <ul>
+        <li><code>ecom-connector.public.orders</code> &mdash; Order changes from ecom-db</li>
+        <li><code>ecom-connector.public.order_items</code> &mdash; Order item changes from ecom-db</li>
+        <li><code>ecom-connector.public.books</code> &mdash; Book catalog changes from ecom-db</li>
+        <li><code>inventory-connector.public.stock</code> &mdash; Inventory changes from inventory-db</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- ================================================================== -->
+  <!-- SECTION 11: KEYCLOAK -->
+  <!-- ================================================================== -->
+  <h2 id="keycloak">11. Keycloak Admin Console</h2>
+
+  <div class="step">
+    <h3><span class="step-number">1</span>Login to Keycloak Admin</h3>
+    <p>URL: <span class="url-highlight">http://localhost:32400/admin</span></p>
+    <div class="credentials-box">
+      <strong>Keycloak master admin:</strong> Username: <code>admin</code> &mdash; Password: <code>CHANGE_ME</code>
+    </div>
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">2</span>Navigate to the bookstore Realm</h3>
+    <p>Click the realm dropdown in the top-left corner and select <strong>bookstore</strong>. From here you can manage users, roles, clients, and sessions.</p>
+
+    <h3 style="display:block; margin-top:16px;">Key Configuration</h3>
+    <table>
+      <tr><th>Setting</th><th>Value</th></tr>
+      <tr><td>Realm</td><td><code>bookstore</code></td></tr>
+      <tr><td>OIDC Client</td><td><code>ui-client</code> (public, PKCE with S256)</td></tr>
+      <tr><td>Users</td><td><code>user1</code> (customer role), <code>admin1</code> (customer + admin roles)</td></tr>
+      <tr><td>Access Token Lifetime</td><td>5 minutes</td></tr>
+      <tr><td>Refresh Token Lifetime</td><td>30 minutes</td></tr>
+      <tr><td>Login Theme</td><td>Keycloak default</td></tr>
+      <tr><td>PKCE</td><td>S256 (required for public client)</td></tr>
+    </table>
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- ================================================================== -->
+  <!-- SECTION 12: API REFERENCE -->
+  <!-- ================================================================== -->
+  <h2 id="api-reference">12. API Quick Reference</h2>
+
+  <div class="step">
+    <h3><span class="step-number">1</span>Obtain a JWT Token</h3>
+    <p>Use the Keycloak token endpoint to get an access token via Resource Owner Password Credentials grant:</p>
+    <pre><code>TOKEN=$(curl -sk -X POST \
+  "https://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token" \
+  -d "grant_type=password&amp;client_id=ui-client&amp;username=user1&amp;password=CHANGE_ME" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")</code></pre>
+    <div class="warning-box">
+      <strong>Note:</strong> All gateway endpoints use HTTPS with a self-signed certificate. Always use the <code>-sk</code> flags with curl to skip certificate verification.
+    </div>
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">2</span>Public Endpoints (No Authentication)</h3>
+    <pre><code># List all books
+curl -sk https://api.service.net:30000/ecom/books | jq .
+
+# Search books by keyword
+curl -sk https://api.service.net:30000/ecom/books/search?q=Python | jq .
+
+# Get a specific book by ID
+curl -sk https://api.service.net:30000/ecom/books/{book-uuid} | jq .
+
+# Inventory health check
+curl -sk https://api.service.net:30000/inven/health
+
+# Get stock for a specific book
+curl -sk https://api.service.net:30000/inven/stock/{book-uuid} | jq .
+
+# Bulk stock lookup
+curl -sk "https://api.service.net:30000/inven/stock/bulk?book_ids=uuid1,uuid2" | jq .</code></pre>
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">3</span>Authenticated Endpoints (JWT Required)</h3>
+    <pre><code># Get cart contents
+curl -sk -H "Authorization: Bearer $TOKEN" \
+  https://api.service.net:30000/ecom/cart | jq .
+
+# Add item to cart
+curl -sk -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"bookId":"&lt;uuid&gt;","quantity":1}' \
+  https://api.service.net:30000/ecom/cart
+
+# Checkout (with idempotency key)
+curl -sk -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Idempotency-Key: unique-key-123" \
+  https://api.service.net:30000/ecom/checkout</code></pre>
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">4</span>Admin Endpoints (Requires admin Role)</h3>
+    <pre><code># Get an admin token
+ADMIN_TOKEN=$(curl -sk -X POST \
+  "https://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token" \
+  -d "grant_type=password&amp;client_id=ui-client&amp;username=admin1&amp;password=CHANGE_ME" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+# List all books (admin view)
+curl -sk -H "Authorization: Bearer $ADMIN_TOKEN" \
+  https://api.service.net:30000/ecom/admin/books | jq .
+
+# List all orders (admin view)
+curl -sk -H "Authorization: Bearer $ADMIN_TOKEN" \
+  https://api.service.net:30000/ecom/admin/orders | jq .
+
+# List all stock levels (admin view)
+curl -sk -H "Authorization: Bearer $ADMIN_TOKEN" \
+  https://api.service.net:30000/inven/admin/stock | jq .</code></pre>
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- ================================================================== -->
+  <!-- SECTION 13: TROUBLESHOOTING -->
+  <!-- ================================================================== -->
+  <h2 id="troubleshooting">13. Troubleshooting &amp; Common Tasks</h2>
+
+  <div class="step">
+    <h3><span class="step-number">1</span>Check Cluster Health</h3>
+    <pre><code># Quick smoke test (pods + HTTP routes + Kafka + Debezium)
+bash scripts/smoke-test.sh
+
+# Comprehensive sanity check
+bash scripts/sanity-test.sh</code></pre>
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">2</span>View Pod Logs</h3>
+    <pre><code># E-Commerce Service (Spring Boot)
+kubectl logs -n ecom deploy/ecom-service -f
+
+# Inventory Service (FastAPI)
+kubectl logs -n inventory deploy/inventory-service -f
+
+# Keycloak
+kubectl logs -n identity deploy/keycloak -f
+
+# Debezium Servers
+kubectl logs -n infra deploy/debezium-server-ecom -f
+kubectl logs -n infra deploy/debezium-server-inventory -f</code></pre>
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">3</span>Access Databases Directly</h3>
+    <pre><code># E-Commerce database
+kubectl exec -n ecom -it ecom-db-1 -- psql -U ecom
+
+# Inventory database
+kubectl exec -n inventory -it inventory-db-1 -- psql -U inventory
+
+# Analytics database (CDC target)
+kubectl exec -n analytics -it analytics-db-1 -- psql -U analytics</code></pre>
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">4</span>Kafka Operations</h3>
+    <pre><code># List all topics
+kubectl exec -n infra deploy/kafka -- kafka-topics --bootstrap-server localhost:9092 --list
+
+# List consumer groups
+kubectl exec -n infra deploy/kafka -- kafka-consumer-groups --bootstrap-server localhost:9092 --list
+
+# Check consumer lag
+kubectl exec -n infra deploy/kafka -- kafka-consumer-groups \
+  --bootstrap-server localhost:9092 --describe --all-groups</code></pre>
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">5</span>Reset User Password</h3>
+    <pre><code>ADMIN_TOKEN=$(curl -sk -X POST \
+  "https://idp.keycloak.net:30000/realms/master/protocol/openid-connect/token" \
+  -d "grant_type=password&amp;client_id=admin-cli&amp;username=admin&amp;password=CHANGE_ME" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+curl -sk -X PUT \
+  "https://idp.keycloak.net:30000/admin/realms/bookstore/users/9d82bcb3-6e96-462c-bdb9-e677080e8920/reset-password" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"password","value":"CHANGE_ME","temporary":false}'</code></pre>
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">6</span>Recovery After Docker Desktop Restart</h3>
+    <p>After restarting Docker Desktop, the cluster enters a degraded state. The smart startup script auto-detects and handles recovery:</p>
+    <pre><code>bash scripts/up.sh</code></pre>
+    <div class="info-box">
+      <strong>Recovery steps performed automatically:</strong>
+      <ol>
+        <li>ztunnel restart (Istio Ambient mesh HBONE re-plumbing)</li>
+        <li>Pod rolling restart in dependency order (DBs first, then apps)</li>
+        <li>Debezium connector re-registration (Kafka topics are lost on restart)</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="step">
+    <h3><span class="step-number">7</span>Teardown</h3>
+    <pre><code># Delete cluster (keeps data directory)
+bash scripts/down.sh
+
+# Delete cluster + wipe all persistent data
+bash scripts/down.sh --data
+
+# Delete cluster + data + Docker images
+bash scripts/down.sh --all</code></pre>
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- ================================================================== -->
+  <!-- FOOTER -->
+  <!-- ================================================================== -->
+  <h2>Related Documentation</h2>
+  <div class="doc-cards">
+    <a href="index.html" class="doc-card" style="border-color: var(--accent);">
+      <h3>Main Hub</h3>
+      <p>Platform overview, architecture decisions, tech stack, and links to all documentation.</p>
+    </a>
+    <a href="comprehensive-platform-enhancements.html" class="doc-card">
+      <h3>Enhancement Report</h3>
+      <p>Full analysis of all 35 sessions with before/after comparisons and architecture quality scorecard.</p>
+    </a>
+    <a href="architecture.html" class="doc-card">
+      <h3>Architecture Deep Dive</h3>
+      <p>Security layers, reliability, resiliency, observability, and 15-Factor App compliance.</p>
+    </a>
+    <a href="postgresql-ha.html" class="doc-card">
+      <h3>PostgreSQL HA</h3>
+      <p>High availability with CloudNativePG, automatic failover, and AWS migration guide.</p>
+    </a>
+    <a href="cdc-hardening.html" class="doc-card">
+      <h3>CDC Hardening</h3>
+      <p>Flink restart resilience, Kafka idempotency, consumer lag monitoring, and alert rules.</p>
+    </a>
+    <a href="schema-registry.html" class="doc-card">
+      <h3>Schema Registry</h3>
+      <p>JSON Schemas for all CDC and application Kafka topics with BACKWARD compatibility.</p>
+    </a>
+    <a href="sessions-30-33-architecture-hardening.html" class="doc-card">
+      <h3>Sessions 30-33</h3>
+      <p>Security, resilience, and observability hardening with circuit breakers and HPA.</p>
+    </a>
+    <a href="sessions-34-35-infra-ops-hardening.html" class="doc-card">
+      <h3>Sessions 34-35</h3>
+      <p>Kafka/Redis production configs, ResourceQuota, idempotency, and backup/restore.</p>
+    </a>
+    <a href="https://github.com/a2z-ice/ecom-ms" class="doc-card" target="_blank" rel="noopener">
+      <h3>GitHub Repository</h3>
+      <p>Source code, infrastructure manifests, E2E tests, and CI/CD pipelines.</p>
+    </a>
+  </div>
+
+  <footer>
+    <p>BookStore Platform User Guide &mdash; A comprehensive walkthrough of every interface, dashboard, and API endpoint.</p>
+    <p style="margin-top: 12px;"><a href="index.html">Main Hub</a> &middot; <a href="comprehensive-platform-enhancements.html">Enhancement Report</a> &middot; <a href="architecture.html">Architecture Deep Dive</a> &middot; <a href="cdc-hardening.html">CDC Hardening</a> &middot; <a href="schema-registry.html">Schema Registry</a> &middot; <a href="postgresql-ha.html">PostgreSQL HA</a> &middot; <a href="sessions-30-33-architecture-hardening.html">Sessions 30-33</a> &middot; <a href="sessions-34-35-infra-ops-hardening.html">Sessions 34-35</a> &middot; <a href="https://github.com/a2z-ice/ecom-ms">GitHub Repository</a></p>
+  </footer>
+
+</div>
+</body>
+</html>

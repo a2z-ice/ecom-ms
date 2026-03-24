@@ -57,7 +57,7 @@ async def _run_dlq_consumer_loop() -> None:
         group_id="inventory-dlq-monitor",
         value_deserializer=lambda m: json.loads(m.decode("utf-8")),
         auto_offset_reset="earliest",
-        enable_auto_commit=True,
+        enable_auto_commit=False,
     )
     await consumer.start()
     logger.info("DLQ consumer started on topic '%s'", _DLQ_TOPIC)
@@ -75,6 +75,10 @@ async def _run_dlq_consumer_loop() -> None:
                 "event": msg.value,
             }
             dlq_monitor.add(dlq_entry)
+            try:
+                await consumer.commit()
+            except Exception as exc:
+                logger.error("Failed to commit DLQ offset: %s — may be reprocessed on restart", exc)
             logger.warning(
                 "DLQ message #%d received: orderId=%s",
                 dlq_entry["id"],

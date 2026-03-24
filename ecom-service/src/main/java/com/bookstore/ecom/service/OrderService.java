@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -46,8 +47,17 @@ public class OrderService {
     }
 
     @Transactional
-    public Order checkout(String userId) {
+    public Order checkout(String userId, String idempotencyKey) {
         return checkoutDuration.record(() -> {
+            // Idempotency check — if key provided and order already exists, return it
+            if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+                Optional<Order> existing = orderRepository.findByIdempotencyKey(idempotencyKey);
+                if (existing.isPresent()) {
+                    log.info("Idempotent checkout: returning existing order for key={}", idempotencyKey);
+                    return existing.get();
+                }
+            }
+
             List<CartItem> cartItems = cartService.getCart(userId);
             if (cartItems.isEmpty()) {
                 throw new BusinessException("Cannot checkout: cart is empty");
@@ -63,6 +73,9 @@ public class OrderService {
             Order order = new Order();
             order.setUserId(userId);
             order.setStatus("CONFIRMED");
+            if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+                order.setIdempotencyKey(idempotencyKey);
+            }
 
             BigDecimal total = BigDecimal.ZERO;
             for (CartItem cartItem : cartItems) {
