@@ -106,8 +106,8 @@ test.describe('Session 30 — Security: Container & Network Layer', () => {
   })
 
   test.describe('Cert-dashboard RBAC', () => {
-    test('manager-role does not have create/delete on ClusterRoles', () => {
-      const cr = kubectlJson<any>(['get', 'clusterrole', 'manager-role'])
+    test('cert-dashboard-operator role does not have create/delete on ClusterRoles', () => {
+      const cr = kubectlJson<any>(['get', 'clusterrole', 'cert-dashboard-operator'])
       const rbacRule = cr.rules.find((r: any) =>
         r.apiGroups?.includes('rbac.authorization.k8s.io') &&
         r.resources?.includes('clusterroles')

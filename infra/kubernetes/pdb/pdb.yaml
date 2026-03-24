@@ -105,3 +105,15 @@ spec:
   selector:
     matchLabels:
       app: debezium-server-inventory
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: csrf-service-pdb
+  namespace: infra
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: csrf-service

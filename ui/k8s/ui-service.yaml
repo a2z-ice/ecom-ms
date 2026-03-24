@@ -39,6 +39,13 @@ data:
             proxy_set_header X-Real-IP $remote_addr;
         }
 
+        # CSRF token endpoint (gateway-level CSRF service in infra namespace)
+        location /csrf/ {
+            proxy_pass http://csrf-service.infra.svc.cluster.local:8080/csrf/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+
         # SPA fallback — all routes served by index.html
         location / {
             try_files $uri $uri/ /index.html;
@@ -90,6 +97,8 @@ spec:
         runAsNonRoot: true
         runAsUser: 1001
         fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: ui
           image: bookstore/ui-service:latest

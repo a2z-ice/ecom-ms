@@ -16,6 +16,15 @@ const REPO_ROOT = path.resolve(__dirname, '..')
 const ECOM_API = 'https://api.service.net:30000/ecom'
 const INVENTORY_API = 'https://api.service.net:30000/inven'
 
+async function getCsrfToken(request: any, bearerToken: string): Promise<string> {
+  const resp = await request.get(`https://api.service.net:30000/csrf/token`, {
+    headers: { Authorization: `Bearer ${bearerToken}` },
+    ignoreHTTPSErrors: true,
+  })
+  const body = await resp.json()
+  return body.token
+}
+
 function kubectl(args: string[]): string {
   return execFileSync('kubectl', args, { encoding: 'utf-8', timeout: 15_000 }).trim()
 }
@@ -56,9 +65,10 @@ test.describe('Session 31 — Security: Application Layer', () => {
     test('rejects quantity=0', async ({ request }) => {
       let token: string
       try { token = getAuthToken() } catch { test.skip(true, 'No auth fixture') ; return }
+      const csrf = await getCsrfToken(request, token)
       const resp = await request.post(`${ECOM_API}/cart`, {
         data: { bookId: '00000000-0000-0000-0000-000000000001', quantity: 0 },
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         ignoreHTTPSErrors: true,
       })
       expect(resp.status()).toBeGreaterThanOrEqual(400)
@@ -67,9 +77,10 @@ test.describe('Session 31 — Security: Application Layer', () => {
     test('rejects quantity=-1', async ({ request }) => {
       let token: string
       try { token = getAuthToken() } catch { test.skip(true, 'No auth fixture') ; return }
+      const csrf = await getCsrfToken(request, token)
       const resp = await request.post(`${ECOM_API}/cart`, {
         data: { bookId: '00000000-0000-0000-0000-000000000001', quantity: -1 },
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         ignoreHTTPSErrors: true,
       })
       expect(resp.status()).toBeGreaterThanOrEqual(400)
@@ -78,9 +89,10 @@ test.describe('Session 31 — Security: Application Layer', () => {
     test('rejects quantity=100', async ({ request }) => {
       let token: string
       try { token = getAuthToken() } catch { test.skip(true, 'No auth fixture') ; return }
+      const csrf = await getCsrfToken(request, token)
       const resp = await request.post(`${ECOM_API}/cart`, {
         data: { bookId: '00000000-0000-0000-0000-000000000001', quantity: 100 },
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         ignoreHTTPSErrors: true,
       })
       expect(resp.status()).toBeGreaterThanOrEqual(400)
@@ -89,9 +101,10 @@ test.describe('Session 31 — Security: Application Layer', () => {
     test('accepts quantity=1', async ({ request }) => {
       let token: string
       try { token = getAuthToken() } catch { test.skip(true, 'No auth fixture') ; return }
+      const csrf = await getCsrfToken(request, token)
       const resp = await request.post(`${ECOM_API}/cart`, {
         data: { bookId: '00000000-0000-0000-0000-000000000001', quantity: 1 },
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         ignoreHTTPSErrors: true,
       })
       // 200 or 404 (book not found) both acceptable — not a validation error
@@ -101,9 +114,10 @@ test.describe('Session 31 — Security: Application Layer', () => {
     test('accepts quantity=99', async ({ request }) => {
       let token: string
       try { token = getAuthToken() } catch { test.skip(true, 'No auth fixture') ; return }
+      const csrf = await getCsrfToken(request, token)
       const resp = await request.post(`${ECOM_API}/cart`, {
         data: { bookId: '00000000-0000-0000-0000-000000000001', quantity: 99 },
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         ignoreHTTPSErrors: true,
       })
       expect([200, 201, 404]).toContain(resp.status())

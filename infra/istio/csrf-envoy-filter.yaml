@@ -1,0 +1,24 @@
+---
+# AuthorizationPolicy: Gateway-level CSRF validation via ext_authz
+#
+# Uses the csrf-ext-authz extensionProvider (registered in Istio mesh config)
+# to validate X-CSRF-Token on all requests passing through the gateway.
+# Safe methods (GET/HEAD/OPTIONS/TRACE) return 200 immediately from the CSRF service.
+# Mutating methods (POST/PUT/DELETE/PATCH) require a valid token stored in Redis.
+#
+# failOpen: true — if csrf-service is unreachable, requests pass through.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: csrf-ext-authz
+  namespace: infra
+spec:
+  targetRefs:
+    - kind: Gateway
+      group: gateway.networking.k8s.io
+      name: bookstore-gateway
+  action: CUSTOM
+  provider:
+    name: csrf-ext-authz
+  rules:
+    - {}

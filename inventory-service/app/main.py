@@ -208,7 +208,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://myecom.net:30000", "https://localhost:30000"],
     allow_methods=["GET", "PUT", "POST"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "X-CSRF-Token"],
 )
 
 app.include_router(stock_router)

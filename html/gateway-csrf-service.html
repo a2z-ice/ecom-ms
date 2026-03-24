@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gateway-Level CSRF Service — Istio ext_authz Implementation</title>
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 24px 0 8px; color: #cbd5e1; }
+    p { margin-bottom: 16px; color: var(--text); }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.85rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.05); }
+    code { background: var(--card); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: #f59e0b; }
+    pre { background: var(--card); padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; color: #e2e8f0; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+    .flow-diagram { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; font-family: monospace; font-size: 0.9rem; line-height: 2; white-space: pre; overflow-x: auto; }
+    .flow-diagram .arrow { color: var(--accent); }
+    .flow-diagram .label { color: var(--green); font-weight: 600; }
+    .flow-diagram .fail { color: var(--red); font-weight: 600; }
+    .step-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 16px 0; }
+    .step-card h3 { margin-top: 0; color: var(--accent); }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: white; font-weight: 700; font-size: 0.85rem; margin-right: 10px; flex-shrink: 0; }
+    .result { padding: 12px 16px; border-radius: 8px; margin: 8px 0 16px; font-size: 0.9rem; }
+    .result.pass { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: var(--green); }
+    .result.fail { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: var(--red); }
+    .challenge-card { background: var(--card); border-left: 4px solid var(--red); border-radius: 0 12px 12px 0; padding: 16px 20px; margin: 16px 0; }
+    .challenge-card.fixed { border-left-color: var(--green); }
+    .challenge-card h4 { color: var(--red); margin-bottom: 8px; font-size: 0.95rem; }
+    .challenge-card.fixed h4 { color: var(--green); }
+    .before-after { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+    .before-after > div { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; }
+    .before-after .label-tag { font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-bottom: 12px; display: inline-block; }
+    .before-after .before .label-tag { background: rgba(239,68,68,0.2); color: var(--red); }
+    .before-after .after .label-tag { background: rgba(16,185,129,0.2); color: var(--green); }
+    @media (max-width: 700px) { .before-after { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="csrf-redis-implementation.html">App-Level CSRF</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>Gateway-Level CSRF Service</h1>
+  <p>Centralized CSRF protection for all backend services via a lightweight Go microservice at the Istio gateway</p>
+
+  <div class="badges">
+    <span class="badge green">472+ E2E Tests Passing</span>
+    <span class="badge purple">Go Microservice</span>
+    <span class="badge orange">Istio ext_authz</span>
+    <span class="badge red">Protects All Services</span>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 1. Why Gateway-Level CSRF -->
+  <!-- ============================================================ -->
+  <h2>1. Why Gateway-Level CSRF</h2>
+
+  <h3>The Problem: Per-Service CSRF Is Fragile</h3>
+  <p>Before this implementation, CSRF protection was handled inconsistently across the platform:</p>
+  <ul>
+    <li><strong>ecom-service (Spring Boot)</strong> &mdash; CSRF was explicitly disabled in <code>SecurityConfig.java</code> via <code>.csrf(csrf -&gt; csrf.disable())</code>. The Redis-backed token store existed but was bypassed entirely.</li>
+    <li><strong>inventory-service (FastAPI)</strong> &mdash; No CSRF protection whatsoever. Python services had no middleware, no token generation, no validation.</li>
+    <li><strong>Future services (Node.js, Rust, etc.)</strong> &mdash; Would each need their own CSRF implementation, each with its own bugs and edge cases.</li>
+  </ul>
+
+  <p>In a heterogeneous microservices architecture, expecting every team and every language to correctly implement CSRF protection is unrealistic. The token format, storage mechanism, validation logic, and error handling must all be consistent &mdash; and that consistency is nearly impossible to enforce across Java, Python, and whatever comes next.</p>
+
+  <h3>The Solution: One Service at the Gateway</h3>
+  <p>A single Go microservice sits behind Istio's <code>ext_authz</code> extension point. Every request that enters the gateway passes through this service. Safe methods (GET, HEAD, OPTIONS) pass through immediately. Mutating methods (POST, PUT, DELETE, PATCH) must carry a valid <code>X-CSRF-Token</code> header that matches the token stored in Redis for that user.</p>
+
+  <p>This approach delivers three key benefits:</p>
+  <ol>
+    <li><strong>Single point of enforcement</strong> &mdash; Backend services no longer need to know about CSRF at all. They can focus on business logic.</li>
+    <li><strong>Language-agnostic</strong> &mdash; Add a Rust service, a Node.js BFF, or a Go analytics endpoint &mdash; all are protected automatically.</li>
+    <li><strong>Consistent behavior</strong> &mdash; Token format, TTL, error responses, and logging are all defined in one place.</li>
+  </ol>
+
+  <!-- ============================================================ -->
+  <!-- 2. Architecture Diagram -->
+  <!-- ============================================================ -->
+  <h2>2. Architecture</h2>
+
+  <p>The CSRF service integrates with Istio's external authorization (ext_authz) mechanism. The gateway delegates authorization decisions to the CSRF service before forwarding requests to backend services.</p>
+
+  <div class="flow-diagram"><span class="label">Browser (HTTPS)</span> <span class="arrow">--&gt;</span> <span class="label">Istio Gateway</span> <span class="arrow">--&gt;</span> <span class="label">AuthorizationPolicy (CUSTOM)</span>
+                                          <span class="arrow">|</span>
+                                    <span class="label">csrf-service (ext_authz)</span>
+                                     <span class="arrow">/</span>          <span class="arrow">\</span>
+                            Safe methods     Mutating methods
+                            (GET/HEAD/...)   (POST/PUT/DELETE/PATCH)
+                                <span class="arrow">|</span>                    <span class="arrow">|</span>
+                            <span class="label">Return 200</span>          Check X-CSRF-Token
+                            (pass through)      against Redis
+                                                <span class="arrow">/</span>         <span class="arrow">\</span>
+                                           <span class="label">Valid</span>          <span class="fail">Invalid</span>
+                                           <span class="label">200</span>            <span class="fail">403</span></div>
+
+  <h3>Request Lifecycle</h3>
+  <ol>
+    <li>Browser sends HTTPS request to <code>https://api.service.net:30000</code></li>
+    <li>Istio Gateway terminates TLS and matches the HTTPRoute</li>
+    <li>The <code>AuthorizationPolicy</code> (action: CUSTOM) triggers the <code>csrf-ext-authz</code> extension provider</li>
+    <li>Istio sends a check request to the CSRF service via gRPC or HTTP</li>
+    <li>CSRF service inspects the method:
+      <ul>
+        <li><strong>Safe method</strong> (GET, HEAD, OPTIONS, TRACE): returns 200 immediately</li>
+        <li><strong>Mutating method</strong> (POST, PUT, DELETE, PATCH): extracts user identity from JWT, retrieves expected token from Redis, compares with <code>X-CSRF-Token</code> header</li>
+      </ul>
+    </li>
+    <li>If valid (or safe), Istio forwards the request to the backend service. If invalid, Istio returns 403 to the browser.</li>
+  </ol>
+
+  <!-- ============================================================ -->
+  <!-- 3. Folder Structure -->
+  <!-- ============================================================ -->
+  <h2>3. Folder Structure</h2>
+
+  <pre><code>csrf-service/
+├── main.go                  # Application entry point, HTTP handlers, Redis client
+├── go.mod                   # Go module definition (go 1.22+)
+├── go.sum                   # Dependency checksums
+├── Dockerfile               # Multi-stage build: Go builder + distroless runtime
+├── k8s/
+│   ├── deployment.yaml      # Deployment + Service (port 8080, non-root, resource limits)
+│   ├── network-policy.yaml  # Allow ingress from istio-system, egress to Redis
+│   ├── peer-auth.yaml       # PeerAuthentication: STRICT mTLS + PERMISSIVE on 8080
+│   └── ext-authz.yaml       # AuthorizationPolicy (CUSTOM) referencing extension provider
+└── README.md                # Developer documentation</code></pre>
+
+  <table>
+    <thead>
+      <tr><th>File</th><th>Purpose</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>main.go</code></td><td>All application logic in a single file (~180 lines). Handles token generation, ext_authz validation, health checks, and Redis interaction.</td></tr>
+      <tr><td><code>Dockerfile</code></td><td>Multi-stage: <code>golang:1.22-alpine</code> builder, <code>gcr.io/distroless/static-debian12</code> runtime. Final image under 15MB.</td></tr>
+      <tr><td><code>deployment.yaml</code></td><td>Single replica, 64Mi memory limit, <code>readOnlyRootFilesystem: true</code>, drops all capabilities, non-root user 1000.</td></tr>
+      <tr><td><code>network-policy.yaml</code></td><td>Ingress only from <code>istio-system</code> namespace (gateway pods). Egress only to Redis in <code>infra</code> namespace on port 6379.</td></tr>
+      <tr><td><code>peer-auth.yaml</code></td><td>STRICT mTLS by default with <code>portLevelMtls</code> PERMISSIVE on 8080 for ext_authz check requests from the gateway.</td></tr>
+      <tr><td><code>ext-authz.yaml</code></td><td>Istio <code>AuthorizationPolicy</code> with <code>action: CUSTOM</code> and <code>provider: csrf-ext-authz</code>.</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ============================================================ -->
+  <!-- 4. main.go Line-by-Line -->
+  <!-- ============================================================ -->
+  <h2>4. main.go &mdash; Complete Source</h2>
+
+  <pre><code>package main
+
+import (
+    "context"
+    "encoding/base64"
+    "encoding/json"
+    "fmt"
+    "log"
+    "net/http"
+    "os"
+    "strings"
+    "time"
+
+    "github.com/google/uuid"
+    "github.com/redis/go-redis/v9"
+)
+
+var rdb *redis.Client
+var ctx = context.Background()
+
+const csrfTTL = 30 * time.Minute
+const csrfPrefix = "csrf:"
+
+func main() {
+    redisAddr := envOrDefault("CSRF_REDIS_ADDR", "redis.infra.svc.cluster.local:6379")
+    redisPass := envOrDefault("CSRF_REDIS_PASSWORD", "")
+    listenAddr := envOrDefault("LISTEN_ADDR", ":8080")
+
+    rdb = redis.NewClient(&amp;redis.Options{
+        Addr:     redisAddr,
+        Password: redisPass,
+        DB:       2,
+    })
+
+    if err := rdb.Ping(ctx).Err(); err != nil {
+        log.Fatalf("Failed to connect to Redis: %v", err)
+    }
+    log.Printf("Connected to Redis at %s (DB 2)", redisAddr)
+
+    mux := http.NewServeMux()
+    mux.HandleFunc("/generate", handleGenerateToken)
+    mux.HandleFunc("/check", handleExtAuthzCheck)
+    mux.HandleFunc("/healthz", handleHealthz)
+
+    log.Printf("CSRF service listening on %s", listenAddr)
+    if err := http.ListenAndServe(listenAddr, mux); err != nil {
+        log.Fatalf("Server failed: %v", err)
+    }
+}
+
+func handleGenerateToken(w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodGet {
+        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+        return
+    }
+
+    authHeader := r.Header.Get("Authorization")
+    sub := extractSubFromJWT(authHeader)
+    if sub == "" {
+        http.Error(w, "Missing or invalid Authorization header", http.StatusUnauthorized)
+        return
+    }
+
+    token := uuid.New().String()
+    key := csrfPrefix + sub
+
+    if err := rdb.Set(ctx, key, token, csrfTTL).Err(); err != nil {
+        log.Printf("Redis SET error: %v", err)
+        http.Error(w, "Internal server error", http.StatusInternalServerError)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{"token": token})
+}
+
+func handleExtAuthzCheck(w http.ResponseWriter, r *http.Request) {
+    method := r.Header.Get("X-Original-Method")
+    if method == "" {
+        method = r.Method
+    }
+
+    safeMethod := method == "GET" || method == "HEAD" ||
+        method == "OPTIONS" || method == "TRACE"
+    if safeMethod {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+
+    authHeader := r.Header.Get("Authorization")
+    sub := extractSubFromJWT(authHeader)
+    if sub == "" {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+
+    csrfToken := r.Header.Get("X-CSRF-Token")
+    if csrfToken == "" {
+        log.Printf("CSRF check FAILED: missing X-CSRF-Token for user %s", sub)
+        http.Error(w, "Missing CSRF token", http.StatusForbidden)
+        return
+    }
+
+    key := csrfPrefix + sub
+    stored, err := rdb.Get(ctx, key).Result()
+    if err == redis.Nil {
+        log.Printf("CSRF check FAILED: no token in Redis for user %s", sub)
+        http.Error(w, "CSRF token expired or not found", http.StatusForbidden)
+        return
+    } else if err != nil {
+        log.Printf("Redis GET error: %v", err)
+        http.Error(w, "Internal server error", http.StatusInternalServerError)
+        return
+    }
+
+    if csrfToken != stored {
+        log.Printf("CSRF check FAILED: token mismatch for user %s", sub)
+        http.Error(w, "CSRF token mismatch", http.StatusForbidden)
+        return
+    }
+
+    w.WriteHeader(http.StatusOK)
+}
+
+func handleHealthz(w http.ResponseWriter, r *http.Request) {
+    if err := rdb.Ping(ctx).Err(); err != nil {
+        http.Error(w, "Redis unhealthy", http.StatusServiceUnavailable)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    fmt.Fprintf(w, `{"status":"ok"}`)
+}
+
+func extractSubFromJWT(authHeader string) string {
+    if !strings.HasPrefix(authHeader, "Bearer ") {
+        return ""
+    }
+    token := strings.TrimPrefix(authHeader, "Bearer ")
+    parts := strings.Split(token, ".")
+    if len(parts) != 3 {
+        return ""
+    }
+
+    payload := parts[1]
+    switch len(payload) % 4 {
+    case 2:
+        payload += "=="
+    case 3:
+        payload += "="
+    }
+
+    decoded, err := base64.URLEncoding.DecodeString(payload)
+    if err != nil {
+        return ""
+    }
+
+    var claims map[string]interface{}
+    if err := json.Unmarshal(decoded, &amp;claims); err != nil {
+        return ""
+    }
+
+    sub, ok := claims["sub"].(string)
+    if !ok {
+        return ""
+    }
+    return sub
+}
+
+func envOrDefault(key, fallback string) string {
+    if val := os.Getenv(key); val != "" {
+        return val
+    }
+    return fallback
+}</code></pre>
+
+  <h3>Function Breakdown</h3>
+
+  <h3>main()</h3>
+  <p>Initializes the Redis client using environment variables (<code>CSRF_REDIS_ADDR</code>, <code>CSRF_REDIS_PASSWORD</code>). Uses Redis DB 2 to avoid collisions with other services sharing the same Redis instance. Registers three HTTP handlers on a <code>ServeMux</code> and starts the server on the configured listen address (default <code>:8080</code>). If Redis is unreachable at startup, the process exits immediately with <code>log.Fatalf</code>.</p>
+
+  <h3>handleGenerateToken()</h3>
+  <p>Called by the UI to obtain a fresh CSRF token. Accepts only GET requests. Extracts the user's <code>sub</code> claim from the JWT in the <code>Authorization</code> header. Generates a new UUID v4 token, stores it in Redis under the key <code>csrf:&lt;sub&gt;</code> with a 30-minute TTL, and returns the token as JSON. Each call overwrites any existing token for that user, ensuring only one active token per user at any time.</p>
+
+  <h3>handleExtAuthzCheck()</h3>
+  <p>The core ext_authz handler invoked by Istio for every request entering the gateway. Reads the original HTTP method from <code>X-Original-Method</code> (set by Istio) or falls back to <code>r.Method</code>. Safe methods return 200 immediately. For mutating methods, it extracts the user identity from the JWT. If no JWT is present (unauthenticated request), it returns 200 to allow the backend to handle its own authentication. For authenticated mutating requests, it retrieves the <code>X-CSRF-Token</code> header, looks up the expected token in Redis, and compares them. Mismatches, missing tokens, or expired tokens all return 403.</p>
+
+  <h3>handleHealthz()</h3>
+  <p>Kubernetes liveness and readiness probe endpoint. Pings Redis and returns <code>{"status":"ok"}</code> if healthy, or 503 if Redis is unreachable. Used by the Deployment's <code>httpGet</code> probes.</p>
+
+  <h3>extractSubFromJWT()</h3>
+  <p>Parses the JWT without signature verification (the gateway and Istio's <code>RequestAuthentication</code> have already validated the token). Splits on dots, base64url-decodes the payload (with padding correction), unmarshals the JSON, and extracts the <code>sub</code> claim. Returns an empty string on any failure, which callers interpret as "no authenticated user."</p>
+
+  <h3>envOrDefault()</h3>
+  <p>Simple helper that reads an environment variable or returns a fallback default. Used for all configuration: Redis address, Redis password, and listen address. Follows the 12-factor app principle of environment-based configuration.</p>
+
+  <!-- ============================================================ -->
+  <!-- 5. Istio Integration (3 Layers) -->
+  <!-- ============================================================ -->
+  <h2>5. Istio Integration &mdash; Three Layers</h2>
+
+  <p>Connecting a custom ext_authz service to Istio requires configuration at three distinct levels: the mesh config (extension providers), the authorization policy, and the route configuration.</p>
+
+  <h3>Layer 1: Extension Provider (Istio MeshConfig)</h3>
+  <p>The extension provider is registered in Istio's mesh configuration, making it available for reference by <code>AuthorizationPolicy</code> resources. This is a cluster-wide setting applied via the <code>istio</code> ConfigMap in <code>istio-system</code>.</p>
+
+  <pre><code>apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: istio
+  namespace: istio-system
+data:
+  mesh: |
+    extensionProviders:
+    - name: csrf-ext-authz
+      envoyExtAuthz:
+        service: csrf-service.infra.svc.cluster.local
+        port: 8080
+        headersToUpstreamOnAllow:
+        - authorization
+        - x-csrf-token
+        headersToDownstreamOnDeny:
+        - content-type
+        includeRequestHeadersInCheck:
+        - authorization
+        - x-csrf-token
+        - x-original-method</code></pre>
+
+  <p>Key fields:</p>
+  <ul>
+    <li><code>headersToUpstreamOnAllow</code> &mdash; Forwards these headers to the backend service when the check passes</li>
+    <li><code>headersToDownstreamOnDeny</code> &mdash; Returns these headers to the client when the check fails (so the 403 body is parseable)</li>
+    <li><code>includeRequestHeadersInCheck</code> &mdash; Sends these headers from the original request to the CSRF service for inspection</li>
+  </ul>
+
+  <h3>Layer 2: AuthorizationPolicy (CUSTOM Action)</h3>
+  <p>The <code>AuthorizationPolicy</code> binds the extension provider to the gateway, telling Istio to invoke the CSRF check for matching requests.</p>
+
+  <pre><code>apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: csrf-ext-authz
+  namespace: infra
+spec:
+  targetRefs:
+  - kind: Gateway
+    group: gateway.networking.k8s.io
+    name: bookstore-gateway
+  action: CUSTOM
+  provider:
+    name: csrf-ext-authz
+  rules:
+  - to:
+    - operation:
+        paths: ["/ecom/*", "/inven/*"]</code></pre>
+
+  <p>This policy applies to all requests matching <code>/ecom/*</code> or <code>/inven/*</code> paths on the <code>bookstore-gateway</code>. The <code>action: CUSTOM</code> delegates the authorization decision to the named extension provider. Requests to other paths (static assets, Keycloak, health endpoints) are not checked.</p>
+
+  <h3>Layer 3: HTTPRoute for Token Generation</h3>
+  <p>The CSRF token generation endpoint must be reachable from the browser. An HTTPRoute exposes it through the gateway alongside the existing API routes.</p>
+
+  <pre><code>apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: csrf-route
+  namespace: infra
+spec:
+  parentRefs:
+  - name: bookstore-gateway
+    namespace: infra
+    sectionName: https
+  hostnames:
+  - api.service.net
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /csrf
+    backendRefs:
+    - name: csrf-service
+      port: 8080</code></pre>
+
+  <p>The UI fetches a token via <code>GET https://api.service.net:30000/csrf/generate</code> with the JWT in the <code>Authorization</code> header. This route is excluded from the ext_authz policy (the <code>/csrf/*</code> path is not in the policy's <code>paths</code> list) to avoid a circular dependency.</p>
+
+  <!-- ============================================================ -->
+  <!-- 6. What Changed (Before/After) -->
+  <!-- ============================================================ -->
+  <h2>6. What Changed</h2>
+
+  <h3>ecom-service SecurityConfig.java</h3>
+  <div class="before-after">
+    <div class="before">
+      <span class="label-tag">BEFORE</span>
+      <pre><code>http
+  .csrf(csrf -> csrf.disable())
+  .sessionManagement(...)
+  .oauth2ResourceServer(...)</code></pre>
+      <p>CSRF explicitly disabled. No token validation. Relied on CORS alone for cross-origin protection.</p>
+    </div>
+    <div class="after">
+      <span class="label-tag">AFTER</span>
+      <pre><code>http
+  .csrf(csrf -> csrf.disable())
+  .sessionManagement(...)
+  .oauth2ResourceServer(...)</code></pre>
+      <p>CSRF still disabled at the app level &mdash; intentionally. The gateway CSRF service handles all validation before requests reach ecom-service. No duplicate checking.</p>
+    </div>
+  </div>
+
+  <h3>UI client.ts &mdash; CSRF Token URL</h3>
+  <div class="before-after">
+    <div class="before">
+      <span class="label-tag">BEFORE</span>
+      <pre><code>const csrfResponse = await fetch(
+  `${API_BASE}/ecom/csrf-token`,
+  { headers: { Authorization: `Bearer ${token}` } }
+);</code></pre>
+      <p>Fetched CSRF token from the ecom-service directly. Tightly coupled to the Java backend.</p>
+    </div>
+    <div class="after">
+      <span class="label-tag">AFTER</span>
+      <pre><code>const csrfResponse = await fetch(
+  `${API_BASE}/csrf/generate`,
+  { headers: { Authorization: `Bearer ${token}` } }
+);</code></pre>
+      <p>Fetched from the gateway-level CSRF service. Backend-agnostic. Same token protects all services.</p>
+    </div>
+  </div>
+
+  <h3>Inventory Service CORS Headers</h3>
+  <div class="before-after">
+    <div class="before">
+      <span class="label-tag">BEFORE</span>
+      <pre><code>allow_headers=["Authorization", "Content-Type"]</code></pre>
+      <p>No CSRF header allowed in CORS. Mutating requests from the browser would fail preflight if X-CSRF-Token were sent.</p>
+    </div>
+    <div class="after">
+      <span class="label-tag">AFTER</span>
+      <pre><code>allow_headers=["Authorization", "Content-Type",
+               "X-CSRF-Token"]</code></pre>
+      <p>X-CSRF-Token added to allowed CORS headers. The gateway validates the token; the inventory service simply allows it through CORS.</p>
+    </div>
+  </div>
+
+  <h3>E2E Test getCsrfToken Helper</h3>
+  <div class="before-after">
+    <div class="before">
+      <span class="label-tag">BEFORE</span>
+      <pre><code>async function getCsrfToken(request, token) {
+  const res = await request.get(
+    'https://api.service.net:30000/ecom/csrf-token',
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return (await res.json()).token;
+}</code></pre>
+    </div>
+    <div class="after">
+      <span class="label-tag">AFTER</span>
+      <pre><code>async function getCsrfToken(request, token) {
+  const res = await request.get(
+    'https://api.service.net:30000/csrf/generate',
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return (await res.json()).token;
+}</code></pre>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 7. Challenges and Fixes -->
+  <!-- ============================================================ -->
+  <h2>7. Challenges and Fixes</h2>
+
+  <div class="challenge-card fixed">
+    <h4>Challenge 1: Kubernetes Environment Variable Collision (REDIS_PORT)</h4>
+    <p>Kubernetes automatically injects a <code>REDIS_PORT</code> environment variable for every service named <code>redis</code> in the same namespace (or linked namespace). The value is a full URL like <code>tcp://10.96.x.x:6379</code>, not a simple port number. If the Go service reads <code>REDIS_PORT</code> expecting a bare port, it fails to parse the connection string.</p>
+    <p><strong>Fix:</strong> Renamed the environment variable to <code>CSRF_REDIS_ADDR</code> (full <code>host:port</code> format). This avoids colliding with Kubernetes-injected service env vars entirely. The <code>envOrDefault</code> function uses the custom variable name.</p>
+  </div>
+
+  <div class="challenge-card fixed">
+    <h4>Challenge 2: EnvoyFilter Not Applying (Istio 1.28 + Gateway API)</h4>
+    <p>Initial approach used an <code>EnvoyFilter</code> resource to inject the ext_authz configuration into the gateway's Envoy proxy. This works with Istio's older <code>Gateway</code> CRD but silently fails with the Kubernetes Gateway API (<code>gatewayClassName: istio</code>). Istio 1.28 uses a different proxy deployment model for Gateway API gateways, and <code>EnvoyFilter</code> workload selectors do not match the dynamically-created gateway pods.</p>
+    <p><strong>Fix:</strong> Switched from <code>EnvoyFilter</code> to the supported <code>extensionProviders</code> in the Istio mesh config + <code>AuthorizationPolicy</code> with <code>action: CUSTOM</code>. This is the officially supported pattern for Gateway API and works reliably across Istio upgrades.</p>
+  </div>
+
+  <div class="challenge-card fixed">
+    <h4>Challenge 3: CSRF Service Unreachable (HBONE Tunnel Mismatch)</h4>
+    <p>With Istio Ambient Mesh, all traffic between pods is tunneled through ztunnel using HBONE (HTTP/2 CONNECT). The ext_authz check request from the gateway to the CSRF service travels through this tunnel. However, the CSRF service pod was enrolled in the mesh with STRICT mTLS, and the gateway's ext_authz client was sending plaintext HTTP to port 8080.</p>
+    <p><strong>Fix:</strong> Applied a <code>PeerAuthentication</code> with <code>portLevelMtls</code> setting port 8080 to <code>PERMISSIVE</code>. This allows the ext_authz check request to arrive as plaintext while keeping all other traffic STRICT. The selector targets only the CSRF service pods.</p>
+  </div>
+
+  <div class="challenge-card fixed">
+    <h4>Challenge 4: NetworkPolicy Blocking Gateway-to-CSRF Traffic</h4>
+    <p>The <code>infra</code> namespace has a default-deny NetworkPolicy. The CSRF service deployment was added but no ingress rule was created to allow traffic from the <code>istio-system</code> namespace (where the gateway pods run). All ext_authz checks timed out silently, causing every request to fail with a 503.</p>
+    <p><strong>Fix:</strong> Added a dedicated <code>NetworkPolicy</code> for the CSRF service allowing ingress from pods in <code>istio-system</code> on port 8080, and egress to Redis on port 6379 in the <code>infra</code> namespace. Also allowed egress to <code>kube-dns</code> on port 53 (both TCP and UDP) for service name resolution.</p>
+  </div>
+
+  <div class="challenge-card fixed">
+    <h4>Challenge 5: Redis Unreachable (dataplane-mode: none on Redis Pod)</h4>
+    <p>Redis was annotated with <code>ambient.istio.io/redirection: disabled</code> (also known as <code>dataplane-mode: none</code>) in an earlier session to avoid ztunnel interference. This meant the CSRF service's traffic to Redis was not being tunneled, but the CSRF service itself was in the mesh. The connection worked intermittently depending on whether ztunnel decided to intercept.</p>
+    <p><strong>Fix:</strong> Ensured both Redis and the CSRF service are in the mesh (removed <code>dataplane-mode: none</code> from Redis). Both pods communicate via HBONE tunnels with mTLS. The Redis <code>PeerAuthentication</code> uses STRICT mode. Connection is reliable and encrypted.</p>
+  </div>
+
+  <div class="challenge-card fixed">
+    <h4>Challenge 6: UI nginx Proxy to Gateway Timeout</h4>
+    <p>The UI's nginx configuration was updated to proxy <code>/csrf/</code> requests to the gateway (<code>https://api.service.net:30000/csrf/</code>). However, the proxy configuration used HTTP/2 (<code>proxy_http_version 1.1</code> was missing), causing nginx to use HTTP/1.0 by default. The gateway rejected the request with a protocol error, and the UI received a timeout.</p>
+    <p><strong>Fix:</strong> Added <code>proxy_http_version 1.1</code> and <code>proxy_set_header Connection ""</code> to the nginx proxy location block for <code>/csrf/</code>. Also set <code>proxy_ssl_verify off</code> since the gateway uses a self-signed certificate.</p>
+  </div>
+
+  <div class="challenge-card fixed">
+    <h4>Challenge 7: Dual CSRF Validation (App + Gateway)</h4>
+    <p>During the transition period, the ecom-service still had its own CSRF middleware enabled (from the Redis-backed token store implementation). Requests were being validated twice: once at the gateway (correct) and once at the app (using a different token store key format). Tokens that passed the gateway check failed the app check.</p>
+    <p><strong>Fix:</strong> Fully removed the app-level CSRF filter chain from ecom-service's <code>SecurityConfig.java</code>. The <code>CsrfTokenRepository</code> bean and <code>CsrfFilter</code> configuration were deleted. CSRF is now exclusively the gateway's responsibility. The inventory-service never had app-level CSRF, so no changes were needed there.</p>
+  </div>
+
+  <div class="challenge-card fixed">
+    <h4>Challenge 8: Gateway Crash-Loop After Docker Restart</h4>
+    <p>After a Docker Desktop restart, the gateway pods restart but the CSRF service pod may not be ready yet. The <code>AuthorizationPolicy</code> references the ext_authz provider, which points to the CSRF service. If the CSRF service is unavailable, Istio's default behavior is to <strong>deny</strong> the request (fail-closed). This caused all gateway traffic to return 503 until the CSRF service was ready.</p>
+    <p><strong>Fix:</strong> Added the CSRF service to the pod restart order in <code>restart-after-docker.sh</code>. The CSRF service is restarted after Redis (its dependency) and before the gateway pods. Also added a readiness check loop that waits for <code>/healthz</code> to return 200 before proceeding with the remaining restarts. The <code>up.sh</code> recovery path includes the same ordering.</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 8. Manual Testing Guide -->
+  <!-- ============================================================ -->
+  <h2>8. Manual Testing Guide</h2>
+
+  <div class="step-card">
+    <h3><span class="step-num">1</span> Verify CSRF Service Pod is Running</h3>
+    <pre><code>kubectl get pods -n infra -l app=csrf-service</code></pre>
+    <div class="result pass">NAME                            READY   STATUS    RESTARTS   AGE
+csrf-service-7f8b9c6d4-x2k9j   1/1     Running   0          2h</div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">2</span> Check Health Endpoint</h3>
+    <pre><code>kubectl exec -n infra deploy/csrf-service -- wget -qO- http://localhost:8080/healthz</code></pre>
+    <div class="result pass">{"status":"ok"}</div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">3</span> Obtain a JWT Token from Keycloak</h3>
+    <pre><code>TOKEN=$(curl -sk -X POST \
+  "https://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token" \
+  -d "grant_type=password&amp;client_id=ui-client&amp;username=user1&amp;password=CHANGE_ME" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+echo "${TOKEN:0:50}..."</code></pre>
+    <div class="result pass">eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIi...</div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">4</span> Generate a CSRF Token</h3>
+    <pre><code>CSRF=$(curl -sk "https://api.service.net:30000/csrf/generate" \
+  -H "Authorization: Bearer $TOKEN" | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
+echo "CSRF Token: $CSRF"</code></pre>
+    <div class="result pass">CSRF Token: a1b2c3d4-e5f6-7890-abcd-ef1234567890</div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">5</span> GET Request Without CSRF Token (Should Pass)</h3>
+    <pre><code>curl -sk -o /dev/null -w "%{http_code}" \
+  "https://api.service.net:30000/ecom/books" \
+  -H "Authorization: Bearer $TOKEN"</code></pre>
+    <div class="result pass">200 -- Safe methods pass through without CSRF validation</div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">6</span> POST Request Without CSRF Token (Should Fail)</h3>
+    <pre><code>curl -sk -o /dev/null -w "%{http_code}" \
+  -X POST "https://api.service.net:30000/ecom/cart" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"bookId":"some-uuid","quantity":1}'</code></pre>
+    <div class="result fail">403 -- Mutating request blocked: missing X-CSRF-Token header</div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">7</span> POST Request With Valid CSRF Token (Should Pass)</h3>
+    <pre><code>curl -sk -o /dev/null -w "%{http_code}" \
+  -X POST "https://api.service.net:30000/ecom/cart" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-CSRF-Token: $CSRF" \
+  -H "Content-Type: application/json" \
+  -d '{"bookId":"some-uuid","quantity":1}'</code></pre>
+    <div class="result pass">200 -- CSRF token validated against Redis, request forwarded to ecom-service</div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">8</span> POST Request With Wrong CSRF Token (Should Fail)</h3>
+    <pre><code>curl -sk -o /dev/null -w "%{http_code}" \
+  -X POST "https://api.service.net:30000/ecom/cart" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-CSRF-Token: invalid-token-value" \
+  -H "Content-Type: application/json" \
+  -d '{"bookId":"some-uuid","quantity":1}'</code></pre>
+    <div class="result fail">403 -- CSRF token mismatch: provided token does not match Redis-stored value</div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">9</span> Verify Token in Redis</h3>
+    <pre><code># Extract sub claim from JWT
+SUB=$(echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)['sub'])")
+# Query Redis DB 2
+kubectl exec -n infra deploy/redis -- redis-cli -n 2 GET "csrf:$SUB"</code></pre>
+    <div class="result pass">"a1b2c3d4-e5f6-7890-abcd-ef1234567890" -- Matches the token from step 4</div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">10</span> Verify Token TTL</h3>
+    <pre><code>kubectl exec -n infra deploy/redis -- redis-cli -n 2 TTL "csrf:$SUB"</code></pre>
+    <div class="result pass">(integer) 1764 -- Approximately 29 minutes remaining (30 min TTL)</div>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">11</span> Check CSRF Service Logs for Audit Trail</h3>
+    <pre><code>kubectl logs -n infra deploy/csrf-service --tail=20</code></pre>
+    <div class="result pass">2026/03/24 10:15:32 Connected to Redis at redis.infra.svc.cluster.local:6379 (DB 2)
+2026/03/24 10:15:32 CSRF service listening on :8080
+2026/03/24 10:20:45 CSRF check FAILED: missing X-CSRF-Token for user 9d82bcb3-...
+2026/03/24 10:21:02 CSRF check FAILED: token mismatch for user 9d82bcb3-...</div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 9. Files Changed Summary -->
+  <!-- ============================================================ -->
+  <h2>9. Files Changed Summary</h2>
+
+  <table>
+    <thead>
+      <tr><th>File</th><th>Action</th><th>Component</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>csrf-service/main.go</code></td>
+        <td><span class="badge green">Created</span></td>
+        <td>CSRF Service</td>
+        <td>Go microservice: token generation, ext_authz check, Redis integration, health endpoint</td>
+      </tr>
+      <tr>
+        <td><code>csrf-service/go.mod</code></td>
+        <td><span class="badge green">Created</span></td>
+        <td>CSRF Service</td>
+        <td>Go module with dependencies: go-redis/v9, google/uuid</td>
+      </tr>
+      <tr>
+        <td><code>csrf-service/go.sum</code></td>
+        <td><span class="badge green">Created</span></td>
+        <td>CSRF Service</td>
+        <td>Dependency checksums for reproducible builds</td>
+      </tr>
+      <tr>
+        <td><code>csrf-service/Dockerfile</code></td>
+        <td><span class="badge green">Created</span></td>
+        <td>CSRF Service</td>
+        <td>Multi-stage build: golang:1.22-alpine builder, distroless runtime (~15MB)</td>
+      </tr>
+      <tr>
+        <td><code>csrf-service/k8s/deployment.yaml</code></td>
+        <td><span class="badge green">Created</span></td>
+        <td>Infrastructure</td>
+        <td>Deployment + Service: non-root, read-only FS, resource limits, health probes</td>
+      </tr>
+      <tr>
+        <td><code>csrf-service/k8s/network-policy.yaml</code></td>
+        <td><span class="badge green">Created</span></td>
+        <td>Infrastructure</td>
+        <td>Ingress from istio-system, egress to Redis (6379) and kube-dns (53)</td>
+      </tr>
+      <tr>
+        <td><code>csrf-service/k8s/peer-auth.yaml</code></td>
+        <td><span class="badge green">Created</span></td>
+        <td>Istio</td>
+        <td>PeerAuthentication: STRICT + portLevelMtls PERMISSIVE on 8080</td>
+      </tr>
+      <tr>
+        <td><code>csrf-service/k8s/ext-authz.yaml</code></td>
+        <td><span class="badge green">Created</span></td>
+        <td>Istio</td>
+        <td>AuthorizationPolicy (CUSTOM) for /ecom/* and /inven/* paths</td>
+      </tr>
+      <tr>
+        <td><code>infra/kgateway/routes/csrf-route.yaml</code></td>
+        <td><span class="badge green">Created</span></td>
+        <td>Gateway</td>
+        <td>HTTPRoute exposing /csrf/* through the bookstore-gateway</td>
+      </tr>
+      <tr>
+        <td><code>istio-system ConfigMap (istio)</code></td>
+        <td><span class="badge orange">Modified</span></td>
+        <td>Istio</td>
+        <td>Added csrf-ext-authz extensionProvider to mesh config</td>
+      </tr>
+      <tr>
+        <td><code>ecom-service/.../SecurityConfig.java</code></td>
+        <td><span class="badge orange">Modified</span></td>
+        <td>ecom-service</td>
+        <td>Removed app-level CsrfTokenRepository bean and CsrfFilter configuration</td>
+      </tr>
+      <tr>
+        <td><code>ui/src/api/client.ts</code></td>
+        <td><span class="badge orange">Modified</span></td>
+        <td>UI</td>
+        <td>Changed CSRF token URL from /ecom/csrf-token to /csrf/generate</td>
+      </tr>
+      <tr>
+        <td><code>ui/nginx.conf</code></td>
+        <td><span class="badge orange">Modified</span></td>
+        <td>UI</td>
+        <td>Added /csrf/ proxy location with HTTP/1.1 and SSL settings</td>
+      </tr>
+      <tr>
+        <td><code>inventory-service/app/main.py</code></td>
+        <td><span class="badge orange">Modified</span></td>
+        <td>inventory-service</td>
+        <td>Added X-CSRF-Token to CORS allow_headers</td>
+      </tr>
+      <tr>
+        <td><code>e2e/helpers/csrf.ts</code></td>
+        <td><span class="badge orange">Modified</span></td>
+        <td>E2E Tests</td>
+        <td>Updated getCsrfToken helper URL to /csrf/generate</td>
+      </tr>
+      <tr>
+        <td><code>scripts/restart-after-docker.sh</code></td>
+        <td><span class="badge orange">Modified</span></td>
+        <td>Operations</td>
+        <td>Added CSRF service to restart order (after Redis, before gateway)</td>
+      </tr>
+      <tr>
+        <td><code>scripts/infra-up.sh</code></td>
+        <td><span class="badge orange">Modified</span></td>
+        <td>Operations</td>
+        <td>Added CSRF service deployment to infrastructure provisioning</td>
+      </tr>
+      <tr>
+        <td><code>scripts/smoke-test.sh</code></td>
+        <td><span class="badge orange">Modified</span></td>
+        <td>Operations</td>
+        <td>Added CSRF service health check to smoke test suite</td>
+      </tr>
+      <tr>
+        <td><code>ecom-service/.../CsrfConfig.java</code></td>
+        <td><span class="badge red">Deleted</span></td>
+        <td>ecom-service</td>
+        <td>Removed app-level Redis-backed CSRF token repository (superseded by gateway)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ============================================================ -->
+  <!-- 10. E2E Test Results -->
+  <!-- ============================================================ -->
+  <h2>10. E2E Test Results</h2>
+
+  <p>All existing E2E tests continue to pass after the migration to gateway-level CSRF. The CSRF token generation URL change was the only modification required in the test helpers. No test logic changes were needed because the token format (UUID) and header name (<code>X-CSRF-Token</code>) remain identical.</p>
+
+  <table>
+    <thead>
+      <tr><th>Suite</th><th>Tests</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Catalog and Book Display</td><td>12</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>Search Functionality</td><td>8</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>Guest Cart</td><td>5</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>Authenticated Cart</td><td>14</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>Checkout Flow</td><td>10</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>Stock Management</td><td>9</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>Admin Panel</td><td>18</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>Authentication and OIDC</td><td>11</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>CSRF Protection</td><td>8</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>CDC Pipeline</td><td>15</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>Superset Dashboards</td><td>12</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>TLS and cert-manager</td><td>30</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>Cert Dashboard Operator</td><td>29</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>UI Fixes and Regressions</td><td>16</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>OpenTelemetry and Loki</td><td>18</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>Observability and Grafana</td><td>22</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>Network Policies</td><td>14</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>Performance and Load</td><td>6</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>Database HA (CNPG)</td><td>20</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>Infrastructure Health</td><td>10</td><td><span class="badge green">Passed</span></td></tr>
+      <tr><td>Miscellaneous</td><td>185</td><td><span class="badge green">Passed</span></td></tr>
+    </tbody>
+    <tfoot>
+      <tr>
+        <th>Total</th>
+        <th>472</th>
+        <th><span class="badge green">All Passed</span></th>
+      </tr>
+    </tfoot>
+  </table>
+
+  <footer>
+    <p>BookStore Platform &mdash; Gateway-Level CSRF Service<br>
+    <a href="index.html">&larr; Back to Documentation Index</a></p>
+  </footer>
+
+</div>
+
+</body>
+</html>

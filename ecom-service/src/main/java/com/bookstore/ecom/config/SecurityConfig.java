@@ -61,7 +61,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .csrf(csrf -> csrf.disable())   // CSRF handled at gateway/UI level for this stateless API
+            .csrf(csrf -> csrf.disable())   // CSRF enforced at Istio gateway level via ext_authz
             .authorizeHttpRequests(auth -> {
                 // Public endpoints — no token required
                 auth.requestMatchers(HttpMethod.GET, "/books", "/books/search", "/books/*").permitAll();
