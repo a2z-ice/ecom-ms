@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quick Start Guide — BookStore Platform</title>
+  <meta property="og:title" content="BookStore Platform — Quick Start Guide" />
+  <meta property="og:description" content="Get the production-grade microservices bookstore running on your local machine in under 30 minutes. Prerequisites, one-command bootstrap, verification, and troubleshooting." />
+  <meta property="og:type" content="article" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; --cyan: #06b6d4; --purple: #8b5cf6; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 960px; margin: 0 auto; padding: 40px 24px 60px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p.subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 52px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 28px 0 10px; color: #cbd5e1; }
+    h4 { font-size: 0.95rem; font-weight: 600; margin: 20px 0 8px; color: #94a3b8; }
+    p { margin-bottom: 16px; color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.82rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.04); }
+    code { background: var(--card); padding: 2px 7px; border-radius: 4px; font-size: 0.86em; color: #fbbf24; }
+    pre { background: var(--card); padding: 18px 20px; border-radius: 10px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); position: relative; }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.84rem; line-height: 1.65; }
+    pre .comment { color: #64748b; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* ── Step Cards ── */
+    .step { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px 28px; margin: 20px 0; position: relative; overflow: hidden; }
+    .step::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; border-radius: 4px 0 0 4px; }
+    .step.blue::before { background: linear-gradient(180deg, #3b82f6, #60a5fa); }
+    .step.green::before { background: linear-gradient(180deg, #059669, #34d399); }
+    .step.purple::before { background: linear-gradient(180deg, #7c3aed, #a78bfa); }
+    .step.amber::before { background: linear-gradient(180deg, #d97706, #fbbf24); }
+    .step.red::before { background: linear-gradient(180deg, #dc2626, #f87171); }
+    .step.cyan::before { background: linear-gradient(180deg, #0891b2, #22d3ee); }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: white; font-weight: 800; font-size: 0.88rem; margin-right: 12px; flex-shrink: 0; }
+    .step h3 { display: flex; align-items: center; margin: 0 0 12px; color: #f1f5f9; }
+    .step p { margin-bottom: 10px; }
+    .step pre { margin: 10px 0 8px; }
+    .step .time { font-size: 0.75rem; color: var(--muted); font-weight: 600; margin-top: 10px; }
+    .step .time::before { content: '\23F1 '; }
+
+    /* ── Info/Warning/Tip boxes ── */
+    .callout { padding: 16px 20px; border-radius: 10px; margin: 16px 0; font-size: 0.88rem; line-height: 1.6; border-left: 4px solid; }
+    .callout.info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+    .callout.warn { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
+    .callout.tip { background: rgba(16,185,129,0.08); border-color: #10b981; }
+    .callout.danger { background: rgba(239,68,68,0.08); border-color: #ef4444; }
+    .callout strong { color: #f1f5f9; }
+    .callout code { font-size: 0.84em; }
+
+    /* ── OS tabs ── */
+    .os-tabs { display: flex; gap: 0; margin: 16px 0 0; }
+    .os-tab { padding: 8px 20px; font-size: 0.82rem; font-weight: 600; color: var(--muted); background: var(--card); border: 1px solid var(--border); cursor: pointer; transition: all 0.2s; }
+    .os-tab:first-child { border-radius: 8px 0 0 0; }
+    .os-tab:last-child { border-radius: 0 8px 0 0; }
+    .os-tab.active { color: var(--accent); background: rgba(59,130,246,0.08); border-bottom-color: transparent; }
+    .os-content { border: 1px solid var(--border); border-top: none; border-radius: 0 0 10px 10px; padding: 20px; background: var(--card); margin-bottom: 20px; }
+    .os-content .os-panel { display: none; }
+    .os-content .os-panel.active { display: block; }
+
+    /* ── Port map grid ── */
+    .port-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 24px; }
+    .port-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; transition: border-color 0.2s; }
+    .port-card:hover { border-color: rgba(59,130,246,0.4); }
+    .port-card .port-num { font-size: 1.3rem; font-weight: 800; color: var(--accent); }
+    .port-card .port-name { font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-top: 2px; }
+    .port-card .port-url { font-size: 0.72rem; color: var(--muted); margin-top: 4px; word-break: break-all; }
+
+    /* ── Credential cards ── */
+    .cred-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin: 16px 0 24px; }
+    .cred-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+    .cred-card .cred-service { font-size: 0.88rem; font-weight: 700; color: #f1f5f9; margin-bottom: 8px; }
+    .cred-card .cred-row { font-size: 0.8rem; color: var(--muted); display: flex; gap: 6px; margin-top: 4px; }
+    .cred-card .cred-row code { font-size: 0.78rem; color: #fbbf24; }
+
+    /* ── TOC ── */
+    .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 24px 0 40px; }
+    .toc h3 { font-size: 0.9rem; font-weight: 700; color: #f1f5f9; margin: 0 0 12px; }
+    .toc ol { margin: 0; padding-left: 20px; }
+    .toc li { margin-bottom: 4px; }
+    .toc a { font-size: 0.85rem; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+    .toc a:hover { color: var(--accent); }
+
+    /* ── Prereq checklist ── */
+    .prereq-list { list-style: none; margin: 12px 0 20px; padding: 0; }
+    .prereq-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(51,65,85,0.4); font-size: 0.88rem; }
+    .prereq-list li:last-child { border-bottom: none; }
+    .prereq-check { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; flex-shrink: 0; }
+    .prereq-check.required { border-color: var(--accent); color: var(--accent); }
+    .prereq-name { font-weight: 600; color: #cbd5e1; min-width: 90px; }
+    .prereq-ver { font-size: 0.78rem; color: var(--muted); }
+    .prereq-purpose { font-size: 0.78rem; color: #64748b; margin-left: auto; }
+
+    /* ── Timeline ── */
+    .timeline { position: relative; padding-left: 28px; margin: 20px 0; }
+    .timeline::before { content: ''; position: absolute; left: 10px; top: 4px; bottom: 4px; width: 2px; background: linear-gradient(180deg, #3b82f6, #8b5cf6, #10b981, #f59e0b); border-radius: 2px; }
+    .timeline-item { position: relative; margin-bottom: 20px; }
+    .timeline-item::before { content: ''; position: absolute; left: -22px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+    .timeline-item .tl-title { font-weight: 700; font-size: 0.88rem; color: #f1f5f9; }
+    .timeline-item .tl-time { font-size: 0.72rem; color: var(--muted); margin-left: 8px; }
+    .timeline-item .tl-desc { font-size: 0.82rem; color: #94a3b8; margin-top: 4px; }
+
+    /* ── Topnav (hidden by nav.js) ── */
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 960px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>Quick Start Guide</h1>
+  <p class="subtitle">Get the full platform running on your local machine in under 30 minutes</p>
+
+  <div class="badges">
+    <span class="badge green">macOS + Linux</span>
+    <span class="badge purple">One-Command Bootstrap</span>
+    <span class="badge cyan">kind Cluster</span>
+    <span class="badge orange">~25 min Fresh Start</span>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#prereqs">Prerequisites</a></li>
+      <li><a href="#hosts">Host Configuration</a></li>
+      <li><a href="#bootstrap">One-Command Bootstrap</a></li>
+      <li><a href="#whathappens">What Happens Under the Hood</a></li>
+      <li><a href="#verify">Verification</a></li>
+      <li><a href="#access">Accessing Services</a></li>
+      <li><a href="#credentials">Default Credentials</a></li>
+      <li><a href="#portmap">Port Map</a></li>
+      <li><a href="#dev">Building &amp; Testing Services</a></li>
+      <li><a href="#lifecycle">Cluster Lifecycle</a></li>
+      <li><a href="#recovery">Recovery After Docker Restart</a></li>
+      <li><a href="#troubleshooting">Troubleshooting</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="prereqs">1. Prerequisites</h2>
+
+  <h3>System Requirements</h3>
+  <ul>
+    <li><strong>RAM:</strong> 16 GB minimum (8 GB allocated to Docker, 8 GB for host)</li>
+    <li><strong>Disk:</strong> 20 GB free space (cluster data + Docker images)</li>
+    <li><strong>OS:</strong> macOS 12+ (Apple Silicon or Intel) or Linux (Ubuntu 22.04+, Fedora 38+)</li>
+  </ul>
+
+  <h3>Required Tools</h3>
+  <ul class="prereq-list">
+    <li><div class="prereq-check required">*</div><span class="prereq-name">Docker</span><span class="prereq-ver">v24+</span><span class="prereq-purpose">Container runtime</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">kind</span><span class="prereq-ver">v0.20+</span><span class="prereq-purpose">Local K8s cluster</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">kubectl</span><span class="prereq-ver">v1.28+</span><span class="prereq-purpose">K8s CLI</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">helm</span><span class="prereq-ver">v3.12+</span><span class="prereq-purpose">K8s package manager</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">istioctl</span><span class="prereq-ver">v1.29.1</span><span class="prereq-purpose">Service mesh CLI</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">docker</span><span class="prereq-ver">v24+</span><span class="prereq-purpose">Image builds</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">mvn</span><span class="prereq-ver">3.8+</span><span class="prereq-purpose">Java build (ecom-service)</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">poetry</span><span class="prereq-ver">v1.5+</span><span class="prereq-purpose">Python deps (inventory-service)</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">npm</span><span class="prereq-ver">v20+</span><span class="prereq-purpose">Node.js (UI + E2E tests)</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">go</span><span class="prereq-ver">v1.25+</span><span class="prereq-purpose">Go build (csrf-service)</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">curl</span><span class="prereq-ver">any</span><span class="prereq-purpose">HTTP verification</span></li>
+  </ul>
+
+  <h3>Install Prerequisites</h3>
+  <div class="os-tabs">
+    <div class="os-tab active" onclick="switchOS('mac')">macOS (Homebrew)</div>
+    <div class="os-tab" onclick="switchOS('linux')">Linux (apt/dnf)</div>
+  </div>
+  <div class="os-content">
+    <div class="os-panel active" id="os-mac">
+<pre><code><span class="comment"># Install Docker Desktop from https://docker.com/products/docker-desktop</span>
+<span class="comment"># Then install CLI tools via Homebrew:</span>
+brew install kind kubectl helm istioctl maven poetry node go curl
+
+<span class="comment"># Verify all tools are available:</span>
+for cmd in kind kubectl helm istioctl docker mvn poetry npm go curl; do
+  command -v "$cmd" &amp;&gt;/dev/null &amp;&amp; echo "OK  $cmd" || echo "MISSING  $cmd"
+done</code></pre>
+    </div>
+    <div class="os-panel" id="os-linux">
+<pre><code><span class="comment"># Docker Engine</span>
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER &amp;&amp; newgrp docker
+
+<span class="comment"># kind</span>
+curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-amd64
+chmod +x ./kind &amp;&amp; sudo mv ./kind /usr/local/bin/kind
+
+<span class="comment"># kubectl</span>
+curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x kubectl &amp;&amp; sudo mv kubectl /usr/local/bin/
+
+<span class="comment"># helm</span>
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+<span class="comment"># istioctl (match version 1.29.1)</span>
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.29.1 sh -
+sudo mv istio-1.29.1/bin/istioctl /usr/local/bin/
+
+<span class="comment"># Maven, Node.js, Go, Poetry</span>
+<span class="comment"># Ubuntu/Debian:</span>
+sudo apt install -y maven nodejs npm golang-go
+pip3 install poetry
+<span class="comment"># Fedora/RHEL:</span>
+sudo dnf install -y maven nodejs npm golang
+pip3 install poetry
+
+<span class="comment"># Verify</span>
+for cmd in kind kubectl helm istioctl docker mvn poetry npm go curl; do
+  command -v "$cmd" &amp;&gt;/dev/null &amp;&amp; echo "OK  $cmd" || echo "MISSING  $cmd"
+done</code></pre>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <strong>Docker Desktop Memory:</strong> Allocate at least 8 GB to Docker. On macOS: Docker Desktop &rarr; Settings &rarr; Resources &rarr; Memory &rarr; 8.00 GB. On Linux, Docker uses host memory directly.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="hosts">2. Host Configuration</h2>
+
+  <p>The platform uses custom hostnames for gateway routing. Add these entries to your <code>/etc/hosts</code> file:</p>
+
+  <div class="step blue">
+    <h3><span class="step-num">*</span> Edit /etc/hosts</h3>
+<pre><code>sudo sh -c 'cat &gt;&gt; /etc/hosts &lt;&lt;EOF
+127.0.0.1  idp.keycloak.net
+127.0.0.1  myecom.net
+127.0.0.1  api.service.net
+EOF'</code></pre>
+    <p style="margin-top:10px;font-size:0.85rem;color:var(--muted);">This maps all three hostnames to localhost. The Istio Gateway uses SNI to route requests to the correct backend service.</p>
+  </div>
+
+  <div class="callout tip">
+    <strong>Verify:</strong> Run <code>ping -c1 myecom.net</code> &mdash; it should resolve to <code>127.0.0.1</code>.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="bootstrap">3. One-Command Bootstrap</h2>
+
+  <div class="step green">
+    <h3><span class="step-num">1</span> Clone and start</h3>
+<pre><code><span class="comment"># Clone the repository</span>
+git clone https://github.com/a2z-ice/ecom-ms.git
+cd ecom-ms
+
+<span class="comment"># Bootstrap everything (auto-detects scenario)</span>
+bash scripts/up.sh</code></pre>
+    <div class="time">~25 minutes on first run (builds images, deploys infra, imports realm)</div>
+  </div>
+
+  <p>That's it. The <code>up.sh</code> script is the single entry point that handles every scenario:</p>
+
+  <table>
+    <tr><th>Scenario</th><th>What happens</th><th>Time</th></tr>
+    <tr><td><strong>No cluster</strong></td><td>Full bootstrap from scratch</td><td>~25 min</td></tr>
+    <tr><td><strong>Healthy cluster</strong></td><td>Verify connectors + smoke test only</td><td>~2 min</td></tr>
+    <tr><td><strong>Degraded cluster</strong></td><td>Recovery (restart ztunnel, pods, Flink)</td><td>~5 min</td></tr>
+  </table>
+
+  <div class="callout info">
+    <strong>Non-interactive mode (CI/automation):</strong> <code>bash scripts/up.sh --yes</code> skips all confirmation prompts.
+  </div>
+
+  <div class="callout warn">
+    <strong>Force fresh rebuild:</strong> <code>bash scripts/up.sh --fresh</code> deletes the existing cluster and rebuilds from scratch. Add <code>--data</code> to also wipe persisted data.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="whathappens">4. What Happens Under the Hood</h2>
+
+  <p>The bootstrap pipeline executes these stages in order. Docker image builds run in parallel with infrastructure deployment for speed.</p>
+
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="tl-title">Create kind cluster<span class="tl-time">~2 min</span></div>
+      <div class="tl-desc">3-node kind cluster (1 control-plane + 2 workers) with NodePort mappings for all services. Creates <code>./data/</code> directories for persistence.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="tl-title">Install Istio Ambient Mesh 1.29.1<span class="tl-time">~1 min</span></div>
+      <div class="tl-desc">Sidecar-free mTLS mesh via ztunnel. All namespaces labeled for ambient mode. Kubernetes Gateway API installed.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="tl-title">Deploy databases (CloudNativePG)<span class="tl-time">~3 min</span></div>
+      <div class="tl-desc">4 PostgreSQL HA clusters (ecom-db, inventory-db, analytics-db, keycloak-db) with 2 instances each (primary + standby). Waited in parallel.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="tl-title">Deploy infrastructure services<span class="tl-time">~4 min</span></div>
+      <div class="tl-desc">Redis, Kafka (KRaft), Schema Registry, Debezium Server (2 pods), PgAdmin, cert-manager with self-signed CA, and TLS certificates.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="tl-title">Build &amp; load Docker images<span class="tl-time">parallel</span></div>
+      <div class="tl-desc">5 images built concurrently: ecom-service (Spring Boot), inventory-service (FastAPI), ui-service (React+Nginx), csrf-service (Go), flink (CDC pipeline).</div>
+    </div>
+    <div class="timeline-item">
+      <div class="tl-title">Import Keycloak realm<span class="tl-time">~1 min</span></div>
+      <div class="tl-desc">BookStore realm with OIDC clients, PKCE-enabled flows, users (user1, admin1), and role mappings (customer, admin).</div>
+    </div>
+    <div class="timeline-item">
+      <div class="tl-title">Deploy application services<span class="tl-time">~2 min</span></div>
+      <div class="tl-desc">ecom-service + inventory-service + ui-service + csrf-service. Init containers run DB migrations (Liquibase, Alembic) before app starts.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="tl-title">Apply security policies<span class="tl-time">~30 sec</span></div>
+      <div class="tl-desc">NetworkPolicies, PeerAuthentication (STRICT mTLS), RequestAuthentication (JWT), AuthorizationPolicies, CSRF ext_authz registration.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="tl-title">Deploy analytics &amp; observability<span class="tl-time">~3 min</span></div>
+      <div class="tl-desc">Flink SQL pipeline, Superset dashboards, Prometheus, Grafana, Loki, Tempo, OTel Collector, Kiali.</div>
+    </div>
+    <div class="timeline-item">
+      <div class="tl-title">Smoke test &amp; CA trust<span class="tl-time">~2 min</span></div>
+      <div class="tl-desc">38 verification checks (pods, HTTP routes, Kafka lag, Debezium health, TLS certs). Optional CA install to macOS Keychain for browser trust.</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="verify">5. Verification</h2>
+
+  <div class="step purple">
+    <h3><span class="step-num">2</span> Run the smoke test</h3>
+<pre><code>bash scripts/smoke-test.sh</code></pre>
+    <p>Runs 38 checks across pods, HTTP endpoints, Kafka consumer lag, Debezium health, TLS certificates, and role-based access control.</p>
+    <div class="time">~1 minute</div>
+  </div>
+
+  <p>Expected output (abbreviated):</p>
+<pre><code>PASS  [ecom-service]       pod Running
+PASS  [ecom-db]             pod Running
+PASS  [inventory-service]   pod Running
+PASS  [keycloak]            pod Running
+PASS  [kafka]               pod Running
+...
+PASS  [ecom GET /books]     https://api.service.net:30000/ecom/books -> 200
+PASS  [UI catalog]          https://myecom.net:30000/ -> 200
+PASS  [Keycloak OIDC]       .well-known/openid-configuration -> 200
+PASS  [HTTP->HTTPS]         redirect 301
+PASS  [Debezium ecom]       /q/health -> UP
+PASS  [Debezium inventory]  /q/health -> UP
+...
+Results: <strong>38 passed, 0 failed</strong></code></pre>
+
+  <div class="step blue">
+    <h3><span class="step-num">3</span> Quick HTTP checks</h3>
+<pre><code><span class="comment"># Public API (no auth needed)</span>
+curl -sk https://api.service.net:30000/ecom/books | head -c 200
+
+<span class="comment"># Inventory health</span>
+curl -sk https://api.service.net:30000/inven/health
+
+<span class="comment"># Keycloak OIDC discovery</span>
+curl -sk https://idp.keycloak.net:30000/realms/bookstore/.well-known/openid-configuration | python3 -m json.tool | head -5
+
+<span class="comment"># Debezium Server health</span>
+curl -s http://localhost:32300/q/health | python3 -m json.tool</code></pre>
+  </div>
+
+  <div class="step green">
+    <h3><span class="step-num">4</span> Trust the CA certificate (browser access)</h3>
+<pre><code><span class="comment"># Extract CA cert + install to macOS Keychain</span>
+bash scripts/trust-ca.sh --install
+
+<span class="comment"># Or extract only (manual install later)</span>
+bash scripts/trust-ca.sh
+<span class="comment"># CA cert saved to certs/bookstore-ca.crt</span></code></pre>
+    <p>After trusting the CA, browsers will accept <code>https://myecom.net:30000</code> without certificate warnings.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="access">6. Accessing Services</h2>
+
+  <h3>Main Application</h3>
+  <table>
+    <tr><th>Service</th><th>URL</th><th>Auth</th></tr>
+    <tr><td><strong>Store UI</strong></td><td><code>https://myecom.net:30000</code></td><td>Login with user1 / CHANGE_ME</td></tr>
+    <tr><td><strong>Books API</strong></td><td><code>https://api.service.net:30000/ecom/books</code></td><td>Public (no auth)</td></tr>
+    <tr><td><strong>Book Search</strong></td><td><code>https://api.service.net:30000/ecom/books/search?q=kafka</code></td><td>Public</td></tr>
+    <tr><td><strong>Cart API</strong></td><td><code>https://api.service.net:30000/ecom/cart</code></td><td>JWT required</td></tr>
+    <tr><td><strong>Inventory</strong></td><td><code>https://api.service.net:30000/inven/health</code></td><td>Public</td></tr>
+  </table>
+
+  <h3>Admin &amp; Tooling</h3>
+  <table>
+    <tr><th>Service</th><th>URL</th><th>Credentials</th></tr>
+    <tr><td><strong>Keycloak Admin</strong></td><td><code>http://localhost:32400/admin</code></td><td>admin / CHANGE_ME</td></tr>
+    <tr><td><strong>PgAdmin</strong></td><td><code>http://localhost:31111</code></td><td>admin@example.com / CHANGE_ME</td></tr>
+    <tr><td><strong>Superset</strong></td><td><code>http://localhost:32000</code></td><td>admin / CHANGE_ME</td></tr>
+    <tr><td><strong>Grafana</strong></td><td><code>http://localhost:32500</code></td><td>admin / admin</td></tr>
+    <tr><td><strong>Kiali</strong></td><td><code>http://localhost:32100/kiali</code></td><td>Anonymous</td></tr>
+    <tr><td><strong>Flink Dashboard</strong></td><td><code>http://localhost:32200</code></td><td>Anonymous</td></tr>
+    <tr><td><strong>Cert Dashboard</strong></td><td><code>http://localhost:32600</code></td><td>Anonymous</td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="credentials">7. Default Credentials</h2>
+
+  <div class="cred-grid">
+    <div class="cred-card">
+      <div class="cred-service">Store UI (Customer)</div>
+      <div class="cred-row">User: <code>user1</code></div>
+      <div class="cred-row">Pass: <code>CHANGE_ME</code></div>
+      <div class="cred-row" style="margin-top:6px;">Role: <code>customer</code></div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-service">Store UI (Admin)</div>
+      <div class="cred-row">User: <code>admin1</code></div>
+      <div class="cred-row">Pass: <code>CHANGE_ME</code></div>
+      <div class="cred-row" style="margin-top:6px;">Roles: <code>admin</code> + <code>customer</code></div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-service">Keycloak Admin Console</div>
+      <div class="cred-row">User: <code>admin</code></div>
+      <div class="cred-row">Pass: <code>CHANGE_ME</code></div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-service">PgAdmin</div>
+      <div class="cred-row">Email: <code>admin@example.com</code></div>
+      <div class="cred-row">Pass: <code>CHANGE_ME</code></div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-service">Superset</div>
+      <div class="cred-row">User: <code>admin</code></div>
+      <div class="cred-row">Pass: <code>CHANGE_ME</code></div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-service">Grafana</div>
+      <div class="cred-row">User: <code>admin</code></div>
+      <div class="cred-row">Pass: <code>admin</code></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="portmap">8. Port Map</h2>
+
+  <p>All ports exposed via kind <code>extraPortMappings</code> on the control-plane node. <strong>No <code>kubectl port-forward</code> needed.</strong></p>
+
+  <div class="port-grid">
+    <div class="port-card"><div class="port-num">30000</div><div class="port-name">Main Gateway (HTTPS)</div><div class="port-url">https://myecom.net:30000</div></div>
+    <div class="port-card"><div class="port-num">30080</div><div class="port-name">HTTP &rarr; HTTPS Redirect</div><div class="port-url">301 &rarr; https://:30000</div></div>
+    <div class="port-card"><div class="port-num">31111</div><div class="port-name">PgAdmin</div><div class="port-url">http://localhost:31111</div></div>
+    <div class="port-card"><div class="port-num">32000</div><div class="port-name">Superset Analytics</div><div class="port-url">http://localhost:32000</div></div>
+    <div class="port-card"><div class="port-num">32100</div><div class="port-name">Kiali (Mesh UI)</div><div class="port-url">http://localhost:32100/kiali</div></div>
+    <div class="port-card"><div class="port-num">32200</div><div class="port-name">Flink Dashboard</div><div class="port-url">http://localhost:32200</div></div>
+    <div class="port-card"><div class="port-num">32300</div><div class="port-name">Debezium (ecom)</div><div class="port-url">http://localhost:32300/q/health</div></div>
+    <div class="port-card"><div class="port-num">32301</div><div class="port-name">Debezium (inventory)</div><div class="port-url">http://localhost:32301/q/health</div></div>
+    <div class="port-card"><div class="port-num">32400</div><div class="port-name">Keycloak Admin</div><div class="port-url">http://localhost:32400/admin</div></div>
+    <div class="port-card"><div class="port-num">32500</div><div class="port-name">Grafana</div><div class="port-url">http://localhost:32500</div></div>
+    <div class="port-card"><div class="port-num">32600</div><div class="port-name">Cert Dashboard</div><div class="port-url">http://localhost:32600</div></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="dev">9. Building &amp; Testing Services</h2>
+
+  <h3>E-Commerce Service (Spring Boot 4.0.3)</h3>
+<pre><code>cd ecom-service
+mvn test                           <span class="comment"># unit tests</span>
+mvn test -Dtest=BookControllerTest <span class="comment"># single test class</span>
+mvn package -DskipTests            <span class="comment"># build JAR</span>
+docker build -t bookstore/ecom-service:latest .
+kind load docker-image bookstore/ecom-service:latest --name bookstore
+kubectl rollout restart deploy/ecom-service -n ecom</code></pre>
+
+  <h3>Inventory Service (Python FastAPI)</h3>
+<pre><code>cd inventory-service
+poetry install
+poetry run pytest                        <span class="comment"># all tests</span>
+poetry run pytest tests/test_stock.py -v <span class="comment"># single file</span>
+docker build -t bookstore/inventory-service:latest .
+kind load docker-image bookstore/inventory-service:latest --name bookstore
+kubectl rollout restart deploy/inventory-service -n inventory</code></pre>
+
+  <h3>UI Service (React 19.2 + Vite)</h3>
+<pre><code>cd ui
+npm install
+npm run dev    <span class="comment"># local dev server</span>
+npm run build  <span class="comment"># production build</span>
+npm run lint   <span class="comment"># ESLint</span>
+docker build \
+  --build-arg VITE_KEYCLOAK_AUTHORITY=https://idp.keycloak.net:30000/realms/bookstore \
+  --build-arg VITE_KEYCLOAK_CLIENT_ID=ui-client \
+  --build-arg VITE_REDIRECT_URI=https://localhost:30000/callback \
+  -t bookstore/ui-service:latest .
+kind load docker-image bookstore/ui-service:latest --name bookstore
+kubectl rollout restart deploy/ui-service -n ecom</code></pre>
+
+  <h3>CSRF Service (Go 1.25)</h3>
+<pre><code>cd csrf-service
+go test -v ./...                          <span class="comment"># 19 tests (uses miniredis)</span>
+go test -v -run TestTokenGeneration ./... <span class="comment"># single test</span>
+docker build -t bookstore/csrf-service:latest .
+kind load docker-image bookstore/csrf-service:latest --name bookstore
+kubectl rollout restart deploy/csrf-service -n infra</code></pre>
+
+  <h3>E2E Tests (Playwright)</h3>
+<pre><code>cd e2e
+npm install
+npm run test          <span class="comment"># headless, sequential (430+ tests)</span>
+npm run test:headed   <span class="comment"># watch tests in browser</span>
+npm run test:ui       <span class="comment"># Playwright interactive UI</span>
+npm run report        <span class="comment"># open HTML report</span>
+
+<span class="comment"># Run a single spec</span>
+npx playwright test checkout.spec.ts
+npx playwright test -g "should display book catalog"</code></pre>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="lifecycle">10. Cluster Lifecycle</h2>
+
+  <h3>Start / Resume</h3>
+<pre><code>bash scripts/up.sh           <span class="comment"># smart start (auto-detects scenario)</span>
+bash scripts/up.sh --fresh   <span class="comment"># force full rebuild (keeps data)</span>
+bash scripts/up.sh --fresh --data  <span class="comment"># full rebuild + wipe data</span></code></pre>
+
+  <h3>Stop / Teardown</h3>
+<pre><code>bash scripts/down.sh          <span class="comment"># delete cluster (keeps ./data/)</span>
+bash scripts/down.sh --data   <span class="comment"># delete cluster + wipe all data</span>
+bash scripts/down.sh --images <span class="comment"># delete cluster + remove Docker images</span>
+bash scripts/down.sh --all    <span class="comment"># delete everything</span></code></pre>
+
+  <h3>Health Check</h3>
+<pre><code>bash scripts/smoke-test.sh    <span class="comment"># 38-point full stack verification</span>
+bash scripts/verify-routes.sh <span class="comment"># quick HTTP route check</span>
+bash scripts/sanity-test.sh   <span class="comment"># comprehensive cluster health</span></code></pre>
+
+  <h3>Backup &amp; Restore</h3>
+<pre><code>bash scripts/backup.sh                <span class="comment"># timestamped backup of all DBs + Kafka + Keycloak</span>
+bash scripts/restore.sh &lt;timestamp&gt;  <span class="comment"># restore from backup</span></code></pre>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="recovery">11. Recovery After Docker Restart</h2>
+
+  <p>When Docker Desktop restarts, the kind cluster survives but Istio's HBONE mesh and Kafka offsets break. Recovery is automatic:</p>
+
+  <div class="step amber">
+    <h3><span class="step-num">!</span> After Docker restart</h3>
+<pre><code>bash scripts/up.sh</code></pre>
+    <p>The script auto-detects the degraded state and runs recovery: ztunnel restart &rarr; pod rolling restart in dependency order &rarr; Flink resubmit &rarr; smoke test.</p>
+    <div class="time">~5-8 minutes</div>
+  </div>
+
+  <div class="callout info">
+    <strong>What breaks and why:</strong><br>
+    1. <strong>ztunnel HBONE</strong> &mdash; ztunnel daemonset loses L4 tunnel state; must restart first<br>
+    2. <strong>Pod registration</strong> &mdash; existing pods lose HBONE registration; must restart after ztunnel<br>
+    3. <strong>Kafka offsets</strong> &mdash; Debezium offset topics may be lost; re-snapshots if needed<br>
+    4. <strong>Flink jobs</strong> &mdash; SQL streaming jobs lost; automatically resubmitted
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="troubleshooting">12. Troubleshooting</h2>
+
+  <h3>Pod stuck in Pending</h3>
+  <div class="callout danger">
+    <strong>Cause:</strong> Insufficient CPU/memory in Docker.<br>
+    <strong>Fix:</strong> Increase Docker Desktop memory to 8+ GB (Settings &rarr; Resources). Then: <code>kubectl delete pod -n &lt;ns&gt; &lt;pod&gt;</code>
+  </div>
+
+  <h3>HTTP endpoints return 502/503</h3>
+  <div class="callout danger">
+    <strong>Cause:</strong> Service crashed or migration failed.<br>
+    <strong>Diagnose:</strong> <code>kubectl logs -n ecom deploy/ecom-service --tail=50</code><br>
+    <strong>Fix:</strong> <code>kubectl rollout restart deploy/ecom-service -n ecom</code>
+  </div>
+
+  <h3>Browser shows "connection not private"</h3>
+  <div class="callout warn">
+    <strong>Cause:</strong> Self-signed CA not trusted.<br>
+    <strong>Fix:</strong> <code>bash scripts/trust-ca.sh --install</code> &mdash; then hard-refresh the browser (Cmd+Shift+R).
+  </div>
+
+  <h3>Keycloak not reachable at idp.keycloak.net:30000</h3>
+  <div class="callout warn">
+    <strong>Cause:</strong> Missing /etc/hosts entry.<br>
+    <strong>Verify:</strong> <code>grep keycloak /etc/hosts</code><br>
+    <strong>Fix:</strong> Add <code>127.0.0.1  idp.keycloak.net</code> to /etc/hosts.
+  </div>
+
+  <h3>Kafka consumer lag stuck</h3>
+  <div class="callout danger">
+    <strong>Cause:</strong> inventory-service not consuming.<br>
+    <strong>Diagnose:</strong> <code>kubectl logs -n inventory deploy/inventory-service | tail -20</code><br>
+    <strong>Fix:</strong> <code>kubectl rollout restart deploy/inventory-service -n inventory</code>
+  </div>
+
+  <h3>Flink SQL runner job not completing</h3>
+  <div class="callout warn">
+    <strong>Cause:</strong> SQL Gateway not ready or analytics DB not initialized.<br>
+    <strong>Fix:</strong><br>
+    <code>kubectl delete job flink-sql-runner -n analytics</code><br>
+    <code>kubectl apply -f infra/flink/flink-sql-runner.yaml</code>
+  </div>
+
+  <h3>Debugging commands</h3>
+<pre><code><span class="comment"># Pod logs (follow)</span>
+kubectl logs -n ecom deploy/ecom-service -f
+kubectl logs -n inventory deploy/inventory-service -f
+kubectl logs -n identity deploy/keycloak -f
+
+<span class="comment"># DB shell access (via CNPG primary)</span>
+kubectl exec -n ecom -it ecom-db-1 -- psql -U ecom
+kubectl exec -n inventory -it inventory-db-1 -- psql -U inventory
+kubectl exec -n analytics -it analytics-db-1 -- psql -U analytics
+
+<span class="comment"># Kafka topics &amp; consumer groups</span>
+kubectl exec -n infra deploy/kafka -- /opt/kafka/bin/kafka-topics.sh \
+  --bootstrap-server localhost:9092 --list
+kubectl exec -n infra deploy/kafka -- /opt/kafka/bin/kafka-consumer-groups.sh \
+  --bootstrap-server localhost:9092 --describe --group inventory-service
+
+<span class="comment"># Debezium health</span>
+curl -s http://localhost:32300/q/health | python3 -m json.tool
+curl -s http://localhost:32301/q/health | python3 -m json.tool
+
+<span class="comment"># Flink jobs</span>
+curl -s http://localhost:32200/jobs | python3 -m json.tool
+
+<span class="comment"># Certificate status</span>
+kubectl get certificates -A</code></pre>
+
+  <footer>
+    <p>BookStore Platform &mdash; Production-grade microservices on Kubernetes</p>
+    <p style="margin-top: 8px;">
+      <a href="index.html">Home</a> &middot;
+      <a href="architecture.html">Architecture</a> &middot;
+      <a href="bookstore-platform-manual.html">Full Manual</a> &middot;
+      <a href="user-guide.html">User Guide</a> &middot;
+      <a href="https://github.com/a2z-ice/ecom-ms">GitHub</a>
+    </p>
+  </footer>
+
+</div>
+
+<script>
+function switchOS(os) {
+  document.querySelectorAll('.os-tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.os-panel').forEach(function(p) { p.classList.remove('active'); });
+  if (os === 'mac') {
+    document.querySelectorAll('.os-tab')[0].classList.add('active');
+    document.getElementById('os-mac').classList.add('active');
+  } else {
+    document.querySelectorAll('.os-tab')[1].classList.add('active');
+    document.getElementById('os-linux').classList.add('active');
+  }
+}
+</script>
+</body>
+</html>
