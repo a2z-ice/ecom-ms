@@ -1,0 +1,3124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Multi-AZ High Availability on Azure — BookStore Platform</title>
+  <meta property="og:title" content="BookStore Platform — Multi-AZ High Availability on Azure" />
+  <meta property="og:description" content="Comprehensive guide to configuring zone-redundant high availability for every component of the BookStore Platform on Azure AKS using Terraform." />
+  <meta property="og:type" content="article" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; --cyan: #06b6d4; --purple: #8b5cf6; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 960px; margin: 0 auto; padding: 40px 24px 60px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p.subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 52px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 28px 0 10px; color: #cbd5e1; }
+    h4 { font-size: 0.95rem; font-weight: 600; margin: 20px 0 8px; color: #94a3b8; }
+    p { margin-bottom: 16px; color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.82rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.04); }
+    code { background: var(--card); padding: 2px 7px; border-radius: 4px; font-size: 0.86em; color: #fbbf24; }
+    pre { background: var(--card); padding: 18px 20px; border-radius: 10px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); position: relative; }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.84rem; line-height: 1.65; }
+    pre .comment { color: #64748b; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badge.blue { background: linear-gradient(135deg, #2563eb, #3b82f6); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* ── Step Cards ── */
+    .step { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px 28px; margin: 20px 0; position: relative; overflow: hidden; }
+    .step::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; border-radius: 4px 0 0 4px; }
+    .step.blue::before { background: linear-gradient(180deg, #3b82f6, #60a5fa); }
+    .step.green::before { background: linear-gradient(180deg, #059669, #34d399); }
+    .step.purple::before { background: linear-gradient(180deg, #7c3aed, #a78bfa); }
+    .step.amber::before { background: linear-gradient(180deg, #d97706, #fbbf24); }
+    .step.red::before { background: linear-gradient(180deg, #dc2626, #f87171); }
+    .step.cyan::before { background: linear-gradient(180deg, #0891b2, #22d3ee); }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: white; font-weight: 800; font-size: 0.88rem; margin-right: 12px; flex-shrink: 0; }
+    .step h3 { display: flex; align-items: center; margin: 0 0 12px; color: #f1f5f9; }
+    .step p { margin-bottom: 10px; }
+    .step pre { margin: 10px 0 8px; }
+
+    /* ── Info/Warning/Tip boxes ── */
+    .callout { padding: 16px 20px; border-radius: 10px; margin: 16px 0; font-size: 0.88rem; line-height: 1.6; border-left: 4px solid; }
+    .callout.info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+    .callout.warn { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
+    .callout.tip { background: rgba(16,185,129,0.08); border-color: #10b981; }
+    .callout.danger { background: rgba(239,68,68,0.08); border-color: #ef4444; }
+    .callout strong { color: #f1f5f9; }
+    .callout code { font-size: 0.84em; }
+
+    /* ── TOC ── */
+    .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 24px 0 40px; }
+    .toc h3 { font-size: 0.9rem; font-weight: 700; color: #f1f5f9; margin: 0 0 12px; }
+    .toc ol { margin: 0; padding-left: 20px; }
+    .toc li { margin-bottom: 4px; }
+    .toc a { font-size: 0.85rem; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+    .toc a:hover { color: var(--accent); }
+
+    /* ── Architecture diagram ── */
+    .arch-diagram { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; overflow-x: auto; }
+    .arch-diagram pre { background: none; border: none; padding: 0; margin: 0; }
+    .arch-diagram pre code { font-size: 0.78rem; line-height: 1.5; color: #94a3b8; }
+    .arch-diagram .az { color: #60a5fa; }
+    .arch-diagram .svc { color: #a78bfa; }
+    .arch-diagram .data { color: #34d399; }
+    .arch-diagram .net { color: #fbbf24; }
+
+    /* ── Cost table ── */
+    .cost-table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    .cost-table th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.82rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    .cost-table td { padding: 10px 14px; font-size: 0.85rem; border-bottom: 1px solid var(--border); }
+    .cost-table .total td { font-weight: 700; color: #f1f5f9; border-top: 2px solid var(--accent); }
+    .cost-table .single { color: var(--green); }
+    .cost-table .multi { color: var(--yellow); }
+
+    /* ── Checklist ── */
+    .checklist { list-style: none; margin: 16px 0 24px; padding: 0; }
+    .checklist li { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(51,65,85,0.4); font-size: 0.88rem; }
+    .checklist li:last-child { border-bottom: none; }
+    .check-box { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.72rem; flex-shrink: 0; margin-top: 2px; color: var(--green); }
+    .check-box.done { border-color: var(--green); background: rgba(16,185,129,0.1); }
+
+    /* ── RPO/RTO cards ── */
+    .rto-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 16px 0 24px; }
+    .rto-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+    .rto-card .rto-svc { font-size: 0.82rem; font-weight: 700; color: #f1f5f9; margin-bottom: 8px; }
+    .rto-card .rto-row { font-size: 0.78rem; color: var(--muted); display: flex; justify-content: space-between; margin-top: 4px; }
+    .rto-card .rto-val { color: var(--green); font-weight: 600; }
+    .rto-card .rto-val.warn { color: var(--yellow); }
+
+    /* ── Topnav ── */
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 960px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>Multi-AZ High Availability on Azure</h1>
+  <p class="subtitle">Zone-redundant architecture for the BookStore Platform with complete Terraform code</p>
+
+  <div class="badges">
+    <span class="badge blue">Azure AKS</span>
+    <span class="badge green">99.99% SLA</span>
+    <span class="badge purple">3 Availability Zones</span>
+    <span class="badge cyan">Terraform</span>
+    <span class="badge orange">Zero-Downtime Failover</span>
+  </div>
+
+  <div class="callout info">
+    <strong>Prerequisite:</strong> This guide assumes you have already read <a href="deploy-azure.html">Deploy to Azure with Terraform</a> and have a working single-zone deployment. This document focuses exclusively on upgrading every component for zone-redundant high availability.
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#overview">HA Architecture Overview</a></li>
+      <li><a href="#principles">HA Design Principles (Azure-Specific)</a></li>
+      <li><a href="#networking">VNet Multi-AZ Networking</a></li>
+      <li><a href="#aks">AKS Multi-AZ Configuration</a></li>
+      <li><a href="#postgresql">PostgreSQL Zone-Redundant HA</a></li>
+      <li><a href="#eventhubs">Event Hubs Zone-Redundant</a></li>
+      <li><a href="#redis">Azure Cache for Redis Zone-Redundant</a></li>
+      <li><a href="#app-ha">Application-Level HA Patterns</a></li>
+      <li><a href="#appgateway">Application Gateway Zone-Redundant</a></li>
+      <li><a href="#monitoring">Monitoring &amp; Alerting for HA</a></li>
+      <li><a href="#dr">Disaster Recovery &amp; Backup</a></li>
+      <li><a href="#failures">Failure Scenarios &amp; Recovery</a></li>
+      <li><a href="#cost">Cost Analysis</a></li>
+      <li><a href="#deploy">Terraform Deployment Commands</a></li>
+      <li><a href="#checklist">HA Compliance Checklist</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="overview">1. HA Architecture Overview</h2>
+
+  <h3>The 3-AZ Strategy</h3>
+  <p>Azure regions that support Availability Zones provide three physically separated datacenter groups (Zone 1, Zone 2, Zone 3). Each zone has independent power, cooling, and networking. By distributing workloads across all three zones, we eliminate any single zone as a point of failure.</p>
+
+  <h3>Architecture Diagram</h3>
+  <img src="diagrams/aks-ha-multi-az.svg" alt="Azure AKS Multi-AZ High Availability Architecture" style="width:100%;border-radius:12px;border:1px solid #334155;margin:16px 0 28px;" />
+
+  <div class="arch-diagram">
+    <pre><code>                          <span class="net">Azure Region (e.g. East US 2)</span>
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │                                                                      │
+    │   <span class="net">Application Gateway v2 (zone-redundant: 1, 2, 3)</span>                  │
+    │              │                                                        │
+    │   ┌─────────┴──────────────────────────────────────────────┐         │
+    │   │                 <span class="net">VNet 10.0.0.0/16</span>                       │         │
+    │   │                                                        │         │
+    │   │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐   │         │
+    │   │  │ <span class="az">Zone 1</span>       │ │ <span class="az">Zone 2</span>       │ │ <span class="az">Zone 3</span>       │   │         │
+    │   │  │              │ │              │ │              │   │         │
+    │   │  │ <span class="svc">AKS Node</span>     │ │ <span class="svc">AKS Node</span>     │ │ <span class="svc">AKS Node</span>     │   │         │
+    │   │  │  ecom-svc    │ │  inven-svc   │ │  ui-svc      │   │         │
+    │   │  │  csrf-svc    │ │  ecom-svc    │ │  ecom-svc    │   │         │
+    │   │  │  keycloak    │ │  csrf-svc    │ │  inven-svc   │   │         │
+    │   │  │              │ │  keycloak    │ │  csrf-svc    │   │         │
+    │   │  │ <span class="data">PG Primary</span>   │ │ <span class="data">PG Standby</span>   │ │              │   │         │
+    │   │  │  ecom-db     │ │  ecom-db     │ │              │   │         │
+    │   │  │  inventory-db│ │  inventory-db│ │              │   │         │
+    │   │  │  analytics-db│ │  analytics-db│ │              │   │         │
+    │   │  │  keycloak-db │ │  keycloak-db │ │              │   │         │
+    │   │  │              │ │              │ │              │   │         │
+    │   │  │ <span class="data">Redis Primary</span>│ │ <span class="data">Redis Replica</span>│ │ <span class="data">Redis Replica</span>│   │         │
+    │   │  └──────────────┘ └──────────────┘ └──────────────┘   │         │
+    │   │                                                        │         │
+    │   │  <span class="net">Event Hubs (zone-redundant, managed by Azure)</span>            │         │
+    │   │  <span class="net">NAT Gateway (zone-redundant public IP)</span>                   │         │
+    │   └────────────────────────────────────────────────────────┘         │
+    └──────────────────────────────────────────────────────────────────────┘</code></pre>
+  </div>
+
+  <h3>RPO and RTO Targets</h3>
+
+  <div class="rto-grid">
+    <div class="rto-card">
+      <div class="rto-svc">AKS Workloads</div>
+      <div class="rto-row"><span>RPO</span> <span class="rto-val">0 (stateless)</span></div>
+      <div class="rto-row"><span>RTO</span> <span class="rto-val">&lt; 30s</span></div>
+    </div>
+    <div class="rto-card">
+      <div class="rto-svc">PostgreSQL</div>
+      <div class="rto-row"><span>RPO</span> <span class="rto-val">0 (sync repl)</span></div>
+      <div class="rto-row"><span>RTO</span> <span class="rto-val warn">60-120s</span></div>
+    </div>
+    <div class="rto-card">
+      <div class="rto-svc">Event Hubs</div>
+      <div class="rto-row"><span>RPO</span> <span class="rto-val">0 (zone-repl)</span></div>
+      <div class="rto-row"><span>RTO</span> <span class="rto-val">&lt; 10s</span></div>
+    </div>
+    <div class="rto-card">
+      <div class="rto-svc">Redis Cache</div>
+      <div class="rto-row"><span>RPO</span> <span class="rto-val">~1s (async)</span></div>
+      <div class="rto-row"><span>RTO</span> <span class="rto-val warn">20-60s</span></div>
+    </div>
+    <div class="rto-card">
+      <div class="rto-svc">App Gateway</div>
+      <div class="rto-row"><span>RPO</span> <span class="rto-val">N/A</span></div>
+      <div class="rto-row"><span>RTO</span> <span class="rto-val">&lt; 10s</span></div>
+    </div>
+    <div class="rto-card">
+      <div class="rto-svc">Keycloak</div>
+      <div class="rto-row"><span>RPO</span> <span class="rto-val">0 (via PG)</span></div>
+      <div class="rto-row"><span>RTO</span> <span class="rto-val">&lt; 30s</span></div>
+    </div>
+  </div>
+
+  <h3>Single Points of Failure Analysis</h3>
+  <table>
+    <thead>
+      <tr><th>Component</th><th>SPOF in Single-AZ?</th><th>Multi-AZ Mitigation</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>AKS Nodes</td><td>Yes &mdash; all pods in one zone</td><td>Nodes spread across zones 1, 2, 3; topology constraints</td></tr>
+      <tr><td>PostgreSQL</td><td>Yes &mdash; single instance</td><td>Zone-redundant HA: primary in zone 1, standby in zone 2</td></tr>
+      <tr><td>Event Hubs</td><td>No &mdash; Azure manages internally</td><td>Zone-redundant replication (3 copies across zones)</td></tr>
+      <tr><td>Redis</td><td>Yes &mdash; Basic/Standard single node</td><td>Premium tier with replicas in zones 1, 2, 3</td></tr>
+      <tr><td>App Gateway</td><td>Yes &mdash; if zone-pinned</td><td>v2 SKU with zones = [1, 2, 3]</td></tr>
+      <tr><td>NAT Gateway</td><td>Yes &mdash; if zone-pinned</td><td>Zone-redundant public IP + NAT Gateway</td></tr>
+      <tr><td>AKS Control Plane</td><td>No &mdash; Azure manages</td><td>Azure SLA: 99.95% (single) vs 99.99% (with AZ)</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="principles">2. HA Design Principles (Azure-Specific)</h2>
+
+  <h3>Zone-Redundant vs Zone-Pinned Resources</h3>
+  <p>Azure resources fall into two categories for availability zone support:</p>
+
+  <table>
+    <thead>
+      <tr><th>Category</th><th>Behavior</th><th>Examples</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Zone-Redundant</strong></td><td>Azure automatically replicates across zones. You specify <code>zones = [1,2,3]</code> and Azure handles distribution.</td><td>App Gateway v2, Event Hubs, AKS node pools, Public IP (Standard SKU)</td></tr>
+      <tr><td><strong>Zone-Pinned (Zonal)</strong></td><td>You place a specific instance in a specific zone. You manually distribute across zones.</td><td>PostgreSQL Flexible Server primary/standby, individual VMs</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout info">
+    <strong>Azure VNets are NOT zone-scoped.</strong> Unlike AWS where subnets are tied to a specific AZ, an Azure VNet and its subnets span all availability zones in a region. Any resource in a subnet can be placed in any zone. This simplifies networking but means zone awareness must be configured at the resource level, not the network level.
+  </div>
+
+  <h3>Azure SLA Implications</h3>
+  <table>
+    <thead>
+      <tr><th>Configuration</th><th>AKS SLA</th><th>Downtime / Year</th><th>Cost Impact</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Free tier (no SLA)</td><td>N/A</td><td>N/A</td><td>$0</td></tr>
+      <tr><td>Standard tier, single zone</td><td>99.95%</td><td>~4.38 hours</td><td>Base price</td></tr>
+      <tr><td>Standard tier, multi-AZ</td><td>99.99%</td><td>~52.6 minutes</td><td>Same base price</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip">
+    <strong>Multi-AZ is essentially free for AKS.</strong> The 99.99% SLA upgrade comes from spreading nodes across zones, not from additional Azure charges. The only cost increase is running more node instances for redundancy.
+  </div>
+
+  <h3>Key Principles</h3>
+  <ol>
+    <li><strong>Minimum 2 replicas per service</strong> &mdash; ensures at least one instance survives a zone failure</li>
+    <li><strong>Topology spread constraints</strong> &mdash; Kubernetes scheduler distributes pods evenly across zones</li>
+    <li><strong>PodDisruptionBudgets</strong> &mdash; prevent voluntary disruptions from taking down all replicas</li>
+    <li><strong>Health probes on everything</strong> &mdash; readiness probes remove unhealthy pods from load balancing within seconds</li>
+    <li><strong>Graceful shutdown</strong> &mdash; preStop hooks drain connections before SIGTERM</li>
+    <li><strong>Circuit breakers</strong> &mdash; Istio DestinationRules eject failing endpoints from the load balancer pool</li>
+  </ol>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="networking">3. VNet Multi-AZ Networking</h2>
+
+  <p>Azure VNets inherently span all availability zones. The networking configuration focuses on proper subnet sizing for Azure CNI, service delegation for PostgreSQL, and zone-redundant egress via NAT Gateway.</p>
+
+  <div class="step blue">
+    <h3><span class="step-num">1</span> Terraform Variables</h3>
+    <pre><code><span class="comment"># variables.tf</span>
+
+variable "resource_group_name" {
+  description = "Name of the Azure resource group"
+  type        = string
+  default     = "rg-bookstore-prod"
+}
+
+variable "location" {
+  description = "Azure region with 3 AZ support"
+  type        = string
+  default     = "eastus2"
+}
+
+variable "vnet_address_space" {
+  description = "VNet CIDR block"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "aks_subnet_cidr" {
+  description = "AKS subnet — /22 for Azure CNI (1022 IPs for pods + nodes)"
+  type        = string
+  default     = "10.0.0.0/22"
+}
+
+variable "db_subnet_cidr" {
+  description = "PostgreSQL Flexible Server delegated subnet"
+  type        = string
+  default     = "10.0.4.0/24"
+}
+
+variable "appgw_subnet_cidr" {
+  description = "Application Gateway dedicated subnet"
+  type        = string
+  default     = "10.0.5.0/24"
+}
+
+variable "redis_subnet_cidr" {
+  description = "Redis private endpoint subnet"
+  type        = string
+  default     = "10.0.6.0/24"
+}
+
+variable "environment" {
+  description = "Environment tag"
+  type        = string
+  default     = "production"
+}
+
+variable "zones" {
+  description = "Availability zones to use"
+  type        = list(string)
+  default     = ["1", "2", "3"]
+}</code></pre>
+  </div>
+
+  <div class="step green">
+    <h3><span class="step-num">2</span> VNet, Subnets, and NAT Gateway</h3>
+    <pre><code><span class="comment"># network.tf — VNet spanning all 3 zones (Azure VNets are zone-agnostic)</span>
+
+resource "azurerm_resource_group" "main" {
+  name     = var.resource_group_name
+  location = var.location
+
+  tags = {
+    Environment = var.environment
+    Project     = "bookstore"
+    ManagedBy   = "terraform"
+  }
+}
+
+<span class="comment"># ── VNet ─────────────────────────────────────────────────────────
+# Azure VNets are NOT zone-scoped. A single VNet spans all AZs.
+# Zone affinity is configured per-resource, not per-subnet.</span>
+resource "azurerm_virtual_network" "main" {
+  name                = "vnet-bookstore-prod"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  address_space       = [var.vnet_address_space]
+
+  tags = azurerm_resource_group.main.tags
+}
+
+<span class="comment"># ── AKS Subnet (/22 = 1022 usable IPs) ──────────────────────────
+# Azure CNI assigns pod IPs from this subnet. Each node consumes
+# 1 IP + up to 30 pod IPs (default max_pods). With 9 max nodes:
+# 9 * 31 = 279 IPs minimum. /22 gives ample headroom.</span>
+resource "azurerm_subnet" "aks" {
+  name                 = "snet-aks"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.aks_subnet_cidr]
+}
+
+<span class="comment"># ── Database Subnet (delegated to PostgreSQL Flexible Server) ───
+# Delegation grants Azure the right to inject PG Flexible Server
+# NICs into this subnet. Required for VNet-integrated PG.</span>
+resource "azurerm_subnet" "database" {
+  name                 = "snet-database"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.db_subnet_cidr]
+
+  delegation {
+    name = "pg-flexible-delegation"
+    service_delegation {
+      name = "Microsoft.DBforPostgreSQL/flexibleServers"
+      actions = [
+        "Microsoft.Network/virtualNetworks/subnets/join/action"
+      ]
+    }
+  }
+}
+
+<span class="comment"># ── Application Gateway Subnet ──────────────────────────────────
+# App Gateway requires its own dedicated subnet. No other resources
+# may be deployed here.</span>
+resource "azurerm_subnet" "appgw" {
+  name                 = "snet-appgateway"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.appgw_subnet_cidr]
+}
+
+<span class="comment"># ── Redis Private Endpoint Subnet ───────────────────────────────</span>
+resource "azurerm_subnet" "redis" {
+  name                 = "snet-redis"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.redis_subnet_cidr]
+}
+
+<span class="comment"># ── NAT Gateway (zone-redundant egress) ─────────────────────────
+# Zone-redundant public IP ensures outbound traffic survives any
+# single zone failure. All AKS nodes use this for egress.</span>
+resource "azurerm_public_ip" "nat" {
+  name                = "pip-nat-bookstore"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  zones               = var.zones  <span class="comment"># Zone-redundant</span>
+
+  tags = azurerm_resource_group.main.tags
+}
+
+resource "azurerm_nat_gateway" "main" {
+  name                    = "natgw-bookstore"
+  resource_group_name     = azurerm_resource_group.main.name
+  location                = azurerm_resource_group.main.location
+  sku_name                = "Standard"
+  idle_timeout_in_minutes = 10
+
+  tags = azurerm_resource_group.main.tags
+}
+
+resource "azurerm_nat_gateway_public_ip_association" "main" {
+  nat_gateway_id       = azurerm_nat_gateway.main.id
+  public_ip_address_id = azurerm_public_ip.nat.id
+}
+
+<span class="comment"># Associate NAT Gateway with AKS subnet for outbound connectivity</span>
+resource "azurerm_subnet_nat_gateway_association" "aks" {
+  subnet_id      = azurerm_subnet.aks.id
+  nat_gateway_id = azurerm_nat_gateway.main.id
+}</code></pre>
+  </div>
+
+  <div class="step purple">
+    <h3><span class="step-num">3</span> Network Security Groups</h3>
+    <pre><code><span class="comment"># nsg.tf — NSGs per subnet for defense-in-depth</span>
+
+<span class="comment"># ── AKS Subnet NSG ──────────────────────────────────────────────</span>
+resource "azurerm_network_security_group" "aks" {
+  name                = "nsg-aks"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+
+  <span class="comment"># Allow App Gateway to reach AKS (Istio ingress port)</span>
+  security_rule {
+    name                       = "AllowAppGateway"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "8443"
+    source_address_prefix      = var.appgw_subnet_cidr
+    destination_address_prefix = var.aks_subnet_cidr
+  }
+
+  <span class="comment"># Allow Azure Load Balancer health probes</span>
+  security_rule {
+    name                       = "AllowAzureLB"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "AzureLoadBalancer"
+    destination_address_prefix = "*"
+  }
+
+  <span class="comment"># Allow intra-VNet traffic (pod-to-pod, pod-to-DB)</span>
+  security_rule {
+    name                       = "AllowVNetInbound"
+    priority                   = 200
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "VirtualNetwork"
+    destination_address_prefix = "VirtualNetwork"
+  }
+
+  <span class="comment"># Deny all other inbound</span>
+  security_rule {
+    name                       = "DenyAllInbound"
+    priority                   = 4096
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  tags = azurerm_resource_group.main.tags
+}
+
+resource "azurerm_subnet_network_security_group_association" "aks" {
+  subnet_id                 = azurerm_subnet.aks.id
+  network_security_group_id = azurerm_network_security_group.aks.id
+}
+
+<span class="comment"># ── Database Subnet NSG ─────────────────────────────────────────</span>
+resource "azurerm_network_security_group" "database" {
+  name                = "nsg-database"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+
+  <span class="comment"># Only allow PostgreSQL port from AKS subnet</span>
+  security_rule {
+    name                       = "AllowPostgresFromAKS"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5432"
+    source_address_prefix      = var.aks_subnet_cidr
+    destination_address_prefix = var.db_subnet_cidr
+  }
+
+  <span class="comment"># Allow PG replication between zones (intra-subnet)</span>
+  security_rule {
+    name                       = "AllowPGReplication"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5432"
+    source_address_prefix      = var.db_subnet_cidr
+    destination_address_prefix = var.db_subnet_cidr
+  }
+
+  security_rule {
+    name                       = "DenyAllInbound"
+    priority                   = 4096
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  tags = azurerm_resource_group.main.tags
+}
+
+resource "azurerm_subnet_network_security_group_association" "database" {
+  subnet_id                 = azurerm_subnet.database.id
+  network_security_group_id = azurerm_network_security_group.database.id
+}
+
+<span class="comment"># ── App Gateway Subnet NSG ──────────────────────────────────────</span>
+resource "azurerm_network_security_group" "appgw" {
+  name                = "nsg-appgateway"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+
+  <span class="comment"># Allow HTTPS from internet</span>
+  security_rule {
+    name                       = "AllowHTTPS"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "Internet"
+    destination_address_prefix = "*"
+  }
+
+  <span class="comment"># Allow HTTP for redirect to HTTPS</span>
+  security_rule {
+    name                       = "AllowHTTP"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "80"
+    source_address_prefix      = "Internet"
+    destination_address_prefix = "*"
+  }
+
+  <span class="comment"># Required: App Gateway v2 management traffic (65200-65535)</span>
+  security_rule {
+    name                       = "AllowGatewayManager"
+    priority                   = 120
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "65200-65535"
+    source_address_prefix      = "GatewayManager"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "DenyAllInbound"
+    priority                   = 4096
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  tags = azurerm_resource_group.main.tags
+}
+
+resource "azurerm_subnet_network_security_group_association" "appgw" {
+  subnet_id                 = azurerm_subnet.appgw.id
+  network_security_group_id = azurerm_network_security_group.appgw.id
+}</code></pre>
+  </div>
+
+  <div class="callout warn">
+    <strong>App Gateway v2 requires ports 65200-65535 open.</strong> Azure uses this range for management traffic to the App Gateway instances. Blocking this range will cause health probe failures and the gateway will stop functioning.
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="aks">4. AKS Multi-AZ Configuration</h2>
+
+  <p>AKS distributes VM instances across the specified availability zones. When you set <code>zones = ["1", "2", "3"]</code> on a node pool, Azure ensures nodes are spread across all three zones. Combined with Kubernetes topology spread constraints, this guarantees pods survive any single zone failure.</p>
+
+  <div class="callout info">
+    <strong>Control Plane Location (critical to understand):</strong><br>
+    The AKS control plane (API Server, etcd, Scheduler, Controller Manager) runs in <strong>Azure-managed infrastructure outside your VNet and resource group</strong>. You cannot see or access the master VMs. With <strong>Standard tier</strong> (<code>sku_tier = "Standard"</code>), Azure distributes the control plane across <strong>multiple Availability Zones</strong> automatically, providing a <strong>99.95% SLA</strong>.<br><br>
+    <strong>How it connects:</strong> Azure creates a managed tunnel (or <strong>private link</strong> with <code>private_cluster_enabled = true</code>) from the control plane to your AKS subnet. All kubelet and API Server traffic flows through this tunnel &mdash; never the public internet when private cluster is enabled.<br><br>
+    <strong>What this means for HA:</strong> The control plane is zone-redundant by default with Standard tier. If Zone 1 fails, the API Server and etcd continue from Zones 2 and 3. etcd uses Raft consensus &mdash; 1 of 3 failures maintains quorum. You only need to configure zone-redundancy for the <strong>worker nodes</strong> (data plane).
+  </div>
+
+  <div class="step blue">
+    <h3><span class="step-num">1</span> AKS Cluster with Multi-AZ Node Pools</h3>
+    <pre><code><span class="comment"># aks.tf — AKS cluster with zone-redundant node pools</span>
+
+resource "azurerm_kubernetes_cluster" "main" {
+  name                = "aks-bookstore-prod"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  dns_prefix          = "bookstore-prod"
+  kubernetes_version  = "1.30"
+
+  <span class="comment"># Standard tier required for 99.95%+ SLA
+  # With AZ-spread node pools, this becomes 99.99%</span>
+  sku_tier = "Standard"
+
+  <span class="comment"># ── System Node Pool ─────────────────────────────────────────
+  # Runs kube-system pods (CoreDNS, metrics-server, etc.)
+  # Spread across all 3 zones with min 2 nodes for HA.
+  # max_count=3 ensures one node per zone during scale-up.</span>
+  default_node_pool {
+    name                = "system"
+    vm_size             = "Standard_D4s_v5"
+    zones               = ["1", "2", "3"]
+    min_count           = 2
+    max_count           = 3
+    auto_scaling_enabled = true
+    os_disk_size_gb     = 128
+    os_disk_type        = "Managed"
+    vnet_subnet_id      = azurerm_subnet.aks.id
+    max_pods            = 30
+
+    <span class="comment"># zone_balancing ensures Azure tries to keep node counts
+    # equal across zones during scale operations</span>
+
+    node_labels = {
+      "nodepool" = "system"
+    }
+
+    upgrade_settings {
+      <span class="comment"># max_surge = 1 means during upgrades, Azure creates
+      # 1 extra node per zone before draining old ones.
+      # This prevents capacity loss during rolling upgrades.</span>
+      max_surge = "1"
+    }
+  }
+
+  <span class="comment"># Azure CNI for direct pod IP assignment from VNet subnet</span>
+  network_profile {
+    network_plugin    = "azure"
+    network_policy    = "azure"
+    service_cidr      = "10.1.0.0/16"
+    dns_service_ip    = "10.1.0.10"
+    load_balancer_sku = "standard"
+
+    load_balancer_profile {
+      managed_outbound_ip_count = 0  <span class="comment"># Using NAT Gateway instead</span>
+    }
+  }
+
+  <span class="comment"># Managed identity (no service principal credentials to rotate)</span>
+  identity {
+    type = "SystemAssigned"
+  }
+
+  <span class="comment"># Azure Monitor integration for HA alerting</span>
+  oms_agent {
+    log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+  }
+
+  <span class="comment"># Auto-upgrade patch versions (security fixes)</span>
+  automatic_upgrade_channel = "patch"
+
+  <span class="comment"># Maintenance window — avoid upgrades during business hours</span>
+  maintenance_window {
+    allowed {
+      day   = "Sunday"
+      hours = [2, 3, 4]
+    }
+  }
+
+  tags = azurerm_resource_group.main.tags
+}
+
+<span class="comment"># ── Application Node Pool ──────────────────────────────────────
+# Runs all BookStore workloads: ecom, inventory, UI, CSRF, Keycloak.
+# min_count=3 guarantees at least 1 node per zone at all times.
+# max_count=9 allows 3 nodes per zone during peak load.</span>
+resource "azurerm_kubernetes_cluster_node_pool" "app" {
+  name                  = "app"
+  kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
+  vm_size               = "Standard_D4s_v5"
+  zones                 = ["1", "2", "3"]
+  min_count             = 3
+  max_count             = 9
+  auto_scaling_enabled  = true
+  os_disk_size_gb       = 128
+  os_disk_type          = "Managed"
+  vnet_subnet_id        = azurerm_subnet.aks.id
+  max_pods              = 30
+
+  node_labels = {
+    "nodepool" = "app"
+  }
+
+  node_taints = []
+
+  upgrade_settings {
+    max_surge = "1"
+  }
+
+  tags = azurerm_resource_group.main.tags
+}
+
+<span class="comment"># ── Log Analytics Workspace (for AKS monitoring) ───────────────</span>
+resource "azurerm_log_analytics_workspace" "main" {
+  name                = "law-bookstore-prod"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+
+  tags = azurerm_resource_group.main.tags
+}</code></pre>
+  </div>
+
+  <div class="callout info">
+    <strong>Zone Balancing:</strong> AKS automatically balances node counts across zones when autoscaling. If Zone 1 has 3 nodes and Zone 2 has 2, the next scale-up event places the new node in Zone 2. During scale-down, the zone with the most nodes is reduced first.
+  </div>
+
+  <div class="step green">
+    <h3><span class="step-num">2</span> Pod Topology Spread Constraints</h3>
+    <p>Topology spread constraints tell the Kubernetes scheduler to distribute pods evenly across zones. Without these, the scheduler might place all replicas in a single zone.</p>
+    <pre><code><span class="comment"># k8s/topology-spread.yaml
+# Applied to every Deployment via Kustomize strategic merge patch</span>
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecom-service
+  namespace: ecom
+spec:
+  template:
+    spec:
+      topologySpreadConstraints:
+        <span class="comment"># maxSkew: 1 means the difference in pod count between
+        # any two zones must not exceed 1.
+        # whenUnsatisfiable: DoNotSchedule prevents the scheduler
+        # from violating this constraint (hard requirement).</span>
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: ecom-service
+        <span class="comment"># Also spread across nodes within a zone for extra resilience</span>
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: ecom-service
+      <span class="comment"># Prefer app node pool (but don't require it)</span>
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: nodepool
+                    operator: In
+                    values: ["app"]</code></pre>
+  </div>
+
+  <div class="step purple">
+    <h3><span class="step-num">3</span> PodDisruptionBudgets</h3>
+    <p>PDBs prevent Kubernetes from voluntarily evicting too many pods at once (during node upgrades, scaling down, etc.).</p>
+    <pre><code><span class="comment"># k8s/pdb.yaml — one PDB per service</span>
+
+<span class="comment"># ecom-service: always keep at least 1 pod running</span>
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ecom-service-pdb
+  namespace: ecom
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: ecom-service
+---
+<span class="comment"># inventory-service: always keep at least 1 pod running</span>
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: inventory-service-pdb
+  namespace: inventory
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: inventory-service
+---
+<span class="comment"># ui-service: always keep at least 1 pod running</span>
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ui-service-pdb
+  namespace: ecom
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: ui-service
+---
+<span class="comment"># csrf-service: always keep at least 1 pod running</span>
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: csrf-service-pdb
+  namespace: infra
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: csrf-service
+---
+<span class="comment"># keycloak: always keep at least 1 pod running</span>
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: keycloak-pdb
+  namespace: identity
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: keycloak</code></pre>
+  </div>
+
+  <div class="step amber">
+    <h3><span class="step-num">4</span> HorizontalPodAutoscalers</h3>
+    <pre><code><span class="comment"># k8s/hpa.yaml — minReplicas >= 2 for all services</span>
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ecom-service-hpa
+  namespace: ecom
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ecom-service
+  <span class="comment"># minReplicas=2 ensures at least 2 pods in different zones.
+  # A single zone failure still leaves 1+ pod serving traffic.</span>
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: inventory-service-hpa
+  namespace: inventory
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: inventory-service
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ui-service-hpa
+  namespace: ecom
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ui-service
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: csrf-service-hpa
+  namespace: infra
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: csrf-service
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: keycloak-hpa
+  namespace: identity
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: keycloak
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="postgresql">5. PostgreSQL Flexible Server Zone-Redundant HA</h2>
+
+  <p>Azure Database for PostgreSQL Flexible Server supports zone-redundant HA with synchronous replication. The primary instance lives in one zone, and a hot standby is maintained in a different zone. On failure, Azure automatically promotes the standby within 60-120 seconds.</p>
+
+  <div class="callout danger">
+    <strong>SKU Requirement:</strong> Zone-redundant HA requires <strong>General Purpose</strong> or <strong>Memory Optimized</strong> SKUs. The <strong>Burstable</strong> tier does NOT support zone-redundant HA. This is the most common misconfiguration.
+  </div>
+
+  <div class="step blue">
+    <h3><span class="step-num">1</span> Private DNS Zone for PostgreSQL</h3>
+    <pre><code><span class="comment"># postgresql-dns.tf
+# PostgreSQL Flexible Server with VNet integration requires
+# a private DNS zone for name resolution.</span>
+
+resource "azurerm_private_dns_zone" "postgres" {
+  name                = "bookstore.postgres.database.azure.com"
+  resource_group_name = azurerm_resource_group.main.name
+
+  tags = azurerm_resource_group.main.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "postgres" {
+  name                  = "postgres-vnet-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.postgres.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+  registration_enabled  = false
+}</code></pre>
+  </div>
+
+  <div class="step green">
+    <h3><span class="step-num">2</span> All Four PostgreSQL Instances</h3>
+    <pre><code><span class="comment"># postgresql.tf — Zone-redundant HA for all 4 databases
+#
+# How zone-redundant HA works:
+# 1. Primary instance placed in zone 1 (zone = "1")
+# 2. Standby automatically placed in zone 2 (standby_availability_zone = "2")
+# 3. Synchronous replication: every commit is written to BOTH zones
+#    before being acknowledged to the client (RPO = 0)
+# 4. On primary failure, Azure detects via heartbeat (~10s),
+#    promotes standby (DNS update ~30s), total RTO = 60-120s
+# 5. After failover, Azure provisions a new standby in the original zone</span>
+
+<span class="comment"># ── E-Commerce Database ─────────────────────────────────────────</span>
+resource "azurerm_postgresql_flexible_server" "ecom" {
+  name                          = "psql-bookstore-ecom"
+  resource_group_name           = azurerm_resource_group.main.name
+  location                      = azurerm_resource_group.main.location
+  version                       = "16"
+  delegated_subnet_id           = azurerm_subnet.database.id
+  private_dns_zone_id           = azurerm_private_dns_zone.postgres.id
+
+  <span class="comment"># General Purpose tier — required for zone-redundant HA
+  # D4s_v3: 4 vCores, 16 GiB RAM — suitable for production workloads</span>
+  sku_name = "GP_Standard_D4s_v3"
+
+  <span class="comment"># Storage: 128 GiB with auto-grow enabled
+  # Azure automatically increases storage when usage exceeds threshold</span>
+  storage_mb            = 131072
+  auto_grow_enabled     = true
+
+  <span class="comment"># Primary in Zone 1</span>
+  zone = "1"
+
+  <span class="comment"># ── Zone-Redundant HA Configuration ───────────────────────────
+  # mode = "ZoneRedundant": standby in a DIFFERENT zone than primary
+  # mode = "SameZone": standby in the SAME zone (cheaper, less resilient)
+  # Synchronous commit: data is written to both primary and standby
+  # before the transaction is acknowledged.</span>
+  high_availability {
+    mode                      = "ZoneRedundant"
+    standby_availability_zone = "2"
+  }
+
+  <span class="comment"># Admin credentials from Key Vault</span>
+  administrator_login    = "ecom_admin"
+  administrator_password = var.ecom_db_password
+
+  <span class="comment"># Backup: 35-day retention with geo-redundant storage
+  # Geo-redundant backup replicates to the paired Azure region</span>
+  backup_retention_days        = 35
+  geo_redundant_backup_enabled = true
+
+  tags = azurerm_resource_group.main.tags
+
+  depends_on = [azurerm_private_dns_zone_virtual_network_link.postgres]
+}
+
+<span class="comment"># Server parameters for ecom-db</span>
+resource "azurerm_postgresql_flexible_server_configuration" "ecom_wal_level" {
+  name      = "wal_level"
+  server_id = azurerm_postgresql_flexible_server.ecom.id
+  value     = "logical"  <span class="comment"># Required for Debezium CDC</span>
+}
+
+resource "azurerm_postgresql_flexible_server_configuration" "ecom_max_replication_slots" {
+  name      = "max_replication_slots"
+  server_id = azurerm_postgresql_flexible_server.ecom.id
+  value     = "10"
+}
+
+resource "azurerm_postgresql_flexible_server_configuration" "ecom_max_wal_senders" {
+  name      = "max_wal_senders"
+  server_id = azurerm_postgresql_flexible_server.ecom.id
+  value     = "10"
+}
+
+resource "azurerm_postgresql_flexible_server_database" "ecom" {
+  name      = "ecom"
+  server_id = azurerm_postgresql_flexible_server.ecom.id
+  charset   = "UTF8"
+  collation = "en_US.utf8"
+}
+
+<span class="comment"># ── Inventory Database ──────────────────────────────────────────</span>
+resource "azurerm_postgresql_flexible_server" "inventory" {
+  name                          = "psql-bookstore-inventory"
+  resource_group_name           = azurerm_resource_group.main.name
+  location                      = azurerm_resource_group.main.location
+  version                       = "16"
+  delegated_subnet_id           = azurerm_subnet.database.id
+  private_dns_zone_id           = azurerm_private_dns_zone.postgres.id
+  sku_name                      = "GP_Standard_D4s_v3"
+  storage_mb                    = 131072
+  auto_grow_enabled             = true
+  zone                          = "1"
+  administrator_login           = "inventory_admin"
+  administrator_password        = var.inventory_db_password
+  backup_retention_days         = 35
+  geo_redundant_backup_enabled  = true
+
+  high_availability {
+    mode                      = "ZoneRedundant"
+    standby_availability_zone = "2"
+  }
+
+  tags = azurerm_resource_group.main.tags
+
+  depends_on = [azurerm_private_dns_zone_virtual_network_link.postgres]
+}
+
+resource "azurerm_postgresql_flexible_server_configuration" "inventory_wal_level" {
+  name      = "wal_level"
+  server_id = azurerm_postgresql_flexible_server.inventory.id
+  value     = "logical"
+}
+
+resource "azurerm_postgresql_flexible_server_configuration" "inventory_max_replication_slots" {
+  name      = "max_replication_slots"
+  server_id = azurerm_postgresql_flexible_server.inventory.id
+  value     = "10"
+}
+
+resource "azurerm_postgresql_flexible_server_configuration" "inventory_max_wal_senders" {
+  name      = "max_wal_senders"
+  server_id = azurerm_postgresql_flexible_server.inventory.id
+  value     = "10"
+}
+
+resource "azurerm_postgresql_flexible_server_database" "inventory" {
+  name      = "inventory"
+  server_id = azurerm_postgresql_flexible_server.inventory.id
+  charset   = "UTF8"
+  collation = "en_US.utf8"
+}
+
+<span class="comment"># ── Analytics Database ──────────────────────────────────────────</span>
+resource "azurerm_postgresql_flexible_server" "analytics" {
+  name                          = "psql-bookstore-analytics"
+  resource_group_name           = azurerm_resource_group.main.name
+  location                      = azurerm_resource_group.main.location
+  version                       = "16"
+  delegated_subnet_id           = azurerm_subnet.database.id
+  private_dns_zone_id           = azurerm_private_dns_zone.postgres.id
+  sku_name                      = "GP_Standard_D4s_v3"
+  storage_mb                    = 131072
+  auto_grow_enabled             = true
+  zone                          = "1"
+  administrator_login           = "analytics_admin"
+  administrator_password        = var.analytics_db_password
+  backup_retention_days         = 35
+  geo_redundant_backup_enabled  = true
+
+  high_availability {
+    mode                      = "ZoneRedundant"
+    standby_availability_zone = "2"
+  }
+
+  tags = azurerm_resource_group.main.tags
+
+  depends_on = [azurerm_private_dns_zone_virtual_network_link.postgres]
+}
+
+resource "azurerm_postgresql_flexible_server_database" "analytics" {
+  name      = "analytics"
+  server_id = azurerm_postgresql_flexible_server.analytics.id
+  charset   = "UTF8"
+  collation = "en_US.utf8"
+}
+
+<span class="comment"># ── Keycloak Database ───────────────────────────────────────────</span>
+resource "azurerm_postgresql_flexible_server" "keycloak" {
+  name                          = "psql-bookstore-keycloak"
+  resource_group_name           = azurerm_resource_group.main.name
+  location                      = azurerm_resource_group.main.location
+  version                       = "16"
+  delegated_subnet_id           = azurerm_subnet.database.id
+  private_dns_zone_id           = azurerm_private_dns_zone.postgres.id
+  sku_name                      = "GP_Standard_D4s_v3"
+  storage_mb                    = 65536
+  auto_grow_enabled             = true
+  zone                          = "1"
+  administrator_login           = "keycloak_admin"
+  administrator_password        = var.keycloak_db_password
+  backup_retention_days         = 35
+  geo_redundant_backup_enabled  = true
+
+  high_availability {
+    mode                      = "ZoneRedundant"
+    standby_availability_zone = "2"
+  }
+
+  tags = azurerm_resource_group.main.tags
+
+  depends_on = [azurerm_private_dns_zone_virtual_network_link.postgres]
+}
+
+resource "azurerm_postgresql_flexible_server_database" "keycloak" {
+  name      = "keycloak"
+  server_id = azurerm_postgresql_flexible_server.keycloak.id
+  charset   = "UTF8"
+  collation = "en_US.utf8"
+}</code></pre>
+  </div>
+
+  <div class="callout tip">
+    <strong>Planned vs Forced Failover:</strong><br>
+    &bull; <strong>Planned failover</strong> &mdash; graceful: primary finishes in-flight transactions, standby promoted, DNS updated. RTO ~60s. Zero data loss.<br>
+    &bull; <strong>Forced failover</strong> &mdash; triggered by Azure on primary failure detection. Standby promoted immediately. Due to synchronous replication, committed data is safe (RPO = 0). Uncommitted transactions may be lost. RTO ~60-120s.
+  </div>
+
+  <div class="step purple">
+    <h3><span class="step-num">3</span> Database Password Variables</h3>
+    <pre><code><span class="comment"># variables-db.tf — sensitive variables for database passwords</span>
+
+variable "ecom_db_password" {
+  description = "Password for ecom-db admin user"
+  type        = string
+  sensitive   = true
+}
+
+variable "inventory_db_password" {
+  description = "Password for inventory-db admin user"
+  type        = string
+  sensitive   = true
+}
+
+variable "analytics_db_password" {
+  description = "Password for analytics-db admin user"
+  type        = string
+  sensitive   = true
+}
+
+variable "keycloak_db_password" {
+  description = "Password for keycloak-db admin user"
+  type        = string
+  sensitive   = true
+}
+
+<span class="comment"># Pass via terraform.tfvars (gitignored) or -var flag:
+# terraform apply -var="ecom_db_password=S3cur3P@ss!" ...</span></code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="eventhubs">6. Event Hubs Zone-Redundant</h2>
+
+  <p>Azure Event Hubs replaces self-managed Kafka. Event Hubs Premium tier is zone-redundant by default — Azure automatically replicates data across all three availability zones. It also supports the Kafka wire protocol, so Debezium and Flink connect without code changes.</p>
+
+  <div class="step blue">
+    <h3><span class="step-num">1</span> Event Hubs Namespace (Kafka-Enabled)</h3>
+    <pre><code><span class="comment"># eventhubs.tf — Zone-redundant Event Hubs with Kafka protocol</span>
+
+resource "azurerm_eventhub_namespace" "main" {
+  name                = "ehns-bookstore-prod"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+
+  <span class="comment"># Premium tier: zone-redundant by default (no explicit setting needed)
+  # Standard tier: set zone_redundant = true explicitly
+  # Basic tier: NO zone-redundancy support</span>
+  sku = "Premium"
+
+  <span class="comment"># Processing Units for Premium tier (1 PU = 1 MB/s ingress, 2 MB/s egress)
+  # For BookStore workloads, 1 PU is sufficient</span>
+  capacity = 1
+
+  <span class="comment"># Zone redundancy is automatic for Premium.
+  # For Standard tier, you would add:
+  # zone_redundant = true</span>
+
+  <span class="comment"># Auto-inflate disabled — Premium uses Processing Units instead</span>
+  auto_inflate_enabled = false
+
+  <span class="comment"># Kafka protocol support — allows Debezium and Flink to connect
+  # using standard Kafka client libraries</span>
+  kafka_enabled = true
+
+  <span class="comment"># Network rules — restrict to VNet</span>
+  network_rulesets {
+    default_action                 = "Deny"
+    trusted_service_access_enabled = true
+
+    virtual_network_rule {
+      subnet_id = azurerm_subnet.aks.id
+    }
+  }
+
+  <span class="comment"># Local authentication disabled — use AAD/managed identity</span>
+  local_authentication_enabled = false
+
+  tags = azurerm_resource_group.main.tags
+}
+
+<span class="comment"># ── Event Hub (Topic): order.created ────────────────────────────
+# Published by ecom-service on checkout.
+# 4 partitions: enables parallel consumption by multiple pods.
+# 7-day retention: allows replay of events if needed.</span>
+resource "azurerm_eventhub" "order_created" {
+  name                = "order.created"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 4
+  message_retention   = 7
+}
+
+<span class="comment"># ── Event Hub (Topic): inventory.updated ────────────────────────
+# Published by inventory-service after stock deduction.</span>
+resource "azurerm_eventhub" "inventory_updated" {
+  name                = "inventory.updated"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 4
+  message_retention   = 7
+}
+
+<span class="comment"># ── CDC Topics for Debezium ─────────────────────────────────────
+# Debezium Server publishes change events from PostgreSQL WAL.
+# Each table gets its own Event Hub (topic).</span>
+resource "azurerm_eventhub" "cdc_ecom_orders" {
+  name                = "ecom-connector.public.orders"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 4
+  message_retention   = 7
+}
+
+resource "azurerm_eventhub" "cdc_ecom_order_items" {
+  name                = "ecom-connector.public.order_items"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 4
+  message_retention   = 7
+}
+
+resource "azurerm_eventhub" "cdc_inventory_stock" {
+  name                = "inventory-connector.public.stock"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 4
+  message_retention   = 7
+}
+
+<span class="comment"># ── Debezium Offset Storage Topics ──────────────────────────────</span>
+resource "azurerm_eventhub" "debezium_ecom_offsets" {
+  name                = "debezium.ecom.offsets"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 1
+  message_retention   = 7
+}
+
+resource "azurerm_eventhub" "debezium_inventory_offsets" {
+  name                = "debezium.inventory.offsets"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 1
+  message_retention   = 7
+}
+
+<span class="comment"># ── Consumer Groups ─────────────────────────────────────────────
+# Each consuming service gets its own consumer group for
+# independent offset tracking.</span>
+resource "azurerm_eventhub_consumer_group" "inventory_order_consumer" {
+  name                = "inventory-service"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  eventhub_name       = azurerm_eventhub.order_created.name
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_eventhub_consumer_group" "flink_orders_consumer" {
+  name                = "flink-sql-pipeline"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  eventhub_name       = azurerm_eventhub.cdc_ecom_orders.name
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_eventhub_consumer_group" "flink_stock_consumer" {
+  name                = "flink-sql-pipeline"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  eventhub_name       = azurerm_eventhub.cdc_inventory_stock.name
+  resource_group_name = azurerm_resource_group.main.name
+}</code></pre>
+  </div>
+
+  <div class="callout info">
+    <strong>How Event Hubs Zone-Redundancy Works:</strong> Azure automatically maintains 3 copies of every message across all 3 availability zones. If one zone fails, the remaining 2 copies serve reads and writes without interruption. This is handled entirely by the Azure fabric — there is no configuration needed beyond selecting Premium (or <code>zone_redundant = true</code> for Standard).
+  </div>
+
+  <div class="callout warn">
+    <strong>Partition Count Strategy:</strong> Use 4+ partitions per Event Hub (topic). With 4 partitions, up to 4 consumer instances can process in parallel. Partition count cannot be changed after creation on Standard tier. Premium tier allows dynamic partition scaling up to the namespace limit.
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="redis">7. Azure Cache for Redis Zone-Redundant</h2>
+
+  <p>Redis is used for session management, CSRF token storage, and rate limiting. Azure Cache for Redis Premium tier supports zone-redundant replicas — the primary and replicas are distributed across availability zones for automatic failover.</p>
+
+  <div class="step blue">
+    <h3><span class="step-num">1</span> Redis Premium with Zone Redundancy</h3>
+    <pre><code><span class="comment"># redis.tf — Zone-redundant Premium Redis</span>
+
+resource "azurerm_redis_cache" "main" {
+  name                = "redis-bookstore-prod"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+
+  <span class="comment"># Premium tier is REQUIRED for zone redundancy.
+  # Basic: single node, no replication, no zones.
+  # Standard: 1 primary + 1 replica, SAME zone only.
+  # Premium: 1 primary + N replicas, supports zones [1,2,3].</span>
+  sku_name = "Premium"
+
+  <span class="comment"># Family P = Premium. Cache size: P1 = 6GB, P2 = 13GB, etc.
+  # P1 (6GB) is sufficient for session/CSRF/rate-limit data.</span>
+  family   = "P"
+  capacity = 1
+
+  <span class="comment"># ── Zone Redundancy ────────────────────────────────────────────
+  # Distributes the primary and replicas across zones 1, 2, 3.
+  # Azure Sentinel monitors health and promotes a replica
+  # if the primary becomes unreachable.</span>
+  zones = ["1", "2", "3"]
+
+  <span class="comment"># Number of replicas (in addition to the primary).
+  # With zones [1,2,3] and 2 replicas: primary in one zone,
+  # one replica in each of the other two zones.</span>
+  replicas_per_primary = 2
+
+  <span class="comment"># ── Data Persistence ───────────────────────────────────────────
+  # RDB: periodic snapshots (every 60 seconds if >= 1 key changed)
+  # AOF: append-only file logs every write operation
+  # Both together provide maximum durability.</span>
+  redis_configuration {
+    rdb_backup_enabled            = true
+    rdb_backup_frequency          = 60
+    rdb_storage_connection_string = azurerm_storage_account.redis_backup.primary_blob_connection_string
+
+    aof_backup_enabled = true
+    aof_storage_connection_string_0 = azurerm_storage_account.redis_backup.primary_blob_connection_string
+
+    <span class="comment"># Eviction policy — don't evict when memory is full (fail writes instead)
+    # This prevents silent data loss for CSRF tokens and sessions.</span>
+    maxmemory_policy = "noeviction"
+  }
+
+  <span class="comment"># TLS 1.2 required (non-TLS port disabled)</span>
+  minimum_tls_version    = "1.2"
+  enable_non_ssl_port    = false
+  public_network_access_enabled = false
+
+  tags = azurerm_resource_group.main.tags
+}
+
+<span class="comment"># ── Storage Account for Redis Backup ────────────────────────────</span>
+resource "azurerm_storage_account" "redis_backup" {
+  name                     = "stbookstoreredisbak"
+  resource_group_name      = azurerm_resource_group.main.name
+  location                 = azurerm_resource_group.main.location
+  account_tier             = "Standard"
+  account_replication_type = "ZRS"  <span class="comment"># Zone-Redundant Storage</span>
+
+  tags = azurerm_resource_group.main.tags
+}
+
+<span class="comment"># ── Private Endpoint (VNet integration) ─────────────────────────
+# Redis is only accessible from within the VNet via private endpoint.
+# No public IP is exposed.</span>
+resource "azurerm_private_endpoint" "redis" {
+  name                = "pe-redis-bookstore"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  subnet_id           = azurerm_subnet.redis.id
+
+  private_service_connection {
+    name                           = "redis-privatelink"
+    private_connection_resource_id = azurerm_redis_cache.main.id
+    is_manual_connection           = false
+    subresource_names              = ["redisCache"]
+  }
+
+  tags = azurerm_resource_group.main.tags
+}
+
+<span class="comment"># Private DNS zone for Redis private endpoint resolution</span>
+resource "azurerm_private_dns_zone" "redis" {
+  name                = "privatelink.redis.cache.windows.net"
+  resource_group_name = azurerm_resource_group.main.name
+
+  tags = azurerm_resource_group.main.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "redis" {
+  name                  = "redis-vnet-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.redis.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
+resource "azurerm_private_dns_a_record" "redis" {
+  name                = azurerm_redis_cache.main.name
+  zone_name           = azurerm_private_dns_zone.redis.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 300
+  records             = [azurerm_private_endpoint.redis.private_service_connection[0].private_ip_address]
+}</code></pre>
+  </div>
+
+  <div class="callout info">
+    <strong>Redis Failover Behavior:</strong> Azure uses Redis Sentinel internally. When the primary node fails, Sentinel detects it within ~10 seconds. A replica in another zone is promoted to primary. DNS is updated to point to the new primary. Existing connections receive a connection reset — applications must implement retry logic. Total failover time: 20-60 seconds.
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="app-ha">8. Application-Level HA Patterns</h2>
+
+  <p>Infrastructure-level HA (managed services, zone-redundant node pools) is necessary but not sufficient. Applications must also be designed for HA at the Kubernetes level: probes, graceful shutdown, circuit breaking, and proper resource management.</p>
+
+  <h3>ecom-service (Spring Boot)</h3>
+  <div class="step blue">
+    <h3><span class="step-num">1</span> HA Deployment Manifest</h3>
+    <pre><code><span class="comment"># k8s/ecom-service/deployment.yaml</span>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecom-service
+  namespace: ecom
+  labels:
+    app: ecom-service
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ecom-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      <span class="comment"># maxUnavailable: 0 ensures zero downtime during deploys.
+      # maxSurge: 1 creates 1 new pod before removing an old one.</span>
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: ecom-service
+        version: v1
+    spec:
+      <span class="comment"># ── Zone Spread ────────────────────────────────────────────</span>
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: ecom-service
+      <span class="comment"># Prefer app nodepool</span>
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: nodepool
+                    operator: In
+                    values: ["app"]
+      containers:
+        - name: ecom-service
+          image: bookstoreacr.azurecr.io/ecom-service:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ecom-db-credentials
+                  key: jdbc-url
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: ecom-db-credentials
+                  key: username
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ecom-db-credentials
+                  key: password
+            - name: KEYCLOAK_JWKS_URI
+              value: "http://keycloak.identity.svc.cluster.local:8080/realms/bookstore/protocol/openid-connect/certs"
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                secretKeyRef:
+                  name: eventhubs-credentials
+                  key: bootstrap-servers
+          resources:
+            requests:
+              cpu: 500m
+              memory: 768Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          <span class="comment"># ── Readiness Probe ──────────────────────────────────────
+          # Checks /ecom/actuator/health/readiness.
+          # Pod is removed from Service endpoints if probe fails.
+          # This happens within 10s (period) + 3 (failureThreshold) = ~30s.</span>
+          readinessProbe:
+            httpGet:
+              path: /ecom/actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+          <span class="comment"># ── Liveness Probe ───────────────────────────────────────
+          # Restarts the container if it becomes unresponsive.
+          # Higher threshold than readiness to avoid premature restarts.</span>
+          livenessProbe:
+            httpGet:
+              path: /ecom/actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 5
+          <span class="comment"># ── Startup Probe ────────────────────────────────────────
+          # Gives the JVM 120s to start before liveness kicks in.
+          # Prevents premature kills during slow cold starts.</span>
+          startupProbe:
+            httpGet:
+              path: /ecom/actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 24
+          <span class="comment"># ── Graceful Shutdown ────────────────────────────────────
+          # preStop sends a sleep to allow Istio sidecar / ztunnel
+          # to drain existing connections before SIGTERM.
+          # Spring Boot's server.shutdown=graceful handles the rest.</span>
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 5"]
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      <span class="comment"># terminationGracePeriodSeconds must exceed preStop sleep +
+      # Spring Boot graceful shutdown timeout (default 30s)</span>
+      terminationGracePeriodSeconds: 45</code></pre>
+  </div>
+
+  <h3>inventory-service (FastAPI)</h3>
+  <div class="step green">
+    <h3><span class="step-num">2</span> Inventory Service HA Deployment</h3>
+    <pre><code><span class="comment"># k8s/inventory-service/deployment.yaml</span>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  namespace: inventory
+  labels:
+    app: inventory-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: inventory-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: inventory-service
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: inventory-service
+      containers:
+        - name: inventory-service
+          image: bookstoreacr.azurecr.io/inventory-service:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: inventory-db-credentials
+                  key: database-url
+            - name: KEYCLOAK_JWKS_URI
+              value: "http://keycloak.identity.svc.cluster.local:8080/realms/bookstore/protocol/openid-connect/certs"
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                secretKeyRef:
+                  name: eventhubs-credentials
+                  key: bootstrap-servers
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /inven/health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /inven/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 5
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 5"]
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      terminationGracePeriodSeconds: 30</code></pre>
+  </div>
+
+  <h3>ui-service, csrf-service, keycloak</h3>
+  <div class="step purple">
+    <h3><span class="step-num">3</span> Remaining Service Deployments</h3>
+    <pre><code><span class="comment"># k8s/ui-service/deployment.yaml</span>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ui-service
+  namespace: ecom
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ui-service
+  template:
+    metadata:
+      labels:
+        app: ui-service
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: ui-service
+      containers:
+        - name: ui-service
+          image: bookstoreacr.azurecr.io/ui-service:latest
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 3"]
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+---
+<span class="comment"># k8s/csrf-service/deployment.yaml</span>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: csrf-service
+  namespace: infra
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: csrf-service
+  template:
+    metadata:
+      labels:
+        app: csrf-service
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: csrf-service
+      containers:
+        - name: csrf-service
+          image: bookstoreacr.azurecr.io/csrf-service:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: url
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 3"]
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+---
+<span class="comment"># k8s/keycloak/deployment.yaml</span>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: identity
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: keycloak
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.5.4
+          args: ["start"]
+          ports:
+            - containerPort: 8080
+          env:
+            - name: KC_DB
+              value: "postgres"
+            - name: KC_DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-db-credentials
+                  key: jdbc-url
+            - name: KC_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-db-credentials
+                  key: username
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-db-credentials
+                  key: password
+            - name: KC_HOSTNAME_SCHEME
+              value: "https"
+            - name: KC_PROXY_HEADERS
+              value: "xforwarded"
+            - name: KC_CACHE
+              value: "ispn"
+            - name: KC_CACHE_STACK
+              value: "kubernetes"
+            - name: JAVA_OPTS_APPEND
+              value: "-Djgroups.dns.query=keycloak-headless.identity.svc.cluster.local"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 768Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 45
+            periodSeconds: 15
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 5"]
+      terminationGracePeriodSeconds: 45</code></pre>
+  </div>
+
+  <h3>Istio Circuit Breaker</h3>
+  <div class="step amber">
+    <h3><span class="step-num">4</span> DestinationRule with Outlier Detection</h3>
+    <pre><code><span class="comment"># k8s/istio/destination-rules.yaml
+# Circuit breaker: eject endpoints that return 5xx errors.
+# This prevents traffic from being routed to failing pods
+# in a degraded zone.</span>
+
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: ecom-service-circuit-breaker
+  namespace: ecom
+spec:
+  host: ecom-service.ecom.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        h2UpgradePolicy: DO_NOT_UPGRADE
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 10
+    outlierDetection:
+      <span class="comment"># Eject an endpoint after 3 consecutive 5xx errors</span>
+      consecutive5xxErrors: 3
+      <span class="comment"># Check every 10 seconds</span>
+      interval: 10s
+      <span class="comment"># Ejected for 30 seconds before retrying</span>
+      baseEjectionTime: 30s
+      <span class="comment"># Max 50% of endpoints can be ejected (prevents total blackout)</span>
+      maxEjectionPercent: 50
+---
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: inventory-service-circuit-breaker
+  namespace: inventory
+spec:
+  host: inventory-service.inventory.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        h2UpgradePolicy: DO_NOT_UPGRADE
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+---
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: keycloak-circuit-breaker
+  namespace: identity
+spec:
+  host: keycloak.identity.svc.cluster.local
+  trafficPolicy:
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="appgateway">9. Application Gateway Zone-Redundant</h2>
+
+  <p>Azure Application Gateway v2 supports zone-redundant deployment — instances are automatically distributed across specified availability zones. This is the entry point for all external traffic and must survive any single zone failure.</p>
+
+  <div class="step blue">
+    <h3><span class="step-num">1</span> Application Gateway v2 with Zones</h3>
+    <pre><code><span class="comment"># appgateway.tf — Zone-redundant Application Gateway v2</span>
+
+resource "azurerm_public_ip" "appgw" {
+  name                = "pip-appgw-bookstore"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  <span class="comment"># Zone-redundant public IP — survives any single zone failure</span>
+  zones               = ["1", "2", "3"]
+
+  tags = azurerm_resource_group.main.tags
+}
+
+resource "azurerm_application_gateway" "main" {
+  name                = "appgw-bookstore-prod"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+
+  <span class="comment"># ── Zone Redundancy ────────────────────────────────────────────
+  # v2 SKU required for zone redundancy (v1 does NOT support zones).
+  # Instances are distributed across specified zones automatically.
+  # No additional cost for zone redundancy on v2.</span>
+  zones = ["1", "2", "3"]
+
+  sku {
+    name = "Standard_v2"
+    tier = "Standard_v2"
+  }
+
+  <span class="comment"># ── Autoscaling ────────────────────────────────────────────────
+  # min_capacity=2: always have at least 2 instances (in different zones)
+  # max_capacity=10: scale up to 10 during traffic spikes</span>
+  autoscale_configuration {
+    min_capacity = 2
+    max_capacity = 10
+  }
+
+  gateway_ip_configuration {
+    name      = "gateway-ip-config"
+    subnet_id = azurerm_subnet.appgw.id
+  }
+
+  <span class="comment"># ── Frontend: HTTPS on port 443 ────────────────────────────────</span>
+  frontend_ip_configuration {
+    name                 = "frontend-ip"
+    public_ip_address_id = azurerm_public_ip.appgw.id
+  }
+
+  frontend_port {
+    name = "https-port"
+    port = 443
+  }
+
+  frontend_port {
+    name = "http-port"
+    port = 80
+  }
+
+  <span class="comment"># ── SSL Certificate (from Key Vault) ───────────────────────────</span>
+  ssl_certificate {
+    name                = "bookstore-tls"
+    key_vault_secret_id = azurerm_key_vault_certificate.appgw.secret_id
+  }
+
+  <span class="comment"># ── HTTPS Listener ─────────────────────────────────────────────</span>
+  http_listener {
+    name                           = "https-listener"
+    frontend_ip_configuration_name = "frontend-ip"
+    frontend_port_name             = "https-port"
+    protocol                       = "Https"
+    ssl_certificate_name           = "bookstore-tls"
+    host_names                     = ["myecom.net", "api.service.net", "idp.keycloak.net"]
+  }
+
+  <span class="comment"># ── HTTP Listener (redirect to HTTPS) ──────────────────────────</span>
+  http_listener {
+    name                           = "http-listener"
+    frontend_ip_configuration_name = "frontend-ip"
+    frontend_port_name             = "http-port"
+    protocol                       = "Http"
+  }
+
+  <span class="comment"># ── HTTP → HTTPS Redirect ──────────────────────────────────────</span>
+  redirect_configuration {
+    name                 = "http-to-https"
+    redirect_type        = "Permanent"
+    target_listener_name = "https-listener"
+    include_path         = true
+    include_query_string = true
+  }
+
+  request_routing_rule {
+    name                        = "http-redirect-rule"
+    priority                    = 200
+    rule_type                   = "Basic"
+    http_listener_name          = "http-listener"
+    redirect_configuration_name = "http-to-https"
+  }
+
+  <span class="comment"># ── Backend Pool: AKS Istio Ingress ────────────────────────────</span>
+  backend_address_pool {
+    name = "aks-backend-pool"
+  }
+
+  backend_http_settings {
+    name                  = "aks-http-settings"
+    cookie_based_affinity = "Disabled"
+    port                  = 8443
+    protocol              = "Https"
+    request_timeout       = 30
+    <span class="comment"># Health probe path — Istio gateway health endpoint</span>
+    probe_name            = "aks-health-probe"
+  }
+
+  <span class="comment"># ── Health Probe ───────────────────────────────────────────────
+  # Checks the AKS Istio ingress gateway every 15 seconds.
+  # Unhealthy after 3 consecutive failures. Recovers on 1 success.</span>
+  probe {
+    name                = "aks-health-probe"
+    host                = "api.service.net"
+    path                = "/ecom/actuator/health"
+    protocol            = "Https"
+    interval            = 15
+    timeout             = 10
+    unhealthy_threshold = 3
+  }
+
+  <span class="comment"># ── Routing Rule: HTTPS → AKS ──────────────────────────────────</span>
+  request_routing_rule {
+    name                       = "https-to-aks"
+    priority                   = 100
+    rule_type                  = "Basic"
+    http_listener_name         = "https-listener"
+    backend_address_pool_name  = "aks-backend-pool"
+    backend_http_settings_name = "aks-http-settings"
+  }
+
+  <span class="comment"># WAF policy (optional but recommended for production)</span>
+  firewall_policy_id = azurerm_web_application_firewall_policy.main.id
+
+  tags = azurerm_resource_group.main.tags
+}
+
+<span class="comment"># ── WAF Policy ─────────────────────────────────────────────────</span>
+resource "azurerm_web_application_firewall_policy" "main" {
+  name                = "waf-bookstore-prod"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+
+  policy_settings {
+    enabled                     = true
+    mode                        = "Prevention"
+    request_body_check          = true
+    max_request_body_size_in_kb = 128
+  }
+
+  managed_rules {
+    managed_rule_set {
+      type    = "OWASP"
+      version = "3.2"
+    }
+  }
+
+  tags = azurerm_resource_group.main.tags
+}</code></pre>
+  </div>
+
+  <div class="callout tip">
+    <strong>No extra cost for zone redundancy.</strong> Application Gateway v2 zone-redundant deployment costs the same as single-zone. You pay for capacity units (compute + connections + throughput) regardless of zone distribution. This is one of the easiest HA wins on Azure.
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="monitoring">10. Monitoring &amp; Alerting for HA</h2>
+
+  <p>Zone-redundant infrastructure without monitoring is a false sense of security. You need to know when a failover occurs, when a zone is degraded, and when capacity is running low. Azure Monitor provides metric alerts, log alerts, and action groups for automated notifications.</p>
+
+  <div class="step blue">
+    <h3><span class="step-num">1</span> Action Group (Notification Target)</h3>
+    <pre><code><span class="comment"># monitoring.tf — Alerts and action groups for HA events</span>
+
+resource "azurerm_monitor_action_group" "critical" {
+  name                = "ag-bookstore-critical"
+  resource_group_name = azurerm_resource_group.main.name
+  short_name          = "bk-crit"
+
+  email_receiver {
+    name          = "ops-team"
+    email_address = var.ops_email
+  }
+
+  webhook_receiver {
+    name        = "pagerduty"
+    service_uri = var.pagerduty_webhook_url
+  }
+
+  webhook_receiver {
+    name        = "slack-alerts"
+    service_uri = var.slack_webhook_url
+  }
+
+  tags = azurerm_resource_group.main.tags
+}
+
+variable "ops_email" {
+  description = "Operations team email for critical alerts"
+  type        = string
+}
+
+variable "pagerduty_webhook_url" {
+  description = "PagerDuty integration webhook URL"
+  type        = string
+  sensitive   = true
+}
+
+variable "slack_webhook_url" {
+  description = "Slack webhook URL for alert notifications"
+  type        = string
+  sensitive   = true
+}</code></pre>
+  </div>
+
+  <div class="step green">
+    <h3><span class="step-num">2</span> PostgreSQL HA Failover Alert</h3>
+    <pre><code><span class="comment"># alerts-postgresql.tf
+# Fires when a PostgreSQL Flexible Server HA failover occurs.
+# This indicates the primary zone may have experienced an outage.</span>
+
+resource "azurerm_monitor_metric_alert" "pg_failover" {
+  for_each = {
+    ecom      = azurerm_postgresql_flexible_server.ecom.id
+    inventory = azurerm_postgresql_flexible_server.inventory.id
+    analytics = azurerm_postgresql_flexible_server.analytics.id
+    keycloak  = azurerm_postgresql_flexible_server.keycloak.id
+  }
+
+  name                = "alert-pg-failover-${each.key}"
+  resource_group_name = azurerm_resource_group.main.name
+  scopes              = [each.value]
+  description         = "PostgreSQL ${each.key} HA failover detected"
+  severity            = 1
+  frequency           = "PT1M"
+  window_size         = "PT5M"
+
+  criteria {
+    metric_namespace = "Microsoft.DBforPostgreSQL/flexibleServers"
+    metric_name      = "is_db_alive"
+    aggregation      = "Minimum"
+    operator         = "LessThan"
+    threshold        = 1
+  }
+
+  action {
+    action_group_id = azurerm_monitor_action_group.critical.id
+  }
+
+  tags = azurerm_resource_group.main.tags
+}</code></pre>
+  </div>
+
+  <div class="step purple">
+    <h3><span class="step-num">3</span> AKS Node, Event Hubs, Redis, and App Gateway Alerts</h3>
+    <pre><code><span class="comment"># alerts-aks.tf — AKS node NotReady alert
+# Fires when any node is not ready for more than 5 minutes.</span>
+
+resource "azurerm_monitor_metric_alert" "aks_node_not_ready" {
+  name                = "alert-aks-node-not-ready"
+  resource_group_name = azurerm_resource_group.main.name
+  scopes              = [azurerm_kubernetes_cluster.main.id]
+  description         = "AKS node not ready — possible zone failure"
+  severity            = 1
+  frequency           = "PT1M"
+  window_size         = "PT5M"
+
+  criteria {
+    metric_namespace = "Microsoft.ContainerService/managedClusters"
+    metric_name      = "kube_node_status_condition"
+    aggregation      = "Total"
+    operator         = "GreaterThan"
+    threshold        = 0
+
+    dimension {
+      name     = "status2"
+      operator = "Include"
+      values   = ["NotReady"]
+    }
+  }
+
+  action {
+    action_group_id = azurerm_monitor_action_group.critical.id
+  }
+}
+
+<span class="comment"># alerts-eventhubs.tf — Event Hubs throttled requests
+# Throttling indicates the namespace is under capacity pressure.</span>
+
+resource "azurerm_monitor_metric_alert" "eventhubs_throttled" {
+  name                = "alert-eventhubs-throttled"
+  resource_group_name = azurerm_resource_group.main.name
+  scopes              = [azurerm_eventhub_namespace.main.id]
+  description         = "Event Hubs throttled requests detected"
+  severity            = 2
+  frequency           = "PT1M"
+  window_size         = "PT5M"
+
+  criteria {
+    metric_namespace = "Microsoft.EventHub/namespaces"
+    metric_name      = "ThrottledRequests"
+    aggregation      = "Total"
+    operator         = "GreaterThan"
+    threshold        = 10
+  }
+
+  action {
+    action_group_id = azurerm_monitor_action_group.critical.id
+  }
+}
+
+<span class="comment"># alerts-redis.tf — Redis failover event (server load spike)
+# During failover, server load spikes to 100% as Sentinel promotes replica.</span>
+
+resource "azurerm_monitor_metric_alert" "redis_server_load" {
+  name                = "alert-redis-high-load"
+  resource_group_name = azurerm_resource_group.main.name
+  scopes              = [azurerm_redis_cache.main.id]
+  description         = "Redis server load high — possible failover"
+  severity            = 1
+  frequency           = "PT1M"
+  window_size         = "PT5M"
+
+  criteria {
+    metric_namespace = "Microsoft.Cache/redis"
+    metric_name      = "serverLoad"
+    aggregation      = "Maximum"
+    operator         = "GreaterThan"
+    threshold        = 90
+  }
+
+  action {
+    action_group_id = azurerm_monitor_action_group.critical.id
+  }
+}
+
+<span class="comment"># alerts-appgw.tf — Application Gateway 5xx spike
+# Indicates backend (AKS) health issues.</span>
+
+resource "azurerm_monitor_metric_alert" "appgw_5xx" {
+  name                = "alert-appgw-5xx-spike"
+  resource_group_name = azurerm_resource_group.main.name
+  scopes              = [azurerm_application_gateway.main.id]
+  description         = "App Gateway 5xx responses spiking"
+  severity            = 1
+  frequency           = "PT1M"
+  window_size         = "PT5M"
+
+  criteria {
+    metric_namespace = "Microsoft.Network/applicationGateways"
+    metric_name      = "BackendResponseStatus"
+    aggregation      = "Total"
+    operator         = "GreaterThan"
+    threshold        = 50
+
+    dimension {
+      name     = "HttpStatusGroup"
+      operator = "Include"
+      values   = ["5xx"]
+    }
+  }
+
+  action {
+    action_group_id = azurerm_monitor_action_group.critical.id
+  }
+}
+
+<span class="comment"># alerts-k8s.tf — Pod CrashLoopBackOff detection via Log Analytics</span>
+
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "pod_crashloop" {
+  name                = "alert-pod-crashloop"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  scopes              = [azurerm_log_analytics_workspace.main.id]
+  description         = "Pod CrashLoopBackOff detected in BookStore namespaces"
+  severity            = 2
+  enabled             = true
+
+  evaluation_frequency = "PT5M"
+  window_duration      = "PT5M"
+
+  criteria {
+    query = &lt;&lt;-QUERY
+      KubePodInventory
+      | where Namespace in ("ecom", "inventory", "identity", "infra")
+      | where ContainerStatusReason == "CrashLoopBackOff"
+      | summarize CrashCount = count() by PodName = Name, Namespace
+      | where CrashCount > 0
+    QUERY
+
+    time_aggregation_method = "Count"
+    operator                = "GreaterThan"
+    threshold               = 0
+  }
+
+  action {
+    action_groups = [azurerm_monitor_action_group.critical.id]
+  }
+
+  tags = azurerm_resource_group.main.tags
+}</code></pre>
+  </div>
+
+  <div class="callout danger">
+    <strong>Monitoring is CRITICAL for HA.</strong> Zone-redundant infrastructure handles failures automatically, but you must know when failovers occur. A silent failover means you are running on reduced capacity — one more failure could cause an outage. Every failover event should trigger an investigation.
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="dr">11. Disaster Recovery &amp; Backup</h2>
+
+  <p>Multi-AZ HA protects against single-zone failures within a region. For protection against entire region outages, you need disaster recovery (DR) strategies that replicate data and configuration to a secondary region.</p>
+
+  <h3>PostgreSQL Geo-Redundant Backup</h3>
+  <div class="step blue">
+    <h3><span class="step-num">1</span> Geo-Redundant Backup Configuration</h3>
+    <p>All four PostgreSQL instances are configured with <code>geo_redundant_backup_enabled = true</code> (shown in Section 5). This replicates backup data to the Azure paired region (e.g., East US 2 pairs with Central US).</p>
+    <pre><code><span class="comment"># Already configured in postgresql.tf:
+# geo_redundant_backup_enabled = true
+# backup_retention_days        = 35
+#
+# Recovery process:
+# 1. Create a new PG Flexible Server in the secondary region
+# 2. Restore from the latest geo-redundant backup
+# 3. Update DNS/connection strings to point to new server
+# 4. RPO: up to the last backup (varies by backup schedule)
+# 5. RTO: 1-2 hours (provision + restore + config update)</span></code></pre>
+  </div>
+
+  <h3>Event Hubs Geo-Disaster Recovery</h3>
+  <div class="step green">
+    <h3><span class="step-num">2</span> Paired Namespace for Event Hubs</h3>
+    <pre><code><span class="comment"># eventhubs-dr.tf — Geo-disaster recovery with paired namespace</span>
+
+resource "azurerm_eventhub_namespace" "secondary" {
+  name                = "ehns-bookstore-dr"
+  resource_group_name = azurerm_resource_group.dr.name
+  location            = var.dr_location  <span class="comment"># e.g., "centralus"</span>
+  sku                 = "Premium"
+  capacity            = 1
+  kafka_enabled       = true
+
+  tags = merge(azurerm_resource_group.main.tags, {
+    Role = "disaster-recovery"
+  })
+}
+
+resource "azurerm_eventhub_namespace_disaster_recovery_config" "main" {
+  name                 = "bookstore-dr-pairing"
+  resource_group_name  = azurerm_resource_group.main.name
+  namespace_name       = azurerm_eventhub_namespace.main.name
+  partner_namespace_id = azurerm_eventhub_namespace.secondary.id
+}
+
+<span class="comment"># DR Resource Group in secondary region</span>
+resource "azurerm_resource_group" "dr" {
+  name     = "rg-bookstore-dr"
+  location = var.dr_location
+
+  tags = merge(azurerm_resource_group.main.tags, {
+    Role = "disaster-recovery"
+  })
+}
+
+variable "dr_location" {
+  description = "Azure region for disaster recovery (paired region)"
+  type        = string
+  default     = "centralus"
+}</code></pre>
+  </div>
+
+  <h3>AKS Backup with Velero</h3>
+  <div class="step purple">
+    <h3><span class="step-num">3</span> Velero + Azure Blob Storage</h3>
+    <pre><code><span class="comment"># velero.tf — AKS cluster backup with Velero + Azure Blob</span>
+
+resource "azurerm_storage_account" "velero" {
+  name                     = "stbookstorevelero"
+  resource_group_name      = azurerm_resource_group.main.name
+  location                 = azurerm_resource_group.main.location
+  account_tier             = "Standard"
+  account_replication_type = "GRS"  <span class="comment"># Geo-redundant storage</span>
+
+  tags = azurerm_resource_group.main.tags
+}
+
+resource "azurerm_storage_container" "velero" {
+  name                  = "velero-backups"
+  storage_account_id    = azurerm_storage_account.velero.id
+  container_access_type = "private"
+}
+
+<span class="comment"># Install Velero via Helm (after AKS is provisioned)</span>
+resource "helm_release" "velero" {
+  name       = "velero"
+  namespace  = "velero"
+  repository = "https://vmware-tanzu.github.io/helm-charts"
+  chart      = "velero"
+  version    = "6.0.0"
+
+  create_namespace = true
+
+  set {
+    name  = "configuration.backupStorageLocation[0].provider"
+    value = "azure"
+  }
+
+  set {
+    name  = "configuration.backupStorageLocation[0].bucket"
+    value = azurerm_storage_container.velero.name
+  }
+
+  set {
+    name  = "configuration.backupStorageLocation[0].config.resourceGroup"
+    value = azurerm_resource_group.main.name
+  }
+
+  set {
+    name  = "configuration.backupStorageLocation[0].config.storageAccount"
+    value = azurerm_storage_account.velero.name
+  }
+
+  set {
+    name  = "schedules.daily.schedule"
+    value = "0 2 * * *"  <span class="comment"># 2 AM daily</span>
+  }
+
+  set {
+    name  = "schedules.daily.template.ttl"
+    value = "720h"  <span class="comment"># 30-day retention</span>
+  }
+
+  set {
+    name  = "schedules.daily.template.includedNamespaces"
+    value = "{ecom,inventory,identity,infra}"
+  }
+}</code></pre>
+  </div>
+
+  <h3>Terraform State Backup</h3>
+  <div class="step amber">
+    <h3><span class="step-num">4</span> Remote State with Versioning</h3>
+    <pre><code><span class="comment"># backend.tf — Terraform state stored in Azure Blob with versioning</span>
+
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "rg-bookstore-tfstate"
+    storage_account_name = "stbookstoretfstate"
+    container_name       = "tfstate"
+    key                  = "ha-multi-az.tfstate"
+  }
+}
+
+<span class="comment"># State storage account (create manually BEFORE terraform init)</span>
+# az storage account create \
+#   --name stbookstoretfstate \
+#   --resource-group rg-bookstore-tfstate \
+#   --location eastus2 \
+#   --sku Standard_GRS \
+#   --kind StorageV2
+
+# az storage container create \
+#   --name tfstate \
+#   --account-name stbookstoretfstate
+
+<span class="comment"># Enable versioning for state file recovery</span>
+# az storage account blob-service-properties update \
+#   --account-name stbookstoretfstate \
+#   --enable-versioning true</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="failures">12. Failure Scenarios &amp; Recovery</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Failure Scenario</th>
+        <th>Impact</th>
+        <th>Auto Recovery</th>
+        <th>RTO</th>
+        <th>RPO</th>
+        <th>Manual Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Single VM instance failure</strong></td>
+        <td>One pod per affected service goes down</td>
+        <td>Yes &mdash; K8s reschedules pod to healthy node</td>
+        <td>&lt; 30s</td>
+        <td>0</td>
+        <td>None</td>
+      </tr>
+      <tr>
+        <td><strong>Single Availability Zone outage</strong></td>
+        <td>~33% of pods lost; one PG standby lost; one Redis replica lost</td>
+        <td>Yes &mdash; remaining pods serve traffic; PG standby promotes if primary lost; Redis promotes replica</td>
+        <td>&lt; 2 min</td>
+        <td>0</td>
+        <td>Monitor capacity; check PG failover status</td>
+      </tr>
+      <tr>
+        <td><strong>PostgreSQL primary failure</strong></td>
+        <td>Write downtime for affected database</td>
+        <td>Yes &mdash; Azure promotes standby in zone 2</td>
+        <td>60-120s</td>
+        <td>0 (sync repl)</td>
+        <td>Verify app reconnection; check Debezium CDC replication slot</td>
+      </tr>
+      <tr>
+        <td><strong>Event Hubs partition failure</strong></td>
+        <td>Temporary delay in event processing</td>
+        <td>Yes &mdash; Azure redirects to healthy replicas</td>
+        <td>&lt; 10s</td>
+        <td>0</td>
+        <td>None</td>
+      </tr>
+      <tr>
+        <td><strong>Redis primary failure</strong></td>
+        <td>CSRF validation and rate limiting briefly unavailable</td>
+        <td>Yes &mdash; Sentinel promotes replica</td>
+        <td>20-60s</td>
+        <td>~1s (async repl)</td>
+        <td>Check for stale sessions; may need to re-authenticate some users</td>
+      </tr>
+      <tr>
+        <td><strong>AKS control plane issue</strong></td>
+        <td>Cannot deploy or scale; running pods unaffected</td>
+        <td>Yes &mdash; Azure auto-heals control plane</td>
+        <td>&lt; 5 min</td>
+        <td>0</td>
+        <td>None unless prolonged (&gt; 15 min: contact Azure support)</td>
+      </tr>
+      <tr>
+        <td><strong>NAT Gateway failure</strong></td>
+        <td>Outbound internet connectivity lost</td>
+        <td>Yes &mdash; zone-redundant IP handles failover</td>
+        <td>&lt; 10s</td>
+        <td>N/A</td>
+        <td>None</td>
+      </tr>
+      <tr>
+        <td><strong>App Gateway failure</strong></td>
+        <td>All inbound traffic blocked</td>
+        <td>Yes &mdash; zone-redundant instances absorb load</td>
+        <td>&lt; 10s</td>
+        <td>N/A</td>
+        <td>None</td>
+      </tr>
+      <tr>
+        <td><strong>Full region outage</strong></td>
+        <td>Complete service outage</td>
+        <td>No &mdash; requires DR failover</td>
+        <td>1-4 hours</td>
+        <td>Minutes to hours</td>
+        <td>Activate DR: restore PG from geo-backup; failover Event Hubs; redeploy AKS in secondary region</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <strong>Debezium CDC after PostgreSQL failover:</strong> When PG Flexible Server fails over, the logical replication slot survives on the new primary. However, Debezium Server may need to reconnect. The <code>KafkaOffsetBackingStore</code> ensures it resumes from the correct position. Monitor Debezium health at <code>/q/health</code> after any PG failover.
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="cost">13. Cost Analysis</h2>
+
+  <p>Zone-redundant HA adds cost primarily from additional database standby instances and the Redis Premium tier upgrade. AKS zone spreading and App Gateway zone redundancy have minimal to zero additional cost.</p>
+
+  <table class="cost-table">
+    <thead>
+      <tr>
+        <th>Component</th>
+        <th>Single-Zone Config</th>
+        <th class="single">Single-Zone $/mo</th>
+        <th>Multi-AZ Config</th>
+        <th class="multi">Multi-AZ $/mo</th>
+        <th>Delta</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>AKS Nodes</strong> (app pool)</td>
+        <td>3x D4s_v5</td>
+        <td class="single">~$420</td>
+        <td>3x D4s_v5 (across 3 zones)</td>
+        <td class="multi">~$420</td>
+        <td>$0</td>
+      </tr>
+      <tr>
+        <td><strong>AKS Nodes</strong> (system pool)</td>
+        <td>2x D4s_v5</td>
+        <td class="single">~$280</td>
+        <td>2x D4s_v5 (across 3 zones)</td>
+        <td class="multi">~$280</td>
+        <td>$0</td>
+      </tr>
+      <tr>
+        <td><strong>PostgreSQL</strong> (4 instances)</td>
+        <td>4x GP_D4s_v3 (no HA)</td>
+        <td class="single">~$1,080</td>
+        <td>4x GP_D4s_v3 (zone-redundant HA)</td>
+        <td class="multi">~$2,160</td>
+        <td>+$1,080</td>
+      </tr>
+      <tr>
+        <td><strong>Event Hubs</strong></td>
+        <td>Premium 1 PU</td>
+        <td class="single">~$870</td>
+        <td>Premium 1 PU (zone-redundant by default)</td>
+        <td class="multi">~$870</td>
+        <td>$0</td>
+      </tr>
+      <tr>
+        <td><strong>Redis Cache</strong></td>
+        <td>Standard C1 (no zones)</td>
+        <td class="single">~$80</td>
+        <td>Premium P1 (zones [1,2,3], 2 replicas)</td>
+        <td class="multi">~$490</td>
+        <td>+$410</td>
+      </tr>
+      <tr>
+        <td><strong>App Gateway v2</strong></td>
+        <td>Standard_v2 (no zones)</td>
+        <td class="single">~$255</td>
+        <td>Standard_v2 (zones [1,2,3])</td>
+        <td class="multi">~$255</td>
+        <td>$0</td>
+      </tr>
+      <tr>
+        <td><strong>NAT Gateway</strong></td>
+        <td>Standard + 1 public IP</td>
+        <td class="single">~$37</td>
+        <td>Standard + zone-redundant public IP</td>
+        <td class="multi">~$37</td>
+        <td>$0</td>
+      </tr>
+      <tr>
+        <td><strong>Log Analytics</strong></td>
+        <td>PerGB2018</td>
+        <td class="single">~$50</td>
+        <td>PerGB2018</td>
+        <td class="multi">~$50</td>
+        <td>$0</td>
+      </tr>
+      <tr class="total">
+        <td><strong>TOTAL</strong></td>
+        <td></td>
+        <td class="single"><strong>~$3,072</strong></td>
+        <td></td>
+        <td class="multi"><strong>~$4,562</strong></td>
+        <td><strong>+$1,490 (+48%)</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout info">
+    <strong>Cost Optimization Tips:</strong><br>
+    &bull; <strong>PostgreSQL:</strong> Use Burstable B2s for dev/staging (no HA) and GP_D4s_v3 zone-redundant for production only.<br>
+    &bull; <strong>Redis:</strong> Use Standard C1 for dev/staging; Premium P1 only in production.<br>
+    &bull; <strong>Reserved Instances:</strong> 1-year RI saves ~35% on PostgreSQL and VMs; 3-year saves ~55%.<br>
+    &bull; <strong>Event Hubs:</strong> Consider Standard tier with <code>zone_redundant = true</code> (~$360/mo) if Premium features are not needed.
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="deploy">14. Terraform Deployment Commands</h2>
+
+  <div class="step blue">
+    <h3><span class="step-num">1</span> Initialize and Plan</h3>
+    <pre><code><span class="comment"># Step 1: Create state storage (one-time, run manually)</span>
+az group create --name rg-bookstore-tfstate --location eastus2
+az storage account create \
+  --name stbookstoretfstate \
+  --resource-group rg-bookstore-tfstate \
+  --location eastus2 \
+  --sku Standard_GRS
+az storage container create \
+  --name tfstate \
+  --account-name stbookstoretfstate
+
+<span class="comment"># Step 2: Create terraform.tfvars (never commit to git)</span>
+cat &gt; terraform.tfvars &lt;&lt;'EOF'
+ecom_db_password      = "Generate-A-Strong-Password-1!"
+inventory_db_password = "Generate-A-Strong-Password-2!"
+analytics_db_password = "Generate-A-Strong-Password-3!"
+keycloak_db_password  = "Generate-A-Strong-Password-4!"
+ops_email             = "ops@yourcompany.com"
+pagerduty_webhook_url = "https://events.pagerduty.com/integration/..."
+slack_webhook_url     = "https://hooks.slack.com/services/..."
+EOF
+
+<span class="comment"># Step 3: Initialize Terraform</span>
+terraform init
+
+<span class="comment"># Step 4: Validate configuration</span>
+terraform validate
+
+<span class="comment"># Step 5: Plan (review ALL changes before applying)</span>
+terraform plan -out=ha-plan.tfplan
+
+<span class="comment"># Step 6: Apply</span>
+terraform apply ha-plan.tfplan</code></pre>
+  </div>
+
+  <div class="step green">
+    <h3><span class="step-num">2</span> Post-Deploy Validation</h3>
+    <pre><code><span class="comment"># Verify AKS nodes are spread across zones</span>
+az aks get-credentials --resource-group rg-bookstore-prod --name aks-bookstore-prod
+kubectl get nodes -o custom-columns=\
+  "NAME:.metadata.name,ZONE:.metadata.labels.topology\.kubernetes\.io/zone"
+
+<span class="comment"># Expected output:
+# NAME                         ZONE
+# aks-app-12345678-vmss000000  eastus2-1
+# aks-app-12345678-vmss000001  eastus2-2
+# aks-app-12345678-vmss000002  eastus2-3</span>
+
+<span class="comment"># Verify PostgreSQL HA status</span>
+az postgres flexible-server show \
+  --name psql-bookstore-ecom \
+  --resource-group rg-bookstore-prod \
+  --query "{name:name, state:state, haState:highAvailability.state, \
+            primaryZone:availabilityZone, standbyZone:highAvailability.standbyAvailabilityZone}" \
+  -o table
+
+<span class="comment"># Expected: state=Ready, haState=Healthy</span>
+
+<span class="comment"># Verify Redis zone distribution</span>
+az redis show \
+  --name redis-bookstore-prod \
+  --resource-group rg-bookstore-prod \
+  --query "{name:name, zones:zones, provisioningState:provisioningState}" \
+  -o table
+
+<span class="comment"># Verify Event Hubs health</span>
+az eventhubs namespace show \
+  --name ehns-bookstore-prod \
+  --resource-group rg-bookstore-prod \
+  --query "{name:name, status:status, sku:sku.name}" \
+  -o table
+
+<span class="comment"># Verify App Gateway zones</span>
+az network application-gateway show \
+  --name appgw-bookstore-prod \
+  --resource-group rg-bookstore-prod \
+  --query "{name:name, zones:zones, operationalState:operationalState}" \
+  -o table
+
+<span class="comment"># Verify pods are spread across zones</span>
+kubectl get pods -A -o custom-columns=\
+  "NAMESPACE:.metadata.namespace,NAME:.metadata.name,\
+NODE:.spec.nodeName,ZONE:.spec.nodeSelector" \
+  | grep -E "(ecom|inventory|identity|infra)"</code></pre>
+  </div>
+
+  <div class="step amber">
+    <h3><span class="step-num">3</span> Chaos Testing (Simulate Zone Failure)</h3>
+    <pre><code><span class="comment"># ── Test 1: Cordon all nodes in Zone 1 ─────────────────────────
+# This simulates a zone outage by making Zone 1 nodes unschedulable</span>
+
+ZONE1_NODES=$(kubectl get nodes -l topology.kubernetes.io/zone=eastus2-1 \
+  -o jsonpath='{.items[*].metadata.name}')
+for node in $ZONE1_NODES; do
+  kubectl cordon "$node"
+done
+
+<span class="comment"># Verify services still respond</span>
+curl -sk https://myecom.net/ecom/books | head -c 200
+curl -sk https://api.service.net/inven/health
+
+<span class="comment"># Check pod distribution (should all be in zones 2 and 3)</span>
+kubectl get pods -n ecom -o wide
+
+<span class="comment"># ── Test 2: Force PostgreSQL failover ──────────────────────────</span>
+az postgres flexible-server restart \
+  --name psql-bookstore-ecom \
+  --resource-group rg-bookstore-prod \
+  --failover Forced
+
+<span class="comment"># Monitor failover progress</span>
+watch -n 5 "az postgres flexible-server show \
+  --name psql-bookstore-ecom \
+  --resource-group rg-bookstore-prod \
+  --query '{state:state, haState:highAvailability.state}' -o table"
+
+<span class="comment"># ── Cleanup: Uncordon Zone 1 nodes ─────────────────────────────</span>
+for node in $ZONE1_NODES; do
+  kubectl uncordon "$node"
+done
+
+<span class="comment"># ── Test 3: Delete a service pod (verify auto-recovery) ───────</span>
+kubectl delete pod -n ecom -l app=ecom-service --field-selector=status.phase=Running --wait=false
+kubectl get pods -n ecom -w  <span class="comment"># Watch pod recreate</span></code></pre>
+  </div>
+
+  <div class="callout danger">
+    <strong>Run chaos tests in staging first.</strong> Never test zone failure in production without a maintenance window and stakeholder notification. Even though these tests are designed to be non-destructive, unexpected interactions can cause real outages.
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="checklist">15. HA Compliance Checklist</h2>
+
+  <p>Use this checklist to verify every component is configured for zone-redundant HA before going to production.</p>
+
+  <h3>Compute &amp; Orchestration</h3>
+  <ul class="checklist">
+    <li><span class="check-box done">&#10003;</span> AKS cluster SKU tier set to <code>Standard</code> (required for 99.99% SLA)</li>
+    <li><span class="check-box done">&#10003;</span> System node pool: <code>zones = ["1", "2", "3"]</code>, <code>min_count >= 2</code></li>
+    <li><span class="check-box done">&#10003;</span> App node pool: <code>zones = ["1", "2", "3"]</code>, <code>min_count >= 3</code></li>
+    <li><span class="check-box done">&#10003;</span> All Deployments have <code>replicas >= 2</code></li>
+    <li><span class="check-box done">&#10003;</span> All Deployments have <code>topologySpreadConstraints</code> on <code>topology.kubernetes.io/zone</code></li>
+    <li><span class="check-box done">&#10003;</span> PodDisruptionBudget for every service with <code>minAvailable >= 1</code></li>
+    <li><span class="check-box done">&#10003;</span> HPA configured with <code>minReplicas >= 2</code> for all services</li>
+    <li><span class="check-box done">&#10003;</span> Rolling update strategy with <code>maxUnavailable: 0</code></li>
+    <li><span class="check-box done">&#10003;</span> Node pool <code>max_surge = "1"</code> for safe upgrades</li>
+  </ul>
+
+  <h3>Databases</h3>
+  <ul class="checklist">
+    <li><span class="check-box done">&#10003;</span> All 4 PostgreSQL instances: SKU is <code>GP_Standard_*</code> (NOT Burstable)</li>
+    <li><span class="check-box done">&#10003;</span> All 4 PostgreSQL instances: <code>high_availability.mode = "ZoneRedundant"</code></li>
+    <li><span class="check-box done">&#10003;</span> Primary and standby in different zones (zone 1 / zone 2)</li>
+    <li><span class="check-box done">&#10003;</span> <code>geo_redundant_backup_enabled = true</code></li>
+    <li><span class="check-box done">&#10003;</span> <code>backup_retention_days >= 35</code></li>
+    <li><span class="check-box done">&#10003;</span> <code>wal_level = logical</code> for CDC databases (ecom, inventory)</li>
+    <li><span class="check-box done">&#10003;</span> Private DNS zone linked to VNet for name resolution</li>
+  </ul>
+
+  <h3>Messaging</h3>
+  <ul class="checklist">
+    <li><span class="check-box done">&#10003;</span> Event Hubs namespace: Premium tier (zone-redundant by default)</li>
+    <li><span class="check-box done">&#10003;</span> Kafka protocol enabled</li>
+    <li><span class="check-box done">&#10003;</span> All Event Hubs (topics): <code>partition_count >= 4</code></li>
+    <li><span class="check-box done">&#10003;</span> Dedicated consumer groups per service</li>
+    <li><span class="check-box done">&#10003;</span> Network rules restrict access to VNet only</li>
+  </ul>
+
+  <h3>Caching</h3>
+  <ul class="checklist">
+    <li><span class="check-box done">&#10003;</span> Redis tier: <code>Premium</code> (required for zone-redundancy)</li>
+    <li><span class="check-box done">&#10003;</span> <code>zones = ["1", "2", "3"]</code></li>
+    <li><span class="check-box done">&#10003;</span> <code>replicas_per_primary = 2</code></li>
+    <li><span class="check-box done">&#10003;</span> Data persistence enabled (RDB + AOF)</li>
+    <li><span class="check-box done">&#10003;</span> Private endpoint configured (no public access)</li>
+    <li><span class="check-box done">&#10003;</span> TLS 1.2 minimum, non-SSL port disabled</li>
+  </ul>
+
+  <h3>Networking &amp; Ingress</h3>
+  <ul class="checklist">
+    <li><span class="check-box done">&#10003;</span> App Gateway v2 SKU with <code>zones = ["1", "2", "3"]</code></li>
+    <li><span class="check-box done">&#10003;</span> Zone-redundant public IP for App Gateway</li>
+    <li><span class="check-box done">&#10003;</span> Autoscale: <code>min_capacity = 2</code>, <code>max_capacity = 10</code></li>
+    <li><span class="check-box done">&#10003;</span> Health probes configured for backend</li>
+    <li><span class="check-box done">&#10003;</span> HTTP to HTTPS redirect configured</li>
+    <li><span class="check-box done">&#10003;</span> NAT Gateway with zone-redundant public IP</li>
+    <li><span class="check-box done">&#10003;</span> NSGs on all subnets with deny-all default</li>
+    <li><span class="check-box done">&#10003;</span> WAF policy in Prevention mode</li>
+  </ul>
+
+  <h3>Observability &amp; Operations</h3>
+  <ul class="checklist">
+    <li><span class="check-box done">&#10003;</span> Azure Monitor alerts for: PG failover, node NotReady, EH throttling, Redis load, App GW 5xx, pod CrashLoop</li>
+    <li><span class="check-box done">&#10003;</span> Action group with email + webhook (PagerDuty / Slack)</li>
+    <li><span class="check-box done">&#10003;</span> Log Analytics workspace ingesting AKS logs</li>
+    <li><span class="check-box done">&#10003;</span> Istio DestinationRules with outlierDetection on all services</li>
+    <li><span class="check-box done">&#10003;</span> Readiness + liveness + startup probes on every container</li>
+    <li><span class="check-box done">&#10003;</span> Graceful shutdown (preStop hook + terminationGracePeriodSeconds)</li>
+  </ul>
+
+  <h3>Disaster Recovery</h3>
+  <ul class="checklist">
+    <li><span class="check-box done">&#10003;</span> PostgreSQL geo-redundant backup enabled</li>
+    <li><span class="check-box done">&#10003;</span> Event Hubs geo-disaster recovery pairing configured</li>
+    <li><span class="check-box done">&#10003;</span> Velero daily backup to GRS storage account</li>
+    <li><span class="check-box done">&#10003;</span> Terraform state in GRS storage with versioning</li>
+    <li><span class="check-box done">&#10003;</span> DR runbook documented and tested quarterly</li>
+  </ul>
+
+  <h3>Application Resilience</h3>
+  <ul class="checklist">
+    <li><span class="check-box done">&#10003;</span> All services implement retry logic for database connections</li>
+    <li><span class="check-box done">&#10003;</span> All services implement retry logic for Redis connections</li>
+    <li><span class="check-box done">&#10003;</span> Kafka/Event Hubs producers use <code>acks=all</code> with retries</li>
+    <li><span class="check-box done">&#10003;</span> Kafka/Event Hubs consumers use idempotent processing</li>
+    <li><span class="check-box done">&#10003;</span> Chaos testing performed and documented</li>
+    <li><span class="check-box done">&#10003;</span> Failover runbook created with step-by-step procedures</li>
+  </ul>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+
+  <footer>
+    <p>BookStore Platform &mdash; Multi-AZ High Availability on Azure (Terraform)</p>
+    <p style="margin-top: 8px;">
+      <a href="index.html">Home</a> &middot;
+      <a href="deploy-azure.html">Azure Deployment</a> &middot;
+      <a href="architecture.html">Architecture</a> &middot;
+      <a href="quick-start.html">Quick Start</a>
+    </p>
+  </footer>
+</div>
+
+</body>
+</html>

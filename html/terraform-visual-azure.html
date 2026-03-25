@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Terraform Visual Walkthrough — BookStore Platform on Azure</title>
+  <meta property="og:title" content="BookStore Platform — Terraform Visual Azure Walkthrough" />
+  <meta property="og:description" content="Side-by-side visual walkthrough mapping each Azure AKS architecture component to its Terraform code." />
+  <meta property="og:type" content="article" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; --cyan: #06b6d4; --purple: #8b5cf6; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 1120px; margin: 0 auto; padding: 40px 24px 60px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p.subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 52px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 28px 0 10px; color: #cbd5e1; }
+    h4 { font-size: 0.95rem; font-weight: 600; margin: 20px 0 8px; color: #94a3b8; }
+    p { margin-bottom: 16px; color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: var(--card); padding: 2px 7px; border-radius: 4px; font-size: 0.86em; color: #fbbf24; }
+    pre { background: var(--card); padding: 18px 20px; border-radius: 10px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); position: relative; }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.82rem; line-height: 1.65; }
+    pre .comment { color: #64748b; }
+    pre .keyword { color: #c084fc; }
+    pre .string { color: #34d399; }
+    pre .attr { color: #60a5fa; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badge.blue { background: linear-gradient(135deg, #2563eb, #3b82f6); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* -- Topnav -- */
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 1120px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+
+    /* -- TOC -- */
+    .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 24px 0 40px; }
+    .toc h3 { font-size: 0.9rem; font-weight: 700; color: #f1f5f9; margin: 0 0 12px; }
+    .toc ol { margin: 0; padding-left: 20px; columns: 2; column-gap: 32px; }
+    .toc li { margin-bottom: 4px; }
+    .toc a { font-size: 0.85rem; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+    .toc a:hover { color: var(--accent); }
+    @media (max-width: 700px) { .toc ol { columns: 1; } }
+
+    /* -- Visual Row (side-by-side) -- */
+    .visual-row { display: grid; grid-template-columns: 340px 1fr; gap: 24px; margin: 28px 0; align-items: start; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
+    @media (max-width: 900px) { .visual-row { grid-template-columns: 1fr; } }
+    .visual-row .svg-side { display: flex; align-items: flex-start; justify-content: center; }
+    .visual-row .svg-side svg { max-width: 100%; height: auto; }
+    .visual-row .code-side { min-width: 0; }
+    .visual-row .code-side pre { margin: 0 0 12px; }
+    .visual-row .code-side pre code { font-size: 0.78rem; }
+
+    /* -- Meta lines under each row -- */
+    .meta-block { margin-top: 12px; font-size: 0.84rem; line-height: 1.7; }
+    .meta-block .label { font-weight: 700; color: var(--accent); margin-right: 6px; }
+    .meta-block .local-label { font-weight: 700; color: var(--green); margin-right: 6px; }
+    .meta-block .conn-label { font-weight: 700; color: var(--yellow); margin-right: 6px; }
+    .meta-line { margin-bottom: 4px; color: var(--muted); }
+
+    /* -- Section number badge -- */
+    .section-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: white; font-weight: 800; font-size: 0.82rem; margin-right: 10px; flex-shrink: 0; vertical-align: middle; }
+
+    /* -- Callout boxes -- */
+    .callout { padding: 16px 20px; border-radius: 10px; margin: 16px 0; font-size: 0.88rem; line-height: 1.6; border-left: 4px solid; }
+    .callout.info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+    .callout.tip { background: rgba(16,185,129,0.08); border-color: #10b981; }
+    .callout strong { color: #f1f5f9; }
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="deploy-azure.html">Deploy Azure</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>Terraform Visual Walkthrough</h1>
+  <p class="subtitle">Every Azure AKS component mapped to its Terraform code, side by side</p>
+
+  <div class="badges">
+    <span class="badge blue">Azure Cloud</span>
+    <span class="badge purple">Terraform IaC</span>
+    <span class="badge green">20 Components</span>
+    <span class="badge cyan">Visual + Code</span>
+    <span class="badge orange">Local Equivalents</span>
+  </div>
+
+  <div class="callout info">
+    <strong>How to read this page:</strong> Each section shows one Azure infrastructure component. The <strong>left panel</strong> is a visual diagram of the component and its connections. The <strong>right panel</strong> shows the exact Terraform HCL that creates it. Below each pair, you will find the component's purpose, connections, and the local kind cluster equivalent.
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <h3>Components</h3>
+    <ol>
+      <li><a href="#blob-backend">Azure Blob Storage Backend</a></li>
+      <li><a href="#resource-group">Resource Group</a></li>
+      <li><a href="#vnet">Virtual Network (VNet)</a></li>
+      <li><a href="#aks-subnet">AKS Subnet (/22)</a></li>
+      <li><a href="#db-subnet">Database Subnet (Delegated)</a></li>
+      <li><a href="#appgw-subnet">Application Gateway Subnet</a></li>
+      <li><a href="#nsgs">Network Security Groups</a></li>
+      <li><a href="#aks-cluster">AKS Cluster</a></li>
+      <li><a href="#system-pool">AKS System Node Pool</a></li>
+      <li><a href="#app-pool">AKS App Node Pool</a></li>
+      <li><a href="#acr">Azure Container Registry</a></li>
+      <li><a href="#postgresql">PostgreSQL Flexible Server (4x)</a></li>
+      <li><a href="#eventhubs">Event Hubs (Kafka Protocol)</a></li>
+      <li><a href="#redis">Azure Cache for Redis</a></li>
+      <li><a href="#keyvault">Azure Key Vault</a></li>
+      <li><a href="#appgw">Application Gateway</a></li>
+      <li><a href="#dns">Azure DNS Zone</a></li>
+      <li><a href="#istio">Istio Ambient Mesh</a></li>
+      <li><a href="#app-services">Application Services</a></li>
+      <li><a href="#observability">Observability Stack</a></li>
+    </ol>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 1. BLOB BACKEND -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="blob-backend"><span class="section-num">1</span> Azure Blob Storage Backend</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 180" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="178" rx="12" fill="#0f172a" stroke="#334155"/>
+        <!-- Blob icon -->
+        <rect x="110" y="30" width="120" height="70" rx="10" fill="#1e3a5f" stroke="#0078d4" stroke-width="2"/>
+        <text x="170" y="55" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="700">Azure Blob Storage</text>
+        <text x="170" y="72" text-anchor="middle" fill="#94a3b8" font-size="9">tfstate container</text>
+        <text x="170" y="86" text-anchor="middle" fill="#fbbf24" font-size="9">bookstore.terraform.tfstate</text>
+        <!-- Lock icon -->
+        <rect x="230" y="50" width="24" height="18" rx="3" fill="none" stroke="#10b981" stroke-width="1.5"/>
+        <path d="M235 50 V44 a7 7 0 0 1 14 0 V50" fill="none" stroke="#10b981" stroke-width="1.5"/>
+        <circle cx="242" cy="59" r="2" fill="#10b981"/>
+        <text x="242" y="80" text-anchor="middle" fill="#10b981" font-size="7" font-weight="600">LEASE LOCK</text>
+        <!-- Terraform arrow -->
+        <text x="170" y="128" text-anchor="middle" fill="#94a3b8" font-size="9">terraform init / plan / apply</text>
+        <line x1="170" y1="100" x2="170" y2="115" stroke="#64748b" stroke-width="1" stroke-dasharray="4"/>
+        <polygon points="166,115 174,115 170,121" fill="#64748b"/>
+        <!-- Team icons -->
+        <circle cx="80" cy="150" r="12" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1"/>
+        <text x="80" y="154" text-anchor="middle" fill="#60a5fa" font-size="9">Dev1</text>
+        <circle cx="170" cy="150" r="12" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1"/>
+        <text x="170" y="154" text-anchor="middle" fill="#60a5fa" font-size="9">Dev2</text>
+        <circle cx="260" cy="150" r="12" fill="#1e3a5f" stroke="#a78bfa" stroke-width="1"/>
+        <text x="260" y="154" text-anchor="middle" fill="#a78bfa" font-size="9">CI/CD</text>
+        <line x1="80" y1="138" x2="140" y2="115" stroke="#334155" stroke-width="1"/>
+        <line x1="170" y1="138" x2="170" y2="131" stroke="#334155" stroke-width="1"/>
+        <line x1="260" y1="138" x2="200" y2="115" stroke="#334155" stroke-width="1"/>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>00-backend.tf</h4>
+<pre><code>terraform {
+  backend <span class="string">"azurerm"</span> {
+    <span class="comment"># Storage account for remote state</span>
+    resource_group_name  = <span class="string">"bookstore-tfstate-rg"</span>
+    storage_account_name = <span class="string">"bookstoretfstate"</span>
+    container_name       = <span class="string">"tfstate"</span>
+
+    <span class="comment"># State file name per environment</span>
+    key = <span class="string">"bookstore.terraform.tfstate"</span>
+
+    <span class="comment"># Azure CLI auth (inherits az login)</span>
+    use_azuread_auth = true
+  }
+}</code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> Remote state with lease-based locking prevents concurrent applies from corrupting state. Shared across all team members and CI/CD pipelines.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> Every <code>terraform plan/apply</code> reads and writes this state file.</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> <code>terraform.tfstate</code> file on disk (no locking, single developer).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 2. RESOURCE GROUP -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="resource-group"><span class="section-num">2</span> Resource Group</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 160" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="158" rx="12" fill="#0f172a" stroke="#334155"/>
+        <!-- Resource Group boundary -->
+        <rect x="30" y="20" width="280" height="120" rx="10" fill="none" stroke="#0078d4" stroke-width="2" stroke-dasharray="6 3"/>
+        <rect x="40" y="12" width="160" height="20" rx="4" fill="#0f172a"/>
+        <text x="48" y="27" fill="#0078d4" font-size="11" font-weight="700">bookstore-rg (eastus)</text>
+        <!-- Resources inside -->
+        <rect x="50" y="48" width="70" height="30" rx="6" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1"/>
+        <text x="85" y="67" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">AKS</text>
+        <rect x="135" y="48" width="70" height="30" rx="6" fill="#1e3a5f" stroke="#336791" stroke-width="1"/>
+        <text x="170" y="67" text-anchor="middle" fill="#34d399" font-size="8" font-weight="600">PostgreSQL</text>
+        <rect x="220" y="48" width="70" height="30" rx="6" fill="#1e3a5f" stroke="#e2e8f0" stroke-width="1"/>
+        <text x="255" y="67" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">Event Hubs</text>
+        <rect x="50" y="90" width="70" height="30" rx="6" fill="#1e3a5f" stroke="#DC382D" stroke-width="1"/>
+        <text x="85" y="109" text-anchor="middle" fill="#DC382D" font-size="8" font-weight="600">Redis</text>
+        <rect x="135" y="90" width="70" height="30" rx="6" fill="#1e3a5f" stroke="#ef4444" stroke-width="1"/>
+        <text x="170" y="109" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">Key Vault</text>
+        <rect x="220" y="90" width="70" height="30" rx="6" fill="#1e3a5f" stroke="#0078d4" stroke-width="1"/>
+        <text x="255" y="109" text-anchor="middle" fill="#0078d4" font-size="8" font-weight="600">App Gateway</text>
+        <!-- Tags -->
+        <text x="170" y="152" text-anchor="middle" fill="#64748b" font-size="8">tags: project=bookstore, environment=dev, managed_by=terraform</text>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>03-resource-group.tf</h4>
+<pre><code>locals {
+  common_tags = merge({
+    project     = var.project
+    environment = var.environment
+    managed_by  = <span class="string">"terraform"</span>
+    created_at  = timestamp()
+  }, var.tags)
+
+  name_prefix = <span class="string">"${var.project}-${var.environment}"</span>
+}
+
+resource <span class="string">"azurerm_resource_group"</span> <span class="string">"main"</span> {
+  name     = var.resource_group_name
+  location = var.location
+  tags     = local.common_tags
+}</code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> Logical container for all Azure resources. Simplifies cost tracking and teardown: deleting the group removes everything inside it.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> Every other resource references <code>azurerm_resource_group.main</code>.</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> No direct equivalent. The kind cluster manages all resources implicitly.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 3. VNET -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="vnet"><span class="section-num">3</span> Virtual Network (VNet)</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 200" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="198" rx="12" fill="#0f172a" stroke="#334155"/>
+        <!-- VNet boundary -->
+        <rect x="20" y="15" width="300" height="170" rx="10" fill="none" stroke="#0078d4" stroke-width="2"/>
+        <rect x="30" y="7" width="130" height="18" rx="4" fill="#0f172a"/>
+        <text x="38" y="20" fill="#0078d4" font-size="10" font-weight="700">VNet 10.0.0.0/16</text>
+        <!-- Subnet bands -->
+        <rect x="35" y="35" width="270" height="28" rx="5" fill="rgba(96,165,250,0.1)" stroke="#60a5fa" stroke-width="1"/>
+        <text x="45" y="53" fill="#60a5fa" font-size="9" font-weight="600">AKS Subnet 10.0.0.0/22</text>
+        <text x="265" y="53" fill="#64748b" font-size="8">1022 IPs</text>
+        <rect x="35" y="72" width="270" height="28" rx="5" fill="rgba(52,211,153,0.1)" stroke="#34d399" stroke-width="1"/>
+        <text x="45" y="90" fill="#34d399" font-size="9" font-weight="600">DB Subnet 10.0.10.0/24</text>
+        <text x="255" y="90" fill="#64748b" font-size="8">delegated</text>
+        <rect x="35" y="109" width="270" height="28" rx="5" fill="rgba(220,56,45,0.1)" stroke="#DC382D" stroke-width="1"/>
+        <text x="45" y="127" fill="#DC382D" font-size="9" font-weight="600">Redis Subnet 10.0.20.0/24</text>
+        <text x="250" y="127" fill="#64748b" font-size="8">private EP</text>
+        <rect x="35" y="146" width="270" height="28" rx="5" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="45" y="164" fill="#fbbf24" font-size="9" font-weight="600">App GW Subnet 10.0.30.0/24</text>
+        <text x="255" y="164" fill="#64748b" font-size="8">dedicated</text>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>04-vnet.tf</h4>
+<pre><code>resource <span class="string">"azurerm_virtual_network"</span> <span class="string">"main"</span> {
+  name                = <span class="string">"${local.name_prefix}-vnet"</span>
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  address_space       = var.vnet_address_space
+  tags                = local.common_tags
+}
+
+<span class="comment"># 4 subnets defined separately:</span>
+<span class="comment"># - AKS:   10.0.0.0/22  (Azure CNI pod IPs)</span>
+<span class="comment"># - DB:    10.0.10.0/24 (PostgreSQL delegation)</span>
+<span class="comment"># - Redis: 10.0.20.0/24 (private endpoint)</span>
+<span class="comment"># - AppGW: 10.0.30.0/24 (dedicated for App GW)</span></code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> Isolated network boundary for all resources. Azure CNI integration gives every pod a VNet-routable IP, enabling direct connectivity to managed services without NAT.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> Contains all 4 subnets. NSGs attach to each subnet for L4 filtering.</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> Docker bridge network created by kind. All containers share the same flat network.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 4. AKS SUBNET -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="aks-subnet"><span class="section-num">4</span> AKS Subnet (/22)</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 170" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="168" rx="12" fill="#0f172a" stroke="#334155"/>
+        <!-- Subnet block -->
+        <rect x="30" y="20" width="280" height="90" rx="8" fill="rgba(96,165,250,0.08)" stroke="#60a5fa" stroke-width="2"/>
+        <text x="170" y="40" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="700">AKS Subnet 10.0.0.0/22</text>
+        <!-- Pod IP range callout -->
+        <rect x="50" y="52" width="100" height="24" rx="5" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1"/>
+        <text x="100" y="68" text-anchor="middle" fill="#e2e8f0" font-size="8">Node IPs</text>
+        <rect x="165" y="52" width="130" height="24" rx="5" fill="#1e3a5f" stroke="#a78bfa" stroke-width="1"/>
+        <text x="230" y="68" text-anchor="middle" fill="#a78bfa" font-size="8">Pod IPs (Azure CNI)</text>
+        <!-- 1022 IPs badge -->
+        <rect x="115" y="85" width="110" height="18" rx="9" fill="rgba(59,130,246,0.15)"/>
+        <text x="170" y="97" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">1022 usable IPs</text>
+        <!-- Service endpoints -->
+        <text x="170" y="130" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">Service Endpoints:</text>
+        <text x="80" y="148" text-anchor="middle" fill="#34d399" font-size="8">Microsoft.Sql</text>
+        <text x="165" y="148" text-anchor="middle" fill="#fbbf24" font-size="8">Microsoft.EventHub</text>
+        <text x="255" y="148" text-anchor="middle" fill="#ef4444" font-size="8">Microsoft.KeyVault</text>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>04-vnet.tf (AKS subnet)</h4>
+<pre><code>resource <span class="string">"azurerm_subnet"</span> <span class="string">"aks"</span> {
+  name                 = <span class="string">"${local.name_prefix}-aks-subnet"</span>
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.aks_subnet_cidr]
+
+  <span class="comment"># Service endpoints for VNet-direct access</span>
+  service_endpoints = [
+    <span class="string">"Microsoft.Sql"</span>,
+    <span class="string">"Microsoft.Storage"</span>,
+    <span class="string">"Microsoft.EventHub"</span>,
+    <span class="string">"Microsoft.KeyVault"</span>,
+  ]
+}</code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> Azure CNI assigns a VNet IP to every pod, so a /24 (254 IPs) would be exhausted quickly. The /22 provides 1022 usable IPs for nodes and pods. Service endpoints route traffic to managed services over the Azure backbone.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> AKS nodes, AKS pods, Event Hubs, Key Vault, Storage.</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> Kind node network. All kind containers share a Docker bridge with auto-assigned IPs.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 5. DATABASE SUBNET -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="db-subnet"><span class="section-num">5</span> Database Subnet (Delegated)</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 170" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="168" rx="12" fill="#0f172a" stroke="#334155"/>
+        <!-- Subnet block -->
+        <rect x="30" y="20" width="280" height="70" rx="8" fill="rgba(52,211,153,0.08)" stroke="#34d399" stroke-width="2"/>
+        <text x="170" y="40" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700">DB Subnet 10.0.10.0/24</text>
+        <!-- Delegation badge -->
+        <rect x="65" y="52" width="210" height="22" rx="6" fill="rgba(52,211,153,0.12)" stroke="#34d399" stroke-width="1" stroke-dasharray="4"/>
+        <text x="170" y="67" text-anchor="middle" fill="#34d399" font-size="9">Delegated: Microsoft.DBforPostgreSQL/flexibleServers</text>
+        <!-- Private DNS zone -->
+        <rect x="60" y="105" width="220" height="40" rx="8" fill="#1e3a5f" stroke="#336791" stroke-width="1.5"/>
+        <text x="170" y="122" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">Private DNS Zone</text>
+        <text x="170" y="137" text-anchor="middle" fill="#94a3b8" font-size="8">bookstore-dev.postgres.database.azure.com</text>
+        <!-- Link arrow -->
+        <line x1="170" y1="90" x2="170" y2="105" stroke="#336791" stroke-width="1.5"/>
+        <polygon points="166,103 174,103 170,108" fill="#336791"/>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>04-vnet.tf (Database subnet)</h4>
+<pre><code>resource <span class="string">"azurerm_subnet"</span> <span class="string">"database"</span> {
+  name                 = <span class="string">"${local.name_prefix}-db-subnet"</span>
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.db_subnet_cidr]
+
+  <span class="comment"># PostgreSQL requires service delegation</span>
+  delegation {
+    name = <span class="string">"postgresql-delegation"</span>
+    service_delegation {
+      name = <span class="string">"Microsoft.DBforPostgreSQL/flexibleServers"</span>
+      actions = [
+        <span class="string">"Microsoft.Network/virtualNetworks/subnets/join/action"</span>,
+      ]
+    }
+  }
+}</code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> PostgreSQL Flexible Server requires a dedicated subnet with service delegation. No other resources can share this subnet. The private DNS zone resolves database FQDNs to private IPs within the VNet.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> 4 PostgreSQL Flexible Servers, Private DNS Zone linked to VNet.</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> CloudNativePG pods running in the kind cluster (ecom-db, inventory-db, analytics-db, keycloak-db).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 6. APP GW SUBNET -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="appgw-subnet"><span class="section-num">6</span> Application Gateway Subnet</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 150" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="148" rx="12" fill="#0f172a" stroke="#334155"/>
+        <!-- Subnet block -->
+        <rect x="30" y="20" width="280" height="60" rx="8" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="2"/>
+        <text x="170" y="42" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700">App GW Subnet 10.0.30.0/24</text>
+        <text x="170" y="60" text-anchor="middle" fill="#94a3b8" font-size="9">Dedicated subnet (Azure requirement)</text>
+        <!-- App GW icon inside -->
+        <rect x="120" y="95" width="100" height="35" rx="8" fill="#1e3a5f" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="170" y="117" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="600">App Gateway v2</text>
+        <!-- Arrow up -->
+        <line x1="170" y1="80" x2="170" y2="95" stroke="#fbbf24" stroke-width="1.5"/>
+        <polygon points="166,93 174,93 170,98" fill="#fbbf24"/>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>04-vnet.tf (App Gateway subnet)</h4>
+<pre><code>resource <span class="string">"azurerm_subnet"</span> <span class="string">"appgw"</span> {
+  name                 = <span class="string">"${local.name_prefix}-appgw-subnet"</span>
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.appgw_subnet_cidr]
+}
+
+<span class="comment"># App Gateway v2 requires its own dedicated</span>
+<span class="comment"># subnet. Must not contain any other resources.</span></code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> Azure Application Gateway v2 mandates a dedicated subnet with no other resources. This subnet hosts the gateway instances that handle HTTPS termination and routing.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> Application Gateway, Public IP, routes traffic to AKS subnet.</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> Kind NodePort on port 30000 with Istio Gateway TLS termination.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 7. NSGs -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="nsgs"><span class="section-num">7</span> Network Security Groups (NSGs)</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 190" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="188" rx="12" fill="#0f172a" stroke="#334155"/>
+        <!-- Three NSGs as shields -->
+        <!-- AKS NSG -->
+        <rect x="25" y="25" width="85" height="65" rx="8" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1.5"/>
+        <text x="67" y="45" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="700">AKS NSG</text>
+        <text x="67" y="60" text-anchor="middle" fill="#94a3b8" font-size="7">IN: AppGW :80-443</text>
+        <text x="67" y="72" text-anchor="middle" fill="#94a3b8" font-size="7">OUT: DB :5432</text>
+        <text x="67" y="82" text-anchor="middle" fill="#94a3b8" font-size="7">OUT: Redis :6380</text>
+        <!-- DB NSG -->
+        <rect x="128" y="25" width="85" height="65" rx="8" fill="#1e3a5f" stroke="#34d399" stroke-width="1.5"/>
+        <text x="170" y="45" text-anchor="middle" fill="#34d399" font-size="9" font-weight="700">DB NSG</text>
+        <text x="170" y="60" text-anchor="middle" fill="#94a3b8" font-size="7">IN: AKS :5432</text>
+        <text x="170" y="72" text-anchor="middle" fill="#ef4444" font-size="7">DENY all other</text>
+        <!-- App GW NSG -->
+        <rect x="230" y="25" width="85" height="65" rx="8" fill="#1e3a5f" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="272" y="45" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="700">AppGW NSG</text>
+        <text x="272" y="60" text-anchor="middle" fill="#94a3b8" font-size="7">IN: Internet :443</text>
+        <text x="272" y="72" text-anchor="middle" fill="#94a3b8" font-size="7">IN: Internet :80</text>
+        <text x="272" y="82" text-anchor="middle" fill="#94a3b8" font-size="7">IN: GWMgr probes</text>
+        <!-- Arrows showing traffic flow -->
+        <text x="170" y="115" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">Traffic Flow</text>
+        <line x1="50" y1="130" x2="290" y2="130" stroke="#334155" stroke-width="1"/>
+        <text x="60" y="148" fill="#fbbf24" font-size="8">Internet</text>
+        <text x="115" y="148" fill="#64748b" font-size="8">--></text>
+        <text x="140" y="148" fill="#fbbf24" font-size="8">AppGW</text>
+        <text x="177" y="148" fill="#64748b" font-size="8">--></text>
+        <text x="200" y="148" fill="#60a5fa" font-size="8">AKS</text>
+        <text x="230" y="148" fill="#64748b" font-size="8">--></text>
+        <text x="258" y="148" fill="#34d399" font-size="8">DB</text>
+        <text x="170" y="170" text-anchor="middle" fill="#64748b" font-size="7">Each NSG attached to its subnet via association resource</text>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>04-vnet.tf (NSG rules)</h4>
+<pre><code>resource <span class="string">"azurerm_network_security_group"</span> <span class="string">"aks"</span> {
+  name = <span class="string">"${local.name_prefix}-aks-nsg"</span>
+  <span class="comment">...</span>
+
+  security_rule {
+    name                   = <span class="string">"AllowAppGateway"</span>
+    priority               = 100
+    direction              = <span class="string">"Inbound"</span>
+    access                 = <span class="string">"Allow"</span>
+    protocol               = <span class="string">"Tcp"</span>
+    destination_port_range = <span class="string">"80-443"</span>
+    source_address_prefix  = var.appgw_subnet_cidr
+  }
+
+  security_rule {
+    name                   = <span class="string">"AllowOutboundPostgreSQL"</span>
+    priority               = 100
+    direction              = <span class="string">"Outbound"</span>
+    destination_port_range = <span class="string">"5432"</span>
+    destination_address_prefix = var.db_subnet_cidr
+  }
+}
+
+resource <span class="string">"azurerm_subnet_network_security_group_association"</span> <span class="string">"aks"</span> {
+  subnet_id                 = azurerm_subnet.aks.id
+  network_security_group_id = azurerm_network_security_group.aks.id
+}</code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> L4 firewall rules per subnet. AKS NSG allows inbound from App Gateway and inter-node traffic. DB NSG allows inbound only from AKS on port 5432 with deny-all fallback. AppGW NSG allows internet HTTPS and Azure health probes.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> Each NSG is associated with its respective subnet.</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> Kubernetes NetworkPolicies per namespace (e.g., ecom-netpol, observability-netpol).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 8. AKS CLUSTER -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="aks-cluster"><span class="section-num">8</span> AKS Cluster</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 190" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="188" rx="12" fill="#0f172a" stroke="#334155"/>
+        <!-- AKS outer -->
+        <rect x="25" y="15" width="290" height="160" rx="10" fill="none" stroke="#0078d4" stroke-width="2"/>
+        <rect x="35" y="7" width="100" height="18" rx="4" fill="#0f172a"/>
+        <text x="43" y="20" fill="#0078d4" font-size="10" font-weight="700">AKS Cluster</text>
+        <!-- Control plane -->
+        <rect x="45" y="35" width="250" height="35" rx="6" fill="rgba(0,120,212,0.12)" stroke="#0078d4" stroke-width="1"/>
+        <text x="170" y="50" text-anchor="middle" fill="#0078d4" font-size="9" font-weight="700">Managed Control Plane</text>
+        <text x="170" y="63" text-anchor="middle" fill="#94a3b8" font-size="7">API Server | etcd | Scheduler | Controller Manager</text>
+        <!-- Features row -->
+        <rect x="45" y="80" width="75" height="28" rx="5" fill="#1e3a5f" stroke="#a78bfa" stroke-width="1"/>
+        <text x="82" y="98" text-anchor="middle" fill="#a78bfa" font-size="8" font-weight="600">Azure CNI</text>
+        <rect x="130" y="80" width="80" height="28" rx="5" fill="#1e3a5f" stroke="#10b981" stroke-width="1"/>
+        <text x="170" y="98" text-anchor="middle" fill="#10b981" font-size="8" font-weight="600">OIDC Issuer</text>
+        <rect x="220" y="80" width="75" height="28" rx="5" fill="#1e3a5f" stroke="#fbbf24" stroke-width="1"/>
+        <text x="257" y="98" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="600">Workload ID</text>
+        <!-- Identity -->
+        <rect x="45" y="118" width="110" height="22" rx="5" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1"/>
+        <text x="100" y="133" text-anchor="middle" fill="#60a5fa" font-size="8">SystemAssigned Identity</text>
+        <!-- Monitoring -->
+        <rect x="165" y="118" width="130" height="22" rx="5" fill="#1e3a5f" stroke="#06b6d4" stroke-width="1"/>
+        <text x="230" y="133" text-anchor="middle" fill="#06b6d4" font-size="8">Container Insights + OMS</text>
+        <!-- Version -->
+        <text x="170" y="160" text-anchor="middle" fill="#64748b" font-size="8">kubernetes_version: 1.31 | network_policy: calico | azure_policy: enabled</text>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>05-aks.tf</h4>
+<pre><code>resource <span class="string">"azurerm_kubernetes_cluster"</span> <span class="string">"main"</span> {
+  name                = <span class="string">"${local.name_prefix}-aks"</span>
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  dns_prefix          = <span class="string">"${local.name_prefix}-aks"</span>
+  kubernetes_version  = var.kubernetes_version
+
+  identity { type = <span class="string">"SystemAssigned"</span> }
+
+  network_profile {
+    network_plugin = <span class="string">"azure"</span>     <span class="comment"># Azure CNI</span>
+    network_policy = <span class="string">"calico"</span>
+    service_cidr   = <span class="string">"10.1.0.0/16"</span>
+    dns_service_ip = <span class="string">"10.1.0.10"</span>
+  }
+
+  <span class="comment"># Workload Identity for passwordless auth</span>
+  oidc_issuer_enabled       = true
+  workload_identity_enabled = true
+  azure_policy_enabled      = true
+
+  oms_agent {
+    log_analytics_workspace_id =
+      azurerm_log_analytics_workspace.aks.id
+  }
+}</code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> Managed Kubernetes with Azure CNI, workload identity, and OIDC issuer. Azure manages the control plane (API server, etcd, scheduler). Calico enforces NetworkPolicy resources.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> VNet (via Azure CNI), ACR (AcrPull role), Log Analytics, node pools.</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> <code>kind create cluster --name bookstore</code> with control-plane + worker nodes.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 9. SYSTEM NODE POOL -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="system-pool"><span class="section-num">9</span> AKS System Node Pool</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 160" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="158" rx="12" fill="#0f172a" stroke="#334155"/>
+        <text x="170" y="25" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="700">System Node Pool</text>
+        <!-- Two VM boxes -->
+        <rect x="40" y="40" width="120" height="80" rx="8" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1.5"/>
+        <text x="100" y="58" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="600">Node 1 (D2s_v3)</text>
+        <rect x="55" y="65" width="90" height="14" rx="3" fill="rgba(96,165,250,0.15)"/>
+        <text x="100" y="75" text-anchor="middle" fill="#60a5fa" font-size="7">kube-system</text>
+        <rect x="55" y="82" width="90" height="14" rx="3" fill="rgba(70,107,176,0.2)"/>
+        <text x="100" y="92" text-anchor="middle" fill="#466BB0" font-size="7">istio-system</text>
+        <rect x="55" y="99" width="90" height="14" rx="3" fill="rgba(167,139,250,0.15)"/>
+        <text x="100" y="109" text-anchor="middle" fill="#a78bfa" font-size="7">cert-manager</text>
+
+        <rect x="180" y="40" width="120" height="80" rx="8" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1.5"/>
+        <text x="240" y="58" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="600">Node 2 (D2s_v3)</text>
+        <rect x="195" y="65" width="90" height="14" rx="3" fill="rgba(96,165,250,0.15)"/>
+        <text x="240" y="75" text-anchor="middle" fill="#60a5fa" font-size="7">monitoring</text>
+        <rect x="195" y="82" width="90" height="14" rx="3" fill="rgba(16,185,129,0.15)"/>
+        <text x="240" y="92" text-anchor="middle" fill="#10b981" font-size="7">external-secrets</text>
+        <rect x="195" y="99" width="90" height="14" rx="3" fill="rgba(6,182,212,0.15)"/>
+        <text x="240" y="109" text-anchor="middle" fill="#06b6d4" font-size="7">kiali</text>
+        <!-- Label -->
+        <text x="170" y="142" text-anchor="middle" fill="#94a3b8" font-size="8">2 vCPU, 8 GB RAM | max_pods: 50 | label: nodepool-type=system</text>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>05-aks.tf (default_node_pool)</h4>
+<pre><code>default_node_pool {
+  name            = <span class="string">"system"</span>
+  vm_size         = var.system_node_vm_size
+  node_count      = var.system_node_count  <span class="comment"># 2</span>
+  vnet_subnet_id  = azurerm_subnet.aks.id
+  os_disk_size_gb = 128
+  os_disk_type    = <span class="string">"Managed"</span>
+  type            = <span class="string">"VirtualMachineScaleSets"</span>
+  max_pods        = 50
+
+  <span class="comment"># Label so app workloads avoid this pool</span>
+  node_labels = {
+    <span class="string">"nodepool-type"</span> = <span class="string">"system"</span>
+  }
+
+  upgrade_settings {
+    max_surge = <span class="string">"10%"</span>
+  }
+}</code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> Runs cluster-critical infrastructure workloads: kube-system, Istio, cert-manager, External Secrets Operator. Labeled as "system" to keep application pods on the app pool.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> Part of the AKS cluster, uses the AKS subnet for networking.</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> Kind worker node 1 (bookstore-worker).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 10. APP NODE POOL -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="app-pool"><span class="section-num">10</span> AKS App Node Pool</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 170" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="168" rx="12" fill="#0f172a" stroke="#334155"/>
+        <text x="170" y="25" text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="700">App Node Pool (autoscaling)</text>
+        <!-- Nodes with autoscale arrows -->
+        <rect x="25" y="42" width="55" height="50" rx="6" fill="#1e3a5f" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="52" y="62" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">Node 1</text>
+        <text x="52" y="78" text-anchor="middle" fill="#a78bfa" font-size="7">D4s_v3</text>
+        <rect x="90" y="42" width="55" height="50" rx="6" fill="#1e3a5f" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="117" y="62" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">Node 2</text>
+        <text x="117" y="78" text-anchor="middle" fill="#a78bfa" font-size="7">D4s_v3</text>
+        <!-- Dashed nodes for scale-up -->
+        <rect x="155" y="42" width="55" height="50" rx="6" fill="none" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4"/>
+        <text x="182" y="62" text-anchor="middle" fill="#64748b" font-size="8">Node 3</text>
+        <text x="182" y="78" text-anchor="middle" fill="#64748b" font-size="7">scale-up</text>
+        <rect x="220" y="42" width="55" height="50" rx="6" fill="none" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4"/>
+        <text x="247" y="62" text-anchor="middle" fill="#64748b" font-size="8">Node 4</text>
+        <rect x="285" y="42" width="35" height="50" rx="6" fill="none" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4"/>
+        <text x="302" y="70" text-anchor="middle" fill="#64748b" font-size="8">N5</text>
+        <!-- Scale arrows -->
+        <line x1="148" y1="100" x2="310" y2="100" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowP)"/>
+        <line x1="310" y1="106" x2="148" y2="106" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowP)"/>
+        <defs><marker id="arrowP" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#a78bfa"/></marker></defs>
+        <text x="229" y="118" text-anchor="middle" fill="#a78bfa" font-size="8">2-5 nodes (autoscaler)</text>
+        <!-- Workloads -->
+        <text x="170" y="142" text-anchor="middle" fill="#94a3b8" font-size="8">Runs: ecom-service, inventory-service, UI, Keycloak, Debezium, Flink, Superset</text>
+        <text x="170" y="155" text-anchor="middle" fill="#64748b" font-size="7">4 vCPU, 16 GB RAM per node | label: nodepool-type=app</text>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>05-aks.tf (app node pool)</h4>
+<pre><code>resource <span class="string">"azurerm_kubernetes_cluster_node_pool"</span> <span class="string">"app"</span> {
+  name                  = <span class="string">"app"</span>
+  kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
+  vm_size               = var.app_node_vm_size
+  min_count             = var.app_node_min_count  <span class="comment"># 2</span>
+  max_count             = var.app_node_max_count  <span class="comment"># 5</span>
+  auto_scaling_enabled  = true
+  os_disk_size_gb       = 128
+  vnet_subnet_id        = azurerm_subnet.aks.id
+  max_pods              = 50
+
+  node_labels = {
+    <span class="string">"nodepool-type"</span> = <span class="string">"app"</span>
+  }
+
+  node_taints = []  <span class="comment"># Accept app workloads</span>
+}</code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> Application workloads with autoscaling from 2 to 5 nodes. D4s_v3 (4 vCPU, 16 GB) provides headroom for rolling updates and traffic spikes.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> AKS cluster, AKS subnet. Autoscaler profile configured on the cluster resource.</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> Kind worker node 2 (bookstore-worker2). No autoscaling locally.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 11. ACR -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="acr"><span class="section-num">11</span> Azure Container Registry (ACR)</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 160" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="158" rx="12" fill="#0f172a" stroke="#334155"/>
+        <!-- ACR box -->
+        <rect x="100" y="20" width="140" height="55" rx="8" fill="#1e3a5f" stroke="#0078d4" stroke-width="2"/>
+        <text x="170" y="42" text-anchor="middle" fill="#0078d4" font-size="10" font-weight="700">Azure Container Registry</text>
+        <text x="170" y="58" text-anchor="middle" fill="#94a3b8" font-size="8">bookstoreacr{random}</text>
+        <text x="170" y="70" text-anchor="middle" fill="#64748b" font-size="7">Standard SKU</text>
+        <!-- AKS box -->
+        <rect x="100" y="105" width="140" height="35" rx="8" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1.5"/>
+        <text x="170" y="127" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">AKS Cluster</text>
+        <!-- AcrPull arrow -->
+        <line x1="170" y1="75" x2="170" y2="105" stroke="#10b981" stroke-width="2"/>
+        <polygon points="166,102 174,102 170,108" fill="#10b981"/>
+        <rect x="180" y="84" width="70" height="16" rx="4" fill="rgba(16,185,129,0.15)"/>
+        <text x="215" y="95" text-anchor="middle" fill="#10b981" font-size="8" font-weight="600">AcrPull Role</text>
+        <!-- Images -->
+        <rect x="20" y="32" width="65" height="14" rx="3" fill="rgba(96,165,250,0.1)"/>
+        <text x="52" y="42" text-anchor="middle" fill="#60a5fa" font-size="7">ecom-service</text>
+        <rect x="20" y="50" width="65" height="14" rx="3" fill="rgba(167,139,250,0.1)"/>
+        <text x="52" y="60" text-anchor="middle" fill="#a78bfa" font-size="7">inventory-svc</text>
+        <rect x="255" y="32" width="65" height="14" rx="3" fill="rgba(52,211,153,0.1)"/>
+        <text x="287" y="42" text-anchor="middle" fill="#34d399" font-size="7">ui-service</text>
+        <rect x="255" y="50" width="65" height="14" rx="3" fill="rgba(248,113,113,0.1)"/>
+        <text x="287" y="60" text-anchor="middle" fill="#f87171" font-size="7">flink</text>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>06-acr.tf</h4>
+<pre><code>resource <span class="string">"random_string"</span> <span class="string">"acr_suffix"</span> {
+  length  = 6
+  special = false
+  upper   = false
+}
+
+resource <span class="string">"azurerm_container_registry"</span> <span class="string">"main"</span> {
+  name                = <span class="string">"${var.project}acr${random_string.acr_suffix.result}"</span>
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  sku                 = var.acr_sku
+  admin_enabled       = true
+}
+
+<span class="comment"># Grant AKS kubelet identity AcrPull</span>
+resource <span class="string">"azurerm_role_assignment"</span> <span class="string">"aks_acr_pull"</span> {
+  scope                = azurerm_container_registry.main.id
+  role_definition_name = <span class="string">"AcrPull"</span>
+  principal_id         = azurerm_kubernetes_cluster.main
+    .kubelet_identity[0].object_id
+}</code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> Private Docker image registry. AKS authenticates via AcrPull role assignment on the kubelet managed identity -- no docker login credentials needed on the cluster.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> AKS kubelet identity (role assignment), all service Dockerfiles.</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> Local Docker images loaded into kind via <code>kind load docker-image</code>.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 12. POSTGRESQL -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="postgresql"><span class="section-num">12</span> PostgreSQL Flexible Server (4x)</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 200" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="198" rx="12" fill="#0f172a" stroke="#334155"/>
+        <!-- Four DB instances -->
+        <rect x="20" y="20" width="70" height="55" rx="8" fill="#1e3a5f" stroke="#336791" stroke-width="1.5"/>
+        <text x="55" y="38" text-anchor="middle" fill="#336791" font-size="9" font-weight="700">ecom-db</text>
+        <text x="55" y="52" text-anchor="middle" fill="#94a3b8" font-size="7">B1ms</text>
+        <text x="55" y="64" text-anchor="middle" fill="#fbbf24" font-size="7">wal_level=logical</text>
+
+        <rect x="98" y="20" width="70" height="55" rx="8" fill="#1e3a5f" stroke="#336791" stroke-width="1.5"/>
+        <text x="133" y="38" text-anchor="middle" fill="#336791" font-size="9" font-weight="700">inventory</text>
+        <text x="133" y="52" text-anchor="middle" fill="#94a3b8" font-size="7">B1ms</text>
+        <text x="133" y="64" text-anchor="middle" fill="#fbbf24" font-size="7">wal_level=logical</text>
+
+        <rect x="176" y="20" width="70" height="55" rx="8" fill="#1e3a5f" stroke="#336791" stroke-width="1.5"/>
+        <text x="211" y="38" text-anchor="middle" fill="#336791" font-size="9" font-weight="700">analytics</text>
+        <text x="211" y="52" text-anchor="middle" fill="#94a3b8" font-size="7">B1ms</text>
+        <text x="211" y="64" text-anchor="middle" fill="#fbbf24" font-size="7">wal_level=logical</text>
+
+        <rect x="254" y="20" width="70" height="55" rx="8" fill="#1e3a5f" stroke="#336791" stroke-width="1.5"/>
+        <text x="289" y="38" text-anchor="middle" fill="#336791" font-size="9" font-weight="700">keycloak</text>
+        <text x="289" y="52" text-anchor="middle" fill="#94a3b8" font-size="7">B1ms</text>
+        <text x="289" y="64" text-anchor="middle" fill="#fbbf24" font-size="7">wal_level=logical</text>
+
+        <!-- Private DNS Zone -->
+        <rect x="40" y="95" width="260" height="35" rx="8" fill="rgba(51,103,145,0.15)" stroke="#336791" stroke-width="1"/>
+        <text x="170" y="110" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">Private DNS Zone</text>
+        <text x="170" y="123" text-anchor="middle" fill="#94a3b8" font-size="8">*.postgres.database.azure.com</text>
+        <!-- Arrows down -->
+        <line x1="55" y1="75" x2="55" y2="95" stroke="#336791" stroke-width="1"/>
+        <line x1="133" y1="75" x2="133" y2="95" stroke="#336791" stroke-width="1"/>
+        <line x1="211" y1="75" x2="211" y2="95" stroke="#336791" stroke-width="1"/>
+        <line x1="289" y1="75" x2="289" y2="95" stroke="#336791" stroke-width="1"/>
+        <!-- VNet link -->
+        <rect x="100" y="147" width="140" height="25" rx="6" fill="#1e3a5f" stroke="#0078d4" stroke-width="1"/>
+        <text x="170" y="164" text-anchor="middle" fill="#0078d4" font-size="8" font-weight="600">VNet Link (db-subnet)</text>
+        <line x1="170" y1="130" x2="170" y2="147" stroke="#0078d4" stroke-width="1"/>
+        <polygon points="166,145 174,145 170,150" fill="#0078d4"/>
+        <!-- HA note -->
+        <text x="170" y="190" text-anchor="middle" fill="#64748b" font-size="7">prod: ZoneRedundant HA (standby in zone 2) | geo_redundant_backup</text>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>07-postgresql.tf</h4>
+<pre><code>locals {
+  databases = {
+    ecom      = { name = <span class="string">"...-ecom-db"</span>,      database = <span class="string">"ecom"</span> }
+    inventory = { name = <span class="string">"...-inventory-db"</span>, database = <span class="string">"inventory"</span> }
+    analytics = { name = <span class="string">"...-analytics-db"</span>, database = <span class="string">"analytics"</span> }
+    keycloak  = { name = <span class="string">"...-keycloak-db"</span>,  database = <span class="string">"keycloak"</span> }
+  }
+}
+
+resource <span class="string">"azurerm_postgresql_flexible_server"</span> <span class="string">"databases"</span> {
+  for_each = local.databases
+
+  name                   = each.value.name
+  version                = <span class="string">"16"</span>
+  sku_name               = var.db_sku_name
+  storage_mb             = var.db_storage_mb
+  administrator_login    = var.db_admin_username
+  administrator_password = random_password.db_passwords[each.key].result
+
+  <span class="comment"># VNet integration (no public endpoint)</span>
+  delegated_subnet_id = azurerm_subnet.database.id
+  private_dns_zone_id = azurerm_private_dns_zone.postgresql.id
+}
+
+<span class="comment"># wal_level=logical for Debezium CDC</span>
+resource <span class="string">"azurerm_postgresql_flexible_server_configuration"</span> <span class="string">"wal_level"</span> {
+  for_each = local.databases
+  name     = <span class="string">"wal_level"</span>
+  value    = <span class="string">"logical"</span>
+  server_id = azurerm_postgresql_flexible_server.databases[each.key].id
+}</code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> Four isolated PostgreSQL instances with VNet integration. Each service has its own server and credentials. <code>wal_level=logical</code> enables Debezium CDC on ecom and inventory databases.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> DB subnet (delegation), Private DNS Zone, Key Vault (passwords stored as secrets).</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> CloudNativePG clusters (ecom-db, inventory-db, analytics-db, keycloak-db) with 2 instances each.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 13. EVENT HUBS -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="eventhubs"><span class="section-num">13</span> Event Hubs (Kafka Protocol)</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 190" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="188" rx="12" fill="#0f172a" stroke="#334155"/>
+        <!-- Namespace box -->
+        <rect x="30" y="15" width="280" height="95" rx="10" fill="rgba(226,232,240,0.05)" stroke="#e2e8f0" stroke-width="1.5"/>
+        <text x="170" y="35" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700">Event Hubs Namespace (Kafka :9093)</text>
+        <!-- Topics inside -->
+        <rect x="45" y="48" width="120" height="25" rx="5" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1"/>
+        <text x="105" y="65" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">order-created (4 partitions)</text>
+        <rect x="175" y="48" width="120" height="25" rx="5" fill="#1e3a5f" stroke="#a78bfa" stroke-width="1"/>
+        <text x="235" y="65" text-anchor="middle" fill="#a78bfa" font-size="8" font-weight="600">inventory-updated (4 part.)</text>
+        <!-- Consumer groups -->
+        <text x="105" y="88" text-anchor="middle" fill="#64748b" font-size="7">consumers: inventory-svc, flink</text>
+        <text x="235" y="88" text-anchor="middle" fill="#64748b" font-size="7">consumer: flink-analytics</text>
+        <!-- SAS policies -->
+        <text x="170" y="130" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">SAS Authorization Rules</text>
+        <rect x="25" y="138" width="70" height="20" rx="4" fill="rgba(96,165,250,0.1)" stroke="#60a5fa" stroke-width="1"/>
+        <text x="60" y="152" text-anchor="middle" fill="#60a5fa" font-size="7">ecom: SEND</text>
+        <rect x="103" y="138" width="75" height="20" rx="4" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="140" y="152" text-anchor="middle" fill="#a78bfa" font-size="7">inventory: L+S</text>
+        <rect x="186" y="138" width="75" height="20" rx="4" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="223" y="152" text-anchor="middle" fill="#fbbf24" font-size="7">debezium: ALL</text>
+        <rect x="269" y="138" width="55" height="20" rx="4" fill="rgba(52,211,153,0.1)" stroke="#34d399" stroke-width="1"/>
+        <text x="296" y="152" text-anchor="middle" fill="#34d399" font-size="7">flink: L</text>
+        <!-- VNet rule -->
+        <text x="170" y="178" text-anchor="middle" fill="#64748b" font-size="7">Network: default_action=Deny, VNet rule for AKS subnet only</text>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>08-eventhubs.tf</h4>
+<pre><code>resource <span class="string">"azurerm_eventhub_namespace"</span> <span class="string">"main"</span> {
+  name     = <span class="string">"${local.name_prefix}-eventhubs"</span>
+  sku      = var.eventhubs_sku
+  capacity = var.eventhubs_capacity
+
+  auto_inflate_enabled     = true
+  maximum_throughput_units = 5
+
+  network_rulesets {
+    default_action = <span class="string">"Deny"</span>
+    virtual_network_rule {
+      subnet_id = azurerm_subnet.aks.id
+    }
+  }
+}
+
+resource <span class="string">"azurerm_eventhub"</span> <span class="string">"order_created"</span> {
+  name              = <span class="string">"order-created"</span>
+  namespace_name    = azurerm_eventhub_namespace.main.name
+  partition_count   = 4
+  message_retention = 7
+}
+
+<span class="comment"># + inventory-updated hub</span>
+<span class="comment"># + 3 consumer groups</span>
+<span class="comment"># + 4 SAS policies (least-privilege)</span></code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> Kafka-compatible messaging for CDC events and application events. Standard Kafka clients connect via SASL/PLAIN over TLS on port 9093. Auto-inflate scales throughput units automatically.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> AKS subnet (VNet rule), ecom-service (producer), inventory-service (consumer), Debezium (CDC topics), Flink (analytics).</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> Self-hosted Kafka pod running in KRaft mode in the infra namespace.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 14. REDIS -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="redis"><span class="section-num">14</span> Azure Cache for Redis</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 170" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="168" rx="12" fill="#0f172a" stroke="#334155"/>
+        <!-- Redis cache box -->
+        <rect x="80" y="15" width="180" height="55" rx="8" fill="#1e3a5f" stroke="#DC382D" stroke-width="2"/>
+        <text x="170" y="35" text-anchor="middle" fill="#DC382D" font-size="11" font-weight="700">Azure Cache for Redis</text>
+        <text x="170" y="50" text-anchor="middle" fill="#94a3b8" font-size="8">TLS 1.2 | port 6380 | allkeys-lru</text>
+        <text x="170" y="63" text-anchor="middle" fill="#64748b" font-size="7">public_network_access = false</text>
+        <!-- Private endpoint -->
+        <rect x="95" y="90" width="150" height="30" rx="6" fill="rgba(220,56,45,0.1)" stroke="#DC382D" stroke-width="1"/>
+        <text x="170" y="109" text-anchor="middle" fill="#DC382D" font-size="9" font-weight="600">Private Endpoint</text>
+        <!-- Connection line -->
+        <line x1="170" y1="70" x2="170" y2="90" stroke="#DC382D" stroke-width="1.5"/>
+        <polygon points="166,88 174,88 170,93" fill="#DC382D"/>
+        <!-- Private DNS -->
+        <rect x="70" y="132" width="200" height="22" rx="5" fill="rgba(220,56,45,0.06)" stroke="#DC382D" stroke-width="1" stroke-dasharray="4"/>
+        <text x="170" y="147" text-anchor="middle" fill="#94a3b8" font-size="8">privatelink.redis.cache.windows.net</text>
+        <line x1="170" y1="120" x2="170" y2="132" stroke="#64748b" stroke-width="1"/>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>09-redis.tf</h4>
+<pre><code>resource <span class="string">"azurerm_redis_cache"</span> <span class="string">"main"</span> {
+  name                = <span class="string">"${local.name_prefix}-redis"</span>
+  capacity            = var.redis_capacity
+  family              = var.redis_family
+  sku_name            = var.redis_sku_name
+
+  minimum_tls_version      = <span class="string">"1.2"</span>
+  non_ssl_port_enabled     = false
+  public_network_access_enabled = false
+
+  redis_configuration {
+    maxmemory_policy = <span class="string">"allkeys-lru"</span>
+  }
+}
+
+resource <span class="string">"azurerm_private_endpoint"</span> <span class="string">"redis"</span> {
+  name      = <span class="string">"${local.name_prefix}-redis-pe"</span>
+  subnet_id = azurerm_subnet.redis.id
+
+  private_service_connection {
+    private_connection_resource_id = azurerm_redis_cache.main.id
+    subresource_names = [<span class="string">"redisCache"</span>]
+    is_manual_connection = false
+  }
+}</code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> Session caching, CSRF token storage, and rate limiting token buckets. Private endpoint ensures all traffic stays within the VNet. TLS 1.2 enforced, non-SSL port disabled.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> Redis subnet (private endpoint), Private DNS Zone, ecom-service, csrf-service.</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> Redis pod in the infra namespace with plain TCP on port 6379.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 15. KEY VAULT -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="keyvault"><span class="section-num">15</span> Azure Key Vault</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 200" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="198" rx="12" fill="#0f172a" stroke="#334155"/>
+        <!-- Key Vault box -->
+        <rect x="80" y="15" width="180" height="50" rx="8" fill="#1e3a5f" stroke="#ef4444" stroke-width="2"/>
+        <text x="170" y="35" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="700">Azure Key Vault</text>
+        <text x="170" y="50" text-anchor="middle" fill="#94a3b8" font-size="8">RBAC auth | soft-delete 90d | VNet ACL</text>
+        <!-- Secret items -->
+        <rect x="25" y="80" width="90" height="18" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+        <text x="70" y="93" text-anchor="middle" fill="#ef4444" font-size="7">db-ecom-password</text>
+        <rect x="125" y="80" width="90" height="18" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+        <text x="170" y="93" text-anchor="middle" fill="#ef4444" font-size="7">db-inventory-pw</text>
+        <rect x="225" y="80" width="90" height="18" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+        <text x="270" y="93" text-anchor="middle" fill="#ef4444" font-size="7">redis-access-key</text>
+        <rect x="25" y="104" width="90" height="18" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+        <text x="70" y="117" text-anchor="middle" fill="#ef4444" font-size="7">eventhubs-ecom</text>
+        <rect x="125" y="104" width="90" height="18" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+        <text x="170" y="117" text-anchor="middle" fill="#ef4444" font-size="7">eventhubs-debez</text>
+        <rect x="225" y="104" width="90" height="18" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+        <text x="270" y="117" text-anchor="middle" fill="#ef4444" font-size="7">db-keycloak-pw</text>
+        <!-- Workload Identity arrow -->
+        <rect x="80" y="142" width="180" height="30" rx="8" fill="rgba(96,165,250,0.08)" stroke="#60a5fa" stroke-width="1"/>
+        <text x="170" y="157" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">AKS Managed Identity</text>
+        <text x="170" y="168" text-anchor="middle" fill="#64748b" font-size="7">Key Vault Secrets User role</text>
+        <!-- Arrow -->
+        <line x1="170" y1="122" x2="170" y2="142" stroke="#60a5fa" stroke-width="1.5"/>
+        <polygon points="166,140 174,140 170,145" fill="#60a5fa"/>
+        <!-- External Secrets note -->
+        <text x="170" y="190" text-anchor="middle" fill="#64748b" font-size="7">External Secrets Operator syncs Key Vault secrets to K8s Secrets</text>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>10-keyvault.tf</h4>
+<pre><code>resource <span class="string">"azurerm_key_vault"</span> <span class="string">"main"</span> {
+  name                      = <span class="string">"${var.project}-kv-${random_string.kv_suffix.result}"</span>
+  tenant_id                 = data.azurerm_client_config.current.tenant_id
+  sku_name                  = <span class="string">"standard"</span>
+  soft_delete_retention_days = 90
+  enable_rbac_authorization = true
+
+  network_acls {
+    default_action             = <span class="string">"Deny"</span>
+    bypass                     = <span class="string">"AzureServices"</span>
+    virtual_network_subnet_ids = [azurerm_subnet.aks.id]
+  }
+}
+
+<span class="comment"># RBAC: AKS identity reads secrets</span>
+resource <span class="string">"azurerm_role_assignment"</span> <span class="string">"aks_kv_reader"</span> {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = <span class="string">"Key Vault Secrets User"</span>
+  principal_id         = azurerm_kubernetes_cluster.main
+    .identity[0].principal_id
+}
+
+<span class="comment"># All DB passwords + Redis key + Event Hub</span>
+<span class="comment"># connection strings stored as secrets</span>
+resource <span class="string">"azurerm_key_vault_secret"</span> <span class="string">"db_ecom_password"</span> {
+  name         = <span class="string">"db-ecom-password"</span>
+  value        = random_password.db_passwords[<span class="string">"ecom"</span>].result
+  key_vault_id = azurerm_key_vault.main.id
+}</code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> Centralized HSM-backed secret management. All database passwords, connection strings, and API keys are stored here. External Secrets Operator syncs them into Kubernetes Secrets for pod consumption.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> AKS (RBAC role), App Gateway identity, External Secrets Operator, all managed services.</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> Kubernetes Secrets created via <code>kubectl create secret generic</code> with literal values.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 16. APPLICATION GATEWAY -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="appgw"><span class="section-num">16</span> Application Gateway</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 200" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="198" rx="12" fill="#0f172a" stroke="#334155"/>
+        <!-- Internet -->
+        <text x="170" y="20" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="700">Internet</text>
+        <line x1="170" y1="25" x2="170" y2="40" stroke="#fbbf24" stroke-width="1.5"/>
+        <polygon points="166,38 174,38 170,43" fill="#fbbf24"/>
+        <!-- App GW box -->
+        <rect x="40" y="43" width="260" height="80" rx="10" fill="#1e3a5f" stroke="#fbbf24" stroke-width="2"/>
+        <text x="170" y="60" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="700">Application Gateway v2</text>
+        <!-- HTTPS Listener -->
+        <rect x="55" y="68" width="80" height="20" rx="4" fill="rgba(16,185,129,0.12)" stroke="#10b981" stroke-width="1"/>
+        <text x="95" y="82" text-anchor="middle" fill="#10b981" font-size="7" font-weight="600">HTTPS :443</text>
+        <!-- HTTP Listener -->
+        <rect x="145" y="68" width="65" height="20" rx="4" fill="rgba(248,113,113,0.12)" stroke="#f87171" stroke-width="1"/>
+        <text x="177" y="82" text-anchor="middle" fill="#f87171" font-size="7" font-weight="600">HTTP :80</text>
+        <!-- Redirect arrow -->
+        <line x1="210" y1="78" x2="135" y2="78" stroke="#f87171" stroke-width="1" stroke-dasharray="3"/>
+        <text x="252" y="82" fill="#f87171" font-size="6">301 redirect</text>
+        <!-- Backend pool -->
+        <rect x="55" y="96" width="110" height="18" rx="4" fill="rgba(96,165,250,0.12)"/>
+        <text x="110" y="109" text-anchor="middle" fill="#60a5fa" font-size="7">Backend: AKS Ingress</text>
+        <!-- WAF -->
+        <rect x="175" y="96" width="110" height="18" rx="4" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1" stroke-dasharray="3"/>
+        <text x="230" y="109" text-anchor="middle" fill="#ef4444" font-size="7">WAF v2 (optional)</text>
+        <!-- Route to AKS -->
+        <line x1="170" y1="123" x2="170" y2="145" stroke="#60a5fa" stroke-width="1.5"/>
+        <polygon points="166,143 174,143 170,148" fill="#60a5fa"/>
+        <!-- AKS backend -->
+        <rect x="80" y="148" width="180" height="30" rx="6" fill="rgba(96,165,250,0.08)" stroke="#60a5fa" stroke-width="1"/>
+        <text x="170" y="167" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">AKS (Istio Gateway)</text>
+        <!-- SSL Policy -->
+        <text x="170" y="193" text-anchor="middle" fill="#64748b" font-size="7">SSL Policy: AppGwSslPolicy20220101S | Autoscale: 1-3 instances</text>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>11-dns.tf (Application Gateway)</h4>
+<pre><code>resource <span class="string">"azurerm_application_gateway"</span> <span class="string">"main"</span> {
+  name = local.appgw_name
+
+  sku {
+    name = var.enable_waf ? <span class="string">"WAF_v2"</span> : <span class="string">"Standard_v2"</span>
+    tier = var.enable_waf ? <span class="string">"WAF_v2"</span> : <span class="string">"Standard_v2"</span>
+  }
+
+  autoscale_configuration {
+    min_capacity = 1
+    max_capacity = 3
+  }
+
+  <span class="comment"># HTTPS Listener</span>
+  http_listener {
+    name                = <span class="string">"https-listener"</span>
+    frontend_port_name  = <span class="string">"https-port"</span>  <span class="comment"># 443</span>
+    protocol            = <span class="string">"Https"</span>
+    ssl_certificate_name = <span class="string">"appgw-ssl-cert"</span>
+  }
+
+  <span class="comment"># HTTP -> HTTPS redirect (301)</span>
+  redirect_configuration {
+    redirect_type        = <span class="string">"Permanent"</span>
+    target_listener_name = <span class="string">"https-listener"</span>
+    include_path         = true
+    include_query_string = true
+  }
+
+  <span class="comment"># Route HTTPS to AKS backend</span>
+  request_routing_rule {
+    rule_type                  = <span class="string">"Basic"</span>
+    http_listener_name         = <span class="string">"https-listener"</span>
+    backend_address_pool_name  = <span class="string">"aks-backend-pool"</span>
+  }
+
+  ssl_policy {
+    policy_name = <span class="string">"AppGwSslPolicy20220101S"</span>
+  }
+}</code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> Internet-facing HTTPS entry point with TLS termination, HTTP-to-HTTPS redirect, health probes, and optional WAF v2 protection. Routes all traffic to the Istio ingress gateway in AKS.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> Public IP, App GW subnet, AKS backend pool, Key Vault (TLS cert), DNS Zone.</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> Istio Gateway + kind NodePort 30000 (HTTPS) + NodePort 30080 (HTTP redirect).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 17. DNS ZONE -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="dns"><span class="section-num">17</span> Azure DNS Zone</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 160" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="158" rx="12" fill="#0f172a" stroke="#334155"/>
+        <!-- DNS Zone box -->
+        <rect x="70" y="15" width="200" height="40" rx="8" fill="#1e3a5f" stroke="#0078d4" stroke-width="2"/>
+        <text x="170" y="35" text-anchor="middle" fill="#0078d4" font-size="10" font-weight="700">Azure DNS Zone</text>
+        <text x="170" y="49" text-anchor="middle" fill="#94a3b8" font-size="8">bookstore.example.com</text>
+        <!-- A Records -->
+        <rect x="20" y="75" width="90" height="35" rx="6" fill="rgba(96,165,250,0.08)" stroke="#60a5fa" stroke-width="1"/>
+        <text x="65" y="90" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">shop.*.com</text>
+        <text x="65" y="103" text-anchor="middle" fill="#64748b" font-size="7">A -> App GW IP</text>
+        <rect x="125" y="75" width="90" height="35" rx="6" fill="rgba(167,139,250,0.08)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="170" y="90" text-anchor="middle" fill="#a78bfa" font-size="8" font-weight="600">api.*.com</text>
+        <text x="170" y="103" text-anchor="middle" fill="#64748b" font-size="7">A -> App GW IP</text>
+        <rect x="230" y="75" width="90" height="35" rx="6" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="275" y="90" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="600">idp.*.com</text>
+        <text x="275" y="103" text-anchor="middle" fill="#64748b" font-size="7">A -> App GW IP</text>
+        <!-- Arrows from DNS zone to records -->
+        <line x1="120" y1="55" x2="65" y2="75" stroke="#334155" stroke-width="1"/>
+        <line x1="170" y1="55" x2="170" y2="75" stroke="#334155" stroke-width="1"/>
+        <line x1="220" y1="55" x2="275" y2="75" stroke="#334155" stroke-width="1"/>
+        <!-- Public IP target -->
+        <rect x="110" y="125" width="120" height="22" rx="5" fill="#1e3a5f" stroke="#fbbf24" stroke-width="1"/>
+        <text x="170" y="140" text-anchor="middle" fill="#fbbf24" font-size="8">Public IP (Static)</text>
+        <line x1="170" y1="110" x2="170" y2="125" stroke="#fbbf24" stroke-width="1"/>
+        <polygon points="166,123 174,123 170,128" fill="#fbbf24"/>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>11-dns.tf (DNS Zone)</h4>
+<pre><code>resource <span class="string">"azurerm_public_ip"</span> <span class="string">"appgw"</span> {
+  name              = <span class="string">"${local.name_prefix}-appgw-pip"</span>
+  allocation_method = <span class="string">"Static"</span>
+  sku               = <span class="string">"Standard"</span>
+  domain_name_label = local.name_prefix
+}
+
+resource <span class="string">"azurerm_dns_zone"</span> <span class="string">"main"</span> {
+  name                = var.domain_name
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+<span class="comment"># Three A records -> App Gateway public IP</span>
+resource <span class="string">"azurerm_dns_a_record"</span> <span class="string">"ui"</span> {
+  name               = <span class="string">"shop"</span>
+  zone_name          = azurerm_dns_zone.main.name
+  ttl                = 300
+  target_resource_id = azurerm_public_ip.appgw.id
+}
+
+resource <span class="string">"azurerm_dns_a_record"</span> <span class="string">"api"</span> {
+  name               = <span class="string">"api"</span>
+  zone_name          = azurerm_dns_zone.main.name
+  ttl                = 300
+  target_resource_id = azurerm_public_ip.appgw.id
+}
+
+resource <span class="string">"azurerm_dns_a_record"</span> <span class="string">"idp"</span> {
+  name               = <span class="string">"idp"</span>
+  <span class="comment">...</span>
+}</code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> DNS resolution for custom domains. All three application domains (shop, api, idp) resolve to the Application Gateway's static public IP. After deployment, update your domain registrar's NS records to point to Azure's nameservers.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> Application Gateway public IP (A records), domain registrar (NS delegation).</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> <code>/etc/hosts</code> entries mapping <code>myecom.net</code>, <code>api.service.net</code>, and <code>idp.keycloak.net</code> to 127.0.0.1.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 18. ISTIO -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="istio"><span class="section-num">18</span> Istio Ambient Mesh</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 180" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="178" rx="12" fill="#0f172a" stroke="#334155"/>
+        <!-- Mesh overlay -->
+        <rect x="25" y="15" width="290" height="145" rx="10" fill="rgba(70,107,176,0.08)" stroke="#466BB0" stroke-width="2"/>
+        <text x="170" y="35" text-anchor="middle" fill="#466BB0" font-size="11" font-weight="700">Istio Ambient Mesh</text>
+        <!-- ztunnel nodes -->
+        <rect x="40" y="48" width="80" height="30" rx="5" fill="#1e3a5f" stroke="#466BB0" stroke-width="1.5"/>
+        <text x="80" y="67" text-anchor="middle" fill="#466BB0" font-size="8" font-weight="600">ztunnel (DaemonSet)</text>
+        <!-- Lock symbols -->
+        <rect x="135" y="48" width="80" height="30" rx="5" fill="#1e3a5f" stroke="#10b981" stroke-width="1"/>
+        <text x="175" y="67" text-anchor="middle" fill="#10b981" font-size="8" font-weight="600">mTLS L4</text>
+        <!-- istiod -->
+        <rect x="230" y="48" width="70" height="30" rx="5" fill="#1e3a5f" stroke="#a78bfa" stroke-width="1"/>
+        <text x="265" y="67" text-anchor="middle" fill="#a78bfa" font-size="8" font-weight="600">istiod</text>
+        <!-- Service pods -->
+        <rect x="40" y="95" width="55" height="24" rx="4" fill="rgba(96,165,250,0.12)"/>
+        <text x="67" y="111" text-anchor="middle" fill="#60a5fa" font-size="7">ecom</text>
+        <rect x="105" y="95" width="55" height="24" rx="4" fill="rgba(167,139,250,0.12)"/>
+        <text x="132" y="111" text-anchor="middle" fill="#a78bfa" font-size="7">inventory</text>
+        <rect x="170" y="95" width="40" height="24" rx="4" fill="rgba(52,211,153,0.12)"/>
+        <text x="190" y="111" text-anchor="middle" fill="#34d399" font-size="7">UI</text>
+        <rect x="220" y="95" width="55" height="24" rx="4" fill="rgba(248,113,113,0.12)"/>
+        <text x="247" y="111" text-anchor="middle" fill="#f87171" font-size="7">keycloak</text>
+        <!-- mTLS lines between pods -->
+        <line x1="95" y1="107" x2="105" y2="107" stroke="#10b981" stroke-width="1.5"/>
+        <line x1="160" y1="107" x2="170" y2="107" stroke="#10b981" stroke-width="1.5"/>
+        <line x1="210" y1="107" x2="220" y2="107" stroke="#10b981" stroke-width="1.5"/>
+        <!-- Components label -->
+        <text x="170" y="142" text-anchor="middle" fill="#94a3b8" font-size="8" font-weight="600">Helm Charts: istio-base, istio-cni, istiod, ztunnel, gateway</text>
+        <text x="170" y="155" text-anchor="middle" fill="#64748b" font-size="7">No sidecars. ztunnel intercepts at L4 on each node. Zero-trust mTLS.</text>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>13-k8s-resources.tf (Istio)</h4>
+<pre><code>resource <span class="string">"helm_release"</span> <span class="string">"istio_base"</span> {
+  name       = <span class="string">"istio-base"</span>
+  repository = <span class="string">"https://istio-release.storage.googleapis.com/charts"</span>
+  chart      = <span class="string">"base"</span>
+  version    = <span class="string">"1.29.1"</span>
+  namespace  = <span class="string">"istio-system"</span>
+  create_namespace = true
+}
+
+resource <span class="string">"helm_release"</span> <span class="string">"istio_cni"</span> {
+  chart   = <span class="string">"cni"</span>
+  version = <span class="string">"1.29.1"</span>
+  set { name = <span class="string">"profile"</span>; value = <span class="string">"ambient"</span> }
+  depends_on = [helm_release.istio_base]
+}
+
+resource <span class="string">"helm_release"</span> <span class="string">"istiod"</span> {
+  chart   = <span class="string">"istiod"</span>
+  version = <span class="string">"1.29.1"</span>
+  set { name = <span class="string">"profile"</span>; value = <span class="string">"ambient"</span> }
+}
+
+resource <span class="string">"helm_release"</span> <span class="string">"ztunnel"</span> {
+  chart   = <span class="string">"ztunnel"</span>
+  version = <span class="string">"1.29.1"</span>
+  depends_on = [helm_release.istiod]
+}</code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> Zero-trust mTLS between all pods without sidecar injection. ztunnel runs as a DaemonSet on each node, intercepting L4 traffic and encrypting it with mutual TLS. No application code changes required.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> All application namespaces (via ambient mesh label), istiod for control plane, istio-cni for traffic interception.</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> Same Istio Ambient Mesh 1.29.1 installed via Helm in the kind cluster.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 19. APP SERVICES -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="app-services"><span class="section-num">19</span> Application Services</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 200" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="198" rx="12" fill="#0f172a" stroke="#334155"/>
+        <text x="170" y="22" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700">Application Pods (AKS)</text>
+        <!-- Service pods -->
+        <rect x="20" y="35" width="90" height="40" rx="6" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1.5"/>
+        <text x="65" y="52" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">ecom-service</text>
+        <text x="65" y="66" text-anchor="middle" fill="#64748b" font-size="7">Spring Boot 4</text>
+
+        <rect x="125" y="35" width="90" height="40" rx="6" fill="#1e3a5f" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="170" y="52" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">inventory-svc</text>
+        <text x="170" y="66" text-anchor="middle" fill="#64748b" font-size="7">Python FastAPI</text>
+
+        <rect x="230" y="35" width="90" height="40" rx="6" fill="#1e3a5f" stroke="#34d399" stroke-width="1.5"/>
+        <text x="275" y="52" text-anchor="middle" fill="#34d399" font-size="9" font-weight="600">UI Service</text>
+        <text x="275" y="66" text-anchor="middle" fill="#64748b" font-size="7">React + Nginx</text>
+
+        <rect x="20" y="85" width="90" height="40" rx="6" fill="#1e3a5f" stroke="#f87171" stroke-width="1.5"/>
+        <text x="65" y="102" text-anchor="middle" fill="#f87171" font-size="9" font-weight="600">Keycloak</text>
+        <text x="65" y="116" text-anchor="middle" fill="#64748b" font-size="7">OIDC IdP</text>
+
+        <rect x="125" y="85" width="90" height="40" rx="6" fill="#1e3a5f" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="170" y="102" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="600">Debezium</text>
+        <text x="170" y="116" text-anchor="middle" fill="#64748b" font-size="7">CDC Server</text>
+
+        <rect x="230" y="85" width="90" height="40" rx="6" fill="#1e3a5f" stroke="#06b6d4" stroke-width="1.5"/>
+        <text x="275" y="102" text-anchor="middle" fill="#06b6d4" font-size="9" font-weight="600">Flink + Superset</text>
+        <text x="275" y="116" text-anchor="middle" fill="#64748b" font-size="7">Analytics</text>
+
+        <!-- Env var connections -->
+        <text x="170" y="145" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">Environment Variable Connections (via K8s Secrets from Key Vault)</text>
+        <rect x="20" y="155" width="70" height="16" rx="3" fill="rgba(51,103,145,0.15)"/>
+        <text x="55" y="167" text-anchor="middle" fill="#336791" font-size="7">DATABASE_URL</text>
+        <rect x="100" y="155" width="70" height="16" rx="3" fill="rgba(220,56,45,0.15)"/>
+        <text x="135" y="167" text-anchor="middle" fill="#DC382D" font-size="7">REDIS_URL</text>
+        <rect x="180" y="155" width="80" height="16" rx="3" fill="rgba(226,232,240,0.1)"/>
+        <text x="220" y="167" text-anchor="middle" fill="#e2e8f0" font-size="7">KAFKA_BOOTSTRAP</text>
+        <rect x="270" y="155" width="55" height="16" rx="3" fill="rgba(239,68,68,0.1)"/>
+        <text x="297" y="167" text-anchor="middle" fill="#ef4444" font-size="7">KV_SECRETS</text>
+        <!-- Note -->
+        <text x="170" y="190" text-anchor="middle" fill="#64748b" font-size="7">Same K8s manifests, different env var values pointing to Azure managed services</text>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>13-k8s-resources.tf (services)</h4>
+<pre><code><span class="comment"># Application namespaces with Istio ambient mesh</span>
+resource <span class="string">"kubernetes_namespace"</span> <span class="string">"ecom"</span> {
+  metadata {
+    name = <span class="string">"ecom"</span>
+    labels = {
+      <span class="string">"istio.io/dataplane-mode"</span> = <span class="string">"ambient"</span>
+    }
+  }
+}
+
+<span class="comment"># Same for: inventory, identity, infra,</span>
+<span class="comment"># analytics, observability namespaces</span>
+
+<span class="comment"># Services deployed via the same K8s manifests</span>
+<span class="comment"># with env vars pointing to Azure endpoints:</span>
+<span class="comment">#</span>
+<span class="comment"># DATABASE_URL = azurerm_postgresql_flexible_server</span>
+<span class="comment">#                .databases["ecom"].fqdn</span>
+<span class="comment"># REDIS_HOST   = azurerm_redis_cache.main</span>
+<span class="comment">#                .hostname</span>
+<span class="comment"># KAFKA_BOOTSTRAP_SERVERS =</span>
+<span class="comment">#   "${eventhub_ns}.servicebus.windows.net:9093"</span>
+<span class="comment"># KEYCLOAK_ISSUER_URI =</span>
+<span class="comment">#   "https://idp.${var.domain_name}/realms/bookstore"</span></code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> Application workloads deployed into AKS namespaces with ambient mesh labels. The same Kubernetes manifests used locally, but environment variables point to Azure managed service endpoints instead of cluster-internal addresses.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> PostgreSQL (via VNet), Event Hubs (via service endpoint), Redis (via private endpoint), Key Vault (via External Secrets), Keycloak (OIDC).</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> Identical K8s Deployment manifests in <code>infra/</code> directories with local service addresses.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- 20. OBSERVABILITY -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2 id="observability"><span class="section-num">20</span> Observability Stack</h2>
+
+  <div class="visual-row">
+    <div class="svg-side">
+      <svg viewBox="0 0 340 190" xmlns="http://www.w3.org/2000/svg" fill="none">
+        <rect x="1" y="1" width="338" height="188" rx="12" fill="#0f172a" stroke="#334155"/>
+        <text x="170" y="22" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700">Observability Pipeline</text>
+        <!-- Prometheus -->
+        <rect x="30" y="38" width="80" height="35" rx="6" fill="#1e3a5f" stroke="#f87171" stroke-width="1.5"/>
+        <text x="70" y="53" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">Prometheus</text>
+        <text x="70" y="66" text-anchor="middle" fill="#64748b" font-size="7">metrics scraper</text>
+        <!-- OTel Collector -->
+        <rect x="130" y="38" width="80" height="35" rx="6" fill="#1e3a5f" stroke="#06b6d4" stroke-width="1.5"/>
+        <text x="170" y="53" text-anchor="middle" fill="#06b6d4" font-size="9" font-weight="700">OTel Collector</text>
+        <text x="170" y="66" text-anchor="middle" fill="#64748b" font-size="7">logs + traces</text>
+        <!-- Grafana -->
+        <rect x="230" y="38" width="80" height="35" rx="6" fill="#1e3a5f" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="270" y="53" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="700">Grafana</text>
+        <text x="270" y="66" text-anchor="middle" fill="#64748b" font-size="7">dashboards</text>
+        <!-- Loki -->
+        <rect x="70" y="95" width="80" height="30" rx="6" fill="#1e3a5f" stroke="#34d399" stroke-width="1"/>
+        <text x="110" y="115" text-anchor="middle" fill="#34d399" font-size="9" font-weight="600">Loki</text>
+        <!-- Tempo -->
+        <rect x="190" y="95" width="80" height="30" rx="6" fill="#1e3a5f" stroke="#a78bfa" stroke-width="1"/>
+        <text x="230" y="115" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">Tempo</text>
+        <!-- Arrows: OTel -> Loki, OTel -> Tempo -->
+        <line x1="155" y1="73" x2="120" y2="95" stroke="#34d399" stroke-width="1"/>
+        <line x1="185" y1="73" x2="220" y2="95" stroke="#a78bfa" stroke-width="1"/>
+        <!-- Arrows: Grafana <- Prometheus, Grafana <- Loki, Grafana <- Tempo -->
+        <line x1="110" y1="55" x2="130" y2="55" stroke="#334155" stroke-width="1"/>
+        <line x1="150" y1="110" x2="230" y2="73" stroke="#334155" stroke-width="1" stroke-dasharray="3"/>
+        <line x1="230" y1="125" x2="265" y2="73" stroke="#334155" stroke-width="1" stroke-dasharray="3"/>
+        <!-- Kiali -->
+        <rect x="130" y="140" width="80" height="30" rx="6" fill="#1e3a5f" stroke="#466BB0" stroke-width="1"/>
+        <text x="170" y="160" text-anchor="middle" fill="#466BB0" font-size="9" font-weight="600">Kiali</text>
+        <!-- Log Analytics overlay -->
+        <rect x="25" y="140" width="90" height="30" rx="6" fill="rgba(0,120,212,0.1)" stroke="#0078d4" stroke-width="1"/>
+        <text x="70" y="155" text-anchor="middle" fill="#0078d4" font-size="8" font-weight="600">Azure Monitor</text>
+        <text x="70" y="166" text-anchor="middle" fill="#64748b" font-size="7">Log Analytics</text>
+        <text x="170" y="185" text-anchor="middle" fill="#64748b" font-size="7">kube-prometheus-stack Helm chart + Azure Container Insights</text>
+      </svg>
+    </div>
+    <div class="code-side">
+      <h4>13-k8s-resources.tf (Observability)</h4>
+<pre><code>resource <span class="string">"helm_release"</span> <span class="string">"kube_prometheus"</span> {
+  name             = <span class="string">"kube-prometheus-stack"</span>
+  repository       = <span class="string">"https://prometheus-community.github.io/helm-charts"</span>
+  chart            = <span class="string">"kube-prometheus-stack"</span>
+  namespace        = <span class="string">"observability"</span>
+  create_namespace = true
+
+  set {
+    name  = <span class="string">"grafana.enabled"</span>
+    value = <span class="string">"true"</span>
+  }
+
+  set {
+    name  = <span class="string">"prometheus.prometheusSpec.retention"</span>
+    value = <span class="string">"7d"</span>
+  }
+}
+
+<span class="comment"># + cert-manager (Let's Encrypt)</span>
+<span class="comment"># + External Secrets Operator</span>
+<span class="comment"># + OTel Collector, Loki, Tempo (Helm)</span>
+<span class="comment"># + Kiali (service mesh observability)</span>
+<span class="comment"># Azure Container Insights via AKS OMS agent</span></code></pre>
+      <div class="meta-block">
+        <div class="meta-line"><span class="label">Purpose:</span> Full observability pipeline. Prometheus scrapes metrics, OTel Collector forwards logs to Loki and traces to Tempo, Grafana provides dashboards, Kiali visualizes service mesh topology. Azure Container Insights provides cloud-native monitoring via Log Analytics.</div>
+        <div class="meta-line"><span class="conn-label">Connects to:</span> All application pods (metrics/logs/traces), AKS OMS agent (Container Insights), Grafana data sources.</div>
+        <div class="meta-line"><span class="local-label">Maps to local:</span> Same stack: Prometheus, Grafana, OTel Collector, Loki, Tempo, Kiali in the observability namespace.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- SUMMARY -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <h2>Summary: Local to Azure Mapping</h2>
+
+  <div class="callout tip">
+    <strong>Key takeaway:</strong> The application code and Kubernetes manifests are nearly identical between local and Azure. Only the backing service endpoints change -- from cluster-internal addresses to Azure managed service FQDNs. Terraform provisions and wires all 20 components together, producing a production-ready AKS deployment with managed databases, Kafka-compatible messaging, HSM-backed secrets, and WAF-protected ingress.
+  </div>
+
+  <table>
+    <tr><th>#</th><th>Component</th><th>Terraform Resource</th><th>Local Equivalent</th></tr>
+    <tr><td>1</td><td>Blob Backend</td><td><code>backend "azurerm"</code></td><td>.tfstate file</td></tr>
+    <tr><td>2</td><td>Resource Group</td><td><code>azurerm_resource_group</code></td><td>N/A (kind cluster)</td></tr>
+    <tr><td>3</td><td>VNet</td><td><code>azurerm_virtual_network</code></td><td>Docker bridge</td></tr>
+    <tr><td>4</td><td>AKS Subnet</td><td><code>azurerm_subnet.aks</code></td><td>Kind node network</td></tr>
+    <tr><td>5</td><td>DB Subnet</td><td><code>azurerm_subnet.database</code></td><td>CNPG pods</td></tr>
+    <tr><td>6</td><td>App GW Subnet</td><td><code>azurerm_subnet.appgw</code></td><td>Kind NodePort</td></tr>
+    <tr><td>7</td><td>NSGs</td><td><code>azurerm_network_security_group</code></td><td>NetworkPolicies</td></tr>
+    <tr><td>8</td><td>AKS Cluster</td><td><code>azurerm_kubernetes_cluster</code></td><td>Kind cluster</td></tr>
+    <tr><td>9</td><td>System Pool</td><td><code>default_node_pool</code></td><td>Kind worker 1</td></tr>
+    <tr><td>10</td><td>App Pool</td><td><code>azurerm_kubernetes_cluster_node_pool</code></td><td>Kind worker 2</td></tr>
+    <tr><td>11</td><td>ACR</td><td><code>azurerm_container_registry</code></td><td>kind load docker-image</td></tr>
+    <tr><td>12</td><td>PostgreSQL (4x)</td><td><code>azurerm_postgresql_flexible_server</code></td><td>CloudNativePG clusters</td></tr>
+    <tr><td>13</td><td>Event Hubs</td><td><code>azurerm_eventhub_namespace</code></td><td>Kafka pod (KRaft)</td></tr>
+    <tr><td>14</td><td>Redis</td><td><code>azurerm_redis_cache</code></td><td>Redis pod</td></tr>
+    <tr><td>15</td><td>Key Vault</td><td><code>azurerm_key_vault</code></td><td>K8s Secrets</td></tr>
+    <tr><td>16</td><td>App Gateway</td><td><code>azurerm_application_gateway</code></td><td>Istio Gateway + NodePort</td></tr>
+    <tr><td>17</td><td>DNS Zone</td><td><code>azurerm_dns_zone</code></td><td>/etc/hosts entries</td></tr>
+    <tr><td>18</td><td>Istio Mesh</td><td><code>helm_release</code> (4 charts)</td><td>Same (Istio Ambient)</td></tr>
+    <tr><td>19</td><td>App Services</td><td>K8s manifests + Azure env vars</td><td>Same manifests, local env</td></tr>
+    <tr><td>20</td><td>Observability</td><td><code>helm_release "kube-prometheus-stack"</code></td><td>Same stack</td></tr>
+  </table>
+
+  <footer>
+    <p>BookStore Platform &mdash; Terraform Visual Azure Walkthrough</p>
+    <p><a href="deploy-azure.html">Full Deploy Guide</a> &middot; <a href="architecture.html">Architecture</a> &middot; <a href="index.html">Home</a></p>
+  </footer>
+
+</div>
+</body>
+</html>

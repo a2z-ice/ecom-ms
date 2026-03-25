@@ -1,0 +1,1776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AWS EKS Architecture — Complete Knowledge Guide</title>
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; --cyan: #06b6d4; --purple: #8b5cf6; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 960px; margin: 0 auto; padding: 40px 24px 60px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p.subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 52px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 28px 0 10px; color: #cbd5e1; }
+    h4 { font-size: 0.95rem; font-weight: 600; margin: 20px 0 8px; color: #94a3b8; }
+    p { margin-bottom: 16px; color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.82rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.04); }
+    code { background: var(--card); padding: 2px 7px; border-radius: 4px; font-size: 0.86em; color: #fbbf24; }
+    pre { background: var(--card); padding: 18px 20px; border-radius: 10px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); position: relative; }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.84rem; line-height: 1.65; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+    .step { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px 28px; margin: 20px 0; position: relative; overflow: hidden; }
+    .step::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; border-radius: 4px 0 0 4px; }
+    .step.blue::before { background: linear-gradient(180deg, #3b82f6, #60a5fa); }
+    .step.green::before { background: linear-gradient(180deg, #059669, #34d399); }
+    .step.purple::before { background: linear-gradient(180deg, #7c3aed, #a78bfa); }
+    .step.amber::before { background: linear-gradient(180deg, #d97706, #fbbf24); }
+    .step.red::before { background: linear-gradient(180deg, #dc2626, #f87171); }
+    .step.cyan::before { background: linear-gradient(180deg, #0891b2, #22d3ee); }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: white; font-weight: 800; font-size: 0.88rem; margin-right: 12px; flex-shrink: 0; }
+    .step h3 { display: flex; align-items: center; margin: 0 0 12px; color: #f1f5f9; }
+    .step p { margin-bottom: 10px; }
+    .step pre { margin: 10px 0 8px; }
+    .callout { padding: 16px 20px; border-radius: 10px; margin: 16px 0; font-size: 0.88rem; line-height: 1.6; border-left: 4px solid; }
+    .callout.info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+    .callout.warn { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
+    .callout.tip { background: rgba(16,185,129,0.08); border-color: #10b981; }
+    .callout.danger { background: rgba(239,68,68,0.08); border-color: #ef4444; }
+    .callout strong { color: #f1f5f9; }
+    .callout code { font-size: 0.84em; }
+    .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 24px 0 40px; }
+    .toc h3 { font-size: 0.9rem; font-weight: 700; color: #f1f5f9; margin: 0 0 12px; }
+    .toc ol { margin: 0; padding-left: 20px; }
+    .toc li { margin-bottom: 4px; }
+    .toc a { font-size: 0.85rem; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+    .toc a:hover { color: var(--accent); }
+    .toc .toc-part { font-size: 0.78rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 6px; list-style: none; margin-left: -20px; }
+    .toc .toc-part:first-child { margin-top: 0; }
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 960px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+    .svg-diagram { display: flex; justify-content: center; margin: 20px 0; }
+    .svg-diagram svg { max-width: 100%; height: auto; }
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+<h1>AWS EKS Architecture</h1>
+<p class="subtitle">A complete guide to every component — from zero cloud knowledge to production-grade understanding</p>
+
+<div class="toc">
+  <h3>Table of Contents</h3>
+  <ol>
+    <li class="toc-part">Part 1: Foundation — The Network Layer</li>
+    <li><a href="#s1">Region &amp; Availability Zones</a></li>
+    <li><a href="#s2">VPC (Virtual Private Cloud)</a></li>
+    <li><a href="#s3">Subnets</a></li>
+    <li><a href="#s4">Internet Gateway</a></li>
+    <li><a href="#s5">NAT Gateway</a></li>
+    <li><a href="#s6">Route Tables</a></li>
+    <li><a href="#s7">Security Groups</a></li>
+    <li><a href="#s8">Network ACLs</a></li>
+    <li class="toc-part">Part 2: Compute — Kubernetes on AWS</li>
+    <li><a href="#s9">EKS (Elastic Kubernetes Service)</a></li>
+    <li><a href="#s10">EKS Control Plane</a></li>
+    <li><a href="#s11">Worker Nodes (Managed Node Groups)</a></li>
+    <li><a href="#s12">Pods, Deployments, Services</a></li>
+    <li><a href="#s13">Namespaces</a></li>
+    <li><a href="#s14">OIDC Provider &amp; IRSA</a></li>
+    <li class="toc-part">Part 3: Storage &amp; Data</li>
+    <li><a href="#s15">ECR (Elastic Container Registry)</a></li>
+    <li><a href="#s16">Aurora PostgreSQL (Serverless v2)</a></li>
+    <li><a href="#s17">S3 (Simple Storage Service)</a></li>
+    <li><a href="#s18">DynamoDB</a></li>
+    <li class="toc-part">Part 4: Messaging &amp; Caching</li>
+    <li><a href="#s19">Amazon MSK (Managed Kafka)</a></li>
+    <li><a href="#s20">ElastiCache Redis</a></li>
+    <li class="toc-part">Part 5: Networking &amp; Traffic</li>
+    <li><a href="#s21">Application Load Balancer (ALB)</a></li>
+    <li><a href="#s22">AWS WAF</a></li>
+    <li><a href="#s23">Route 53 (DNS)</a></li>
+    <li><a href="#s24">ACM (Certificate Manager)</a></li>
+    <li class="toc-part">Part 6: Security &amp; Identity</li>
+    <li><a href="#s25">IAM (Identity &amp; Access Management)</a></li>
+    <li><a href="#s26">KMS (Key Management Service)</a></li>
+    <li><a href="#s27">Secrets Manager</a></li>
+    <li class="toc-part">Part 7: Service Mesh &amp; Security</li>
+    <li><a href="#s28">Istio Ambient Mesh</a></li>
+    <li><a href="#s29">Cert-Manager</a></li>
+    <li class="toc-part">Part 8: Observability</li>
+    <li><a href="#s30">Prometheus + Grafana</a></li>
+    <li><a href="#s31">Loki + Tempo</a></li>
+    <li><a href="#s32">Kiali</a></li>
+    <li class="toc-part">Part 9: Putting It All Together</li>
+    <li><a href="#s33">Complete Data Flow</a></li>
+    <li><a href="#s34">Cost Summary</a></li>
+  </ol>
+</div>
+
+<!-- ============================================================ -->
+<h2>Part 1: Foundation — The Network Layer</h2>
+<!-- ============================================================ -->
+
+<!-- ─── SECTION 1 ─── -->
+<div class="step blue" id="s1">
+  <h3><span class="step-num">1</span> Region &amp; Availability Zones</h3>
+  <h4>What is it?</h4>
+  <p>An AWS <strong>Region</strong> is a physical geographic area — a cluster of data centers in a specific part of the world. Examples: <code>us-east-1</code> (Northern Virginia), <code>eu-west-1</code> (Ireland), <code>ap-southeast-1</code> (Singapore).</p>
+  <p>An <strong>Availability Zone (AZ)</strong> is an isolated data center within a region. Each AZ has independent power, cooling, and networking. A region typically has 3 AZs: <code>us-east-1a</code>, <code>us-east-1b</code>, <code>us-east-1c</code>.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> A region is a city. Availability Zones are separate power plants within that city. If one power plant fails, the others keep the lights on. Your house is wired to all three so it never goes dark.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Without multiple AZs, a single hardware failure could take your entire application offline. By spreading resources across 3 AZs, you get <strong>fault isolation</strong> — no single point of failure. AZs within a region are connected by high-bandwidth, sub-millisecond private fiber.</p>
+
+  <h4>How does it work?</h4>
+  <p>When you create resources, you specify which AZ(s) to place them in. For HA, place copies in multiple AZs. If AZ-a fails, traffic shifts to AZ-b and AZ-c automatically.</p>
+
+  <div class="svg-diagram">
+    <svg width="340" height="200" viewBox="0 0 340 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="10" width="320" height="180" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+      <text x="170" y="33" text-anchor="middle" fill="#60a5fa" font-size="13" font-weight="700">Region: us-east-1 (N. Virginia)</text>
+      <rect x="30" y="50" width="80" height="120" rx="8" fill="#0f172a" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="70" y="70" text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="600">AZ-a</text>
+      <rect x="45" y="82" width="50" height="28" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+      <text x="70" y="100" text-anchor="middle" fill="#60a5fa" font-size="9">DC 1</text>
+      <rect x="45" y="118" width="50" height="28" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+      <text x="70" y="136" text-anchor="middle" fill="#60a5fa" font-size="9">DC 2</text>
+      <rect x="130" y="50" width="80" height="120" rx="8" fill="#0f172a" stroke="#10b981" stroke-width="1.5"/>
+      <text x="170" y="70" text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="600">AZ-b</text>
+      <rect x="145" y="82" width="50" height="28" rx="4" fill="#0f2922" stroke="#10b981" stroke-width="1"/>
+      <text x="170" y="100" text-anchor="middle" fill="#34d399" font-size="9">DC 3</text>
+      <rect x="145" y="118" width="50" height="28" rx="4" fill="#0f2922" stroke="#10b981" stroke-width="1"/>
+      <text x="170" y="136" text-anchor="middle" fill="#34d399" font-size="9">DC 4</text>
+      <rect x="230" y="50" width="80" height="120" rx="8" fill="#0f172a" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="270" y="70" text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="600">AZ-c</text>
+      <rect x="245" y="82" width="50" height="28" rx="4" fill="#2a1f0a" stroke="#f59e0b" stroke-width="1"/>
+      <text x="270" y="100" text-anchor="middle" fill="#fbbf24" font-size="9">DC 5</text>
+      <rect x="245" y="118" width="50" height="28" rx="4" fill="#2a1f0a" stroke="#f59e0b" stroke-width="1"/>
+      <text x="270" y="136" text-anchor="middle" fill="#fbbf24" font-size="9">DC 6</text>
+      <line x1="110" y1="155" x2="130" y2="155" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4"/>
+      <line x1="210" y1="155" x2="230" y2="155" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4"/>
+      <text x="170" y="185" text-anchor="middle" fill="#64748b" font-size="9">Private fiber links (sub-ms latency)</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>provider "aws" { region = "us-east-1" }</code> — AZs discovered via <code>data "aws_availability_zones" "available" {}</code>.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Deploying everything in a single AZ. Multi-hour AZ outages happen. Always use at least 2 AZs, preferably 3.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> Regions are free but <strong>cross-AZ data transfer costs $0.01/GB each way</strong>. Keep chatty services co-located where possible.</div>
+</div>
+
+<!-- ─── SECTION 2 ─── -->
+<div class="step green" id="s2">
+  <h3><span class="step-num">2</span> VPC (Virtual Private Cloud)</h3>
+  <h4>What is it?</h4>
+  <p>A <strong>VPC</strong> is your own private, isolated network within AWS. Every VPC has a <strong>CIDR block</strong> — a range of private IP addresses. For example, <code>10.0.0.0/16</code> gives you 65,536 IP addresses. The <code>/16</code> means the first 16 bits are the network prefix; the remaining 16 bits are available for hosts.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> A VPC is your private office floor in a skyscraper. You control who enters (firewall rules), how rooms are arranged (subnets), and which rooms face the street (public subnets). Other tenants cannot walk into your space.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Network isolation — your traffic is private, you define the address space, and you control all connectivity to and from the internet. No other AWS customer can access your VPC.</p>
+
+  <h4>How does it work?</h4>
+  <p>You create a VPC with a CIDR block, then subdivide it into subnets. All resources live inside subnets. Traffic within the VPC flows freely; traffic to the internet requires explicit gateways and routes.</p>
+
+  <div class="svg-diagram">
+    <svg width="320" height="200" viewBox="0 0 320 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="10" width="300" height="180" rx="12" fill="#0f172a" stroke="#10b981" stroke-width="2" stroke-dasharray="6"/>
+      <text x="160" y="35" text-anchor="middle" fill="#10b981" font-size="12" font-weight="700">VPC: 10.0.0.0/16</text>
+      <text x="160" y="50" text-anchor="middle" fill="#64748b" font-size="9">65,536 private IP addresses</text>
+      <rect x="30" y="65" width="120" height="45" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+      <text x="90" y="85" text-anchor="middle" fill="#60a5fa" font-size="10">Public Subnets</text>
+      <text x="90" y="100" text-anchor="middle" fill="#64748b" font-size="8">Faces the internet</text>
+      <rect x="170" y="65" width="120" height="45" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="230" y="85" text-anchor="middle" fill="#a78bfa" font-size="10">Private Subnets</text>
+      <text x="230" y="100" text-anchor="middle" fill="#64748b" font-size="8">No direct internet</text>
+      <rect x="30" y="125" width="260" height="40" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+      <text x="160" y="150" text-anchor="middle" fill="#fbbf24" font-size="10">Database Subnets (fully isolated)</text>
+      <text x="160" y="183" text-anchor="middle" fill="#334155" font-size="9">Isolated from all other AWS customers</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>module "vpc"</code> (terraform-aws-modules/vpc/aws) with <code>cidr = "10.0.0.0/16"</code>.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Choosing <code>/24</code> (256 IPs). EKS pods and nodes consume IPs rapidly. Always use <code>/16</code> for production.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> VPC itself is free. Costs come from NAT Gateways, VPC endpoints, and cross-AZ data transfer inside the VPC.</div>
+</div>
+
+<!-- ─── SECTION 3 ─── -->
+<div class="step purple" id="s3">
+  <h3><span class="step-num">3</span> Subnets</h3>
+  <h4>What is it?</h4>
+  <p>A <strong>subnet</strong> is a partition of your VPC. Three tiers:</p>
+  <ul>
+    <li><strong>Public</strong> (10.0.1-3.0/24) — Load balancers live here, direct internet access via IGW</li>
+    <li><strong>Private</strong> (10.0.11-13.0/24) — EKS worker nodes live here, internet via NAT only</li>
+    <li><strong>Database</strong> (10.0.21-23.0/24) — Databases live here, no internet at all</li>
+  </ul>
+  <p>Each subnet exists in exactly one AZ. For HA: 3 tiers x 3 AZs = 9 subnets.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> Public subnets are the reception area — visitors can enter. Private subnets are workrooms — employees work here but visitors cannot walk in. Database subnets are the vault — sealed off, accessible only from workrooms.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Defense in depth. A compromised resource in one tier cannot directly access resources in a deeper tier without crossing network boundaries.</p>
+
+  <h4>How does it work?</h4>
+  <p>Each subnet gets a CIDR and a route table. Public subnets route <code>0.0.0.0/0</code> to IGW. Private subnets route <code>0.0.0.0/0</code> to NAT. Database subnets have no internet route.</p>
+
+  <div class="svg-diagram">
+    <svg width="340" height="240" viewBox="0 0 340 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="5" y="5" width="330" height="230" rx="10" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+      <text x="170" y="25" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600">VPC 10.0.0.0/16</text>
+      <text x="75" y="42" text-anchor="middle" fill="#64748b" font-size="9">AZ-a</text>
+      <text x="170" y="42" text-anchor="middle" fill="#64748b" font-size="9">AZ-b</text>
+      <text x="265" y="42" text-anchor="middle" fill="#64748b" font-size="9">AZ-c</text>
+      <rect x="25" y="50" width="90" height="42" rx="5" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="70" y="68" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">Public</text>
+      <text x="70" y="82" text-anchor="middle" fill="#475569" font-size="7">10.0.1.0/24</text>
+      <rect x="125" y="50" width="90" height="42" rx="5" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="170" y="68" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">Public</text>
+      <text x="170" y="82" text-anchor="middle" fill="#475569" font-size="7">10.0.2.0/24</text>
+      <rect x="225" y="50" width="90" height="42" rx="5" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="270" y="68" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">Public</text>
+      <text x="270" y="82" text-anchor="middle" fill="#475569" font-size="7">10.0.3.0/24</text>
+      <rect x="25" y="105" width="90" height="42" rx="5" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="70" y="123" text-anchor="middle" fill="#a78bfa" font-size="8" font-weight="600">Private</text>
+      <text x="70" y="137" text-anchor="middle" fill="#475569" font-size="7">10.0.11.0/24</text>
+      <rect x="125" y="105" width="90" height="42" rx="5" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="170" y="123" text-anchor="middle" fill="#a78bfa" font-size="8" font-weight="600">Private</text>
+      <text x="170" y="137" text-anchor="middle" fill="#475569" font-size="7">10.0.12.0/24</text>
+      <rect x="225" y="105" width="90" height="42" rx="5" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="270" y="123" text-anchor="middle" fill="#a78bfa" font-size="8" font-weight="600">Private</text>
+      <text x="270" y="137" text-anchor="middle" fill="#475569" font-size="7">10.0.13.0/24</text>
+      <rect x="25" y="160" width="90" height="42" rx="5" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="70" y="178" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="600">Database</text>
+      <text x="70" y="192" text-anchor="middle" fill="#475569" font-size="7">10.0.21.0/24</text>
+      <rect x="125" y="160" width="90" height="42" rx="5" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="170" y="178" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="600">Database</text>
+      <text x="170" y="192" text-anchor="middle" fill="#475569" font-size="7">10.0.22.0/24</text>
+      <rect x="225" y="160" width="90" height="42" rx="5" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="270" y="178" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="600">Database</text>
+      <text x="270" y="192" text-anchor="middle" fill="#475569" font-size="7">10.0.23.0/24</text>
+      <text x="170" y="225" text-anchor="middle" fill="#475569" font-size="9">3 tiers x 3 AZs = 9 subnets</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> VPC module: <code>private_subnets</code>, <code>public_subnets</code>, <code>database_subnets</code> lists. EKS-required tags: <code>kubernetes.io/role/elb = 1</code> on public, <code>kubernetes.io/role/internal-elb = 1</code> on private.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Forgetting EKS subnet tags. Without <code>kubernetes.io/role/elb</code>, the AWS Load Balancer Controller cannot create ALBs.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> Subnets are free. Cost comes from NAT Gateways attached to private subnets. Database subnets avoid NAT cost entirely.</div>
+</div>
+
+<!-- ─── SECTION 4 ─── -->
+<div class="step blue" id="s4">
+  <h3><span class="step-num">4</span> Internet Gateway (IGW)</h3>
+  <h4>What is it?</h4>
+  <p>The <strong>Internet Gateway</strong> is the front door of your VPC — the single connection point between your VPC and the public internet. Without it, nothing inside your VPC can reach the internet.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> The IGW is the main entrance to your building. It does not decide who gets in — that is the job of security guards (Security Groups). It simply provides the doorway.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Your load balancer sits in a public subnet and must receive traffic from users on the internet. The IGW enables that. It also allows public resources to send responses back.</p>
+
+  <h4>How does it work?</h4>
+  <p>Attach one IGW to the VPC. Add route <code>0.0.0.0/0 -> igw-xxxxx</code> in public subnet route tables. The IGW performs 1:1 NAT between private and public IPs.</p>
+
+  <div class="svg-diagram">
+    <svg width="280" height="170" viewBox="0 0 280 170" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="140" cy="22" rx="55" ry="18" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="140" y="27" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">Internet</text>
+      <rect x="105" y="50" width="70" height="24" rx="5" fill="#3b82f6"/>
+      <text x="140" y="66" text-anchor="middle" fill="white" font-size="9" font-weight="700">IGW</text>
+      <rect x="20" y="90" width="240" height="70" rx="10" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
+      <text x="140" y="108" text-anchor="middle" fill="#94a3b8" font-size="10">VPC</text>
+      <rect x="40" y="115" width="90" height="30" rx="5" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+      <text x="85" y="134" text-anchor="middle" fill="#60a5fa" font-size="8">Public Subnet</text>
+      <rect x="150" y="115" width="90" height="30" rx="5" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="195" y="134" text-anchor="middle" fill="#a78bfa" font-size="8">Private Subnet</text>
+      <line x1="140" y1="40" x2="140" y2="50" stroke="#60a5fa" stroke-width="1.5"/>
+      <line x1="140" y1="74" x2="140" y2="90" stroke="#60a5fa" stroke-width="1.5"/>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> VPC module auto-creates: <code>aws_internet_gateway</code> (default <code>create_igw = true</code>).</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Creating the IGW but not adding the route in the public route table. The subnet appears public but has no internet connectivity.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> IGW is <strong>completely free</strong>. You only pay for data transfer through it ($0.09/GB outbound).</div>
+</div>
+
+<!-- ─── SECTION 5 ─── -->
+<div class="step amber" id="s5">
+  <h3><span class="step-num">5</span> NAT Gateway</h3>
+  <h4>What is it?</h4>
+  <p>A <strong>NAT Gateway</strong> allows private subnet resources to reach the internet <em>without</em> being reachable from the internet. EKS nodes need to pull container images but should not have public IPs.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> A NAT Gateway is a one-way mail room. You can send letters out (requests) and receive replies. But nobody outside can open the door to come in. Your return address is the mail room, not your private office number.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>EKS nodes pull images from ECR/Docker Hub, communicate with AWS APIs, and download patches. NAT provides outbound access without exposing nodes to inbound internet traffic.</p>
+
+  <h4>How does it work?</h4>
+  <p>NAT sits in a <em>public</em> subnet with an Elastic IP. Private route tables point <code>0.0.0.0/0 -> nat-xxxxx</code>. It replaces the source IP with its own public IP before forwarding. One per AZ for HA.</p>
+
+  <div class="svg-diagram">
+    <svg width="300" height="180" viewBox="0 0 300 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="150" cy="18" rx="50" ry="14" fill="#1e293b" stroke="#94a3b8" stroke-width="1"/>
+      <text x="150" y="22" text-anchor="middle" fill="#94a3b8" font-size="9">Internet</text>
+      <rect x="40" y="48" width="65" height="22" rx="4" fill="#d97706"/>
+      <text x="72" y="63" text-anchor="middle" fill="white" font-size="8" font-weight="700">NAT (AZ-a)</text>
+      <rect x="195" y="48" width="65" height="22" rx="4" fill="#d97706"/>
+      <text x="227" y="63" text-anchor="middle" fill="white" font-size="8" font-weight="700">NAT (AZ-b)</text>
+      <line x1="72" y1="48" x2="120" y2="32" stroke="#fbbf24" stroke-width="1.2"/>
+      <line x1="227" y1="48" x2="180" y2="32" stroke="#fbbf24" stroke-width="1.2"/>
+      <rect x="20" y="90" width="120" height="55" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="80" y="110" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">Private AZ-a</text>
+      <rect x="40" y="120" width="30" height="15" rx="3" fill="#0f172a" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="55" y="131" text-anchor="middle" fill="#8b5cf6" font-size="7">Node</text>
+      <rect x="80" y="120" width="30" height="15" rx="3" fill="#0f172a" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="95" y="131" text-anchor="middle" fill="#8b5cf6" font-size="7">Node</text>
+      <rect x="160" y="90" width="120" height="55" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="220" y="110" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">Private AZ-b</text>
+      <rect x="180" y="120" width="30" height="15" rx="3" fill="#0f172a" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="195" y="131" text-anchor="middle" fill="#8b5cf6" font-size="7">Node</text>
+      <rect x="220" y="120" width="30" height="15" rx="3" fill="#0f172a" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="235" y="131" text-anchor="middle" fill="#8b5cf6" font-size="7">Node</text>
+      <line x1="80" y1="90" x2="72" y2="70" stroke="#a78bfa" stroke-width="1.2"/>
+      <line x1="220" y1="90" x2="227" y2="70" stroke="#a78bfa" stroke-width="1.2"/>
+      <text x="150" y="170" text-anchor="middle" fill="#64748b" font-size="9">Outbound only — no inbound from internet</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> VPC module: <code>enable_nat_gateway = true</code>, <code>one_nat_gateway_per_az = true</code>. Creates <code>aws_nat_gateway</code> + <code>aws_eip</code> per AZ.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Single NAT Gateway for all AZs. If that AZ fails, all private subnets lose internet. Use one per AZ in production.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> <strong>~$45/month per gateway</strong> + $0.045/GB processed. With 3 AZs = $135/month for NAT alone. Use 1 NAT for dev to save costs.</div>
+</div>
+
+<!-- ─── SECTION 6 ─── -->
+<div class="step cyan" id="s6">
+  <h3><span class="step-num">6</span> Route Tables</h3>
+  <h4>What is it?</h4>
+  <p>A <strong>route table</strong> is a set of rules (routes) that determine where network traffic is directed. Every subnet is associated with exactly one route table. Think of it as a set of road signs telling packets which direction to go.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> Route tables are like road signs at intersections. "To reach the internet, go through this door (IGW/NAT). To reach another subnet, go down this hallway (local). No sign for your destination? Traffic is dropped."</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Without route tables, traffic would have nowhere to go. They define the network topology: which subnets can reach the internet, which go through NAT, and which are fully isolated.</p>
+
+  <h4>How does it work?</h4>
+  <p>Three route tables in our architecture:</p>
+  <ul>
+    <li><strong>Public:</strong> <code>10.0.0.0/16 -> local</code> + <code>0.0.0.0/0 -> igw-xxx</code></li>
+    <li><strong>Private:</strong> <code>10.0.0.0/16 -> local</code> + <code>0.0.0.0/0 -> nat-xxx</code></li>
+    <li><strong>Database:</strong> <code>10.0.0.0/16 -> local</code> only (no default route = no internet)</li>
+  </ul>
+
+  <div class="svg-diagram">
+    <svg width="340" height="200" viewBox="0 0 340 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="170" y="18" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">Route Table Decisions</text>
+      <!-- Public -->
+      <rect x="10" y="35" width="100" height="50" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="60" y="53" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">Public RT</text>
+      <text x="60" y="68" text-anchor="middle" fill="#64748b" font-size="7">0.0.0.0/0 -> IGW</text>
+      <text x="60" y="78" text-anchor="middle" fill="#64748b" font-size="7">10.0.0.0/16 -> local</text>
+      <!-- Private -->
+      <rect x="120" y="35" width="100" height="50" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="170" y="53" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">Private RT</text>
+      <text x="170" y="68" text-anchor="middle" fill="#64748b" font-size="7">0.0.0.0/0 -> NAT</text>
+      <text x="170" y="78" text-anchor="middle" fill="#64748b" font-size="7">10.0.0.0/16 -> local</text>
+      <!-- Database -->
+      <rect x="230" y="35" width="100" height="50" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="280" y="53" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="600">Database RT</text>
+      <text x="280" y="68" text-anchor="middle" fill="#64748b" font-size="7">10.0.0.0/16 -> local</text>
+      <text x="280" y="78" text-anchor="middle" fill="#ef4444" font-size="7">No internet route</text>
+      <!-- Arrows -->
+      <rect x="50" y="105" width="60" height="20" rx="4" fill="#3b82f6"/>
+      <text x="80" y="119" text-anchor="middle" fill="white" font-size="8">IGW</text>
+      <rect x="145" y="105" width="60" height="20" rx="4" fill="#d97706"/>
+      <text x="175" y="119" text-anchor="middle" fill="white" font-size="8">NAT</text>
+      <rect x="250" y="105" width="60" height="20" rx="4" fill="#ef4444"/>
+      <text x="280" y="119" text-anchor="middle" fill="white" font-size="8">Blocked</text>
+      <line x1="60" y1="85" x2="70" y2="105" stroke="#3b82f6" stroke-width="1.2"/>
+      <line x1="170" y1="85" x2="170" y2="105" stroke="#8b5cf6" stroke-width="1.2"/>
+      <line x1="280" y1="85" x2="280" y2="105" stroke="#f59e0b" stroke-width="1.2"/>
+      <ellipse cx="80" cy="155" rx="45" ry="14" fill="#1e293b" stroke="#94a3b8" stroke-width="1"/>
+      <text x="80" y="159" text-anchor="middle" fill="#94a3b8" font-size="8">Internet</text>
+      <line x1="80" y1="125" x2="80" y2="141" stroke="#3b82f6" stroke-width="1.2"/>
+      <line x1="175" y1="125" x2="115" y2="141" stroke="#d97706" stroke-width="1.2"/>
+      <text x="170" y="190" text-anchor="middle" fill="#475569" font-size="9">Each subnet associates with exactly one route table</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> Auto-created by VPC module: <code>aws_route_table</code>, <code>aws_route</code>, <code>aws_route_table_association</code>.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Associating a private subnet with the public route table. Nodes suddenly become internet-accessible without Security Groups properly configured.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> Route tables are <strong>free</strong>. No cost to create or maintain them.</div>
+</div>
+
+<!-- ─── SECTION 7 ─── -->
+<div class="step red" id="s7">
+  <h3><span class="step-num">7</span> Security Groups</h3>
+  <h4>What is it?</h4>
+  <p>A <strong>Security Group</strong> is a virtual firewall attached to individual resources (EC2 instances, load balancers, databases). It controls inbound and outbound traffic at the <em>instance level</em>. Security Groups are <strong>stateful</strong> — if you allow an inbound request, the response is automatically allowed out.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> A Security Group is a personal bodyguard for each resource. The bodyguard has a clipboard with a list of who is allowed in and who the resource can talk to. When someone is let in, their reply is automatically allowed out (stateful).</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Network-level access control. Even within the same subnet, Security Groups ensure that only authorized traffic reaches each resource. The ALB SG allows port 443 from the internet; the EKS node SG only allows traffic from the ALB SG.</p>
+
+  <h4>How does it work?</h4>
+  <p>You define inbound rules (source IP/SG + port) and outbound rules (destination IP/SG + port). A powerful feature: rules can reference other Security Groups. "Allow inbound on port 8080 from SG <code>sg-alb</code>" means only the ALB can talk to your nodes on that port.</p>
+
+  <div class="svg-diagram">
+    <svg width="320" height="180" viewBox="0 0 320 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="160" y="18" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">Security Group Chaining</text>
+      <!-- Internet -->
+      <ellipse cx="50" cy="55" rx="35" ry="14" fill="#1e293b" stroke="#94a3b8" stroke-width="1"/>
+      <text x="50" y="59" text-anchor="middle" fill="#94a3b8" font-size="8">Internet</text>
+      <!-- ALB -->
+      <rect x="110" y="40" width="60" height="30" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+      <text x="140" y="59" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">ALB</text>
+      <rect x="103" y="32" width="74" height="46" rx="9" fill="none" stroke="#ef4444" stroke-width="1" stroke-dasharray="4"/>
+      <text x="140" y="30" text-anchor="middle" fill="#ef4444" font-size="7">SG: allow 443</text>
+      <!-- EKS Node -->
+      <rect x="200" y="40" width="60" height="30" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="2"/>
+      <text x="230" y="59" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">EKS Node</text>
+      <rect x="193" y="32" width="74" height="46" rx="9" fill="none" stroke="#ef4444" stroke-width="1" stroke-dasharray="4"/>
+      <text x="230" y="30" text-anchor="middle" fill="#ef4444" font-size="7">SG: from ALB SG</text>
+      <!-- DB -->
+      <rect x="200" y="110" width="60" height="30" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+      <text x="230" y="129" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="600">Aurora DB</text>
+      <rect x="193" y="102" width="74" height="46" rx="9" fill="none" stroke="#ef4444" stroke-width="1" stroke-dasharray="4"/>
+      <text x="230" y="100" text-anchor="middle" fill="#ef4444" font-size="7">SG: from Node SG</text>
+      <!-- Arrows -->
+      <line x1="85" y1="55" x2="103" y2="55" stroke="#10b981" stroke-width="1.5" marker-end="url(#arr7g)"/>
+      <text x="94" y="50" text-anchor="middle" fill="#10b981" font-size="7">443</text>
+      <line x1="177" y1="55" x2="193" y2="55" stroke="#10b981" stroke-width="1.5" marker-end="url(#arr7g)"/>
+      <text x="185" y="50" text-anchor="middle" fill="#10b981" font-size="7">8080</text>
+      <line x1="230" y1="78" x2="230" y2="102" stroke="#10b981" stroke-width="1.5" marker-end="url(#arr7g)"/>
+      <text x="245" y="93" text-anchor="middle" fill="#10b981" font-size="7">5432</text>
+      <text x="160" y="170" text-anchor="middle" fill="#475569" font-size="9">Each SG references the previous SG — traffic must pass through the chain</text>
+      <defs><marker id="arr7g" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L6,3 L0,6Z" fill="#10b981"/></marker></defs>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>aws_security_group</code> + <code>aws_security_group_rule</code>. EKS module creates cluster and node SGs automatically.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Opening <code>0.0.0.0/0</code> on all ports for debugging and forgetting to close it. Use SG-to-SG references instead of IP ranges wherever possible.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> Security Groups are <strong>free</strong>. No cost, no limits that matter in practice.</div>
+</div>
+
+<!-- ─── SECTION 8 ─── -->
+<div class="step purple" id="s8">
+  <h3><span class="step-num">8</span> Network ACLs (NACLs)</h3>
+  <h4>What is it?</h4>
+  <p>A <strong>Network ACL</strong> is a firewall at the <em>subnet level</em> (vs Security Groups at the instance level). NACLs are <strong>stateless</strong> — you must explicitly allow both inbound AND outbound traffic, including return traffic on ephemeral ports.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> If Security Groups are personal bodyguards, NACLs are the security desk in the lobby of each floor. Everyone entering or leaving the floor is checked, regardless of which office they visit. Unlike bodyguards, the desk does not remember who came in — they check both entry and exit independently.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Defense in depth. NACLs provide a second layer of network security. Even if a Security Group is misconfigured, the NACL can block unwanted traffic. In practice, most teams rely primarily on Security Groups and keep NACLs at default (allow all). NACLs become important when you need to block specific IP ranges at the subnet level.</p>
+
+  <h4>How does it work?</h4>
+  <p>Rules are evaluated in order by rule number (lowest first). First matching rule wins. Must have both allow inbound AND allow outbound (including ephemeral ports 1024-65535 for return traffic).</p>
+
+  <div class="svg-diagram">
+    <svg width="320" height="170" viewBox="0 0 320 170" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="160" y="18" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">Security Group vs NACL</text>
+      <!-- SG side -->
+      <rect x="15" y="35" width="135" height="120" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="82" y="55" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">Security Group</text>
+      <text x="82" y="72" text-anchor="middle" fill="#94a3b8" font-size="8">Instance level</text>
+      <text x="82" y="88" text-anchor="middle" fill="#10b981" font-size="8">Stateful (auto return)</text>
+      <text x="82" y="104" text-anchor="middle" fill="#94a3b8" font-size="8">Allow rules only</text>
+      <text x="82" y="120" text-anchor="middle" fill="#94a3b8" font-size="8">All rules evaluated</text>
+      <text x="82" y="145" text-anchor="middle" fill="#60a5fa" font-size="8">Primary defense</text>
+      <!-- NACL side -->
+      <rect x="170" y="35" width="135" height="120" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="237" y="55" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="600">Network ACL</text>
+      <text x="237" y="72" text-anchor="middle" fill="#94a3b8" font-size="8">Subnet level</text>
+      <text x="237" y="88" text-anchor="middle" fill="#ef4444" font-size="8">Stateless (explicit both ways)</text>
+      <text x="237" y="104" text-anchor="middle" fill="#94a3b8" font-size="8">Allow + Deny rules</text>
+      <text x="237" y="120" text-anchor="middle" fill="#94a3b8" font-size="8">First match wins</text>
+      <text x="237" y="145" text-anchor="middle" fill="#a78bfa" font-size="8">Backup defense</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>aws_network_acl</code> + <code>aws_network_acl_rule</code>. Default NACL allows all — most teams leave it as-is.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Adding a NACL deny rule but forgetting to allow ephemeral ports (1024-65535) for return traffic. Because NACLs are stateless, blocking ephemeral ports breaks ALL responses.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> NACLs are <strong>free</strong>.</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Part 2: Compute — Kubernetes on AWS</h2>
+<!-- ============================================================ -->
+
+<!-- ─── SECTION 9 ─── -->
+<div class="step blue" id="s9">
+  <h3><span class="step-num">9</span> EKS (Elastic Kubernetes Service)</h3>
+  <h4>What is it?</h4>
+  <p><strong>Kubernetes</strong> is a system that manages containers at scale — it decides which servers run which containers, restarts crashed ones, scales up when traffic increases, and rolls out new versions without downtime. Think of it as an orchestra conductor for containers.</p>
+  <p><strong>EKS</strong> is AWS's managed Kubernetes. AWS runs the <em>control plane</em> (the brain) — you just run worker nodes (the muscles) and deploy your applications.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> Running Kubernetes yourself is like owning a restaurant AND being the manager, head chef, and accountant. EKS is like hiring AWS as your manager — they handle scheduling, health checks, and keeping the kitchen running. You just provide the cooks (worker nodes) and the recipes (container images).</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Without Kubernetes, you would manually SSH into servers, start containers, monitor them, and restart failures. With 10+ microservices, this becomes impossible. Kubernetes automates all of it. EKS specifically removes the burden of managing the control plane — etcd backups, API server patching, certificate rotation.</p>
+
+  <h4>How does it work?</h4>
+  <p>EKS has two planes: the <strong>Control Plane</strong> (AWS-managed: API server, etcd, scheduler, controller manager) and the <strong>Data Plane</strong> (your worker nodes that run pods). They communicate via ENIs (Elastic Network Interfaces) injected into your VPC.</p>
+
+  <div class="svg-diagram">
+    <svg width="340" height="220" viewBox="0 0 340 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="170" y="18" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">EKS Architecture</text>
+      <!-- AWS managed -->
+      <rect x="15" y="30" width="310" height="75" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4"/>
+      <text x="170" y="48" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700">AWS-Managed Control Plane</text>
+      <rect x="30" y="58" width="60" height="35" rx="4" fill="#0f172a" stroke="#3b82f6" stroke-width="1"/>
+      <text x="60" y="80" text-anchor="middle" fill="#94a3b8" font-size="7">API Server</text>
+      <rect x="100" y="58" width="50" height="35" rx="4" fill="#0f172a" stroke="#3b82f6" stroke-width="1"/>
+      <text x="125" y="80" text-anchor="middle" fill="#94a3b8" font-size="7">etcd</text>
+      <rect x="160" y="58" width="60" height="35" rx="4" fill="#0f172a" stroke="#3b82f6" stroke-width="1"/>
+      <text x="190" y="80" text-anchor="middle" fill="#94a3b8" font-size="7">Scheduler</text>
+      <rect x="230" y="58" width="80" height="35" rx="4" fill="#0f172a" stroke="#3b82f6" stroke-width="1"/>
+      <text x="270" y="80" text-anchor="middle" fill="#94a3b8" font-size="7">Controllers</text>
+      <!-- ENI bridge -->
+      <line x1="170" y1="105" x2="170" y2="130" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4"/>
+      <text x="200" y="120" fill="#f59e0b" font-size="8">ENIs in your VPC</text>
+      <!-- Your worker nodes -->
+      <rect x="15" y="130" width="310" height="80" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+      <text x="170" y="148" text-anchor="middle" fill="#34d399" font-size="10" font-weight="700">Your Data Plane (Worker Nodes)</text>
+      <rect x="30" y="158" width="85" height="38" rx="5" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+      <text x="72" y="172" text-anchor="middle" fill="#94a3b8" font-size="7">Node (EC2)</text>
+      <text x="72" y="186" text-anchor="middle" fill="#475569" font-size="7">pods, kubelet</text>
+      <rect x="127" y="158" width="85" height="38" rx="5" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+      <text x="170" y="172" text-anchor="middle" fill="#94a3b8" font-size="7">Node (EC2)</text>
+      <text x="170" y="186" text-anchor="middle" fill="#475569" font-size="7">pods, kubelet</text>
+      <rect x="225" y="158" width="85" height="38" rx="5" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+      <text x="268" y="172" text-anchor="middle" fill="#94a3b8" font-size="7">Node (EC2)</text>
+      <text x="268" y="186" text-anchor="middle" fill="#475569" font-size="7">pods, kubelet</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>module "eks"</code> (terraform-aws-modules/eks/aws) — creates cluster, OIDC provider, managed node groups, IAM roles.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Making the API server endpoint fully public without IP restrictions. Always restrict to known CIDRs or use private endpoint.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> EKS control plane: <strong>$0.10/hour = ~$73/month</strong> fixed. Worker node costs are separate (EC2 pricing).</div>
+</div>
+
+<!-- ─── SECTION 10 ─── -->
+<div class="step green" id="s10">
+  <h3><span class="step-num">10</span> EKS Control Plane (Master Nodes)</h3>
+  <h4>What is it?</h4>
+  <p>The control plane is the brain of your Kubernetes cluster. It lives in an <strong>AWS-managed VPC</strong> (not your VPC) and consists of: the <strong>API Server</strong> (front door for all cluster operations), <strong>etcd</strong> (distributed key-value database storing all cluster state), the <strong>Scheduler</strong> (decides which node runs each pod), and <strong>Controller Manager</strong> (ensures desired state matches actual state).</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> The control plane is like a hospital's administration office. The API Server is the reception desk (all requests go through it). etcd is the patient records system. The Scheduler is the triage nurse deciding which ward gets each patient. Controllers are the department heads ensuring every ward has the right number of beds.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Without the control plane, there is no coordination. Nodes would not know which pods to run, failed pods would not be restarted, and new deployments could not be rolled out. AWS manages this entirely — you never SSH into master nodes, patch etcd, or rotate control plane certificates.</p>
+
+  <h4>How does it work?</h4>
+  <p>The control plane runs in AWS's VPC. It connects to your VPC through <strong>ENIs</strong> (Elastic Network Interfaces) placed in your private subnets. Your worker nodes talk to the API Server through these ENIs. You choose public or private endpoint access — private means only resources within your VPC can reach the API Server.</p>
+
+  <div class="svg-diagram">
+    <svg width="340" height="210" viewBox="0 0 340 210" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- AWS VPC -->
+      <rect x="10" y="10" width="320" height="85" rx="8" fill="#0f172a" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="5"/>
+      <text x="170" y="28" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="600">AWS-Managed VPC (you cannot access)</text>
+      <rect x="25" y="38" width="65" height="45" rx="4" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+      <text x="57" y="55" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">API Server</text>
+      <text x="57" y="72" text-anchor="middle" fill="#475569" font-size="7">kubectl target</text>
+      <rect x="100" y="38" width="50" height="45" rx="4" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+      <text x="125" y="55" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">etcd</text>
+      <text x="125" y="72" text-anchor="middle" fill="#475569" font-size="7">state store</text>
+      <rect x="160" y="38" width="65" height="45" rx="4" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+      <text x="192" y="55" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">Scheduler</text>
+      <text x="192" y="72" text-anchor="middle" fill="#475569" font-size="7">pod placement</text>
+      <rect x="235" y="38" width="80" height="45" rx="4" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+      <text x="275" y="55" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">Controllers</text>
+      <text x="275" y="72" text-anchor="middle" fill="#475569" font-size="7">reconciliation</text>
+      <!-- ENI bridge -->
+      <rect x="100" y="102" width="140" height="22" rx="4" fill="#d97706" stroke="#fbbf24" stroke-width="1"/>
+      <text x="170" y="117" text-anchor="middle" fill="white" font-size="8" font-weight="700">ENIs (cross-account link)</text>
+      <!-- Your VPC -->
+      <rect x="10" y="132" width="320" height="68" rx="8" fill="#0f172a" stroke="#10b981" stroke-width="1.5"/>
+      <text x="170" y="150" text-anchor="middle" fill="#34d399" font-size="9" font-weight="600">Your VPC (private subnets)</text>
+      <rect x="45" y="158" width="70" height="30" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+      <text x="80" y="177" text-anchor="middle" fill="#94a3b8" font-size="8">Worker Node</text>
+      <rect x="135" y="158" width="70" height="30" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+      <text x="170" y="177" text-anchor="middle" fill="#94a3b8" font-size="8">Worker Node</text>
+      <rect x="225" y="158" width="70" height="30" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+      <text x="260" y="177" text-anchor="middle" fill="#94a3b8" font-size="8">Worker Node</text>
+      <line x1="170" y1="95" x2="170" y2="102" stroke="#fbbf24" stroke-width="1.5"/>
+      <line x1="170" y1="124" x2="170" y2="132" stroke="#fbbf24" stroke-width="1.5"/>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>module "eks"</code> with <code>cluster_endpoint_private_access = true</code> and <code>cluster_endpoint_public_access = true</code> (restrict via <code>cluster_endpoint_public_access_cidrs</code>).</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Disabling both public and private endpoints. You must have at least one enabled or you cannot reach the API server at all.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> Included in the $73/month EKS fee. No additional cost for ENIs created by the control plane.</div>
+</div>
+
+<!-- ─── SECTION 11 ─── -->
+<div class="step purple" id="s11">
+  <h3><span class="step-num">11</span> Worker Nodes (Managed Node Groups)</h3>
+  <h4>What is it?</h4>
+  <p><strong>Worker nodes</strong> are EC2 instances that actually run your containers (pods). A <strong>Managed Node Group</strong> means AWS handles the lifecycle — AMI updates, instance replacement, graceful draining during upgrades.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> Worker nodes are the chefs in your restaurant. The control plane (manager) tells each chef what dishes to prepare (pods to run). Managed Node Groups mean AWS is the staffing agency — they hire, train, and replace chefs for you. You just say "I need 3-6 chefs."</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Containers need servers to run on. Managed Node Groups remove the operational burden of patching OS images, handling instance failures, and rolling upgrades. You define the instance type, min/max count, and AWS does the rest.</p>
+
+  <h4>How does it work?</h4>
+  <p>Two node groups are common: <strong>System</strong> (runs infrastructure pods like CoreDNS, metrics-server, Istio) and <strong>App</strong> (runs your application pods). This separation ensures infrastructure pods always have resources, even when app pods are under heavy load. Each group has its own instance type and autoscaling range.</p>
+
+  <div class="svg-diagram">
+    <svg width="340" height="200" viewBox="0 0 340 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="170" y="18" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">Managed Node Groups</text>
+      <!-- System group -->
+      <rect x="15" y="35" width="150" height="150" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="90" y="55" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="600">System Node Group</text>
+      <text x="90" y="70" text-anchor="middle" fill="#475569" font-size="8">t3.medium (2 CPU, 4 GB)</text>
+      <rect x="28" y="82" width="55" height="40" rx="4" fill="#0f172a" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="55" y="98" text-anchor="middle" fill="#94a3b8" font-size="7">CoreDNS</text>
+      <text x="55" y="112" text-anchor="middle" fill="#475569" font-size="7">Istio</text>
+      <rect x="95" y="82" width="55" height="40" rx="4" fill="#0f172a" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="122" y="98" text-anchor="middle" fill="#94a3b8" font-size="7">Metrics</text>
+      <text x="122" y="112" text-anchor="middle" fill="#475569" font-size="7">Monitoring</text>
+      <text x="90" y="148" text-anchor="middle" fill="#64748b" font-size="8">min: 2, max: 3</text>
+      <text x="90" y="170" text-anchor="middle" fill="#8b5cf6" font-size="8">Taint: system-only</text>
+      <!-- App group -->
+      <rect x="175" y="35" width="150" height="150" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+      <text x="250" y="55" text-anchor="middle" fill="#34d399" font-size="10" font-weight="600">App Node Group</text>
+      <text x="250" y="70" text-anchor="middle" fill="#475569" font-size="8">t3.large (2 CPU, 8 GB)</text>
+      <rect x="188" y="82" width="55" height="40" rx="4" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+      <text x="215" y="98" text-anchor="middle" fill="#94a3b8" font-size="7">ecom</text>
+      <text x="215" y="112" text-anchor="middle" fill="#475569" font-size="7">inventory</text>
+      <rect x="255" y="82" width="55" height="40" rx="4" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+      <text x="282" y="98" text-anchor="middle" fill="#94a3b8" font-size="7">UI</text>
+      <text x="282" y="112" text-anchor="middle" fill="#475569" font-size="7">Kafka</text>
+      <text x="250" y="148" text-anchor="middle" fill="#64748b" font-size="8">min: 2, max: 6</text>
+      <text x="250" y="170" text-anchor="middle" fill="#10b981" font-size="8">Autoscales with load</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>eks_managed_node_groups</code> block inside <code>module "eks"</code>. Key settings: <code>instance_types</code>, <code>min_size</code>, <code>max_size</code>, <code>desired_size</code>.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Using a single node group for everything. A spike in application traffic can starve system pods (CoreDNS, metrics-server), causing cascading failures.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> t3.medium: ~$30/month. t3.large: ~$60/month. With 4-9 nodes total: <strong>~$180-540/month</strong> for compute. Use Spot instances for non-critical workloads to save 60-90%.</div>
+</div>
+
+<!-- ─── SECTION 12 ─── -->
+<div class="step green" id="s12">
+  <h3><span class="step-num">12</span> Pods, Deployments, Services</h3>
+  <h4>What is it?</h4>
+  <p>Three fundamental Kubernetes objects:</p>
+  <ul>
+    <li><strong>Pod</strong> — The smallest deployable unit. Contains one or more containers sharing network and storage. Ephemeral — pods come and go.</li>
+    <li><strong>Deployment</strong> — Manages a set of identical pods. You declare "I want 3 replicas" and the Deployment ensures exactly 3 are always running. Handles rolling updates and rollbacks.</li>
+    <li><strong>Service</strong> — A stable network endpoint for a set of pods. Pods have random IPs that change; a Service provides a fixed DNS name and IP that routes to healthy pods.</li>
+  </ul>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> Pods are individual cashiers. A Deployment is the staffing policy: "always have 3 cashiers working; if one calls in sick, hire a replacement immediately." A Service is the "Cashier" sign above the counter — customers go to the sign, not a specific person. If cashier #2 goes on break, the sign still works because #1 and #3 are there.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Containers crash, nodes fail, traffic fluctuates. Deployments ensure your app stays running with the right number of replicas. Services ensure other apps can always find yours, even as individual pods are replaced.</p>
+
+  <h4>How does it work?</h4>
+  <p>You create a Deployment YAML specifying the image, replicas, and resources. Kubernetes creates pods across nodes. A Service selects pods by label and load-balances traffic to them. For external access, an Ingress or Gateway routes outside traffic to Services.</p>
+
+  <div class="svg-diagram">
+    <svg width="340" height="200" viewBox="0 0 340 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="170" y="18" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">Deployment -> Pods -> Service</text>
+      <!-- Deployment -->
+      <rect x="15" y="35" width="310" height="55" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+      <text x="170" y="52" text-anchor="middle" fill="#34d399" font-size="10" font-weight="600">Deployment: ecom-service (replicas: 3)</text>
+      <rect x="35" y="60" width="75" height="22" rx="4" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+      <text x="72" y="75" text-anchor="middle" fill="#94a3b8" font-size="8">Pod 1 (10.0.11.5)</text>
+      <rect x="132" y="60" width="75" height="22" rx="4" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+      <text x="170" y="75" text-anchor="middle" fill="#94a3b8" font-size="8">Pod 2 (10.0.12.8)</text>
+      <rect x="229" y="60" width="75" height="22" rx="4" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+      <text x="267" y="75" text-anchor="middle" fill="#94a3b8" font-size="8">Pod 3 (10.0.13.3)</text>
+      <!-- Service -->
+      <rect x="90" y="115" width="160" height="35" rx="8" fill="#3b82f6"/>
+      <text x="170" y="130" text-anchor="middle" fill="white" font-size="10" font-weight="600">Service: ecom-service</text>
+      <text x="170" y="143" text-anchor="middle" fill="#bfdbfe" font-size="8">ClusterIP: 10.100.45.12:8080</text>
+      <!-- Arrows from service to pods -->
+      <line x1="130" y1="115" x2="72" y2="82" stroke="#60a5fa" stroke-width="1"/>
+      <line x1="170" y1="115" x2="170" y2="82" stroke="#60a5fa" stroke-width="1"/>
+      <line x1="210" y1="115" x2="267" y2="82" stroke="#60a5fa" stroke-width="1"/>
+      <!-- Other service calling -->
+      <rect x="100" y="165" width="140" height="25" rx="5" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="170" y="182" text-anchor="middle" fill="#a78bfa" font-size="8">Other pods call: ecom-service:8080</text>
+      <line x1="170" y1="165" x2="170" y2="150" stroke="#a78bfa" stroke-width="1"/>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> Kubernetes resources are typically deployed via Helm charts or <code>kubectl apply</code>, not Terraform. Terraform manages the cluster; Helm/ArgoCD manages workloads inside it.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Not setting resource requests/limits. Without them, a single pod can consume all node resources and crash everything else on that node.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> Pods run on EC2 nodes. More replicas = more node capacity needed = more EC2 cost. Right-size your resource requests.</div>
+</div>
+
+<!-- ─── SECTION 13 ─── -->
+<div class="step amber" id="s13">
+  <h3><span class="step-num">13</span> Namespaces</h3>
+  <h4>What is it?</h4>
+  <p>A <strong>Namespace</strong> is a virtual cluster within a Kubernetes cluster. It provides logical isolation — resources in different namespaces can have the same names without conflict. RBAC policies, resource quotas, and network policies are scoped to namespaces.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> Namespaces are departments in a company. Engineering and Marketing can both have a "dashboard" project without conflict. Each department has its own budget (resource quotas) and access controls (RBAC). People in Engineering cannot access Marketing's confidential files unless explicitly granted.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Organization and security. Without namespaces, all resources are in the default namespace — a flat mess. Namespaces let you apply per-team resource quotas, restrict access with RBAC, and enforce network policies that prevent cross-service communication by default.</p>
+
+  <h4>How does it work?</h4>
+  <p>BookStore namespaces: <code>ecom</code>, <code>inventory</code>, <code>analytics</code>, <code>identity</code>, <code>infra</code>, <code>observability</code>, <code>cert-manager</code>, <code>istio-system</code>. Each service lives in its own namespace with NetworkPolicies controlling what can communicate.</p>
+
+  <div class="svg-diagram">
+    <svg width="340" height="200" viewBox="0 0 340 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="170" y="18" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">Kubernetes Namespaces</text>
+      <rect x="15" y="30" width="95" height="55" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="62" y="50" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">ecom</text>
+      <text x="62" y="65" text-anchor="middle" fill="#475569" font-size="7">ecom-service</text>
+      <text x="62" y="77" text-anchor="middle" fill="#475569" font-size="7">ecom-db</text>
+      <rect x="122" y="30" width="95" height="55" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+      <text x="170" y="50" text-anchor="middle" fill="#34d399" font-size="9" font-weight="600">inventory</text>
+      <text x="170" y="65" text-anchor="middle" fill="#475569" font-size="7">inventory-service</text>
+      <text x="170" y="77" text-anchor="middle" fill="#475569" font-size="7">inventory-db</text>
+      <rect x="229" y="30" width="95" height="55" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="277" y="50" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">identity</text>
+      <text x="277" y="65" text-anchor="middle" fill="#475569" font-size="7">keycloak</text>
+      <text x="277" y="77" text-anchor="middle" fill="#475569" font-size="7">keycloak-db</text>
+      <rect x="15" y="100" width="95" height="55" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="62" y="120" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="600">infra</text>
+      <text x="62" y="135" text-anchor="middle" fill="#475569" font-size="7">kafka, redis</text>
+      <text x="62" y="147" text-anchor="middle" fill="#475569" font-size="7">debezium, flink</text>
+      <rect x="122" y="100" width="95" height="55" rx="6" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+      <text x="170" y="120" text-anchor="middle" fill="#22d3ee" font-size="9" font-weight="600">observability</text>
+      <text x="170" y="135" text-anchor="middle" fill="#475569" font-size="7">prometheus</text>
+      <text x="170" y="147" text-anchor="middle" fill="#475569" font-size="7">grafana, loki</text>
+      <rect x="229" y="100" width="95" height="55" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+      <text x="277" y="120" text-anchor="middle" fill="#f87171" font-size="9" font-weight="600">analytics</text>
+      <text x="277" y="135" text-anchor="middle" fill="#475569" font-size="7">analytics-db</text>
+      <text x="277" y="147" text-anchor="middle" fill="#475569" font-size="7">superset</text>
+      <text x="170" y="185" text-anchor="middle" fill="#475569" font-size="9">NetworkPolicies restrict cross-namespace traffic</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>kubernetes_namespace</code> or created by Helm charts. Istio labels (<code>istio.io/dataplane-mode: ambient</code>) are applied per namespace.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Putting everything in <code>default</code> namespace. No isolation, no resource control, no RBAC separation.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> Namespaces are <strong>free</strong>. No cost.</div>
+</div>
+
+<!-- ─── SECTION 14 ─── -->
+<div class="step cyan" id="s14">
+  <h3><span class="step-num">14</span> OIDC Provider &amp; IRSA</h3>
+  <h4>What is it?</h4>
+  <p><strong>IRSA (IAM Roles for Service Accounts)</strong> lets individual Kubernetes pods assume specific AWS IAM roles. Instead of giving ALL pods on a node the same AWS permissions, each pod gets only what it needs.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> Without IRSA, everyone in the office uses the same master keycard (node IAM role). The janitor, the CEO, and the intern all have access to everything. With IRSA, each person gets their own keycard that only opens the doors they need. The janitor can enter supply closets but not the vault.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Principle of least privilege. The ecom-service needs access to its Aurora database and MSK. The inventory-service needs access to different Aurora and MSK. Without IRSA, both share the node's IAM role — which must have ALL permissions. One compromised pod gets access to everything.</p>
+
+  <h4>How does it work?</h4>
+  <p>EKS creates an OIDC provider (identity verifier). When a pod uses a Kubernetes ServiceAccount annotated with an IAM role ARN, the pod receives a JWT token. It exchanges this token via AWS STS (Security Token Service) for temporary AWS credentials scoped to that specific IAM role.</p>
+
+  <div class="svg-diagram">
+    <svg width="340" height="200" viewBox="0 0 340 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="170" y="18" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">IRSA Flow</text>
+      <rect x="15" y="35" width="70" height="35" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+      <text x="50" y="50" text-anchor="middle" fill="#34d399" font-size="8" font-weight="600">Pod</text>
+      <text x="50" y="63" text-anchor="middle" fill="#475569" font-size="7">ecom-service</text>
+      <rect x="15" y="80" width="70" height="30" rx="5" fill="#1e293b" stroke="#06b6d4" stroke-width="1"/>
+      <text x="50" y="99" text-anchor="middle" fill="#22d3ee" font-size="8">ServiceAccount</text>
+      <line x1="50" y1="70" x2="50" y2="80" stroke="#64748b" stroke-width="1"/>
+      <rect x="120" y="40" width="80" height="25" rx="5" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="160" y="57" text-anchor="middle" fill="#a78bfa" font-size="8" font-weight="600">OIDC Provider</text>
+      <line x1="85" y1="52" x2="120" y2="52" stroke="#a78bfa" stroke-width="1.2" marker-end="url(#arri)"/>
+      <text x="102" y="46" text-anchor="middle" fill="#475569" font-size="7">JWT</text>
+      <rect x="235" y="40" width="80" height="25" rx="5" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="275" y="57" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="600">AWS STS</text>
+      <line x1="200" y1="52" x2="235" y2="52" stroke="#fbbf24" stroke-width="1.2" marker-end="url(#arri)"/>
+      <text x="217" y="46" text-anchor="middle" fill="#475569" font-size="7">verify</text>
+      <rect x="225" y="90" width="100" height="35" rx="5" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="275" y="105" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">IAM Role</text>
+      <text x="275" y="118" text-anchor="middle" fill="#475569" font-size="7">ecom-service-role</text>
+      <line x1="275" y1="65" x2="275" y2="90" stroke="#3b82f6" stroke-width="1.2" marker-end="url(#arri)"/>
+      <text x="295" y="80" fill="#475569" font-size="7">assume</text>
+      <rect x="225" y="145" width="100" height="40" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+      <text x="275" y="162" text-anchor="middle" fill="#34d399" font-size="8" font-weight="600">AWS Services</text>
+      <text x="275" y="177" text-anchor="middle" fill="#475569" font-size="7">Aurora, MSK, S3</text>
+      <line x1="275" y1="125" x2="275" y2="145" stroke="#10b981" stroke-width="1.2" marker-end="url(#arri)"/>
+      <text x="295" y="137" fill="#475569" font-size="7">access</text>
+      <defs><marker id="arri" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L6,3 L0,6Z" fill="#94a3b8"/></marker></defs>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> OIDC provider created by EKS module. IRSA roles via <code>module "irsa"</code> or <code>aws_iam_role</code> with OIDC trust policy + <code>kubernetes_service_account</code> with annotation.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Using the node IAM role for everything. If any pod on the node is compromised, the attacker gets access to all AWS services the node role permits.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> IRSA is <strong>free</strong>. STS calls are free. No additional cost.</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Part 3: Storage &amp; Data</h2>
+<!-- ============================================================ -->
+
+<!-- ─── SECTION 15 ─── -->
+<div class="step blue" id="s15">
+  <h3><span class="step-num">15</span> ECR (Elastic Container Registry)</h3>
+  <h4>What is it?</h4>
+  <p><strong>ECR</strong> is AWS's private Docker image registry. When you build a container image, you push it to ECR. When Kubernetes needs to run that container, it pulls the image from ECR.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> ECR is your company's private recipe book. You write recipes (build images) and store them securely. When the kitchen needs to make a dish, the chef (Kubernetes) pulls the recipe from the book. Nobody outside your company can access these recipes.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Security (images are private, scanned for vulnerabilities), speed (same-region pull is fast), and IAM integration (no Docker Hub credentials to manage). Lifecycle policies auto-delete old images.</p>
+
+  <h4>How does it work?</h4>
+  <p>CI/CD builds images, pushes to ECR. EKS nodes pull images via IRSA credentials or node IAM role. ECR can scan images on push for known CVEs.</p>
+
+  <div class="svg-diagram">
+    <svg width="320" height="140" viewBox="0 0 320 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="30" width="75" height="40" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="47" y="48" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="600">CI/CD</text>
+      <text x="47" y="62" text-anchor="middle" fill="#475569" font-size="7">docker build</text>
+      <rect x="120" y="30" width="80" height="40" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="160" y="48" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">ECR</text>
+      <text x="160" y="62" text-anchor="middle" fill="#475569" font-size="7">image registry</text>
+      <rect x="235" y="30" width="75" height="40" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+      <text x="272" y="48" text-anchor="middle" fill="#34d399" font-size="9" font-weight="600">EKS Nodes</text>
+      <text x="272" y="62" text-anchor="middle" fill="#475569" font-size="7">docker pull</text>
+      <line x1="85" y1="50" x2="120" y2="50" stroke="#fbbf24" stroke-width="1.2" marker-end="url(#arre)"/>
+      <text x="102" y="44" text-anchor="middle" fill="#475569" font-size="7">push</text>
+      <line x1="200" y1="50" x2="235" y2="50" stroke="#10b981" stroke-width="1.2" marker-end="url(#arre)"/>
+      <text x="217" y="44" text-anchor="middle" fill="#475569" font-size="7">pull</text>
+      <rect x="120" y="85" width="80" height="25" rx="4" fill="#0f172a" stroke="#ef4444" stroke-width="1"/>
+      <text x="160" y="101" text-anchor="middle" fill="#f87171" font-size="8">Scan on push</text>
+      <line x1="160" y1="70" x2="160" y2="85" stroke="#ef4444" stroke-width="1"/>
+      <defs><marker id="arre" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L6,3 L0,6Z" fill="#94a3b8"/></marker></defs>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>aws_ecr_repository</code> per service. <code>aws_ecr_lifecycle_policy</code> to auto-delete images older than N days.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Not setting lifecycle policies. Old images accumulate and storage costs grow silently. Keep only the last 10-20 images.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> <strong>$0.10/GB/month</strong> storage + $0.09/GB data transfer (cross-region). Same-region pull is free. Typical cost: $1-5/month.</div>
+</div>
+
+<!-- ─── SECTION 16 ─── -->
+<div class="step green" id="s16">
+  <h3><span class="step-num">16</span> Aurora PostgreSQL (Serverless v2)</h3>
+  <h4>What is it?</h4>
+  <p><strong>Aurora</strong> is AWS's cloud-native relational database, compatible with PostgreSQL. It stores 6 copies of your data across 3 AZs automatically. <strong>Serverless v2</strong> means compute scales up and down automatically based on demand — measured in ACUs (Aurora Capacity Units).</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> Regular PostgreSQL on EC2 is like buying a generator for your home — you maintain it, fuel it, fix it. Aurora is like city power — it just works, auto-scales, and you pay for what you use. The 6 copies across 3 AZs is like having 6 backup generators in 3 different buildings.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Each microservice needs its own database (strict isolation). Aurora provides automatic failover (~30 seconds), 6-way replication, auto-scaling, point-in-time recovery, and <code>wal_level=logical</code> support for Debezium CDC.</p>
+
+  <h4>How does it work?</h4>
+  <p>Writer instance handles all writes. Reader instance handles read queries (offloading the writer). Storage is shared across AZs — a write in AZ-a is replicated to AZ-b and AZ-c within milliseconds. On failure, the reader is promoted to writer automatically.</p>
+
+  <div class="svg-diagram">
+    <svg width="340" height="200" viewBox="0 0 340 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="170" y="18" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">Aurora Serverless v2</text>
+      <rect x="30" y="35" width="100" height="50" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+      <text x="80" y="55" text-anchor="middle" fill="#34d399" font-size="10" font-weight="600">Writer</text>
+      <text x="80" y="72" text-anchor="middle" fill="#475569" font-size="8">AZ-a (primary)</text>
+      <rect x="210" y="35" width="100" height="50" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="260" y="55" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">Reader</text>
+      <text x="260" y="72" text-anchor="middle" fill="#475569" font-size="8">AZ-b (standby)</text>
+      <line x1="130" y1="60" x2="210" y2="60" stroke="#64748b" stroke-width="1" stroke-dasharray="4"/>
+      <text x="170" y="54" text-anchor="middle" fill="#64748b" font-size="7">replication</text>
+      <!-- Storage layer -->
+      <rect x="15" y="110" width="310" height="60" rx="8" fill="#0f172a" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="170" y="130" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="600">Shared Storage Layer (6 copies, 3 AZs)</text>
+      <rect x="30" y="140" width="80" height="20" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+      <text x="70" y="154" text-anchor="middle" fill="#475569" font-size="7">AZ-a: 2 copies</text>
+      <rect x="130" y="140" width="80" height="20" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+      <text x="170" y="154" text-anchor="middle" fill="#475569" font-size="7">AZ-b: 2 copies</text>
+      <rect x="230" y="140" width="80" height="20" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+      <text x="270" y="154" text-anchor="middle" fill="#475569" font-size="7">AZ-c: 2 copies</text>
+      <line x1="80" y1="85" x2="80" y2="110" stroke="#10b981" stroke-width="1.2"/>
+      <line x1="260" y1="85" x2="260" y2="110" stroke="#3b82f6" stroke-width="1.2"/>
+      <text x="170" y="192" text-anchor="middle" fill="#475569" font-size="9">Failover: ~30s, reader promoted to writer automatically</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>aws_rds_cluster</code> with <code>engine_mode = "provisioned"</code>, <code>serverlessv2_scaling_configuration</code>. <code>aws_rds_cluster_instance</code> per instance.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Not enabling <code>wal_level=logical</code> via <code>rds.logical_replication = 1</code> parameter. Debezium CDC requires this and it needs a reboot.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> Minimum <strong>~$43/month per cluster</strong> (0.5 ACU). With 4 clusters (ecom, inventory, analytics, keycloak) = ~$175/month minimum. Scales up with traffic.</div>
+</div>
+
+<!-- ─── SECTION 17 ─── -->
+<div class="step amber" id="s17">
+  <h3><span class="step-num">17</span> S3 (Simple Storage Service)</h3>
+  <h4>What is it?</h4>
+  <p><strong>S3</strong> is object storage — think of it as an infinite hard drive in the cloud. You store files (objects) in buckets. S3 has 99.999999999% (eleven 9s) durability — your data is essentially indestructible.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> S3 is a warehouse with infinite shelves. Each bucket is a section, each object is a box on a shelf. The warehouse makes 11 copies of each box across multiple buildings. You would need to simultaneously lose all 11 copies to lose data — virtually impossible.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>In our EKS setup, S3 stores <strong>Terraform state</strong> — the file that tracks what infrastructure exists. Without remote state, two engineers running Terraform simultaneously could create duplicate resources or destroy each other's work. S3 + versioning means every state change is tracked and recoverable.</p>
+
+  <h4>How does it work?</h4>
+  <p>Create a bucket with versioning enabled. Terraform writes its <code>.tfstate</code> file to S3. Combined with DynamoDB locking, this prevents concurrent modifications. Server-side encryption ensures the state (which contains secrets) is encrypted at rest.</p>
+
+  <div class="svg-diagram">
+    <svg width="280" height="150" viewBox="0 0 280 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="15" y="25" width="80" height="35" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="55" y="42" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">Terraform</text>
+      <text x="55" y="55" text-anchor="middle" fill="#475569" font-size="7">terraform apply</text>
+      <rect x="130" y="15" width="130" height="55" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="195" y="35" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="600">S3 Bucket</text>
+      <text x="195" y="50" text-anchor="middle" fill="#475569" font-size="8">terraform.tfstate</text>
+      <text x="195" y="63" text-anchor="middle" fill="#475569" font-size="7">versioned + encrypted</text>
+      <line x1="95" y1="42" x2="130" y2="42" stroke="#a78bfa" stroke-width="1.2"/>
+      <rect x="130" y="85" width="130" height="40" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+      <text x="195" y="100" text-anchor="middle" fill="#60a5fa" font-size="9">11 nines durability</text>
+      <text x="195" y="115" text-anchor="middle" fill="#475569" font-size="8">99.999999999%</text>
+      <line x1="195" y1="70" x2="195" y2="85" stroke="#64748b" stroke-width="1"/>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>aws_s3_bucket</code> + <code>aws_s3_bucket_versioning</code> + <code>aws_s3_bucket_server_side_encryption_configuration</code>.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Not enabling versioning. A corrupted state file without versioning means you lose track of all your infrastructure.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> <strong>$0.023/GB/month</strong>. Terraform state files are tiny (KB). Cost is effectively $0.</div>
+</div>
+
+<!-- ─── SECTION 18 ─── -->
+<div class="step red" id="s18">
+  <h3><span class="step-num">18</span> DynamoDB</h3>
+  <h4>What is it?</h4>
+  <p><strong>DynamoDB</strong> is a fully managed key-value NoSQL database. In our architecture, it serves exactly one purpose: <strong>Terraform state locking</strong>.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> DynamoDB for state locking is like a "Do Not Disturb" sign on a hotel room door. When Terraform starts working, it puts up the sign (acquires the lock). If another Terraform process tries to enter, it sees the sign and waits. Without the sign, two people could rearrange the same room simultaneously and create chaos.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>S3 alone does not prevent two people from running <code>terraform apply</code> at the same time. DynamoDB provides a lock — only one Terraform process can modify infrastructure at a time. This prevents race conditions and state corruption.</p>
+
+  <h4>How does it work?</h4>
+  <p>Terraform writes a lock record to DynamoDB before modifying state. The record contains who holds the lock and when it was acquired. When done, Terraform deletes the lock. If Terraform crashes, the lock has a timeout.</p>
+
+  <div class="svg-diagram">
+    <svg width="280" height="130" viewBox="0 0 280 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="15" y="20" width="75" height="35" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+      <text x="52" y="42" text-anchor="middle" fill="#34d399" font-size="8" font-weight="600">Dev 1: apply</text>
+      <rect x="15" y="75" width="75" height="35" rx="5" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+      <text x="52" y="97" text-anchor="middle" fill="#f87171" font-size="8" font-weight="600">Dev 2: apply</text>
+      <rect x="130" y="30" width="100" height="55" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="2"/>
+      <text x="180" y="52" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="700">DynamoDB</text>
+      <text x="180" y="68" text-anchor="middle" fill="#475569" font-size="8">Lock Table</text>
+      <text x="180" y="80" text-anchor="middle" fill="#10b981" font-size="7">LockID: terraform</text>
+      <line x1="90" y1="37" x2="130" y2="50" stroke="#10b981" stroke-width="1.2"/>
+      <text x="110" y="35" fill="#10b981" font-size="7">lock OK</text>
+      <line x1="90" y1="92" x2="130" y2="72" stroke="#ef4444" stroke-width="1.2"/>
+      <text x="110" y="90" fill="#ef4444" font-size="7">BLOCKED</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>aws_dynamodb_table</code> with <code>hash_key = "LockID"</code>, <code>billing_mode = "PAY_PER_REQUEST"</code>.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Forgetting to configure the DynamoDB table in the Terraform backend. State locking silently does not work, and concurrent applies corrupt state.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> Pay-per-request pricing. Terraform locks are infrequent — cost is effectively <strong>$0</strong>.</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Part 4: Messaging &amp; Caching</h2>
+<!-- ============================================================ -->
+
+<!-- ─── SECTION 19 ─── -->
+<div class="step purple" id="s19">
+  <h3><span class="step-num">19</span> Amazon MSK (Managed Streaming for Kafka)</h3>
+  <h4>What is it?</h4>
+  <p><strong>Kafka</strong> is a distributed event streaming platform — a high-throughput message bus. Producers publish messages to <strong>topics</strong>, and consumers read from them. Messages are stored durably and can be replayed. <strong>MSK</strong> is AWS-managed Kafka — no broker management, patching, or ZooKeeper headaches.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> Kafka is a newspaper printing press. Writers (producers) submit articles to sections (topics). Readers (consumers) subscribe to sections. The press keeps all back issues (message retention). MSK means AWS runs the printing press — you just write articles and read the paper.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Two use cases: (1) <strong>CDC events</strong> — Debezium captures database changes and publishes to Kafka topics. Flink reads these to populate the analytics database. (2) <strong>Application events</strong> — ecom-service publishes <code>order.created</code>, inventory-service consumes it to deduct stock.</p>
+
+  <h4>How does it work?</h4>
+  <p>3 brokers across 3 AZs. Topics are partitioned for parallelism. Replication factor of 3 means every message exists on 3 brokers. <code>min.insync.replicas = 2</code> means a write is only acknowledged when at least 2 brokers have it — balancing durability with availability.</p>
+
+  <div class="svg-diagram">
+    <svg width="340" height="200" viewBox="0 0 340 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="170" y="18" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">MSK Kafka Cluster</text>
+      <!-- Brokers -->
+      <rect x="25" y="40" width="85" height="55" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="67" y="58" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">Broker 1</text>
+      <text x="67" y="73" text-anchor="middle" fill="#475569" font-size="7">AZ-a</text>
+      <text x="67" y="86" text-anchor="middle" fill="#475569" font-size="7">P0, P1 (leader)</text>
+      <rect x="127" y="40" width="85" height="55" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="170" y="58" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">Broker 2</text>
+      <text x="170" y="73" text-anchor="middle" fill="#475569" font-size="7">AZ-b</text>
+      <text x="170" y="86" text-anchor="middle" fill="#475569" font-size="7">P0, P2 (leader)</text>
+      <rect x="229" y="40" width="85" height="55" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="272" y="58" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">Broker 3</text>
+      <text x="272" y="73" text-anchor="middle" fill="#475569" font-size="7">AZ-c</text>
+      <text x="272" y="86" text-anchor="middle" fill="#475569" font-size="7">P1, P2 (leader)</text>
+      <!-- Producers -->
+      <rect x="25" y="115" width="85" height="30" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+      <text x="67" y="134" text-anchor="middle" fill="#34d399" font-size="8">Debezium (CDC)</text>
+      <rect x="127" y="115" width="85" height="30" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+      <text x="170" y="134" text-anchor="middle" fill="#34d399" font-size="8">ecom-service</text>
+      <!-- Consumers -->
+      <rect x="25" y="160" width="85" height="30" rx="5" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+      <text x="67" y="179" text-anchor="middle" fill="#fbbf24" font-size="8">Flink SQL</text>
+      <rect x="127" y="160" width="85" height="30" rx="5" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+      <text x="170" y="179" text-anchor="middle" fill="#fbbf24" font-size="8">inventory-svc</text>
+      <line x1="67" y1="115" x2="67" y2="95" stroke="#10b981" stroke-width="1"/>
+      <line x1="170" y1="115" x2="170" y2="95" stroke="#10b981" stroke-width="1"/>
+      <line x1="67" y1="160" x2="67" y2="95" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3"/>
+      <line x1="170" y1="160" x2="170" y2="95" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3"/>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>aws_msk_cluster</code> with <code>broker_node_group_info</code>, <code>number_of_broker_nodes = 3</code>.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Not sizing broker storage. Kafka stores messages for the retention period. If disk fills up, the cluster stops accepting writes.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> Starts at <strong>~$150/month</strong> (kafka.t3.small x 3). Storage: $0.10/GB/month. Production with kafka.m5.large: ~$450/month.</div>
+</div>
+
+<!-- ─── SECTION 20 ─── -->
+<div class="step cyan" id="s20">
+  <h3><span class="step-num">20</span> ElastiCache Redis</h3>
+  <h4>What is it?</h4>
+  <p><strong>Redis</strong> is an in-memory key-value store — extremely fast (sub-millisecond). <strong>ElastiCache</strong> is AWS-managed Redis with automatic failover, patching, and backups.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> Redis is a sticky note board right next to your desk. Need to look something up? Glance at the board (microseconds) instead of walking to the filing cabinet (database query, milliseconds). ElastiCache means AWS maintains the board — replacing worn-out notes and keeping a backup.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Three use cases: <strong>CSRF tokens</strong> (stored per session, validated on every mutating request), <strong>rate limiting</strong> (token buckets per user/endpoint), and <strong>session cache</strong> (fast access to session data).</p>
+
+  <h4>How does it work?</h4>
+  <p>Primary node handles reads and writes. Replica in another AZ handles reads and serves as failover target. If primary fails, ElastiCache promotes replica to primary in seconds. DNS endpoint auto-updates.</p>
+
+  <div class="svg-diagram">
+    <svg width="280" height="140" viewBox="0 0 280 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="30" y="20" width="90" height="50" rx="6" fill="#1e293b" stroke="#06b6d4" stroke-width="2"/>
+      <text x="75" y="42" text-anchor="middle" fill="#22d3ee" font-size="10" font-weight="600">Primary</text>
+      <text x="75" y="58" text-anchor="middle" fill="#475569" font-size="8">AZ-a (read/write)</text>
+      <rect x="160" y="20" width="90" height="50" rx="6" fill="#1e293b" stroke="#06b6d4" stroke-width="1"/>
+      <text x="205" y="42" text-anchor="middle" fill="#22d3ee" font-size="10">Replica</text>
+      <text x="205" y="58" text-anchor="middle" fill="#475569" font-size="8">AZ-b (read-only)</text>
+      <line x1="120" y1="45" x2="160" y2="45" stroke="#64748b" stroke-width="1" stroke-dasharray="4"/>
+      <text x="140" y="38" text-anchor="middle" fill="#64748b" font-size="7">sync</text>
+      <rect x="60" y="90" width="160" height="30" rx="5" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+      <text x="140" y="109" text-anchor="middle" fill="#94a3b8" font-size="8">CSRF | Rate Limits | Sessions</text>
+      <line x1="140" y1="70" x2="140" y2="90" stroke="#64748b" stroke-width="1"/>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>aws_elasticache_replication_group</code> with <code>num_cache_clusters = 2</code>, <code>automatic_failover_enabled = true</code>.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Single-node Redis with no replica. Node failure = total CSRF/rate-limiting loss. Always have at least 1 replica.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> cache.t3.micro: <strong>~$13/month</strong>. cache.r6g.large for production: ~$130/month. Primary + replica doubles the cost.</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Part 5: Networking &amp; Traffic</h2>
+<!-- ============================================================ -->
+
+<!-- ─── SECTION 21 ─── -->
+<div class="step blue" id="s21">
+  <h3><span class="step-num">21</span> Application Load Balancer (ALB)</h3>
+  <h4>What is it?</h4>
+  <p>An <strong>ALB</strong> is a Layer 7 (HTTP/HTTPS) load balancer. It distributes incoming traffic across multiple targets (pods). It understands HTTP, so it can route based on host name, URL path, headers, and query strings.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> An ALB is a receptionist at a large building with many offices. The receptionist reads the visitor's purpose (HTTP request) and directs them: "Looking for bookstore.com? Floor 3 (UI pods). Looking for api.bookstore.com/ecom? Floor 5 (ecom pods)." If an office is closed (unhealthy), the receptionist redirects to another one.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Without a load balancer, users would need to know the IP address of a specific pod — which changes constantly. ALB provides a stable DNS name, distributes load evenly, terminates TLS, and routes requests to the correct service.</p>
+
+  <h4>How does it work?</h4>
+  <p>The <strong>AWS Load Balancer Controller</strong> (runs in EKS) watches for Kubernetes Ingress/Gateway objects. When you create one, it automatically provisions an ALB with the right rules. ALB performs health checks every 15 seconds and removes unhealthy targets.</p>
+
+  <div class="svg-diagram">
+    <svg width="340" height="200" viewBox="0 0 340 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="170" y="18" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">ALB Traffic Routing</text>
+      <ellipse cx="170" cy="42" rx="45" ry="14" fill="#1e293b" stroke="#94a3b8" stroke-width="1"/>
+      <text x="170" y="46" text-anchor="middle" fill="#94a3b8" font-size="9">Users</text>
+      <rect x="115" y="68" width="110" height="30" rx="6" fill="#3b82f6"/>
+      <text x="170" y="87" text-anchor="middle" fill="white" font-size="9" font-weight="700">ALB (HTTPS :443)</text>
+      <line x1="170" y1="56" x2="170" y2="68" stroke="#94a3b8" stroke-width="1.2"/>
+      <!-- Routes -->
+      <rect x="15" y="120" width="90" height="35" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+      <text x="60" y="135" text-anchor="middle" fill="#34d399" font-size="8" font-weight="600">myecom.net/*</text>
+      <text x="60" y="148" text-anchor="middle" fill="#475569" font-size="7">UI pods</text>
+      <rect x="125" y="120" width="90" height="35" rx="5" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="170" y="135" text-anchor="middle" fill="#a78bfa" font-size="8" font-weight="600">/ecom/*</text>
+      <text x="170" y="148" text-anchor="middle" fill="#475569" font-size="7">ecom-service pods</text>
+      <rect x="235" y="120" width="90" height="35" rx="5" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+      <text x="280" y="135" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="600">/inven/*</text>
+      <text x="280" y="148" text-anchor="middle" fill="#475569" font-size="7">inventory pods</text>
+      <line x1="140" y1="98" x2="60" y2="120" stroke="#64748b" stroke-width="1"/>
+      <line x1="170" y1="98" x2="170" y2="120" stroke="#64748b" stroke-width="1"/>
+      <line x1="200" y1="98" x2="280" y2="120" stroke="#64748b" stroke-width="1"/>
+      <text x="170" y="183" text-anchor="middle" fill="#475569" font-size="9">AWS LB Controller auto-provisions ALB from K8s Gateway/Ingress</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> ALB is created dynamically by the AWS Load Balancer Controller (Helm chart), not by Terraform directly. Terraform installs the controller: <code>helm_release "aws-load-balancer-controller"</code>.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Not enabling cross-zone load balancing. Without it, an AZ with fewer pods gets the same traffic as others — overloading those pods.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> <strong>~$22/month</strong> base + $0.008 per LCU-hour (load-dependent). Typical small app: $25-40/month.</div>
+</div>
+
+<!-- ─── SECTION 22 ─── -->
+<div class="step red" id="s22">
+  <h3><span class="step-num">22</span> AWS WAF (Web Application Firewall)</h3>
+  <h4>What is it?</h4>
+  <p><strong>WAF</strong> filters malicious HTTP/HTTPS traffic before it reaches your application. It inspects requests for common attack patterns like SQL injection, cross-site scripting (XSS), and excessive request rates.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> WAF is a bouncer at a nightclub. The bouncer checks IDs (request inspection), turns away troublemakers (malicious requests), and enforces capacity limits (rate limiting). The bouncer stands in front of the receptionist (ALB), so threats are stopped before they even reach the building.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Defense against OWASP Top 10 attacks (SQL injection, XSS), bot traffic, DDoS (layer 7), and geo-blocking. Even with application-level validation, WAF provides an additional layer that catches attacks before they consume application resources.</p>
+
+  <h4>How does it work?</h4>
+  <p>WAF attaches to the ALB. Every request is evaluated against rule groups. AWS provides managed rule groups (free or paid) for common threats. You can add custom rules for rate limiting per IP, geo-blocking, or pattern matching.</p>
+
+  <div class="svg-diagram">
+    <svg width="300" height="140" viewBox="0 0 300 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="40" cy="40" rx="30" ry="14" fill="#1e293b" stroke="#94a3b8" stroke-width="1"/>
+      <text x="40" y="44" text-anchor="middle" fill="#94a3b8" font-size="8">Traffic</text>
+      <rect x="95" y="25" width="80" height="35" rx="6" fill="#ef4444" stroke="#f87171" stroke-width="1.5"/>
+      <text x="135" y="40" text-anchor="middle" fill="white" font-size="9" font-weight="700">WAF</text>
+      <text x="135" y="53" text-anchor="middle" fill="#fecaca" font-size="7">filter rules</text>
+      <rect x="200" y="25" width="80" height="35" rx="6" fill="#3b82f6"/>
+      <text x="240" y="47" text-anchor="middle" fill="white" font-size="9" font-weight="700">ALB</text>
+      <line x1="70" y1="40" x2="95" y2="40" stroke="#94a3b8" stroke-width="1.2"/>
+      <line x1="175" y1="40" x2="200" y2="40" stroke="#10b981" stroke-width="1.2"/>
+      <text x="187" y="35" fill="#10b981" font-size="7">clean</text>
+      <!-- Blocked arrow down -->
+      <line x1="135" y1="60" x2="135" y2="85" stroke="#ef4444" stroke-width="1.2"/>
+      <rect x="95" y="85" width="80" height="25" rx="4" fill="#0f172a" stroke="#ef4444" stroke-width="1"/>
+      <text x="135" y="101" text-anchor="middle" fill="#f87171" font-size="8">Blocked: SQLi, XSS</text>
+      <text x="150" y="130" text-anchor="middle" fill="#475569" font-size="9">Bad traffic blocked before reaching your application</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>aws_wafv2_web_acl</code> with <code>aws_wafv2_web_acl_association</code> to attach to ALB ARN.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Enabling WAF in "count" mode instead of "block" mode during testing and forgetting to switch. Attacks are logged but not stopped.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> <strong>$5/month per web ACL</strong> + $1/month per rule + $0.60 per million requests. Managed rule groups: free (AWS Core) to $5/month each.</div>
+</div>
+
+<!-- ─── SECTION 23 ─── -->
+<div class="step green" id="s23">
+  <h3><span class="step-num">23</span> Route 53 (DNS)</h3>
+  <h4>What is it?</h4>
+  <p><strong>Route 53</strong> is AWS's DNS service. DNS translates human-readable domain names (myecom.net) into IP addresses (54.23.1.100) that computers use to route traffic. Route 53 is also a domain registrar and health checker.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> DNS is the phone book of the internet. When you want to call "myecom.net," you look it up in Route 53's phone book to find the actual phone number (IP address). Route 53 can also redirect calls to a backup number if the primary line is down (health checks + failover routing).</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Users type <code>myecom.net</code>, not an ALB's auto-generated DNS name (<code>k8s-default-alb-a1b2c3.us-east-1.elb.amazonaws.com</code>). Route 53 maps your domain to the ALB. It also enables health-check-based routing for disaster recovery.</p>
+
+  <h4>How does it work?</h4>
+  <p>Create a hosted zone for your domain. Add an ALIAS record pointing <code>myecom.net</code> to the ALB. ALIAS records are AWS-specific — they resolve to the ALB's changing IP addresses without a CNAME hop, and they are free to query.</p>
+
+  <div class="svg-diagram">
+    <svg width="320" height="130" viewBox="0 0 320 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="20" width="65" height="35" rx="5" fill="#1e293b" stroke="#94a3b8" stroke-width="1"/>
+      <text x="42" y="42" text-anchor="middle" fill="#94a3b8" font-size="8" font-weight="600">Browser</text>
+      <rect x="100" y="20" width="90" height="35" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+      <text x="145" y="35" text-anchor="middle" fill="#34d399" font-size="9" font-weight="600">Route 53</text>
+      <text x="145" y="48" text-anchor="middle" fill="#475569" font-size="7">myecom.net -> ALB</text>
+      <rect x="215" y="20" width="90" height="35" rx="5" fill="#3b82f6"/>
+      <text x="260" y="42" text-anchor="middle" fill="white" font-size="9" font-weight="600">ALB</text>
+      <line x1="75" y1="37" x2="100" y2="37" stroke="#94a3b8" stroke-width="1"/>
+      <text x="87" y="32" text-anchor="middle" fill="#64748b" font-size="7">DNS?</text>
+      <line x1="190" y1="37" x2="215" y2="37" stroke="#10b981" stroke-width="1"/>
+      <text x="202" y="32" text-anchor="middle" fill="#64748b" font-size="7">IP</text>
+      <rect x="100" y="75" width="205" height="35" rx="5" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+      <text x="202" y="89" text-anchor="middle" fill="#94a3b8" font-size="8">Records: A (ALIAS) myecom.net -> ALB</text>
+      <text x="202" y="103" text-anchor="middle" fill="#94a3b8" font-size="8">Records: A (ALIAS) api.service.net -> ALB</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>aws_route53_zone</code> + <code>aws_route53_record</code> with <code>alias</code> block pointing to ALB.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Using CNAME instead of ALIAS for zone apex (myecom.net). CNAME records are not allowed at zone apex per DNS specification. Use ALIAS (A record).</div>
+  <div class="callout warn"><strong>Cost implication:</strong> <strong>$0.50/month per hosted zone</strong> + $0.40 per million queries. ALIAS queries to AWS resources are free. Typical cost: $1-2/month.</div>
+</div>
+
+<!-- ─── SECTION 24 ─── -->
+<div class="step purple" id="s24">
+  <h3><span class="step-num">24</span> ACM (AWS Certificate Manager)</h3>
+  <h4>What is it?</h4>
+  <p><strong>ACM</strong> provides free, auto-renewing TLS/SSL certificates. A TLS certificate does two things: proves your site's identity (you own myecom.net) and encrypts traffic between browser and server (HTTPS).</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> ACM is like a notary service that verifies your identity and gives you an official stamp (certificate). When visitors see the stamp on your door (HTTPS lock icon), they know they are talking to the real you, not an imposter. ACM renews the stamp automatically before it expires — you never have to visit the notary office again.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>HTTPS is mandatory for production websites. Without TLS, all traffic (including passwords) flows in plain text. Browsers show "Not Secure" warnings. ACM eliminates the pain of certificate management — no expiration surprises, no manual renewal.</p>
+
+  <h4>How does it work?</h4>
+  <p>Request a certificate for your domain(s). ACM creates a DNS validation record — you add it to Route 53 to prove domain ownership. Once validated, attach the certificate to the ALB. ACM auto-renews 60 days before expiration.</p>
+
+  <div class="svg-diagram">
+    <svg width="300" height="140" viewBox="0 0 300 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="15" y="15" width="90" height="40" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="60" y="32" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">ACM</text>
+      <text x="60" y="47" text-anchor="middle" fill="#475569" font-size="7">free certificate</text>
+      <rect x="130" y="15" width="65" height="40" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+      <text x="162" y="32" text-anchor="middle" fill="#34d399" font-size="9">Route 53</text>
+      <text x="162" y="47" text-anchor="middle" fill="#475569" font-size="7">DNS validate</text>
+      <rect x="220" y="15" width="65" height="40" rx="6" fill="#3b82f6"/>
+      <text x="252" y="32" text-anchor="middle" fill="white" font-size="9" font-weight="600">ALB</text>
+      <text x="252" y="47" text-anchor="middle" fill="#bfdbfe" font-size="7">HTTPS :443</text>
+      <line x1="105" y1="35" x2="130" y2="35" stroke="#a78bfa" stroke-width="1"/>
+      <line x1="195" y1="35" x2="220" y2="35" stroke="#10b981" stroke-width="1"/>
+      <rect x="60" y="80" width="180" height="30" rx="5" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+      <text x="150" y="99" text-anchor="middle" fill="#94a3b8" font-size="8">Auto-renews 60 days before expiration</text>
+      <text x="150" y="130" text-anchor="middle" fill="#10b981" font-size="10" font-weight="700">Cost: FREE</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>aws_acm_certificate</code> with <code>validation_method = "DNS"</code>. <code>aws_route53_record</code> for DNS validation. <code>aws_acm_certificate_validation</code> to wait for it.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Creating a certificate in the wrong region. For ALB, ACM certs must be in the same region. For CloudFront, they must be in <code>us-east-1</code>.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> <strong>Completely free</strong> for public certificates. Zero cost, zero renewal headaches.</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Part 6: Security &amp; Identity</h2>
+<!-- ============================================================ -->
+
+<!-- ─── SECTION 25 ─── -->
+<div class="step amber" id="s25">
+  <h3><span class="step-num">25</span> IAM (Identity &amp; Access Management)</h3>
+  <h4>What is it?</h4>
+  <p><strong>IAM</strong> controls who can do what in your AWS account. It has four building blocks: <strong>Users</strong> (people), <strong>Groups</strong> (collections of users), <strong>Roles</strong> (temporary identities assumed by services), and <strong>Policies</strong> (JSON documents defining permissions).</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> IAM is the HR department of your AWS account. HR decides who gets hired (Users), which department they join (Groups), what temporary contractor badges look like (Roles), and what each badge allows access to (Policies). The principle of least privilege means: give everyone the minimum access needed to do their job.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Without IAM, any process with AWS credentials could do anything — delete databases, read all secrets, launch expensive instances. IAM enforces least privilege: the EKS cluster role can only manage EKS, the node role can only pull images and write logs, and each service's IRSA role can only access its own database.</p>
+
+  <h4>How does it work?</h4>
+  <p>EKS uses several IAM roles: Cluster Role (allows EKS to manage ENIs, security groups, logging), Node Role (allows EC2 instances to join the cluster, pull from ECR, write to CloudWatch), and IRSA Roles (per-pod permissions for specific AWS services).</p>
+
+  <div class="svg-diagram">
+    <svg width="340" height="200" viewBox="0 0 340 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="170" y="18" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">IAM Role Hierarchy for EKS</text>
+      <rect x="105" y="30" width="130" height="35" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="170" y="45" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="600">EKS Cluster Role</text>
+      <text x="170" y="58" text-anchor="middle" fill="#475569" font-size="7">manages control plane</text>
+      <rect x="105" y="80" width="130" height="35" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="170" y="95" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">Node Group Role</text>
+      <text x="170" y="108" text-anchor="middle" fill="#475569" font-size="7">ECR pull, CloudWatch</text>
+      <line x1="170" y1="65" x2="170" y2="80" stroke="#64748b" stroke-width="1"/>
+      <!-- IRSA roles -->
+      <rect x="15" y="140" width="90" height="45" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+      <text x="60" y="157" text-anchor="middle" fill="#34d399" font-size="8" font-weight="600">ecom-role</text>
+      <text x="60" y="172" text-anchor="middle" fill="#475569" font-size="7">Aurora (ecom)</text>
+      <text x="60" y="182" text-anchor="middle" fill="#475569" font-size="7">MSK produce</text>
+      <rect x="125" y="140" width="90" height="45" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+      <text x="170" y="157" text-anchor="middle" fill="#34d399" font-size="8" font-weight="600">inventory-role</text>
+      <text x="170" y="172" text-anchor="middle" fill="#475569" font-size="7">Aurora (inventory)</text>
+      <text x="170" y="182" text-anchor="middle" fill="#475569" font-size="7">MSK consume</text>
+      <rect x="235" y="140" width="90" height="45" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+      <text x="280" y="157" text-anchor="middle" fill="#34d399" font-size="8" font-weight="600">lb-controller</text>
+      <text x="280" y="172" text-anchor="middle" fill="#475569" font-size="7">ALB create</text>
+      <text x="280" y="182" text-anchor="middle" fill="#475569" font-size="7">SG manage</text>
+      <line x1="170" y1="115" x2="60" y2="140" stroke="#64748b" stroke-width="1"/>
+      <line x1="170" y1="115" x2="170" y2="140" stroke="#64748b" stroke-width="1"/>
+      <line x1="170" y1="115" x2="280" y2="140" stroke="#64748b" stroke-width="1"/>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>aws_iam_role</code>, <code>aws_iam_role_policy_attachment</code>, <code>aws_iam_policy</code>. EKS module creates cluster and node roles automatically.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Attaching <code>AdministratorAccess</code> to roles because "it works." This violates least privilege and means a compromised pod can do anything in your account.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> IAM is <strong>completely free</strong>. Unlimited users, roles, and policies at no cost.</div>
+</div>
+
+<!-- ─── SECTION 26 ─── -->
+<div class="step blue" id="s26">
+  <h3><span class="step-num">26</span> KMS (Key Management Service)</h3>
+  <h4>What is it?</h4>
+  <p><strong>KMS</strong> manages encryption keys. Instead of handling raw encryption keys yourself (risky — they can be leaked, lost, or mismanaged), KMS stores keys in tamper-resistant hardware (HSMs) and performs encrypt/decrypt operations on your behalf.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> KMS is a bank vault for your keys. You never take the key home — when you need to lock or unlock something, you visit the vault. The vault keeps an audit log of every time you used the key. You can revoke the key without touching the locked items.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Encryption at rest for: EKS secrets (etcd encryption), Aurora storage, S3 state files, ElastiCache data, MSK data. Without KMS, data at rest is stored in plain text on disk. A stolen hard drive exposes everything.</p>
+
+  <h4>How does it work?</h4>
+  <p>Create a KMS key. Configure each service to use it. AWS encrypts data before writing to disk and decrypts when reading. You can use AWS-managed keys (free, AWS controls rotation) or customer-managed keys (you control policy, rotation schedule, and who can use the key).</p>
+
+  <div class="svg-diagram">
+    <svg width="300" height="150" viewBox="0 0 300 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="100" y="10" width="100" height="40" rx="6" fill="#3b82f6"/>
+      <text x="150" y="28" text-anchor="middle" fill="white" font-size="10" font-weight="700">KMS Key</text>
+      <text x="150" y="42" text-anchor="middle" fill="#bfdbfe" font-size="7">hardware-backed</text>
+      <rect x="10" y="75" width="65" height="30" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+      <text x="42" y="94" text-anchor="middle" fill="#34d399" font-size="8">EKS</text>
+      <rect x="85" y="75" width="65" height="30" rx="4" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="117" y="94" text-anchor="middle" fill="#a78bfa" font-size="8">Aurora</text>
+      <rect x="160" y="75" width="65" height="30" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+      <text x="192" y="94" text-anchor="middle" fill="#fbbf24" font-size="8">S3</text>
+      <rect x="235" y="75" width="55" height="30" rx="4" fill="#1e293b" stroke="#06b6d4" stroke-width="1"/>
+      <text x="262" y="94" text-anchor="middle" fill="#22d3ee" font-size="8">Redis</text>
+      <line x1="120" y1="50" x2="42" y2="75" stroke="#64748b" stroke-width="1"/>
+      <line x1="140" y1="50" x2="117" y2="75" stroke="#64748b" stroke-width="1"/>
+      <line x1="160" y1="50" x2="192" y2="75" stroke="#64748b" stroke-width="1"/>
+      <line x1="180" y1="50" x2="262" y2="75" stroke="#64748b" stroke-width="1"/>
+      <text x="150" y="130" text-anchor="middle" fill="#475569" font-size="9">All data encrypted at rest with the same KMS key</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>aws_kms_key</code> + <code>aws_kms_alias</code>. Reference in EKS: <code>cluster_encryption_config</code>. Aurora: <code>kms_key_id</code>.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Deleting a KMS key. All data encrypted with that key becomes permanently unrecoverable. KMS has a mandatory 7-30 day waiting period before deletion for this reason.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> Customer-managed key: <strong>$1/month</strong> + $0.03 per 10,000 API calls. AWS-managed keys are free. Total cost is negligible.</div>
+</div>
+
+<!-- ─── SECTION 27 ─── -->
+<div class="step green" id="s27">
+  <h3><span class="step-num">27</span> Secrets Manager</h3>
+  <h4>What is it?</h4>
+  <p><strong>Secrets Manager</strong> securely stores passwords, API keys, database credentials, and other sensitive data. It provides automatic rotation, audit logging, and fine-grained access control.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> Secrets Manager is a high-security safe deposit box at a bank. Each secret has its own box. You control who can open each box (IAM policies). The bank can automatically change the combination (rotate secrets) on a schedule. Every access is logged in a security camera (CloudTrail).</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Kubernetes Secrets are base64-encoded (not encrypted by default). They live in etcd and can be read by anyone with kubectl access. Secrets Manager provides: encryption, automatic rotation, cross-service access, and audit trails. The <strong>External Secrets Operator (ESO)</strong> syncs Secrets Manager values into Kubernetes Secrets automatically.</p>
+
+  <h4>How does it work?</h4>
+  <p>Store secrets in AWS Secrets Manager. Install ESO in the cluster. ESO watches for <code>ExternalSecret</code> CRDs, fetches values from Secrets Manager using IRSA, and creates corresponding Kubernetes Secrets that pods consume as usual.</p>
+
+  <div class="svg-diagram">
+    <svg width="340" height="160" viewBox="0 0 340 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="15" width="100" height="40" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+      <text x="60" y="32" text-anchor="middle" fill="#34d399" font-size="9" font-weight="600">Secrets Manager</text>
+      <text x="60" y="47" text-anchor="middle" fill="#475569" font-size="7">db-password, api-key</text>
+      <rect x="140" y="15" width="80" height="40" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="180" y="32" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">ESO</text>
+      <text x="180" y="47" text-anchor="middle" fill="#475569" font-size="7">syncs secrets</text>
+      <rect x="250" y="15" width="80" height="40" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="290" y="32" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="600">K8s Secret</text>
+      <text x="290" y="47" text-anchor="middle" fill="#475569" font-size="7">mounted in pod</text>
+      <line x1="110" y1="35" x2="140" y2="35" stroke="#10b981" stroke-width="1.2"/>
+      <line x1="220" y1="35" x2="250" y2="35" stroke="#a78bfa" stroke-width="1.2"/>
+      <rect x="250" y="75" width="80" height="35" rx="5" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+      <text x="290" y="90" text-anchor="middle" fill="#94a3b8" font-size="8">Pod</text>
+      <text x="290" y="103" text-anchor="middle" fill="#475569" font-size="7">reads env vars</text>
+      <line x1="290" y1="55" x2="290" y2="75" stroke="#64748b" stroke-width="1"/>
+      <text x="170" y="140" text-anchor="middle" fill="#475569" font-size="9">ESO keeps K8s secrets in sync with Secrets Manager</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> <code>aws_secretsmanager_secret</code> + <code>aws_secretsmanager_secret_version</code>. ESO installed via Helm: <code>helm_release "external-secrets"</code>.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Hardcoding secrets in Terraform code or Kubernetes manifests. Use <code>aws_secretsmanager_secret_version</code> with values from a secure source, never from plain text files.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> <strong>$0.40/secret/month</strong> + $0.05 per 10,000 API calls. With ~10 secrets: $4/month.</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Part 7: Service Mesh &amp; Security</h2>
+<!-- ============================================================ -->
+
+<!-- ─── SECTION 28 ─── -->
+<div class="step cyan" id="s28">
+  <h3><span class="step-num">28</span> Istio Ambient Mesh</h3>
+  <h4>What is it?</h4>
+  <p>A <strong>service mesh</strong> is an infrastructure layer that handles service-to-service communication. <strong>Istio</strong> adds mTLS encryption, traffic management, and access control without changing application code. <strong>Ambient mode</strong> uses a shared node-level proxy (ztunnel) instead of per-pod sidecar proxies — lower resource usage, simpler operations.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> Without a service mesh, each department in a company handles its own security: checking IDs, encrypting letters, logging visitors. With Istio, a building-wide security system handles all of this. Every conversation between departments is automatically encrypted (mTLS), logged, and access-controlled. Ambient mode means one security guard per floor (ztunnel per node) instead of one per office (sidecar per pod).</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Zero-trust networking. Even inside the cluster, traffic between pods is encrypted (mTLS). AuthorizationPolicies ensure only ecom-service can talk to inventory-service. No pod can eavesdrop or impersonate another. This is defense in depth beyond Kubernetes NetworkPolicies.</p>
+
+  <h4>How does it work?</h4>
+  <p>Label a namespace with <code>istio.io/dataplane-mode: ambient</code>. Ztunnel (one per node) intercepts all traffic from labeled namespaces, encrypts it with mTLS, and enforces AuthorizationPolicies. No sidecar injection, no pod restarts.</p>
+
+  <div class="svg-diagram">
+    <svg width="340" height="180" viewBox="0 0 340 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="170" y="18" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">Istio Ambient Mesh — mTLS</text>
+      <rect x="15" y="35" width="140" height="80" rx="8" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+      <text x="85" y="53" text-anchor="middle" fill="#22d3ee" font-size="9" font-weight="600">Node A</text>
+      <rect x="30" y="62" width="55" height="25" rx="4" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+      <text x="57" y="79" text-anchor="middle" fill="#34d399" font-size="7">ecom-svc</text>
+      <rect x="30" y="92" width="110" height="18" rx="3" fill="#06b6d4" stroke="#22d3ee" stroke-width="1"/>
+      <text x="85" y="104" text-anchor="middle" fill="white" font-size="7" font-weight="600">ztunnel (encrypts)</text>
+      <rect x="185" y="35" width="140" height="80" rx="8" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+      <text x="255" y="53" text-anchor="middle" fill="#22d3ee" font-size="9" font-weight="600">Node B</text>
+      <rect x="255" y="62" width="55" height="25" rx="4" fill="#0f172a" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="282" y="79" text-anchor="middle" fill="#a78bfa" font-size="7">inventory</text>
+      <rect x="200" y="92" width="110" height="18" rx="3" fill="#06b6d4" stroke="#22d3ee" stroke-width="1"/>
+      <text x="255" y="104" text-anchor="middle" fill="white" font-size="7" font-weight="600">ztunnel (decrypts)</text>
+      <!-- mTLS arrow -->
+      <line x1="140" y1="100" x2="200" y2="100" stroke="#fbbf24" stroke-width="2"/>
+      <text x="170" y="95" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="700">mTLS</text>
+      <rect x="155" y="130" width="30" height="16" rx="3" fill="#fbbf24"/>
+      <text x="170" y="142" text-anchor="middle" fill="#0f172a" font-size="7" font-weight="700">lock</text>
+      <text x="170" y="168" text-anchor="middle" fill="#475569" font-size="9">Both sides verify identity — encrypted end-to-end</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> Istio installed via Helm: <code>helm_release "istio-base"</code>, <code>helm_release "istiod"</code>, <code>helm_release "ztunnel"</code>.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Setting PeerAuthentication to STRICT before all pods are enrolled. Non-mesh pods cannot communicate with STRICT mTLS pods — causes connection resets.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> Istio is open-source (free). Cost is in ztunnel CPU/memory on each node — approximately 100m CPU and 128Mi per node.</div>
+</div>
+
+<!-- ─── SECTION 29 ─── -->
+<div class="step purple" id="s29">
+  <h3><span class="step-num">29</span> Cert-Manager</h3>
+  <h4>What is it?</h4>
+  <p><strong>Cert-Manager</strong> is a Kubernetes-native certificate management controller. It automates TLS certificate issuance and renewal inside the cluster. While ACM handles external certificates (ALB), cert-manager handles internal ones (service-to-service, Istio gateway).</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> ACM is the notary for your front door (public). Cert-Manager is the internal badge office — it issues ID badges (certificates) to every employee (service) inside the building, verifies them automatically, and replaces them before they expire.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Internal services need TLS certificates for the Istio gateway (TLS termination), webhook endpoints, and any service that needs to prove its identity. Cert-Manager watches Certificate custom resources and automatically creates, renews, and rotates certificates.</p>
+
+  <h4>How does it work?</h4>
+  <p>Define an Issuer (CA, Let's Encrypt, self-signed). Create Certificate CRDs specifying the domain and issuer. Cert-Manager creates the certificate, stores it in a Kubernetes Secret, and renews it before expiration (default: 2/3 of lifetime).</p>
+
+  <div class="svg-diagram">
+    <svg width="320" height="140" viewBox="0 0 320 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="15" width="80" height="40" rx="5" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="50" y="32" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">Certificate</text>
+      <text x="50" y="47" text-anchor="middle" fill="#475569" font-size="7">CRD (desired)</text>
+      <rect x="120" y="15" width="80" height="40" rx="5" fill="#8b5cf6"/>
+      <text x="160" y="32" text-anchor="middle" fill="white" font-size="9" font-weight="700">Cert-Manager</text>
+      <text x="160" y="47" text-anchor="middle" fill="#e9d5ff" font-size="7">controller</text>
+      <rect x="230" y="15" width="80" height="40" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+      <text x="270" y="32" text-anchor="middle" fill="#34d399" font-size="9" font-weight="600">K8s Secret</text>
+      <text x="270" y="47" text-anchor="middle" fill="#475569" font-size="7">tls.crt + tls.key</text>
+      <line x1="90" y1="35" x2="120" y2="35" stroke="#a78bfa" stroke-width="1.2"/>
+      <line x1="200" y1="35" x2="230" y2="35" stroke="#10b981" stroke-width="1.2"/>
+      <rect x="230" y="75" width="80" height="30" rx="5" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+      <text x="270" y="94" text-anchor="middle" fill="#94a3b8" font-size="8">Gateway / Pod</text>
+      <line x1="270" y1="55" x2="270" y2="75" stroke="#64748b" stroke-width="1"/>
+      <text x="160" y="125" text-anchor="middle" fill="#475569" font-size="9">Auto-renews before expiration</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> Installed via Helm: <code>helm_release "cert-manager"</code>. CRDs applied via <code>kubectl_manifest</code> or Helm.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Not installing CRDs before deploying cert-manager. Without CRDs, Certificate resources are rejected by the API server.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> Open-source (free). Let's Encrypt certificates are free. Resource usage: ~50m CPU, 64Mi memory.</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Part 8: Observability</h2>
+<!-- ============================================================ -->
+
+<!-- ─── SECTION 30 ─── -->
+<div class="step blue" id="s30">
+  <h3><span class="step-num">30</span> Prometheus + Grafana</h3>
+  <h4>What is it?</h4>
+  <p><strong>Prometheus</strong> collects and stores metrics — numerical measurements over time (CPU usage, request count, error rate, response latency). It scrapes <code>/metrics</code> endpoints from every pod every 15 seconds. <strong>Grafana</strong> visualizes these metrics as dashboards with charts, gauges, and alerts.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> Prometheus is a diligent inspector who walks through every office every 15 seconds, writing down measurements: "Server A: 45% CPU, 12 requests/second, 0 errors." Grafana is the dashboard on the CEO's wall that turns those notes into real-time graphs. When a graph turns red, Grafana sends an alert to your phone.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>You cannot improve what you cannot measure. Without metrics, you are flying blind — you will not know if a service is slow, overloaded, or about to run out of memory until users complain. Prometheus + Grafana provide proactive monitoring.</p>
+
+  <h4>How does it work?</h4>
+  <p>Prometheus discovers pods via Kubernetes service discovery (label-based). It pulls metrics from each pod's <code>/metrics</code> endpoint (pull model). Data is stored in a time-series database (TSDB). Grafana queries Prometheus using PromQL and renders dashboards.</p>
+
+  <div class="svg-diagram">
+    <svg width="340" height="160" viewBox="0 0 340 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="15" y="15" width="55" height="35" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+      <text x="42" y="37" text-anchor="middle" fill="#34d399" font-size="7">ecom /metrics</text>
+      <rect x="80" y="15" width="55" height="35" rx="4" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="107" y="37" text-anchor="middle" fill="#a78bfa" font-size="7">inventory /metrics</text>
+      <rect x="145" y="15" width="55" height="35" rx="4" fill="#1e293b" stroke="#06b6d4" stroke-width="1"/>
+      <text x="172" y="37" text-anchor="middle" fill="#22d3ee" font-size="7">kafka /metrics</text>
+      <rect x="60" y="70" width="100" height="35" rx="6" fill="#f59e0b"/>
+      <text x="110" y="92" text-anchor="middle" fill="white" font-size="10" font-weight="700">Prometheus</text>
+      <line x1="42" y1="50" x2="80" y2="70" stroke="#64748b" stroke-width="1"/>
+      <line x1="107" y1="50" x2="110" y2="70" stroke="#64748b" stroke-width="1"/>
+      <line x1="172" y1="50" x2="140" y2="70" stroke="#64748b" stroke-width="1"/>
+      <text x="40" y="63" fill="#64748b" font-size="7">scrape</text>
+      <rect x="200" y="70" width="100" height="35" rx="6" fill="#3b82f6"/>
+      <text x="250" y="92" text-anchor="middle" fill="white" font-size="10" font-weight="700">Grafana</text>
+      <line x1="160" y1="87" x2="200" y2="87" stroke="#fbbf24" stroke-width="1.2"/>
+      <text x="180" y="82" text-anchor="middle" fill="#64748b" font-size="7">PromQL</text>
+      <text x="250" y="130" text-anchor="middle" fill="#475569" font-size="9">Dashboards, alerts, visualizations</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> Deployed via Helm: <code>helm_release "kube-prometheus-stack"</code> — installs Prometheus, Grafana, AlertManager, and default dashboards in one chart.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Not setting retention or storage limits. Prometheus TSDB grows indefinitely and fills the node's disk, crashing the monitoring system itself.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> Open-source (free). Main cost is EBS storage for metrics retention. 15-day retention with moderate traffic: ~10-50GB = $1-5/month.</div>
+</div>
+
+<!-- ─── SECTION 31 ─── -->
+<div class="step green" id="s31">
+  <h3><span class="step-num">31</span> Loki + Tempo</h3>
+  <h4>What is it?</h4>
+  <p><strong>Loki</strong> is a log aggregation system — it collects, stores, and queries logs from all pods. Unlike traditional log systems (ELK), Loki only indexes labels (service name, namespace), not full text, making it much cheaper. <strong>Tempo</strong> is a distributed tracing backend — it tracks individual requests as they flow across multiple services.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> Loki is a filing cabinet that stores every conversation from every office. You can search by department (namespace) or person (service), but you do not need a full-text index of every word. Tempo is a package tracking system — when a package (request) moves from warehouse to sorting to delivery, Tempo records every stop (span) so you can see exactly where delays happen.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>When something goes wrong, you need logs to understand what happened. When a request is slow, you need traces to find the bottleneck. Loki centralizes logs from all pods (otherwise you would kubectl into each one). Tempo shows the full journey of a request across ecom -> inventory -> database.</p>
+
+  <h4>How does it work?</h4>
+  <p>The OpenTelemetry Collector runs on each node, collects logs and traces from pods, and ships them to Loki (logs) and Tempo (traces). Grafana provides a unified UI to query both — correlating logs with traces for a specific request ID.</p>
+
+  <div class="svg-diagram">
+    <svg width="340" height="170" viewBox="0 0 340 170" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="170" y="18" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">Logs + Traces Pipeline</text>
+      <rect x="15" y="35" width="60" height="30" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+      <text x="45" y="54" text-anchor="middle" fill="#34d399" font-size="7">ecom logs</text>
+      <rect x="85" y="35" width="60" height="30" rx="4" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="115" y="54" text-anchor="middle" fill="#a78bfa" font-size="7">inventory logs</text>
+      <rect x="75" y="80" width="110" height="28" rx="5" fill="#f59e0b"/>
+      <text x="130" y="98" text-anchor="middle" fill="white" font-size="8" font-weight="700">OTel Collector</text>
+      <line x1="45" y1="65" x2="100" y2="80" stroke="#64748b" stroke-width="1"/>
+      <line x1="115" y1="65" x2="130" y2="80" stroke="#64748b" stroke-width="1"/>
+      <rect x="15" y="125" width="70" height="30" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+      <text x="50" y="144" text-anchor="middle" fill="#34d399" font-size="9" font-weight="600">Loki (logs)</text>
+      <rect x="135" y="125" width="70" height="30" rx="5" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="170" y="144" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">Tempo (traces)</text>
+      <rect x="255" y="80" width="70" height="75" rx="5" fill="#3b82f6"/>
+      <text x="290" y="105" text-anchor="middle" fill="white" font-size="9" font-weight="700">Grafana</text>
+      <text x="290" y="120" text-anchor="middle" fill="#bfdbfe" font-size="7">unified UI</text>
+      <text x="290" y="145" text-anchor="middle" fill="#bfdbfe" font-size="7">logs + traces</text>
+      <line x1="100" y1="108" x2="50" y2="125" stroke="#10b981" stroke-width="1"/>
+      <line x1="160" y1="108" x2="170" y2="125" stroke="#8b5cf6" stroke-width="1"/>
+      <line x1="85" y1="140" x2="255" y2="110" stroke="#64748b" stroke-width="1" stroke-dasharray="3"/>
+      <line x1="205" y1="140" x2="255" y2="120" stroke="#64748b" stroke-width="1" stroke-dasharray="3"/>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> Deployed via Helm: <code>helm_release "loki"</code>, <code>helm_release "tempo"</code>, <code>helm_release "opentelemetry-collector"</code>.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Not setting log retention limits. Loki stores logs indefinitely by default. Without limits, storage costs escalate rapidly.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> Open-source (free). Storage cost for S3-backed Loki/Tempo: $5-20/month depending on log volume.</div>
+</div>
+
+<!-- ─── SECTION 32 ─── -->
+<div class="step amber" id="s32">
+  <h3><span class="step-num">32</span> Kiali</h3>
+  <h4>What is it?</h4>
+  <p><strong>Kiali</strong> is the service mesh visualization console for Istio. It shows real-time traffic flow between services as an interactive graph — which service talks to which, how much traffic, error rates, and response times.</p>
+
+  <div class="callout tip"><strong>Real-world analogy:</strong> Kiali is a live map of your office building showing all the inter-department communication happening right now. You can see: "Marketing is sending 100 messages/second to Engineering (green = healthy), but Engineering to Database has turned red (errors)." You instantly know where the problem is without checking each department individually.</div>
+
+  <h4>Why do we need it?</h4>
+  <p>Microservices create a complex web of communication. Without visualization, debugging "which service is causing the slowdown?" requires checking logs of every service. Kiali shows the answer in one glance — the service with red edges or high latency is the problem.</p>
+
+  <h4>How does it work?</h4>
+  <p>Kiali reads telemetry data from Prometheus (metrics collected by Istio proxies) and displays it as an interactive service graph. It also validates Istio configuration (AuthorizationPolicies, VirtualServices) and flags misconfigurations.</p>
+
+  <div class="svg-diagram">
+    <svg width="300" height="160" viewBox="0 0 300 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="150" y="18" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">Kiali Service Graph</text>
+      <!-- UI -->
+      <circle cx="60" cy="60" r="20" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+      <text x="60" y="64" text-anchor="middle" fill="#60a5fa" font-size="8">UI</text>
+      <!-- ecom -->
+      <circle cx="150" cy="50" r="20" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+      <text x="150" y="54" text-anchor="middle" fill="#34d399" font-size="8">ecom</text>
+      <!-- inventory -->
+      <circle cx="240" cy="60" r="20" fill="#1e293b" stroke="#8b5cf6" stroke-width="2"/>
+      <text x="240" y="64" text-anchor="middle" fill="#a78bfa" font-size="7">inventory</text>
+      <!-- kafka -->
+      <circle cx="150" cy="120" r="20" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+      <text x="150" y="124" text-anchor="middle" fill="#fbbf24" font-size="8">kafka</text>
+      <!-- Connections -->
+      <line x1="80" y1="55" x2="130" y2="50" stroke="#10b981" stroke-width="2"/>
+      <line x1="170" y1="50" x2="220" y2="55" stroke="#10b981" stroke-width="2"/>
+      <line x1="150" y1="70" x2="150" y2="100" stroke="#f59e0b" stroke-width="2"/>
+      <line x1="235" y1="80" x2="165" y2="105" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="115" y="44" text-anchor="middle" fill="#10b981" font-size="7">200 req/s</text>
+      <text x="195" y="44" text-anchor="middle" fill="#10b981" font-size="7">50 req/s</text>
+      <text x="150" y="148" text-anchor="middle" fill="#475569" font-size="9">Real-time traffic visualization</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Terraform resource:</strong> Deployed via Helm: <code>helm_release "kiali-server"</code>. Requires Prometheus as a data source.</div>
+  <div class="callout danger"><strong>Common mistake:</strong> Not configuring Prometheus URL. Kiali shows empty graphs without Prometheus. Set <code>external_services.prometheus.url</code> in Kiali config.</div>
+  <div class="callout warn"><strong>Cost implication:</strong> Open-source (free). Minimal resource usage: ~100m CPU, 128Mi memory.</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Part 9: Putting It All Together</h2>
+<!-- ============================================================ -->
+
+<!-- ─── SECTION 33 ─── -->
+<div class="step blue" id="s33">
+  <h3><span class="step-num">33</span> Complete Data Flow</h3>
+  <h4>How a user request flows through every component</h4>
+
+  <p><strong>1. User visits myecom.net:</strong></p>
+  <ol>
+    <li>Browser queries <strong>Route 53</strong> for <code>myecom.net</code> -> gets ALB IP address</li>
+    <li>HTTPS request hits <strong>WAF</strong> -> passes rule checks -> forwarded to <strong>ALB</strong></li>
+    <li><strong>ACM</strong> certificate on ALB terminates TLS</li>
+    <li>ALB routes to <strong>Istio Gateway pod</strong> in the cluster (via target group)</li>
+    <li>Gateway routes <code>/</code> to <strong>UI pod</strong> (serves React SPA)</li>
+  </ol>
+
+  <p><strong>2. User browses books (API call):</strong></p>
+  <ol>
+    <li>Browser sends <code>GET /ecom/books</code> with JWT in Authorization header</li>
+    <li>ALB routes <code>/ecom/*</code> to <strong>ecom-service pods</strong></li>
+    <li>Istio ztunnel encrypts with <strong>mTLS</strong></li>
+    <li>ecom-service validates JWT via <strong>Keycloak JWKS</strong></li>
+    <li>ecom-service queries <strong>Aurora ecom-db</strong> (via IRSA credentials)</li>
+    <li>ecom-service calls <strong>inventory-service</strong> for stock (mTLS)</li>
+    <li>Response flows back through the chain</li>
+  </ol>
+
+  <p><strong>3. User checks out (creates order):</strong></p>
+  <ol>
+    <li>ecom-service creates order in <strong>Aurora</strong></li>
+    <li>ecom-service publishes <code>order.created</code> to <strong>MSK Kafka</strong></li>
+    <li>inventory-service consumes the event, deducts stock in its <strong>Aurora</strong></li>
+    <li><strong>Debezium CDC</strong> captures both DB changes</li>
+    <li>CDC events flow through <strong>MSK</strong> to <strong>Flink SQL</strong></li>
+    <li>Flink writes aggregated data to <strong>analytics Aurora</strong></li>
+    <li><strong>Superset</strong> queries analytics DB for dashboards</li>
+  </ol>
+
+  <div class="svg-diagram">
+    <svg width="340" height="310" viewBox="0 0 340 310" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="170" y="16" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">End-to-End Architecture</text>
+      <!-- User -->
+      <ellipse cx="170" cy="38" rx="35" ry="12" fill="#1e293b" stroke="#94a3b8" stroke-width="1"/>
+      <text x="170" y="42" text-anchor="middle" fill="#94a3b8" font-size="8">Browser</text>
+      <!-- Route53 + WAF + ALB -->
+      <rect x="55" y="58" width="50" height="22" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+      <text x="80" y="73" text-anchor="middle" fill="#34d399" font-size="7">Route53</text>
+      <rect x="115" y="58" width="40" height="22" rx="4" fill="#ef4444"/>
+      <text x="135" y="73" text-anchor="middle" fill="white" font-size="7">WAF</text>
+      <rect x="165" y="58" width="40" height="22" rx="4" fill="#3b82f6"/>
+      <text x="185" y="73" text-anchor="middle" fill="white" font-size="7">ALB</text>
+      <rect x="215" y="58" width="45" height="22" rx="4" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="237" y="73" text-anchor="middle" fill="#a78bfa" font-size="7">ACM</text>
+      <line x1="170" y1="50" x2="170" y2="58" stroke="#94a3b8" stroke-width="1"/>
+      <!-- Istio Gateway -->
+      <rect x="130" y="90" width="80" height="20" rx="4" fill="#06b6d4"/>
+      <text x="170" y="104" text-anchor="middle" fill="white" font-size="7" font-weight="700">Istio Gateway</text>
+      <line x1="185" y1="80" x2="170" y2="90" stroke="#3b82f6" stroke-width="1"/>
+      <!-- Services row -->
+      <rect x="15" y="125" width="60" height="30" rx="5" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="45" y="144" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">UI</text>
+      <rect x="90" y="125" width="70" height="30" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+      <text x="125" y="144" text-anchor="middle" fill="#34d399" font-size="7" font-weight="600">ecom-svc</text>
+      <rect x="175" y="125" width="70" height="30" rx="5" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="210" y="144" text-anchor="middle" fill="#a78bfa" font-size="7" font-weight="600">inventory</text>
+      <rect x="260" y="125" width="65" height="30" rx="5" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="292" y="144" text-anchor="middle" fill="#fbbf24" font-size="7" font-weight="600">Keycloak</text>
+      <line x1="140" y1="110" x2="45" y2="125" stroke="#64748b" stroke-width="1"/>
+      <line x1="160" y1="110" x2="125" y2="125" stroke="#64748b" stroke-width="1"/>
+      <line x1="180" y1="110" x2="210" y2="125" stroke="#64748b" stroke-width="1"/>
+      <line x1="160" y1="140" x2="175" y2="140" stroke="#fbbf24" stroke-width="1.5"/>
+      <text x="167" y="137" text-anchor="middle" fill="#fbbf24" font-size="6">mTLS</text>
+      <!-- Databases -->
+      <rect x="80" y="175" width="55" height="25" rx="4" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+      <text x="107" y="191" text-anchor="middle" fill="#34d399" font-size="7">ecom-db</text>
+      <rect x="185" y="175" width="55" height="25" rx="4" fill="#0f172a" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="212" y="191" text-anchor="middle" fill="#a78bfa" font-size="7">inventory-db</text>
+      <line x1="125" y1="155" x2="107" y2="175" stroke="#10b981" stroke-width="1"/>
+      <line x1="210" y1="155" x2="212" y2="175" stroke="#8b5cf6" stroke-width="1"/>
+      <!-- Kafka + CDC -->
+      <rect x="105" y="215" width="60" height="25" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="135" y="231" text-anchor="middle" fill="#fbbf24" font-size="7" font-weight="600">MSK Kafka</text>
+      <rect x="30" y="215" width="55" height="25" rx="4" fill="#1e293b" stroke="#ef4444" stroke-width="1"/>
+      <text x="57" y="231" text-anchor="middle" fill="#f87171" font-size="7">Debezium</text>
+      <line x1="107" y1="200" x2="75" y2="215" stroke="#ef4444" stroke-width="1"/>
+      <line x1="212" y1="200" x2="135" y2="215" stroke="#ef4444" stroke-width="1" stroke-dasharray="3"/>
+      <line x1="85" y1="227" x2="105" y2="227" stroke="#f59e0b" stroke-width="1"/>
+      <!-- Flink + Analytics -->
+      <rect x="190" y="215" width="50" height="25" rx="4" fill="#1e293b" stroke="#06b6d4" stroke-width="1"/>
+      <text x="215" y="231" text-anchor="middle" fill="#22d3ee" font-size="7">Flink SQL</text>
+      <rect x="260" y="215" width="60" height="25" rx="4" fill="#0f172a" stroke="#06b6d4" stroke-width="1"/>
+      <text x="290" y="231" text-anchor="middle" fill="#22d3ee" font-size="7">analytics-db</text>
+      <line x1="165" y1="227" x2="190" y2="227" stroke="#06b6d4" stroke-width="1"/>
+      <line x1="240" y1="227" x2="260" y2="227" stroke="#06b6d4" stroke-width="1"/>
+      <!-- Superset + Redis -->
+      <rect x="260" y="255" width="60" height="22" rx="4" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="290" y="270" text-anchor="middle" fill="#a78bfa" font-size="7">Superset</text>
+      <rect x="15" y="255" width="50" height="22" rx="4" fill="#1e293b" stroke="#06b6d4" stroke-width="1"/>
+      <text x="40" y="270" text-anchor="middle" fill="#22d3ee" font-size="7">Redis</text>
+      <line x1="290" y1="240" x2="290" y2="255" stroke="#8b5cf6" stroke-width="1"/>
+      <text x="170" y="300" text-anchor="middle" fill="#475569" font-size="9">Full request lifecycle: User -> DNS -> WAF -> ALB -> Gateway -> Service -> DB -> CDC -> Analytics</text>
+    </svg>
+  </div>
+
+  <div class="callout info"><strong>Key insight:</strong> Every hop is secured. TLS at the ALB, mTLS between pods, IRSA for AWS API access, JWT for user identity, CSRF for state-changing requests, and encryption at rest for all data stores.</div>
+</div>
+
+<!-- ─── SECTION 34 ─── -->
+<div class="step green" id="s34">
+  <h3><span class="step-num">34</span> Cost Summary</h3>
+  <h4>What does it all cost?</h4>
+  <p>Below is a breakdown for a small production deployment (us-east-1). Costs vary by region and usage.</p>
+
+  <table>
+    <thead>
+      <tr><th>Component</th><th>Configuration</th><th>Monthly Cost</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>EKS Control Plane</td><td>1 cluster</td><td>$73</td></tr>
+      <tr><td>EC2 Worker Nodes</td><td>4x t3.large (On-Demand)</td><td>$240</td></tr>
+      <tr><td>NAT Gateways</td><td>3 (one per AZ)</td><td>$135</td></tr>
+      <tr><td>Aurora PostgreSQL</td><td>4 clusters (0.5 ACU min)</td><td>$175</td></tr>
+      <tr><td>Amazon MSK</td><td>3x kafka.t3.small</td><td>$150</td></tr>
+      <tr><td>ElastiCache Redis</td><td>cache.t3.micro (Primary + Replica)</td><td>$26</td></tr>
+      <tr><td>Application Load Balancer</td><td>1 ALB</td><td>$25</td></tr>
+      <tr><td>Route 53</td><td>1 hosted zone</td><td>$1</td></tr>
+      <tr><td>ACM Certificates</td><td>Public certs</td><td>$0</td></tr>
+      <tr><td>S3 (Terraform state)</td><td>< 1 GB</td><td>$0</td></tr>
+      <tr><td>DynamoDB (Lock table)</td><td>Pay-per-request</td><td>$0</td></tr>
+      <tr><td>KMS</td><td>1 customer-managed key</td><td>$1</td></tr>
+      <tr><td>Secrets Manager</td><td>~10 secrets</td><td>$4</td></tr>
+      <tr><td>WAF</td><td>1 Web ACL + managed rules</td><td>$10</td></tr>
+      <tr><td>ECR</td><td>~5 GB images</td><td>$1</td></tr>
+      <tr><td>Data Transfer</td><td>~100 GB cross-AZ</td><td>$2</td></tr>
+      <tr><td><strong>Total (Production)</strong></td><td></td><td><strong>~$843/month</strong></td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip"><strong>Dev environment optimization:</strong> Use 1 NAT Gateway (saves $90), 2x t3.medium nodes (saves $180), single-AZ Aurora (saves ~$80), kafka.t3.small x 1 (saves $100). <strong>Dev total: ~$300/month</strong>.</div>
+
+  <div class="callout warn"><strong>Further savings:</strong> Spot instances for app nodes (save 60-90%), Reserved Instances for databases (save 30-60%), S3 VPC Endpoint to avoid NAT data charges ($0.01/GB saved per S3 request through NAT).</div>
+
+  <div class="svg-diagram">
+    <svg width="340" height="200" viewBox="0 0 340 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="170" y="18" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">Cost Distribution</text>
+      <!-- Bar chart -->
+      <rect x="30" y="35" width="200" height="18" rx="3" fill="#3b82f6"/>
+      <text x="240" y="48" fill="#60a5fa" font-size="8">EC2 Nodes $240 (28%)</text>
+      <rect x="30" y="58" width="146" height="18" rx="3" fill="#10b981"/>
+      <text x="186" y="71" fill="#34d399" font-size="8">Aurora $175 (21%)</text>
+      <rect x="30" y="81" width="125" height="18" rx="3" fill="#f59e0b"/>
+      <text x="165" y="94" fill="#fbbf24" font-size="8">MSK $150 (18%)</text>
+      <rect x="30" y="104" width="113" height="18" rx="3" fill="#ef4444"/>
+      <text x="153" y="117" fill="#f87171" font-size="8">NAT GW $135 (16%)</text>
+      <rect x="30" y="127" width="61" height="18" rx="3" fill="#8b5cf6"/>
+      <text x="101" y="140" fill="#a78bfa" font-size="8">EKS $73 (9%)</text>
+      <rect x="30" y="150" width="58" height="18" rx="3" fill="#06b6d4"/>
+      <text x="98" y="163" fill="#22d3ee" font-size="8">Other $70 (8%)</text>
+      <text x="170" y="190" text-anchor="middle" fill="#475569" font-size="9">Compute and data are the biggest cost drivers</text>
+    </svg>
+  </div>
+
+  <div class="callout danger"><strong>Common mistake:</strong> Forgetting about NAT Gateway data processing charges. A chatty application pulling large images or making many external API calls can run up $100+/month in NAT charges alone. Use VPC Endpoints for S3, ECR, and other AWS services to bypass NAT.</div>
+</div>
+
+<footer>
+  <p>AWS EKS Architecture Knowledge Guide &mdash; BookStore Platform</p>
+  <p>Last updated: March 2026</p>
+</footer>
+
+</div>
+</body>
+</html>

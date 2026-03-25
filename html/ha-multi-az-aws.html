@@ -1,0 +1,3622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Multi-AZ High Availability on AWS EKS — BookStore Platform</title>
+  <meta property="og:title" content="BookStore Platform — Multi-AZ High Availability on AWS EKS" />
+  <meta property="og:description" content="Complete Terraform guide for deploying the BookStore microservices platform with Multi-AZ high availability on AWS EKS. Covers VPC, Aurora, MSK, ElastiCache, and application-level HA patterns." />
+  <meta property="og:type" content="article" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; --cyan: #06b6d4; --purple: #8b5cf6; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 960px; margin: 0 auto; padding: 40px 24px 60px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p.subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 52px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 28px 0 10px; color: #cbd5e1; }
+    h4 { font-size: 0.95rem; font-weight: 600; margin: 20px 0 8px; color: #94a3b8; }
+    p { margin-bottom: 16px; color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.82rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.04); }
+    code { background: var(--card); padding: 2px 7px; border-radius: 4px; font-size: 0.86em; color: #fbbf24; }
+    pre { background: var(--card); padding: 18px 20px; border-radius: 10px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); position: relative; }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.84rem; line-height: 1.65; }
+    pre .comment { color: #64748b; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* ── Step Cards ── */
+    .step { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px 28px; margin: 20px 0; position: relative; overflow: hidden; }
+    .step::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; border-radius: 4px 0 0 4px; }
+    .step.blue::before { background: linear-gradient(180deg, #3b82f6, #60a5fa); }
+    .step.green::before { background: linear-gradient(180deg, #059669, #34d399); }
+    .step.purple::before { background: linear-gradient(180deg, #7c3aed, #a78bfa); }
+    .step.amber::before { background: linear-gradient(180deg, #d97706, #fbbf24); }
+    .step.red::before { background: linear-gradient(180deg, #dc2626, #f87171); }
+    .step.cyan::before { background: linear-gradient(180deg, #0891b2, #22d3ee); }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: white; font-weight: 800; font-size: 0.88rem; margin-right: 12px; flex-shrink: 0; }
+    .step h3 { display: flex; align-items: center; margin: 0 0 12px; color: #f1f5f9; }
+    .step p { margin-bottom: 10px; }
+    .step pre { margin: 10px 0 8px; }
+
+    /* ── Info/Warning/Tip boxes ── */
+    .callout { padding: 16px 20px; border-radius: 10px; margin: 16px 0; font-size: 0.88rem; line-height: 1.6; border-left: 4px solid; }
+    .callout.info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+    .callout.warn { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
+    .callout.tip { background: rgba(16,185,129,0.08); border-color: #10b981; }
+    .callout.danger { background: rgba(239,68,68,0.08); border-color: #ef4444; }
+    .callout strong { color: #f1f5f9; }
+    .callout code { font-size: 0.84em; }
+
+    /* ── TOC ── */
+    .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 24px 0 40px; }
+    .toc h3 { font-size: 0.9rem; font-weight: 700; color: #f1f5f9; margin: 0 0 12px; }
+    .toc ol { margin: 0; padding-left: 20px; }
+    .toc li { margin-bottom: 4px; }
+    .toc a { font-size: 0.85rem; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+    .toc a:hover { color: var(--accent); }
+
+    /* ── Checklist ── */
+    .checklist { list-style: none; margin: 12px 0 20px; padding: 0; }
+    .checklist li { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(51,65,85,0.4); font-size: 0.88rem; }
+    .checklist li:last-child { border-bottom: none; }
+    .check-box { width: 20px; height: 20px; border-radius: 4px; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; flex-shrink: 0; margin-top: 2px; }
+    .check-box.done { border-color: var(--green); color: var(--green); background: rgba(16,185,129,0.1); }
+
+    /* ── Architecture diagram ── */
+    .arch-diagram { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin: 16px 0 24px; overflow-x: auto; }
+    .arch-diagram pre { background: none; border: none; padding: 0; margin: 0; }
+    .arch-diagram pre code { font-size: 0.78rem; line-height: 1.5; color: var(--muted); }
+
+    /* ── Topnav (populated by nav.js) ── */
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 960px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+
+    /* ── Metric cards ── */
+    .metric-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 16px 0 24px; }
+    .metric-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; text-align: center; }
+    .metric-card .metric-value { font-size: 1.6rem; font-weight: 800; color: var(--accent); }
+    .metric-card .metric-label { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+    .metric-card.green .metric-value { color: var(--green); }
+    .metric-card.yellow .metric-value { color: var(--yellow); }
+    .metric-card.red .metric-value { color: var(--red); }
+    .metric-card.purple .metric-value { color: var(--purple); }
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="deploy-aws.html">AWS Deploy</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>Multi-AZ High Availability on AWS</h1>
+  <p class="subtitle">Eliminate single points of failure across every layer of the BookStore Platform with complete Terraform configurations</p>
+
+  <div class="badges">
+    <span class="badge green">Production HA</span>
+    <span class="badge purple">3-AZ Architecture</span>
+    <span class="badge cyan">AWS EKS + Aurora + MSK</span>
+    <span class="badge orange">RPO &lt; 1s / RTO &lt; 60s</span>
+    <span class="badge red">Complete Terraform</span>
+  </div>
+
+  <div class="callout info">
+    <strong>Prerequisite:</strong> This guide assumes you have read <a href="deploy-aws.html">deploy-aws.html</a> and understand the base AWS deployment. This document focuses exclusively on Multi-AZ high availability configuration. All Terraform code here builds on top of the base deployment.
+  </div>
+
+  <!-- ── HA Targets ── -->
+  <div class="metric-grid">
+    <div class="metric-card green">
+      <div class="metric-value">99.99%</div>
+      <div class="metric-label">Availability Target</div>
+    </div>
+    <div class="metric-card purple">
+      <div class="metric-value">3 AZs</div>
+      <div class="metric-label">Availability Zones</div>
+    </div>
+    <div class="metric-card yellow">
+      <div class="metric-value">&lt; 1s</div>
+      <div class="metric-label">RPO (Data Loss)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">&lt; 60s</div>
+      <div class="metric-label">RTO (Recovery)</div>
+    </div>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#overview">HA Architecture Overview</a></li>
+      <li><a href="#principles">HA Design Principles</a></li>
+      <li><a href="#vpc">VPC Multi-AZ Networking</a></li>
+      <li><a href="#eks">EKS Multi-AZ Configuration</a></li>
+      <li><a href="#aurora">Aurora PostgreSQL Multi-AZ</a></li>
+      <li><a href="#msk">MSK Kafka Multi-AZ</a></li>
+      <li><a href="#redis">ElastiCache Redis Multi-AZ</a></li>
+      <li><a href="#app-ha">Application-Level HA Patterns</a></li>
+      <li><a href="#alb">ALB Multi-AZ</a></li>
+      <li><a href="#monitoring">Monitoring &amp; Alerting for HA</a></li>
+      <li><a href="#dr">Disaster Recovery &amp; Backup</a></li>
+      <li><a href="#failures">Failure Scenarios &amp; Recovery</a></li>
+      <li><a href="#cost">Cost Analysis</a></li>
+      <li><a href="#deploy">Terraform Deployment Commands</a></li>
+      <li><a href="#checklist">HA Compliance Checklist</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="overview">1. HA Architecture Overview</h2>
+
+  <h3>The 3-AZ Strategy</h3>
+  <p>The BookStore Platform deploys across three AWS Availability Zones in <code>us-east-1</code> (us-east-1a, us-east-1b, us-east-1c). Each AZ is a physically isolated data center with independent power, cooling, and networking. A single AZ failure leaves two-thirds of the infrastructure operational with zero data loss.</p>
+
+  <h3>Architecture Diagram</h3>
+  <img src="diagrams/eks-ha-multi-az.svg" alt="AWS EKS Multi-AZ High Availability Architecture" style="width:100%;border-radius:12px;border:1px solid #334155;margin:16px 0 28px;" />
+
+  <h3>RPO and RTO Targets by Component</h3>
+  <table>
+    <tr><th>Component</th><th>RPO (Data Loss)</th><th>RTO (Recovery Time)</th><th>Mechanism</th></tr>
+    <tr><td><strong>Aurora PostgreSQL</strong></td><td>0 (sync replication)</td><td>~30s (auto failover)</td><td>6-way storage replication across 3 AZs</td></tr>
+    <tr><td><strong>MSK Kafka</strong></td><td>0 (ISR replication)</td><td>~10s (leader election)</td><td>Replication factor 3, min.insync.replicas 2</td></tr>
+    <tr><td><strong>ElastiCache Redis</strong></td><td>&lt; 1s (async replication)</td><td>~30s (auto failover)</td><td>Multi-AZ replication group</td></tr>
+    <tr><td><strong>EKS Pods</strong></td><td>N/A (stateless)</td><td>~15s (rescheduling)</td><td>Replicas across AZs, PDB, HPA</td></tr>
+    <tr><td><strong>ALB</strong></td><td>N/A</td><td>~0s (built-in)</td><td>AWS-managed, spans all AZs automatically</td></tr>
+    <tr><td><strong>NAT Gateway</strong></td><td>N/A</td><td>~0s (per-AZ)</td><td>One NAT Gateway per AZ, isolated routing</td></tr>
+  </table>
+
+  <h3>Single Points of Failure Analysis</h3>
+  <p>With a proper Multi-AZ deployment, the following are <strong>eliminated</strong> as single points of failure:</p>
+  <ul>
+    <li><strong>Network path:</strong> Each AZ has its own NAT Gateway, route table, and public/private subnets</li>
+    <li><strong>Compute:</strong> EKS nodes and pods spread across 3 AZs with topology constraints</li>
+    <li><strong>Database:</strong> Aurora storage replicates 6 ways; failover promotes standby automatically</li>
+    <li><strong>Messaging:</strong> MSK brokers in each AZ; ISR quorum tolerates 1 AZ loss</li>
+    <li><strong>Cache:</strong> Redis replicas in each AZ; automatic primary promotion</li>
+    <li><strong>Load balancer:</strong> ALB is AWS-managed across all configured AZs</li>
+  </ul>
+
+  <div class="callout warn">
+    <strong>Remaining SPOF:</strong> Route 53 hosted zone and ACM certificates are regional (not AZ-scoped). These are AWS-managed services with 100% SLA. For true region-level DR, see <a href="#dr">Section 11: Disaster Recovery</a>.
+  </div>
+
+  <h3>Architecture Diagram</h3>
+  <div class="arch-diagram">
+<pre><code>                          AWS Region: us-east-1
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │                        Route 53 (DNS)                               │
+    │                            │                                        │
+    │                   ┌────────┴────────┐                               │
+    │                   │   ALB (Public)   │                               │
+    │                   │  3-AZ spanning   │                               │
+    │                   └──┬──────┬──────┬─┘                               │
+    │                      │      │      │                                 │
+    │   ┌──────────────────┼──────┼──────┼──────────────────────────┐     │
+    │   │  VPC: 10.0.0.0/16│      │      │                          │     │
+    │   │                  │      │      │                          │     │
+    │   │  ┌───── AZ-a ────┼──────┼──────┼──── AZ-b ─────── AZ-c ──┐│     │
+    │   │  │               │      │      │                          ││     │
+    │   │  │  Public       │      │      │  Public        Public   ││     │
+    │   │  │  10.0.1.0/24  │      │      │  10.0.2.0/24   10.0.3.0 ││     │
+    │   │  │  ┌─NAT GW─┐  │      │      │  ┌─NAT GW─┐   ┌NAT GW┐ ││     │
+    │   │  │  └─────────┘  │      │      │  └─────────┘   └──────┘ ││     │
+    │   │  │               │      │      │                          ││     │
+    │   │  │  Private      │      │      │  Private       Private  ││     │
+    │   │  │  10.0.11.0/24 │      │      │  10.0.12.0/24  10.0.13  ││     │
+    │   │  │  ┌──────────┐ │      │      │  ┌──────────┐  ┌──────┐ ││     │
+    │   │  │  │EKS Nodes │ │      │      │  │EKS Nodes │  │EKS   │ ││     │
+    │   │  │  │┌────────┐│ │      │      │  │┌────────┐│  │Nodes │ ││     │
+    │   │  │  ││ecom-svc ││ │      │      │  ││ecom-svc││  │      │ ││     │
+    │   │  │  ││inven-svc││ │      │      │  ││inven-svc│  │      │ ││     │
+    │   │  │  ││ui-svc   ││ │      │      │  ││ui-svc  ││  │ ...  │ ││     │
+    │   │  │  ││csrf-svc ││ │      │      │  ││csrf-svc││  │      │ ││     │
+    │   │  │  │└────────┘│ │      │      │  │└────────┘│  │      │ ││     │
+    │   │  │  └──────────┘ │      │      │  └──────────┘  └──────┘ ││     │
+    │   │  │               │      │      │                          ││     │
+    │   │  │  DB Subnet    │      │      │  DB Subnet     DB Sub   ││     │
+    │   │  │  10.0.21.0/24 │      │      │  10.0.22.0/24  10.0.23  ││     │
+    │   │  │  ┌──────────┐ │      │      │  ┌──────────┐           ││     │
+    │   │  │  │Aurora     │◄├──sync─┤►    │  │Aurora     │           ││     │
+    │   │  │  │Writer     │ │      │      │  │Reader     │           ││     │
+    │   │  │  └──────────┘ │      │      │  └──────────┘           ││     │
+    │   │  │               │      │      │                          ││     │
+    │   │  │  ┌──────────┐ │      │      │  ┌──────────┐  ┌──────┐ ││     │
+    │   │  │  │MSK       │◄├─repl──┤►    │  │MSK       │◄─│MSK   │ ││     │
+    │   │  │  │Broker 1  │ │      │      │  │Broker 2  │  │Brkr 3│ ││     │
+    │   │  │  └──────────┘ │      │      │  └──────────┘  └──────┘ ││     │
+    │   │  │               │      │      │                          ││     │
+    │   │  │  ┌──────────┐ │      │      │  ┌──────────┐  ┌──────┐ ││     │
+    │   │  │  │Redis     │◄├─repl──┤►    │  │Redis     │◄─│Redis │ ││     │
+    │   │  │  │Primary   │ │      │      │  │Replica 1 │  │Repl 2│ ││     │
+    │   │  │  └──────────┘ │      │      │  └──────────┘  └──────┘ ││     │
+    │   │  └───────────────┘      │      └──────────────────────────┘│     │
+    │   └────────────────────────────────────────────────────────────┘     │
+    └─────────────────────────────────────────────────────────────────────┘</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="principles">2. HA Design Principles</h2>
+
+  <div class="step blue">
+    <h3><span class="step-num">1</span> No Single Point of Failure</h3>
+    <p>Every component runs in at least 2 AZs. If any single AZ is completely destroyed, the platform continues serving traffic with no manual intervention. This applies to networking (NAT Gateways), compute (EKS nodes), storage (Aurora), messaging (MSK), and caching (Redis).</p>
+  </div>
+
+  <div class="step green">
+    <h3><span class="step-num">2</span> Automatic Failover Without Manual Intervention</h3>
+    <p>Every stateful service uses AWS-managed automatic failover. Aurora promotes a read replica to writer within 30 seconds. Redis promotes a replica to primary within 30 seconds. MSK elects a new partition leader within 10 seconds. EKS reschedules pods to healthy nodes within 15 seconds. No on-call engineer action is required for any single-AZ failure.</p>
+  </div>
+
+  <div class="step purple">
+    <h3><span class="step-num">3</span> Data Durability Across AZ Failure</h3>
+    <p>Aurora replicates storage 6 ways across 3 AZs (2 copies per AZ). It can lose an entire AZ and still read data. It can lose 2 copies and still write. MSK replicates every message to 3 brokers before acknowledging the producer. Redis replicates asynchronously but with sub-second lag. No committed data is lost during an AZ failure.</p>
+  </div>
+
+  <div class="step amber">
+    <h3><span class="step-num">4</span> Graceful Degradation</h3>
+    <p>During a failover event, the system degrades gracefully rather than failing catastrophically. Connections to the failed AZ drain over the <code>terminationGracePeriodSeconds</code> window. Circuit breakers (Istio <code>outlierDetection</code>) eject unhealthy endpoints within 10 seconds. Clients retry against healthy replicas automatically.</p>
+  </div>
+
+  <div class="step cyan">
+    <h3><span class="step-num">5</span> Health Checks at Every Layer</h3>
+    <p>Health probing happens at four layers: ALB health checks (HTTP), Kubernetes liveness/readiness probes (TCP/HTTP), Aurora enhanced monitoring (CloudWatch), and application-level circuit breakers (Istio). A failure at any layer triggers automatic remediation before the user notices.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="vpc">3. VPC Multi-AZ Networking</h2>
+
+  <p>The VPC is the foundation of Multi-AZ HA. Every AZ gets its own independent networking stack: public subnet (ALB), private subnet (EKS nodes), database subnet (Aurora/ElastiCache), NAT Gateway, and route table. If AZ-a goes down, AZ-b and AZ-c continue routing traffic independently through their own NAT Gateways.</p>
+
+  <div class="callout danger">
+    <strong>Common mistake: Single NAT Gateway.</strong> Many teams deploy one NAT Gateway to save $32/month. This creates a catastrophic SPOF: if that AZ fails, ALL private subnet egress traffic across ALL AZs stops. Your EKS nodes cannot pull images, your pods cannot reach AWS APIs, and your entire platform goes down. Always deploy one NAT Gateway per AZ.
+  </div>
+
+  <div class="step blue">
+    <h3><span class="step-num">1</span> Terraform Variables</h3>
+<pre><code><span class="comment"># variables.tf — Multi-AZ configuration variables</span>
+
+variable "aws_region" {
+  description = "AWS region for all resources"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "project_name" {
+  description = "Project name prefix for all resources"
+  type        = string
+  default     = "bookstore"
+}
+
+variable "environment" {
+  description = "Environment name (dev, staging, prod)"
+  type        = string
+  default     = "prod"
+}
+
+variable "vpc_cidr" {
+  description = "CIDR block for the VPC"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "availability_zones" {
+  description = "List of 3 availability zones for Multi-AZ deployment"
+  type        = list(string)
+  default     = ["us-east-1a", "us-east-1b", "us-east-1c"]
+}
+
+variable "public_subnet_cidrs" {
+  description = "CIDR blocks for public subnets (one per AZ) — ALB"
+  type        = list(string)
+  default     = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+}
+
+variable "private_subnet_cidrs" {
+  description = "CIDR blocks for private subnets (one per AZ) — EKS nodes"
+  type        = list(string)
+  default     = ["10.0.11.0/24", "10.0.12.0/24", "10.0.13.0/24"]
+}
+
+variable "database_subnet_cidrs" {
+  description = "CIDR blocks for database subnets (one per AZ) — Aurora, ElastiCache"
+  type        = list(string)
+  default     = ["10.0.21.0/24", "10.0.22.0/24", "10.0.23.0/24"]
+}
+
+<span class="comment"># Tags required by EKS for ALB controller subnet discovery</span>
+locals {
+  common_tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}</code></pre>
+  </div>
+
+  <div class="step green">
+    <h3><span class="step-num">2</span> VPC and Internet Gateway</h3>
+<pre><code><span class="comment"># vpc.tf — VPC with DNS support enabled for Aurora endpoints</span>
+
+resource "aws_vpc" "main" {
+  cidr_block = var.vpc_cidr
+
+  <span class="comment"># DNS hostnames required for Aurora cluster endpoints</span>
+  <span class="comment"># and EKS API server private endpoint resolution</span>
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-vpc"
+  })
+}
+
+<span class="comment"># Internet Gateway — single resource, but AWS manages it</span>
+<span class="comment"># redundantly across all AZs. Not a SPOF.</span>
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-igw"
+  })
+}</code></pre>
+  </div>
+
+  <div class="step purple">
+    <h3><span class="step-num">3</span> Public Subnets (ALB — one per AZ)</h3>
+<pre><code><span class="comment"># subnets-public.tf — Public subnets for ALB ingress</span>
+<span class="comment"># ALB requires subnets in at least 2 AZs; we use 3 for full HA.</span>
+
+resource "aws_subnet" "public" {
+  count = length(var.availability_zones)
+
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.public_subnet_cidrs[count.index]
+  availability_zone = var.availability_zones[count.index]
+
+  <span class="comment"># ALB nodes get public IPs automatically</span>
+  map_public_ip_on_launch = true
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-public-${var.availability_zones[count.index]}"
+
+    <span class="comment"># These tags tell the AWS Load Balancer Controller</span>
+    <span class="comment"># which subnets to place internet-facing ALBs in</span>
+    "kubernetes.io/role/elb"                                    = "1"
+    "kubernetes.io/cluster/${var.project_name}-${var.environment}" = "shared"
+  })
+}
+
+<span class="comment"># Public route table — routes to Internet Gateway</span>
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main.id
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-public-rt"
+  })
+}
+
+<span class="comment"># Associate every public subnet with the public route table</span>
+resource "aws_route_table_association" "public" {
+  count = length(var.availability_zones)
+
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
+}</code></pre>
+  </div>
+
+  <div class="step cyan">
+    <h3><span class="step-num">4</span> Private Subnets (EKS Nodes — one per AZ)</h3>
+<pre><code><span class="comment"># subnets-private.tf — Private subnets for EKS worker nodes</span>
+<span class="comment"># No public IPs. Egress via per-AZ NAT Gateway.</span>
+
+resource "aws_subnet" "private" {
+  count = length(var.availability_zones)
+
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.private_subnet_cidrs[count.index]
+  availability_zone = var.availability_zones[count.index]
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-private-${var.availability_zones[count.index]}"
+
+    <span class="comment"># Tells ALB Controller these subnets are for internal ALBs</span>
+    "kubernetes.io/role/internal-elb"                              = "1"
+    "kubernetes.io/cluster/${var.project_name}-${var.environment}" = "shared"
+  })
+}</code></pre>
+  </div>
+
+  <div class="step amber">
+    <h3><span class="step-num">5</span> Database Subnets (Aurora, ElastiCache — one per AZ)</h3>
+<pre><code><span class="comment"># subnets-database.tf — Isolated subnets for managed databases</span>
+<span class="comment"># These subnets have no NAT Gateway route — databases do not</span>
+<span class="comment"># need internet access. This is a security best practice.</span>
+
+resource "aws_subnet" "database" {
+  count = length(var.availability_zones)
+
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.database_subnet_cidrs[count.index]
+  availability_zone = var.availability_zones[count.index]
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-db-${var.availability_zones[count.index]}"
+  })
+}
+
+<span class="comment"># Aurora DB subnet group — tells Aurora which subnets to use</span>
+<span class="comment"># Aurora will place the writer in one AZ and reader(s) in others</span>
+resource "aws_db_subnet_group" "aurora" {
+  name       = "${var.project_name}-${var.environment}-aurora"
+  subnet_ids = aws_subnet.database[*].id
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-aurora-subnet-group"
+  })
+}
+
+<span class="comment"># ElastiCache subnet group — tells Redis which subnets to use</span>
+resource "aws_elasticache_subnet_group" "redis" {
+  name       = "${var.project_name}-${var.environment}-redis"
+  subnet_ids = aws_subnet.database[*].id
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-redis-subnet-group"
+  })
+}</code></pre>
+  </div>
+
+  <div class="step red">
+    <h3><span class="step-num">6</span> NAT Gateways — One Per AZ (Critical for HA)</h3>
+<pre><code><span class="comment"># nat-gateways.tf — One NAT Gateway per AZ</span>
+<span class="comment">#</span>
+<span class="comment"># WHY one per AZ (not a single shared NAT)?</span>
+<span class="comment"># A NAT Gateway is AZ-scoped. If you have ONE NAT GW in AZ-a</span>
+<span class="comment"># and AZ-a fails, ALL private subnets lose internet egress.</span>
+<span class="comment"># EKS nodes cannot pull images, pods cannot reach AWS APIs,</span>
+<span class="comment"># health checks fail, and your entire cluster goes down.</span>
+<span class="comment">#</span>
+<span class="comment"># With one NAT GW per AZ:</span>
+<span class="comment"># - AZ-a fails → AZ-b and AZ-c keep routing through their own NATs</span>
+<span class="comment"># - Cost: ~$32/mo per NAT GW = $96/mo total (vs $32 for single)</span>
+<span class="comment"># - The $64/mo difference prevents total cluster outage</span>
+
+<span class="comment"># Elastic IPs for NAT Gateways (one per AZ)</span>
+resource "aws_eip" "nat" {
+  count  = length(var.availability_zones)
+  domain = "vpc"
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-nat-eip-${var.availability_zones[count.index]}"
+  })
+}
+
+<span class="comment"># NAT Gateways — placed in PUBLIC subnets (they need internet access)</span>
+resource "aws_nat_gateway" "main" {
+  count = length(var.availability_zones)
+
+  allocation_id = aws_eip.nat[count.index].id
+  subnet_id     = aws_subnet.public[count.index].id
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-nat-${var.availability_zones[count.index]}"
+  })
+
+  <span class="comment"># NAT Gateway depends on Internet Gateway existing</span>
+  depends_on = [aws_internet_gateway.main]
+}</code></pre>
+  </div>
+
+  <div class="step blue">
+    <h3><span class="step-num">7</span> Per-AZ Route Tables for Private Subnets</h3>
+<pre><code><span class="comment"># route-tables-private.tf — Each AZ routes through its own NAT GW</span>
+<span class="comment">#</span>
+<span class="comment"># This is what makes per-AZ NAT Gateway work. Each private subnet</span>
+<span class="comment"># has its OWN route table pointing to its OWN NAT Gateway.</span>
+<span class="comment"># If AZ-a NAT fails, only AZ-a private subnet is affected.</span>
+
+resource "aws_route_table" "private" {
+  count  = length(var.availability_zones)
+  vpc_id = aws_vpc.main.id
+
+  <span class="comment"># Default route goes to THIS AZ's NAT Gateway</span>
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.main[count.index].id
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-private-rt-${var.availability_zones[count.index]}"
+  })
+}
+
+<span class="comment"># Associate each private subnet with its AZ-specific route table</span>
+resource "aws_route_table_association" "private" {
+  count = length(var.availability_zones)
+
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private[count.index].id
+}
+
+<span class="comment"># Database subnets get their own route table — no internet route</span>
+resource "aws_route_table" "database" {
+  vpc_id = aws_vpc.main.id
+
+  <span class="comment"># No routes to 0.0.0.0/0 — databases should not reach the internet</span>
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-db-rt"
+  })
+}
+
+resource "aws_route_table_association" "database" {
+  count = length(var.availability_zones)
+
+  subnet_id      = aws_subnet.database[count.index].id
+  route_table_id = aws_route_table.database.id
+}</code></pre>
+  </div>
+
+  <div class="callout tip">
+    <strong>VPC Flow Logs:</strong> Enable VPC Flow Logs to CloudWatch for debugging network issues during AZ failover events. Add <code>aws_flow_log</code> resource with <code>traffic_type = "ALL"</code> and a 14-day retention CloudWatch log group.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="eks">4. EKS Multi-AZ Configuration</h2>
+
+  <p>The EKS control plane is inherently Multi-AZ: AWS runs the Kubernetes API servers and etcd across 3 AZs automatically. You pay for one control plane, and AWS handles its HA. Your responsibility is making the <strong>data plane</strong> (worker nodes and pods) Multi-AZ.</p>
+
+  <div class="callout info">
+    <strong>Control Plane Location (critical to understand):</strong><br>
+    The EKS control plane (API Server, etcd with 3 replicas, Scheduler, Controller Manager) runs in an <strong>AWS-managed VPC that is separate from your VPC</strong>. You cannot see or access the master node VMs. AWS distributes the control plane components across <strong>all 3 Availability Zones</strong> (us-east-1a, 1b, 1c) by default &mdash; there is no option to make it single-AZ.<br><br>
+    <strong>How it connects:</strong> AWS injects <strong>Elastic Network Interfaces (ENIs)</strong> into your private subnets (one per AZ). These ENIs provide the communication path between the control plane and your worker nodes. With <code>cluster_endpoint_private_access = true</code>, all kubectl and kubelet traffic stays within the VPC via these ENIs.<br><br>
+    <strong>What this means for HA:</strong> Even if an entire AZ fails, the control plane continues operating from the other 2 AZs. etcd uses Raft consensus &mdash; losing 1 of 3 replicas maintains quorum. The control plane is the ONE component you do NOT need to configure for Multi-AZ &mdash; AWS handles it.
+  </div>
+
+  <div class="step green">
+    <h3><span class="step-num">1</span> EKS Cluster (Control Plane)</h3>
+<pre><code><span class="comment"># eks-cluster.tf — EKS control plane</span>
+<span class="comment"># The control plane runs across all 3 AZs automatically.</span>
+<span class="comment"># API server endpoints are behind an NLB managed by AWS.</span>
+<span class="comment"># etcd is replicated across AZs by AWS.</span>
+
+resource "aws_eks_cluster" "main" {
+  name     = "${var.project_name}-${var.environment}"
+  role_arn = aws_iam_role.eks_cluster.arn
+  version  = "1.31"
+
+  vpc_config {
+    <span class="comment"># Control plane ENIs placed in private subnets across all 3 AZs</span>
+    subnet_ids = aws_subnet.private[*].id
+
+    <span class="comment"># Private endpoint: kubectl works from within VPC</span>
+    <span class="comment"># Public endpoint: kubectl works from developer machines</span>
+    endpoint_private_access = true
+    endpoint_public_access  = true
+
+    <span class="comment"># Restrict public access to your team's IP ranges</span>
+    public_access_cidrs = var.allowed_cidr_blocks
+
+    security_group_ids = [aws_security_group.eks_cluster.id]
+  }
+
+  <span class="comment"># Enable all log types for debugging AZ failover events</span>
+  enabled_cluster_log_types = [
+    "api",
+    "audit",
+    "authenticator",
+    "controllerManager",
+    "scheduler"
+  ]
+
+  <span class="comment"># Encryption of Kubernetes secrets at rest with KMS</span>
+  encryption_config {
+    provider {
+      key_arn = aws_kms_key.eks.arn
+    }
+    resources = ["secrets"]
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-eks"
+  })
+
+  depends_on = [
+    aws_iam_role_policy_attachment.eks_cluster_policy,
+    aws_iam_role_policy_attachment.eks_vpc_resource_controller,
+  ]
+}
+
+<span class="comment"># KMS key for encrypting Kubernetes secrets at rest</span>
+resource "aws_kms_key" "eks" {
+  description             = "EKS secret encryption key for ${var.project_name}-${var.environment}"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  tags = local.common_tags
+}
+
+<span class="comment"># EKS cluster IAM role</span>
+resource "aws_iam_role" "eks_cluster" {
+  name = "${var.project_name}-${var.environment}-eks-cluster"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "eks.amazonaws.com"
+      }
+    }]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+  role       = aws_iam_role.eks_cluster.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_vpc_resource_controller" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSVPCResourceController"
+  role       = aws_iam_role.eks_cluster.name
+}</code></pre>
+  </div>
+
+  <div class="step purple">
+    <h3><span class="step-num">2</span> System Node Group (Spread across 3 AZs)</h3>
+<pre><code><span class="comment"># eks-node-group-system.tf — System node group for kube-system,</span>
+<span class="comment"># Istio, cert-manager, CoreDNS, and other cluster components.</span>
+<span class="comment">#</span>
+<span class="comment"># Why min_size = 2 (not 3)?</span>
+<span class="comment"># System pods (CoreDNS, kube-proxy, ztunnel) tolerate running</span>
+<span class="comment"># 2 replicas. With 2 nodes across 3 AZs, EKS places one node</span>
+<span class="comment"># in each of 2 AZs. If one AZ fails, one node remains.</span>
+<span class="comment"># Cost savings: 1 fewer m5.large = ~$70/mo saved.</span>
+<span class="comment"># For maximum HA, set min_size = 3 (one per AZ).</span>
+
+resource "aws_eks_node_group" "system" {
+  cluster_name    = aws_eks_cluster.main.name
+  node_group_name = "${var.project_name}-${var.environment}-system"
+  node_role_arn   = aws_iam_role.eks_node.arn
+
+  <span class="comment"># Spread across all 3 AZs — EKS balances nodes across AZs</span>
+  subnet_ids = aws_subnet.private[*].id
+
+  instance_types = ["m5.large"]
+  capacity_type  = "ON_DEMAND"
+
+  scaling_config {
+    desired_size = 2
+    min_size     = 2
+    max_size     = 4
+  }
+
+  update_config {
+    <span class="comment"># During node updates, only 1 node unavailable at a time</span>
+    <span class="comment"># This ensures at least 1 system node is always running</span>
+    max_unavailable = 1
+  }
+
+  labels = {
+    "node-role" = "system"
+  }
+
+  <span class="comment"># Taint so only system pods schedule here</span>
+  taint {
+    key    = "node-role"
+    value  = "system"
+    effect = "NO_SCHEDULE"
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-system-nodes"
+  })
+
+  depends_on = [
+    aws_iam_role_policy_attachment.eks_worker_node_policy,
+    aws_iam_role_policy_attachment.eks_cni_policy,
+    aws_iam_role_policy_attachment.eks_container_registry,
+  ]
+}</code></pre>
+  </div>
+
+  <div class="step cyan">
+    <h3><span class="step-num">3</span> Application Node Group (3 AZs, autoscaling)</h3>
+<pre><code><span class="comment"># eks-node-group-app.tf — Application node group for BookStore services.</span>
+<span class="comment">#</span>
+<span class="comment"># min_size = 3 (one per AZ) ensures every AZ has at least one node.</span>
+<span class="comment"># max_size = 9 allows HPA to scale up to 3 per AZ under load.</span>
+<span class="comment"># The Kubernetes scheduler + topology constraints distribute pods.</span>
+
+resource "aws_eks_node_group" "app" {
+  cluster_name    = aws_eks_cluster.main.name
+  node_group_name = "${var.project_name}-${var.environment}-app"
+  node_role_arn   = aws_iam_role.eks_node.arn
+
+  <span class="comment"># All 3 AZs — critical for pod topology spread</span>
+  subnet_ids = aws_subnet.private[*].id
+
+  instance_types = ["m5.xlarge"]
+  capacity_type  = "ON_DEMAND"
+
+  scaling_config {
+    desired_size = 3
+    min_size     = 3
+    max_size     = 9
+  }
+
+  update_config {
+    <span class="comment"># During rolling update, max 1 node unavailable</span>
+    <span class="comment"># With 3 nodes, 2 are always running = 2 AZs covered</span>
+    max_unavailable = 1
+  }
+
+  labels = {
+    "node-role" = "app"
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-app-nodes"
+  })
+
+  depends_on = [
+    aws_iam_role_policy_attachment.eks_worker_node_policy,
+    aws_iam_role_policy_attachment.eks_cni_policy,
+    aws_iam_role_policy_attachment.eks_container_registry,
+  ]
+}
+
+<span class="comment"># Node IAM role — shared by both node groups</span>
+resource "aws_iam_role" "eks_node" {
+  name = "${var.project_name}-${var.environment}-eks-node"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+    }]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_iam_role_policy_attachment" "eks_worker_node_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+  role       = aws_iam_role.eks_node.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  role       = aws_iam_role.eks_node.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_container_registry" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  role       = aws_iam_role.eks_node.name
+}</code></pre>
+  </div>
+
+  <div class="step amber">
+    <h3><span class="step-num">4</span> EKS Security Group</h3>
+<pre><code><span class="comment"># eks-security-groups.tf — Cluster and node security groups</span>
+
+resource "aws_security_group" "eks_cluster" {
+  name_prefix = "${var.project_name}-${var.environment}-eks-cluster-"
+  vpc_id      = aws_vpc.main.id
+  description = "EKS cluster security group"
+
+  <span class="comment"># Allow nodes to communicate with the control plane</span>
+  ingress {
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.eks_nodes.id]
+    description     = "Node to control plane HTTPS"
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound"
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-eks-cluster-sg"
+  })
+}
+
+resource "aws_security_group" "eks_nodes" {
+  name_prefix = "${var.project_name}-${var.environment}-eks-nodes-"
+  vpc_id      = aws_vpc.main.id
+  description = "EKS worker node security group"
+
+  <span class="comment"># Allow all traffic between nodes (for pod-to-pod communication)</span>
+  ingress {
+    from_port = 0
+    to_port   = 0
+    protocol  = "-1"
+    self      = true
+    description = "Node to node all traffic"
+  }
+
+  <span class="comment"># Allow control plane to communicate with nodes</span>
+  ingress {
+    from_port       = 1025
+    to_port         = 65535
+    protocol        = "tcp"
+    security_groups = [aws_security_group.eks_cluster.id]
+    description     = "Control plane to node"
+  }
+
+  <span class="comment"># Allow ALB health checks</span>
+  ingress {
+    from_port       = 0
+    to_port         = 0
+    protocol        = "-1"
+    security_groups = [aws_security_group.alb.id]
+    description     = "ALB to nodes"
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound"
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-eks-nodes-sg"
+  })
+}</code></pre>
+  </div>
+
+  <div class="callout info">
+    <strong>Cluster Autoscaler vs Karpenter:</strong> For production, consider <a href="https://karpenter.sh">Karpenter</a> over Cluster Autoscaler. Karpenter provisions nodes directly (not through ASGs) and respects topology spread constraints natively. It can also mix instance types and use Spot for non-critical workloads.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="aurora">5. Aurora PostgreSQL Multi-AZ</h2>
+
+  <p>Aurora PostgreSQL is the most critical HA component. Unlike standard RDS Multi-AZ (which uses block-level replication), Aurora uses a shared distributed storage layer that replicates data <strong>6 ways across 3 AZs</strong> (2 copies per AZ). This means:</p>
+  <ul>
+    <li>Aurora can <strong>lose an entire AZ</strong> (2 copies) and still read data</li>
+    <li>Aurora can <strong>lose 2 of 6 copies</strong> and still write data</li>
+    <li>Failover promotes a read replica to writer in <strong>~30 seconds</strong></li>
+    <li>The cluster endpoint DNS automatically updates — no application changes needed</li>
+  </ul>
+
+  <div class="callout tip">
+    <strong>Connection strategy:</strong> Always use the <strong>cluster endpoint</strong> (<code>*-cluster.xxx.rds.amazonaws.com</code>) for writes and the <strong>reader endpoint</strong> (<code>*-cluster-ro.xxx.rds.amazonaws.com</code>) for reads. Never use individual instance endpoints. During failover, the cluster endpoint DNS resolves to the new writer within seconds.
+  </div>
+
+  <div class="step blue">
+    <h3><span class="step-num">1</span> Aurora Cluster Parameter Group</h3>
+<pre><code><span class="comment"># aurora-params.tf — Shared parameter group for all Aurora clusters</span>
+<span class="comment"># wal_level=logical is required for Debezium CDC replication</span>
+
+resource "aws_rds_cluster_parameter_group" "bookstore" {
+  name        = "${var.project_name}-${var.environment}-aurora-pg16"
+  family      = "aurora-postgresql16"
+  description = "BookStore Aurora PostgreSQL 16 cluster parameters"
+
+  <span class="comment"># Enable logical replication for Debezium CDC</span>
+  parameter {
+    name         = "rds.logical_replication"
+    value        = "1"
+    apply_method = "pending-reboot"
+  }
+
+  <span class="comment"># WAL level must be logical for CDC (set by rds.logical_replication)</span>
+  <span class="comment"># This is automatic but we confirm it here</span>
+
+  <span class="comment"># Shared preload libraries for pg_stat_statements</span>
+  parameter {
+    name         = "shared_preload_libraries"
+    value        = "pg_stat_statements"
+    apply_method = "pending-reboot"
+  }
+
+  <span class="comment"># Connection pooling params tuned for microservices</span>
+  parameter {
+    name  = "max_connections"
+    value = "200"
+  }
+
+  <span class="comment"># Log slow queries over 1 second</span>
+  parameter {
+    name  = "log_min_duration_statement"
+    value = "1000"
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># DB instance parameter group (instance-level settings)</span>
+resource "aws_db_parameter_group" "bookstore" {
+  name        = "${var.project_name}-${var.environment}-aurora-pg16-instance"
+  family      = "aurora-postgresql16"
+  description = "BookStore Aurora PostgreSQL 16 instance parameters"
+
+  <span class="comment"># Performance Insights retention (7 days free tier)</span>
+  parameter {
+    name  = "performance_insights.enabled"
+    value = "1"
+  }
+
+  tags = local.common_tags
+}</code></pre>
+  </div>
+
+  <div class="step green">
+    <h3><span class="step-num">2</span> Aurora Clusters for All 4 Databases</h3>
+<pre><code><span class="comment"># aurora-clusters.tf — One Aurora cluster per service database</span>
+<span class="comment"># Each cluster has: 1 writer (AZ-a) + 1 reader (AZ-b)</span>
+<span class="comment"># Aurora storage replicates 6 ways across all 3 AZs automatically</span>
+
+locals {
+  aurora_databases = {
+    ecom = {
+      name          = "ecom"
+      database_name = "ecom"
+      master_user   = "ecom"
+    }
+    inventory = {
+      name          = "inventory"
+      database_name = "inventory"
+      master_user   = "inventory"
+    }
+    analytics = {
+      name          = "analytics"
+      database_name = "analytics"
+      master_user   = "analytics"
+    }
+    keycloak = {
+      name          = "keycloak"
+      database_name = "keycloak"
+      master_user   = "keycloak"
+    }
+  }
+}
+
+<span class="comment"># Aurora cluster — one per database</span>
+resource "aws_rds_cluster" "db" {
+  for_each = local.aurora_databases
+
+  cluster_identifier = "${var.project_name}-${var.environment}-${each.value.name}-db"
+  engine             = "aurora-postgresql"
+  engine_version     = "16.4"
+  database_name      = each.value.database_name
+  master_username    = each.value.master_user
+
+  <span class="comment"># Password managed by AWS Secrets Manager (see below)</span>
+  manage_master_user_password = true
+
+  <span class="comment"># Subnet group spans all 3 AZs</span>
+  db_subnet_group_name = aws_db_subnet_group.aurora.name
+
+  <span class="comment"># Cluster parameter group with logical replication enabled</span>
+  db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.bookstore.name
+
+  <span class="comment"># Security group allowing access from EKS nodes only</span>
+  vpc_security_group_ids = [aws_security_group.aurora.id]
+
+  <span class="comment"># Storage encryption at rest with AWS-managed key</span>
+  storage_encrypted = true
+
+  <span class="comment"># Backup configuration — 35 days retention for production</span>
+  <span class="comment"># Enables Point-In-Time Recovery (PITR) to any second</span>
+  backup_retention_period = 35
+  preferred_backup_window = "03:00-04:00"
+
+  <span class="comment"># Maintenance window — low-traffic period</span>
+  preferred_maintenance_window = "sun:04:00-sun:05:00"
+
+  <span class="comment"># Deletion protection — prevent accidental terraform destroy</span>
+  deletion_protection = true
+
+  <span class="comment"># Skip final snapshot only in dev; always take in prod</span>
+  skip_final_snapshot = false
+  final_snapshot_identifier = "${var.project_name}-${var.environment}-${each.value.name}-final"
+
+  <span class="comment"># Enable CloudWatch log exports for audit and debugging</span>
+  enabled_cloudwatch_logs_exports = ["postgresql"]
+
+  <span class="comment"># Copy tags to snapshots for cost allocation</span>
+  copy_tags_to_snapshot = true
+
+  tags = merge(local.common_tags, {
+    Name     = "${var.project_name}-${var.environment}-${each.value.name}-db"
+    Service  = each.value.name
+    Database = each.value.database_name
+  })
+}</code></pre>
+  </div>
+
+  <div class="step purple">
+    <h3><span class="step-num">3</span> Aurora Writer and Reader Instances</h3>
+<pre><code><span class="comment"># aurora-instances.tf — Writer + Reader instances per cluster</span>
+<span class="comment">#</span>
+<span class="comment"># Writer: handles all read-write traffic via cluster endpoint</span>
+<span class="comment"># Reader: handles read-only traffic via reader endpoint</span>
+<span class="comment">#</span>
+<span class="comment"># During failover:</span>
+<span class="comment"># 1. Aurora detects writer failure (~5s)</span>
+<span class="comment"># 2. Promotes reader to writer (~15-25s)</span>
+<span class="comment"># 3. Updates cluster endpoint DNS (~5s)</span>
+<span class="comment"># 4. Total: ~30s automatic recovery</span>
+
+<span class="comment"># Writer instance — placed in AZ-a by default</span>
+resource "aws_rds_cluster_instance" "writer" {
+  for_each = local.aurora_databases
+
+  identifier         = "${var.project_name}-${var.environment}-${each.value.name}-writer"
+  cluster_identifier = aws_rds_cluster.db[each.key].id
+  instance_class     = "db.r6g.large"
+  engine             = "aurora-postgresql"
+  engine_version     = "16.4"
+
+  <span class="comment"># Place writer in AZ-a</span>
+  availability_zone = var.availability_zones[0]
+
+  <span class="comment"># Instance parameter group</span>
+  db_parameter_group_name = aws_db_parameter_group.bookstore.name
+
+  <span class="comment"># Enhanced Monitoring — 60s granularity for detailed OS metrics</span>
+  monitoring_interval = 60
+  monitoring_role_arn = aws_iam_role.rds_monitoring.arn
+
+  <span class="comment"># Performance Insights — 7 days free retention</span>
+  performance_insights_enabled          = true
+  performance_insights_retention_period = 7
+
+  <span class="comment"># Auto minor version upgrade during maintenance window</span>
+  auto_minor_version_upgrade = true
+
+  <span class="comment"># Promotion priority: 0 = highest (writer should stay writer)</span>
+  promotion_tier = 0
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-${each.value.name}-writer"
+    Role = "writer"
+  })
+}
+
+<span class="comment"># Reader instance — placed in AZ-b for Multi-AZ HA</span>
+resource "aws_rds_cluster_instance" "reader" {
+  for_each = local.aurora_databases
+
+  identifier         = "${var.project_name}-${var.environment}-${each.value.name}-reader"
+  cluster_identifier = aws_rds_cluster.db[each.key].id
+  instance_class     = "db.r6g.large"
+  engine             = "aurora-postgresql"
+  engine_version     = "16.4"
+
+  <span class="comment"># Place reader in AZ-b (different from writer in AZ-a)</span>
+  availability_zone = var.availability_zones[1]
+
+  db_parameter_group_name = aws_db_parameter_group.bookstore.name
+
+  monitoring_interval = 60
+  monitoring_role_arn = aws_iam_role.rds_monitoring.arn
+
+  performance_insights_enabled          = true
+  performance_insights_retention_period = 7
+
+  auto_minor_version_upgrade = true
+
+  <span class="comment"># Promotion priority: 1 = first to be promoted on failover</span>
+  promotion_tier = 1
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-${each.value.name}-reader"
+    Role = "reader"
+  })
+}
+
+<span class="comment"># Enhanced Monitoring IAM role</span>
+resource "aws_iam_role" "rds_monitoring" {
+  name = "${var.project_name}-${var.environment}-rds-monitoring"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "monitoring.rds.amazonaws.com"
+      }
+    }]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_iam_role_policy_attachment" "rds_monitoring" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+  role       = aws_iam_role.rds_monitoring.name
+}</code></pre>
+  </div>
+
+  <div class="step amber">
+    <h3><span class="step-num">4</span> Aurora Security Group</h3>
+<pre><code><span class="comment"># aurora-security-group.tf — Only EKS nodes can reach Aurora</span>
+
+resource "aws_security_group" "aurora" {
+  name_prefix = "${var.project_name}-${var.environment}-aurora-"
+  vpc_id      = aws_vpc.main.id
+  description = "Aurora PostgreSQL access from EKS nodes only"
+
+  <span class="comment"># Allow PostgreSQL connections from EKS nodes only</span>
+  ingress {
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.eks_nodes.id]
+    description     = "PostgreSQL from EKS nodes"
+  }
+
+  <span class="comment"># No egress restrictions needed for RDS</span>
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound"
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-aurora-sg"
+  })
+}</code></pre>
+  </div>
+
+  <div class="step blue">
+    <h3><span class="step-num">5</span> Aurora Outputs (Connection Strings)</h3>
+<pre><code><span class="comment"># aurora-outputs.tf — Connection endpoints for Kubernetes secrets</span>
+
+output "aurora_endpoints" {
+  description = "Aurora cluster endpoints for each database"
+  value = {
+    for key, db in local.aurora_databases : key =&gt; {
+      <span class="comment"># USE THIS for writes — auto-resolves to current writer</span>
+      writer_endpoint = aws_rds_cluster.db[key].endpoint
+
+      <span class="comment"># USE THIS for read-only queries (load-balanced across readers)</span>
+      reader_endpoint = aws_rds_cluster.db[key].reader_endpoint
+
+      port = aws_rds_cluster.db[key].port
+    }
+  }
+}
+
+<span class="comment"># Store connection info in Kubernetes secrets</span>
+<span class="comment"># Services use CLUSTER endpoints (not instance endpoints)</span>
+<span class="comment"># so failover is transparent to the application</span>
+resource "kubernetes_secret" "db_credentials" {
+  for_each = local.aurora_databases
+
+  metadata {
+    name      = "${each.value.name}-db-credentials"
+    namespace = each.value.name
+  }
+
+  data = {
+    <span class="comment"># JDBC URL uses cluster endpoint — failover-safe</span>
+    DATABASE_URL = "jdbc:postgresql://${aws_rds_cluster.db[each.key].endpoint}:5432/${each.value.database_name}"
+
+    <span class="comment"># Python SQLAlchemy URL — also uses cluster endpoint</span>
+    SQLALCHEMY_DATABASE_URL = "postgresql://${each.value.master_user}@${aws_rds_cluster.db[each.key].endpoint}:5432/${each.value.database_name}"
+
+    DB_HOST     = aws_rds_cluster.db[each.key].endpoint
+    DB_PORT     = "5432"
+    DB_NAME     = each.value.database_name
+    DB_USER     = each.value.master_user
+  }
+}</code></pre>
+  </div>
+
+  <div class="callout info">
+    <strong>Aurora storage is automatically Multi-AZ.</strong> You do not need to configure storage replication. Aurora's storage layer spans 3 AZs with 6 copies (2 per AZ) regardless of how many instances you create. Even with a single writer instance, your data is replicated across 3 AZs. The reader instance exists for <strong>read scaling</strong> and <strong>fast failover</strong> (not for storage durability).
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="msk">6. MSK Kafka Multi-AZ</h2>
+
+  <p>Amazon MSK (Managed Streaming for Apache Kafka) deploys brokers across AZs automatically when you specify 3 brokers. With <code>replication.factor=3</code> and <code>min.insync.replicas=2</code>, every message is stored on 3 brokers across 3 AZs. If 1 AZ fails, 2 brokers remain, the ISR quorum is maintained, and producers/consumers continue without interruption.</p>
+
+  <div class="step green">
+    <h3><span class="step-num">1</span> MSK Cluster Configuration</h3>
+<pre><code><span class="comment"># msk.tf — 3-broker MSK cluster across 3 AZs</span>
+<span class="comment">#</span>
+<span class="comment"># Broker distribution: MSK automatically places one broker per AZ</span>
+<span class="comment"># when number_of_broker_nodes = 3 and 3 subnets are provided.</span>
+<span class="comment"># Broker 1 → AZ-a, Broker 2 → AZ-b, Broker 3 → AZ-c</span>
+
+resource "aws_msk_cluster" "main" {
+  cluster_name           = "${var.project_name}-${var.environment}-kafka"
+  kafka_version          = "3.6.0"
+  number_of_broker_nodes = 3
+
+  broker_node_group_info {
+    instance_type = "kafka.m5.large"
+
+    <span class="comment"># One subnet per AZ — MSK places one broker per subnet</span>
+    client_subnets = aws_subnet.private[*].id
+
+    security_groups = [aws_security_group.msk.id]
+
+    storage_info {
+      ebs_storage_info {
+        volume_size = 100
+
+        <span class="comment"># Auto-scale storage when usage exceeds threshold</span>
+        provisioned_throughput {
+          enabled           = true
+          volume_throughput = 250
+        }
+      }
+    }
+
+    <span class="comment"># Enable rack awareness — Kafka distributes partition replicas</span>
+    <span class="comment"># across different racks (AZs) for maximum durability</span>
+    connectivity_info {
+      public_access {
+        type = "DISABLED"
+      }
+    }
+  }
+
+  <span class="comment"># Server-side encryption at rest</span>
+  encryption_info {
+    encryption_at_rest_kms_key_arn = aws_kms_key.msk.arn
+
+    encryption_in_transit {
+      <span class="comment"># TLS between brokers and between clients and brokers</span>
+      client_broker = "TLS"
+      in_cluster    = true
+    }
+  }
+
+  <span class="comment"># Cluster configuration (see below)</span>
+  configuration_info {
+    arn      = aws_msk_configuration.ha.arn
+    revision = aws_msk_configuration.ha.latest_revision
+  }
+
+  <span class="comment"># CloudWatch monitoring</span>
+  open_monitoring {
+    prometheus {
+      jmx_exporter {
+        enabled_in_broker = true
+      }
+      node_exporter {
+        enabled_in_broker = true
+      }
+    }
+  }
+
+  <span class="comment"># Broker log delivery to CloudWatch</span>
+  logging_info {
+    broker_logs {
+      cloudwatch_logs {
+        enabled   = true
+        log_group = aws_cloudwatch_log_group.msk.name
+      }
+    }
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-kafka"
+  })
+}
+
+<span class="comment"># KMS key for MSK encryption at rest</span>
+resource "aws_kms_key" "msk" {
+  description             = "MSK encryption key for ${var.project_name}-${var.environment}"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+  tags                    = local.common_tags
+}
+
+<span class="comment"># CloudWatch log group for MSK broker logs</span>
+resource "aws_cloudwatch_log_group" "msk" {
+  name              = "/aws/msk/${var.project_name}-${var.environment}"
+  retention_in_days = 14
+  tags              = local.common_tags
+}</code></pre>
+  </div>
+
+  <div class="step purple">
+    <h3><span class="step-num">2</span> MSK HA Configuration (Topic Defaults)</h3>
+<pre><code><span class="comment"># msk-configuration.tf — Kafka server properties for HA</span>
+<span class="comment">#</span>
+<span class="comment"># These settings ensure every topic replicates across all 3 AZs</span>
+<span class="comment"># and requires acknowledgment from at least 2 brokers.</span>
+
+resource "aws_msk_configuration" "ha" {
+  name              = "${var.project_name}-${var.environment}-ha-config"
+  kafka_versions    = ["3.6.0"]
+  description       = "HA configuration: replication=3, min.isr=2"
+
+  server_properties = &lt;&lt;-PROPERTIES
+    <span class="comment"># ── Replication Settings ──</span>
+    <span class="comment"># Every new topic gets 3 replicas (one per AZ/broker)</span>
+    default.replication.factor=3
+
+    <span class="comment"># Minimum brokers that must acknowledge a write</span>
+    <span class="comment"># 2 of 3 means: 1 AZ can fail and writes still succeed</span>
+    min.insync.replicas=2
+
+    <span class="comment"># ── Producer Acknowledgment ──</span>
+    <span class="comment"># Not a broker config, but documented here for reference:</span>
+    <span class="comment"># Producer must set acks=all (covered in application config)</span>
+
+    <span class="comment"># ── Partition Settings ──</span>
+    <span class="comment"># Default partitions per topic — matches broker count</span>
+    num.partitions=3
+
+    <span class="comment"># ── Unclean Leader Election ──</span>
+    <span class="comment"># NEVER allow an out-of-sync replica to become leader</span>
+    <span class="comment"># This prevents data loss at the cost of availability</span>
+    <span class="comment"># If all ISR replicas are down, partition is unavailable</span>
+    unclean.leader.election.enable=false
+
+    <span class="comment"># ── Rack Awareness ──</span>
+    <span class="comment"># MSK automatically sets broker.rack to the AZ ID</span>
+    <span class="comment"># Kafka uses this to distribute replicas across AZs</span>
+
+    <span class="comment"># ── Log Retention ──</span>
+    <span class="comment"># Keep messages for 7 days (default)</span>
+    log.retention.hours=168
+
+    <span class="comment"># ── Auto-create topics ──</span>
+    <span class="comment"># Disable in production — topics should be created explicitly</span>
+    auto.create.topics.enable=false
+
+    <span class="comment"># ── Replica fetch settings ──</span>
+    <span class="comment"># Tune for cross-AZ replication latency</span>
+    replica.fetch.max.bytes=1048576
+    replica.fetch.wait.max.ms=500
+  PROPERTIES
+}</code></pre>
+  </div>
+
+  <div class="step cyan">
+    <h3><span class="step-num">3</span> MSK Security Group and Storage Autoscaling</h3>
+<pre><code><span class="comment"># msk-security.tf — MSK access from EKS nodes and Debezium only</span>
+
+resource "aws_security_group" "msk" {
+  name_prefix = "${var.project_name}-${var.environment}-msk-"
+  vpc_id      = aws_vpc.main.id
+  description = "MSK Kafka broker access"
+
+  <span class="comment"># Kafka broker port (TLS) from EKS nodes</span>
+  ingress {
+    from_port       = 9094
+    to_port         = 9094
+    protocol        = "tcp"
+    security_groups = [aws_security_group.eks_nodes.id]
+    description     = "Kafka TLS from EKS"
+  }
+
+  <span class="comment"># Kafka broker port (plaintext, internal) — for inter-broker replication</span>
+  ingress {
+    from_port = 9092
+    to_port   = 9092
+    protocol  = "tcp"
+    self      = true
+    description = "Inter-broker replication"
+  }
+
+  <span class="comment"># ZooKeeper (if using ZK mode) or KRaft controller port</span>
+  ingress {
+    from_port = 2181
+    to_port   = 2181
+    protocol  = "tcp"
+    self      = true
+    description = "ZooKeeper/KRaft"
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound"
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-msk-sg"
+  })
+}
+
+<span class="comment"># MSK storage autoscaling — expand EBS when usage is high</span>
+resource "aws_appautoscaling_target" "msk_storage" {
+  max_capacity       = 500
+  min_capacity       = 100
+  resource_id        = aws_msk_cluster.main.arn
+  scalable_dimension = "kafka:broker-storage:VolumeSize"
+  service_namespace  = "kafka"
+}
+
+resource "aws_appautoscaling_policy" "msk_storage" {
+  name               = "${var.project_name}-${var.environment}-msk-storage-scaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.msk_storage.resource_id
+  scalable_dimension = aws_appautoscaling_target.msk_storage.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.msk_storage.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "KafkaBrokerStorageUtilization"
+    }
+    <span class="comment"># Scale up when disk usage exceeds 60%</span>
+    target_value = 60.0
+  }
+}</code></pre>
+  </div>
+
+  <div class="step blue">
+    <h3><span class="step-num">4</span> MSK Topic Creation</h3>
+<pre><code><span class="comment"># msk-topics.tf — Pre-create topics with explicit HA configuration</span>
+<span class="comment"># Uses the kafka-topics CLI in a null_resource provisioner</span>
+
+resource "null_resource" "msk_topics" {
+  depends_on = [aws_msk_cluster.main]
+
+  provisioner "local-exec" {
+    command = &lt;&lt;-EOT
+      <span class="comment"># Get bootstrap brokers</span>
+      BROKERS=$(aws kafka get-bootstrap-brokers \
+        --cluster-arn ${aws_msk_cluster.main.arn} \
+        --query 'BootstrapBrokerStringTls' --output text)
+
+      <span class="comment"># Create order.created topic — replication 3, ISR 2</span>
+      kafka-topics.sh --bootstrap-server $BROKERS \
+        --command-config /tmp/client.properties \
+        --create --if-not-exists \
+        --topic order.created \
+        --partitions 3 \
+        --replication-factor 3 \
+        --config min.insync.replicas=2
+
+      <span class="comment"># Create inventory.updated topic</span>
+      kafka-topics.sh --bootstrap-server $BROKERS \
+        --command-config /tmp/client.properties \
+        --create --if-not-exists \
+        --topic inventory.updated \
+        --partitions 3 \
+        --replication-factor 3 \
+        --config min.insync.replicas=2
+
+      <span class="comment"># Debezium CDC topics</span>
+      for TOPIC in ecom-connector.public.orders ecom-connector.public.order_items \
+                   inventory-connector.public.stock debezium.ecom.offsets \
+                   debezium.inventory.offsets; do
+        kafka-topics.sh --bootstrap-server $BROKERS \
+          --command-config /tmp/client.properties \
+          --create --if-not-exists \
+          --topic $TOPIC \
+          --partitions 3 \
+          --replication-factor 3 \
+          --config min.insync.replicas=2
+      done
+    EOT
+  }
+}</code></pre>
+  </div>
+
+  <div class="callout warn">
+    <strong>Rack awareness:</strong> MSK automatically sets <code>broker.rack</code> to the AZ ID for each broker. Kafka uses this to ensure partition replicas are distributed across different AZs. You do not need to configure this manually. Verify with: <code>kafka-metadata.sh --snapshot /var/lib/kafka/data/__cluster_metadata-0/00000000000000000000.log --brokers</code>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="redis">7. ElastiCache Redis Multi-AZ</h2>
+
+  <p>ElastiCache Redis provides the CSRF token store and session cache. With Multi-AZ enabled, Redis maintains 1 primary and 2 replicas across 3 AZs. If the primary fails, ElastiCache automatically promotes a replica to primary and updates the primary endpoint DNS within ~30 seconds.</p>
+
+  <div class="step green">
+    <h3><span class="step-num">1</span> Redis Replication Group</h3>
+<pre><code><span class="comment"># redis.tf — ElastiCache Redis with Multi-AZ automatic failover</span>
+<span class="comment">#</span>
+<span class="comment"># Non-cluster mode: 1 primary + 2 replicas = 3 nodes across 3 AZs</span>
+<span class="comment"># Primary handles all writes, replicas handle reads</span>
+<span class="comment"># Automatic failover: ~30s to promote replica + update DNS</span>
+
+resource "aws_elasticache_replication_group" "redis" {
+  replication_group_id = "${var.project_name}-${var.environment}-redis"
+  description          = "BookStore Redis — CSRF tokens and session cache"
+
+  <span class="comment"># Engine configuration</span>
+  engine               = "redis"
+  engine_version       = "7.1"
+  node_type            = "cache.r6g.large"
+  port                 = 6379
+  parameter_group_name = aws_elasticache_parameter_group.redis.name
+
+  <span class="comment"># ── Multi-AZ HA Configuration ──</span>
+  <span class="comment"># num_cache_clusters = total nodes (1 primary + 2 replicas)</span>
+  num_cache_clusters = 3
+
+  <span class="comment"># CRITICAL: Enable automatic failover</span>
+  <span class="comment"># Without this, replica promotion requires manual intervention</span>
+  automatic_failover_enabled = true
+
+  <span class="comment"># CRITICAL: Enable Multi-AZ</span>
+  <span class="comment"># Places primary and replicas in different AZs</span>
+  multi_az_enabled = true
+
+  <span class="comment"># Subnet group spans all 3 AZs</span>
+  subnet_group_name = aws_elasticache_subnet_group.redis.name
+
+  <span class="comment"># Security group — EKS nodes only</span>
+  security_group_ids = [aws_security_group.redis.id]
+
+  <span class="comment"># Encryption</span>
+  at_rest_encryption_enabled = true
+  transit_encryption_enabled = true
+  auth_token                 = random_password.redis_auth.result
+
+  <span class="comment"># Maintenance window</span>
+  maintenance_window = "sun:05:00-sun:06:00"
+
+  <span class="comment"># Snapshot (backup) configuration</span>
+  snapshot_retention_limit = 7
+  snapshot_window          = "03:00-04:00"
+
+  <span class="comment"># Auto minor version upgrade</span>
+  auto_minor_version_upgrade = true
+
+  <span class="comment"># Notification for failover events</span>
+  notification_topic_arn = aws_sns_topic.alerts.arn
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-redis"
+  })
+}
+
+<span class="comment"># Redis parameter group — tuned for session/token storage</span>
+resource "aws_elasticache_parameter_group" "redis" {
+  name        = "${var.project_name}-${var.environment}-redis71"
+  family      = "redis7"
+  description = "BookStore Redis parameters"
+
+  <span class="comment"># Eviction policy: evict least-recently-used keys with TTL first</span>
+  parameter {
+    name  = "maxmemory-policy"
+    value = "volatile-lru"
+  }
+
+  <span class="comment"># Enable keyspace notifications for CSRF token expiry</span>
+  parameter {
+    name  = "notify-keyspace-events"
+    value = "Ex"
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># Redis auth token (password)</span>
+resource "random_password" "redis_auth" {
+  length  = 32
+  special = false
+}
+
+<span class="comment"># Store Redis auth token in Kubernetes secret</span>
+resource "kubernetes_secret" "redis_credentials" {
+  metadata {
+    name      = "redis-credentials"
+    namespace = "infra"
+  }
+
+  data = {
+    REDIS_URL      = "rediss://${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379"
+    REDIS_PASSWORD = random_password.redis_auth.result
+    REDIS_HOST     = aws_elasticache_replication_group.redis.primary_endpoint_address
+    REDIS_PORT     = "6379"
+  }
+}</code></pre>
+  </div>
+
+  <div class="step purple">
+    <h3><span class="step-num">2</span> Redis Security Group</h3>
+<pre><code><span class="comment"># redis-security.tf — Redis access from EKS nodes only</span>
+
+resource "aws_security_group" "redis" {
+  name_prefix = "${var.project_name}-${var.environment}-redis-"
+  vpc_id      = aws_vpc.main.id
+  description = "ElastiCache Redis access from EKS nodes only"
+
+  ingress {
+    from_port       = 6379
+    to_port         = 6379
+    protocol        = "tcp"
+    security_groups = [aws_security_group.eks_nodes.id]
+    description     = "Redis from EKS nodes"
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound"
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-redis-sg"
+  })
+}</code></pre>
+  </div>
+
+  <div class="callout info">
+    <strong>Cluster mode vs non-cluster mode:</strong> Non-cluster mode (used here) is simpler — one primary endpoint, automatic failover, up to 5 replicas. Cluster mode shards data across multiple primary nodes for horizontal write scaling. BookStore's Redis usage (CSRF tokens, session cache) does not require write sharding, so non-cluster mode is the right choice. Switch to cluster mode only if you need &gt; 100K writes/second or &gt; 100 GB data.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="app-ha">8. Application-Level HA Patterns</h2>
+
+  <p>Infrastructure Multi-AZ is only half the story. Your Kubernetes workloads must also be configured for HA: multiple replicas, topology spread, disruption budgets, autoscaling, health probes, graceful shutdown, and circuit breakers. This section shows the complete Kubernetes manifests for every BookStore service.</p>
+
+  <h3>ecom-service (Spring Boot)</h3>
+
+  <div class="step blue">
+    <h3><span class="step-num">1</span> Deployment with Topology Spread and Anti-Affinity</h3>
+<pre><code><span class="comment"># ecom-service-deployment.yaml</span>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecom-service
+  namespace: ecom
+  labels:
+    app: ecom-service
+spec:
+  <span class="comment"># 2 replicas minimum — HPA can scale up to 6</span>
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ecom-service
+  template:
+    metadata:
+      labels:
+        app: ecom-service
+    spec:
+      <span class="comment"># ── Topology Spread Constraints ──</span>
+      <span class="comment"># Distribute pods evenly across AZs</span>
+      <span class="comment"># maxSkew: 1 means AZs can differ by at most 1 pod</span>
+      <span class="comment"># With 2 replicas across 3 AZs: 1 pod in AZ-a, 1 pod in AZ-b</span>
+      <span class="comment"># With 3 replicas: 1 per AZ. With 4: 2-1-1. Never 4-0-0.</span>
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: ecom-service
+
+      <span class="comment"># ── Anti-Affinity ──</span>
+      <span class="comment"># Prefer not to co-locate with other ecom-service pods on same node</span>
+      <span class="comment"># This is "preferred" (soft) so scheduling still works if nodes are scarce</span>
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - ecom-service
+                topologyKey: kubernetes.io/hostname
+
+      <span class="comment"># ── Graceful Shutdown ──</span>
+      <span class="comment"># Give 30s for in-flight requests to complete before SIGKILL</span>
+      terminationGracePeriodSeconds: 30
+
+      <span class="comment"># ── Init Container: DB Migration ──</span>
+      initContainers:
+        - name: migrate
+          image: bookstore/ecom-service:latest
+          command: ["java", "-cp", "/app/app.jar", "liquibase.integration.commandline.LiquibaseCommandLine", "update"]
+          envFrom:
+            - secretRef:
+                name: ecom-db-credentials
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+      containers:
+        - name: ecom-service
+          image: bookstore/ecom-service:latest
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+
+          <span class="comment"># ── Health Probes ──</span>
+          <span class="comment"># Readiness: pod receives traffic only when ready</span>
+          <span class="comment"># During AZ failover, unhealthy pods stop receiving traffic</span>
+          readinessProbe:
+            httpGet:
+              path: /ecom/actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+
+          <span class="comment"># Liveness: pod is restarted if it becomes unresponsive</span>
+          livenessProbe:
+            httpGet:
+              path: /ecom/actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 5
+
+          <span class="comment"># Startup: give slow JVM startup time before liveness kicks in</span>
+          startupProbe:
+            httpGet:
+              path: /ecom/actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 30
+
+          <span class="comment"># ── Graceful Shutdown Hook ──</span>
+          <span class="comment"># Sleep 5s to let ALB/Istio drain connections before app shutdown</span>
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 5"]
+
+          envFrom:
+            - secretRef:
+                name: ecom-db-credentials
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-credentials
+                  key: BOOTSTRAP_SERVERS
+
+          <span class="comment"># ── Resource Requests/Limits ──</span>
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+
+          <span class="comment"># ── Security Context ──</span>
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]</code></pre>
+  </div>
+
+  <div class="step green">
+    <h3><span class="step-num">2</span> PodDisruptionBudget — Protect Against Voluntary Disruptions</h3>
+<pre><code><span class="comment"># ecom-service-pdb.yaml</span>
+<span class="comment"># PDB ensures at least 1 pod is always running during:</span>
+<span class="comment"># - Node drains (kubectl drain)</span>
+<span class="comment"># - Node group rolling updates</span>
+<span class="comment"># - Cluster upgrades</span>
+<span class="comment"># Without PDB, Kubernetes can evict ALL pods simultaneously</span>
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ecom-service-pdb
+  namespace: ecom
+spec:
+  <span class="comment"># At most 1 pod can be unavailable at any time</span>
+  <span class="comment"># With 2 replicas: 1 stays running during disruption</span>
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ecom-service</code></pre>
+  </div>
+
+  <div class="step purple">
+    <h3><span class="step-num">3</span> HorizontalPodAutoscaler</h3>
+<pre><code><span class="comment"># ecom-service-hpa.yaml</span>
+<span class="comment"># HPA scales pods based on CPU/memory utilization</span>
+<span class="comment"># minReplicas=2 ensures HA even during low traffic</span>
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ecom-service-hpa
+  namespace: ecom
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ecom-service
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          <span class="comment"># Scale up when average CPU exceeds 70%</span>
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    <span class="comment"># Scale up quickly (respond to traffic spikes)</span>
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    <span class="comment"># Scale down slowly (avoid flapping)</span>
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120</code></pre>
+  </div>
+
+  <h3>inventory-service (FastAPI)</h3>
+
+  <div class="step cyan">
+    <h3><span class="step-num">4</span> Deployment, PDB, and HPA</h3>
+<pre><code><span class="comment"># inventory-service-deployment.yaml</span>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  namespace: inventory
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: inventory-service
+  template:
+    metadata:
+      labels:
+        app: inventory-service
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: inventory-service
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - inventory-service
+                topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: migrate
+          image: bookstore/inventory-service:latest
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - secretRef:
+                name: inventory-db-credentials
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+      containers:
+        - name: inventory-service
+          image: bookstore/inventory-service:latest
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /inven/health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /inven/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 5
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 5"]
+          envFrom:
+            - secretRef:
+                name: inventory-db-credentials
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+---
+<span class="comment"># inventory-service-pdb.yaml</span>
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: inventory-service-pdb
+  namespace: inventory
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: inventory-service
+---
+<span class="comment"># inventory-service-hpa.yaml</span>
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: inventory-service-hpa
+  namespace: inventory
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: inventory-service
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70</code></pre>
+  </div>
+
+  <h3>ui-service (React + Nginx)</h3>
+
+  <div class="step amber">
+    <h3><span class="step-num">5</span> UI Service HA Configuration</h3>
+<pre><code><span class="comment"># ui-service-deployment.yaml</span>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ui-service
+  namespace: ecom
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ui-service
+  template:
+    metadata:
+      labels:
+        app: ui-service
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: ui-service
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - ui-service
+                topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 15
+      containers:
+        - name: ui-service
+          image: bookstore/ui-service:latest
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 3"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ui-service-pdb
+  namespace: ecom
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ui-service
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ui-service-hpa
+  namespace: ecom
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ui-service
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70</code></pre>
+  </div>
+
+  <h3>csrf-service (Go)</h3>
+
+  <div class="step red">
+    <h3><span class="step-num">6</span> CSRF Service HA Configuration</h3>
+<pre><code><span class="comment"># csrf-service-deployment.yaml</span>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: csrf-service
+  namespace: infra
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: csrf-service
+  template:
+    metadata:
+      labels:
+        app: csrf-service
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: csrf-service
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - csrf-service
+                topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 15
+      containers:
+        - name: csrf-service
+          image: bookstore/csrf-service:latest
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 3"]
+          env:
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: REDIS_URL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: csrf-service-pdb
+  namespace: infra
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: csrf-service
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: csrf-service-hpa
+  namespace: infra
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: csrf-service
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70</code></pre>
+  </div>
+
+  <h3>Keycloak</h3>
+
+  <div class="step blue">
+    <h3><span class="step-num">7</span> Keycloak HA Configuration</h3>
+<pre><code><span class="comment"># keycloak-deployment.yaml</span>
+<span class="comment"># Keycloak in production uses Infinispan (embedded) for distributed caching.</span>
+<span class="comment"># With 2+ replicas, sessions are replicated across pods.</span>
+<span class="comment"># DNS_PING or KUBE_PING discovers peers via Kubernetes headless service.</span>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: identity
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: keycloak
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - keycloak
+                topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.5.4
+          args: ["start"]
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 7800
+              name: jgroups
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 5
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 10"]
+          env:
+            - name: KC_DB
+              value: postgres
+            - name: KC_DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-db-credentials
+                  key: DATABASE_URL
+            - name: KC_HOSTNAME_SCHEME
+              value: https
+            <span class="comment"># Infinispan cluster discovery via DNS</span>
+            - name: KC_CACHE
+              value: ispn
+            - name: KC_CACHE_STACK
+              value: kubernetes
+            - name: JAVA_OPTS_APPEND
+              value: "-Djgroups.dns.query=keycloak-headless.identity.svc.cluster.local"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+---
+<span class="comment"># Headless service for JGroups cluster discovery</span>
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak-headless
+  namespace: identity
+spec:
+  clusterIP: None
+  selector:
+    app: keycloak
+  ports:
+    - name: jgroups
+      port: 7800
+      targetPort: 7800
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: keycloak-pdb
+  namespace: identity
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: keycloak
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: keycloak-hpa
+  namespace: identity
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: keycloak
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75</code></pre>
+  </div>
+
+  <h3>Istio Circuit Breaker (All Services)</h3>
+
+  <div class="step green">
+    <h3><span class="step-num">8</span> Circuit Breaker with Outlier Detection</h3>
+<pre><code><span class="comment"># istio-circuit-breakers.yaml</span>
+<span class="comment"># Outlier detection ejects unhealthy endpoints from the load balancer pool.</span>
+<span class="comment"># When an AZ fails, pods in that AZ return 5xx errors. Istio detects this</span>
+<span class="comment"># and ejects those endpoints, sending all traffic to healthy AZs.</span>
+<span class="comment"># This happens BEFORE Kubernetes marks the pod as unready (~10s vs ~30s).</span>
+
+<span class="comment"># ecom-service circuit breaker</span>
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: ecom-service-circuit-breaker
+  namespace: ecom
+spec:
+  host: ecom-service.ecom.svc.cluster.local
+  trafficPolicy:
+    outlierDetection:
+      <span class="comment"># Eject after 5 consecutive 5xx errors</span>
+      consecutive5xxErrors: 5
+      <span class="comment"># Check every 10 seconds</span>
+      interval: 10s
+      <span class="comment"># Keep ejected for 30 seconds before retrying</span>
+      baseEjectionTime: 30s
+      <span class="comment"># Allow up to 50% of endpoints to be ejected</span>
+      <span class="comment"># (with 2 replicas, this means 1 can be ejected)</span>
+      maxEjectionPercent: 50
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        h2UpgradePolicy: DO_NOT_UPGRADE
+        maxRequestsPerConnection: 100
+---
+<span class="comment"># inventory-service circuit breaker</span>
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: inventory-service-circuit-breaker
+  namespace: inventory
+spec:
+  host: inventory-service.inventory.svc.cluster.local
+  trafficPolicy:
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        h2UpgradePolicy: DO_NOT_UPGRADE
+        maxRequestsPerConnection: 100
+---
+<span class="comment"># ui-service circuit breaker</span>
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: ui-service-circuit-breaker
+  namespace: ecom
+spec:
+  host: ui-service.ecom.svc.cluster.local
+  trafficPolicy:
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+---
+<span class="comment"># csrf-service circuit breaker</span>
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: csrf-service-circuit-breaker
+  namespace: infra
+spec:
+  host: csrf-service.infra.svc.cluster.local
+  trafficPolicy:
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+---
+<span class="comment"># keycloak circuit breaker</span>
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: keycloak-circuit-breaker
+  namespace: identity
+spec:
+  host: keycloak.identity.svc.cluster.local
+  trafficPolicy:
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 10s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 50</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="alb">9. ALB Multi-AZ</h2>
+
+  <p>The Application Load Balancer (ALB) is created by the AWS Load Balancer Controller based on Kubernetes Ingress annotations. ALB automatically spans all public subnets (3 AZs) and distributes traffic to healthy targets across AZs.</p>
+
+  <div class="step blue">
+    <h3><span class="step-num">1</span> ALB Configuration (Terraform + Kubernetes Ingress)</h3>
+<pre><code><span class="comment"># alb.tf — ALB security group and AWS Load Balancer Controller</span>
+
+resource "aws_security_group" "alb" {
+  name_prefix = "${var.project_name}-${var.environment}-alb-"
+  vpc_id      = aws_vpc.main.id
+  description = "ALB security group — HTTPS from internet"
+
+  <span class="comment"># HTTPS from anywhere</span>
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "HTTPS from internet"
+  }
+
+  <span class="comment"># HTTP for redirect to HTTPS</span>
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "HTTP redirect"
+  }
+
+  <span class="comment"># Egress to EKS nodes</span>
+  egress {
+    from_port       = 0
+    to_port         = 0
+    protocol        = "-1"
+    security_groups = [aws_security_group.eks_nodes.id]
+    description     = "To EKS nodes"
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.project_name}-${var.environment}-alb-sg"
+  })
+}
+
+<span class="comment"># AWS Load Balancer Controller (installed via Helm)</span>
+resource "helm_release" "aws_lb_controller" {
+  name       = "aws-load-balancer-controller"
+  repository = "https://aws.github.io/eks-charts"
+  chart      = "aws-load-balancer-controller"
+  namespace  = "kube-system"
+  version    = "1.7.1"
+
+  set {
+    name  = "clusterName"
+    value = aws_eks_cluster.main.name
+  }
+
+  set {
+    name  = "serviceAccount.create"
+    value = "true"
+  }
+
+  set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = aws_iam_role.lb_controller.arn
+  }
+
+  <span class="comment"># Enable cross-zone load balancing by default</span>
+  set {
+    name  = "enableCrossZoneLoadBalancing"
+    value = "true"
+  }
+}</code></pre>
+  </div>
+
+  <div class="step green">
+    <h3><span class="step-num">2</span> Kubernetes Ingress with ALB Annotations</h3>
+<pre><code><span class="comment"># bookstore-ingress.yaml</span>
+<span class="comment"># This Ingress creates an ALB spanning all 3 AZs</span>
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bookstore-ingress
+  namespace: ecom
+  annotations:
+    <span class="comment"># Use AWS ALB (not nginx)</span>
+    kubernetes.io/ingress.class: alb
+
+    <span class="comment"># Internet-facing ALB in public subnets</span>
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+
+    <span class="comment"># TLS termination at ALB with ACM certificate</span>
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443},{"HTTP":80}]'
+    alb.ingress.kubernetes.io/certificate-arn: "${var.acm_certificate_arn}"
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+
+    <span class="comment"># HTTP to HTTPS redirect</span>
+    alb.ingress.kubernetes.io/actions.ssl-redirect: '{"Type":"redirect","RedirectConfig":{"Protocol":"HTTPS","Port":"443","StatusCode":"HTTP_301"}}'
+
+    <span class="comment"># ── HA-specific annotations ──</span>
+
+    <span class="comment"># Health check configuration — how ALB determines target health</span>
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: "3"
+
+    <span class="comment"># Connection draining — wait for in-flight requests during deregistration</span>
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=30
+
+    <span class="comment"># Cross-zone load balancing — distribute evenly across all AZs</span>
+    <span class="comment"># Without this, AZs with fewer targets get proportionally less traffic</span>
+    alb.ingress.kubernetes.io/load-balancer-attributes: routing.http.cross_zone_load_balancing.enabled=true
+
+    <span class="comment"># Security group</span>
+    alb.ingress.kubernetes.io/security-groups: "${aws_security_group.alb.id}"
+
+    <span class="comment"># WAF integration (optional)</span>
+    <span class="comment"># alb.ingress.kubernetes.io/wafv2-acl-arn: "${var.waf_web_acl_arn}"</span>
+
+spec:
+  rules:
+    <span class="comment"># UI service — serves the React SPA</span>
+    - host: myecom.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ui-service
+                port:
+                  number: 80
+
+    <span class="comment"># API service — ecom and inventory backends</span>
+    - host: api.service.net
+      http:
+        paths:
+          - path: /ecom
+            pathType: Prefix
+            backend:
+              service:
+                name: ecom-service
+                port:
+                  number: 8080
+          - path: /inven
+            pathType: Prefix
+            backend:
+              service:
+                name: inventory-service
+                port:
+                  number: 8000
+
+    <span class="comment"># Keycloak identity provider</span>
+    - host: idp.keycloak.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  number: 8080</code></pre>
+  </div>
+
+  <div class="callout tip">
+    <strong>Cross-zone load balancing explained:</strong> Without cross-zone LB, if AZ-a has 3 pods and AZ-b has 1 pod, each AZ gets 50% of traffic. AZ-b's single pod gets 50% load while AZ-a's 3 pods share 50%. With cross-zone LB enabled, traffic is distributed evenly across all 4 pods regardless of AZ. Always enable it.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="monitoring">10. Monitoring &amp; Alerting for HA</h2>
+
+  <p>Monitoring is not optional for HA — it is a critical component. Without monitoring, you cannot detect degraded states, measure failover times, or validate that your HA configuration actually works. Every failover event must trigger an alert so the team can verify the system self-healed.</p>
+
+  <div class="step green">
+    <h3><span class="step-num">1</span> SNS Alert Topic</h3>
+<pre><code><span class="comment"># monitoring.tf — SNS topic for all HA-related alerts</span>
+
+resource "aws_sns_topic" "alerts" {
+  name = "${var.project_name}-${var.environment}-ha-alerts"
+  tags = local.common_tags
+}
+
+resource "aws_sns_topic_subscription" "email" {
+  topic_arn = aws_sns_topic.alerts.arn
+  protocol  = "email"
+  endpoint  = var.alert_email
+}
+
+<span class="comment"># Optional: PagerDuty integration for critical alerts</span>
+resource "aws_sns_topic_subscription" "pagerduty" {
+  count     = var.pagerduty_endpoint != "" ? 1 : 0
+  topic_arn = aws_sns_topic.alerts.arn
+  protocol  = "https"
+  endpoint  = var.pagerduty_endpoint
+}</code></pre>
+  </div>
+
+  <div class="step purple">
+    <h3><span class="step-num">2</span> Aurora Failover Alarm</h3>
+<pre><code><span class="comment"># alarms-aurora.tf — Detect Aurora failover events</span>
+
+<span class="comment"># Alarm fires when Aurora performs automatic failover</span>
+resource "aws_cloudwatch_metric_alarm" "aurora_failover" {
+  for_each = local.aurora_databases
+
+  alarm_name          = "${var.project_name}-${var.environment}-${each.value.name}-aurora-failover"
+  alarm_description   = "Aurora ${each.value.name} cluster performed automatic failover"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "AuroraReplicaLag"
+  namespace           = "AWS/RDS"
+  period              = 60
+  statistic           = "Maximum"
+  threshold           = 20000
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    DBClusterIdentifier = aws_rds_cluster.db[each.key].cluster_identifier
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># Alarm for high CPU on Aurora writer</span>
+resource "aws_cloudwatch_metric_alarm" "aurora_cpu" {
+  for_each = local.aurora_databases
+
+  alarm_name          = "${var.project_name}-${var.environment}-${each.value.name}-aurora-cpu-high"
+  alarm_description   = "Aurora ${each.value.name} writer CPU above 80%"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 3
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/RDS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    DBInstanceIdentifier = aws_rds_cluster_instance.writer[each.key].identifier
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># Alarm for low freeable memory</span>
+resource "aws_cloudwatch_metric_alarm" "aurora_memory" {
+  for_each = local.aurora_databases
+
+  alarm_name          = "${var.project_name}-${var.environment}-${each.value.name}-aurora-memory-low"
+  alarm_description   = "Aurora ${each.value.name} freeable memory below 256MB"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 3
+  metric_name         = "FreeableMemory"
+  namespace           = "AWS/RDS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 268435456
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    DBInstanceIdentifier = aws_rds_cluster_instance.writer[each.key].identifier
+  }
+
+  tags = local.common_tags
+}</code></pre>
+  </div>
+
+  <div class="step cyan">
+    <h3><span class="step-num">3</span> EKS Node and Pod Alarms</h3>
+<pre><code><span class="comment"># alarms-eks.tf — EKS cluster health monitoring</span>
+
+<span class="comment"># CloudWatch Container Insights must be enabled on the EKS cluster</span>
+resource "aws_cloudwatch_metric_alarm" "eks_node_not_ready" {
+  alarm_name          = "${var.project_name}-${var.environment}-eks-node-not-ready"
+  alarm_description   = "One or more EKS nodes are in NotReady state"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "node_status_condition"
+  namespace           = "ContainerInsights"
+  period              = 60
+  statistic           = "Maximum"
+  threshold           = 0
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    ClusterName = aws_eks_cluster.main.name
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># Pod restart count — indicates crashlooping services</span>
+resource "aws_cloudwatch_metric_alarm" "pod_restarts" {
+  alarm_name          = "${var.project_name}-${var.environment}-pod-restart-spike"
+  alarm_description   = "Pod restart count exceeded threshold — possible crashloop"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "pod_number_of_container_restarts"
+  namespace           = "ContainerInsights"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 5
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    ClusterName = aws_eks_cluster.main.name
+  }
+
+  tags = local.common_tags
+}</code></pre>
+  </div>
+
+  <div class="step amber">
+    <h3><span class="step-num">4</span> MSK and Redis Alarms</h3>
+<pre><code><span class="comment"># alarms-msk.tf — Kafka under-replicated partitions</span>
+
+resource "aws_cloudwatch_metric_alarm" "msk_under_replicated" {
+  alarm_name          = "${var.project_name}-${var.environment}-msk-under-replicated"
+  alarm_description   = "MSK has under-replicated partitions — possible broker failure"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "UnderReplicatedPartitions"
+  namespace           = "AWS/Kafka"
+  period              = 60
+  statistic           = "Maximum"
+  threshold           = 0
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    "Cluster Name" = "${var.project_name}-${var.environment}-kafka"
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># MSK offline partitions — critical: no leader available</span>
+resource "aws_cloudwatch_metric_alarm" "msk_offline_partitions" {
+  alarm_name          = "${var.project_name}-${var.environment}-msk-offline-partitions"
+  alarm_description   = "CRITICAL: MSK has offline partitions — no leader available"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "OfflinePartitionsCount"
+  namespace           = "AWS/Kafka"
+  period              = 60
+  statistic           = "Maximum"
+  threshold           = 0
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    "Cluster Name" = "${var.project_name}-${var.environment}-kafka"
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># alarms-redis.tf — Redis failover detection</span>
+
+resource "aws_cloudwatch_metric_alarm" "redis_failover" {
+  alarm_name          = "${var.project_name}-${var.environment}-redis-failover"
+  alarm_description   = "Redis replication group performed automatic failover"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "ReplicationLag"
+  namespace           = "AWS/ElastiCache"
+  period              = 60
+  statistic           = "Maximum"
+  threshold           = 5
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    ReplicationGroupId = aws_elasticache_replication_group.redis.replication_group_id
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># Redis engine CPU too high</span>
+resource "aws_cloudwatch_metric_alarm" "redis_cpu" {
+  alarm_name          = "${var.project_name}-${var.environment}-redis-cpu-high"
+  alarm_description   = "Redis engine CPU above 75%"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 3
+  metric_name         = "EngineCPUUtilization"
+  namespace           = "AWS/ElastiCache"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 75
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    ReplicationGroupId = aws_elasticache_replication_group.redis.replication_group_id
+  }
+
+  tags = local.common_tags
+}</code></pre>
+  </div>
+
+  <div class="step red">
+    <h3><span class="step-num">5</span> ALB 5xx Alarm</h3>
+<pre><code><span class="comment"># alarms-alb.tf — ALB error rate monitoring</span>
+
+resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
+  alarm_name          = "${var.project_name}-${var.environment}-alb-5xx-spike"
+  alarm_description   = "ALB 5xx error rate exceeds threshold — possible backend failure"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "HTTPCode_Target_5XX_Count"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 10
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    LoadBalancer = var.alb_arn_suffix
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># ALB unhealthy target count</span>
+resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_targets" {
+  alarm_name          = "${var.project_name}-${var.environment}-alb-unhealthy-targets"
+  alarm_description   = "ALB has unhealthy targets — possible AZ degradation"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "UnHealthyHostCount"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Maximum"
+  threshold           = 0
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    LoadBalancer = var.alb_arn_suffix
+  }
+
+  tags = local.common_tags
+}</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="dr">11. Disaster Recovery &amp; Backup</h2>
+
+  <div class="step blue">
+    <h3><span class="step-num">1</span> Aurora Automated Backups and PITR</h3>
+<pre><code><span class="comment"># dr-aurora.tf — Aurora backup configuration</span>
+<span class="comment">#</span>
+<span class="comment"># Aurora automatically takes continuous backups to S3.</span>
+<span class="comment"># backup_retention_period = 35 (set in the cluster resource above)</span>
+<span class="comment"># enables Point-In-Time Recovery (PITR) to any second in the last 35 days.</span>
+<span class="comment">#</span>
+<span class="comment"># To restore to a specific point in time:</span>
+<span class="comment"># aws rds restore-db-cluster-to-point-in-time \</span>
+<span class="comment">#   --source-db-cluster-identifier bookstore-prod-ecom-db \</span>
+<span class="comment">#   --db-cluster-identifier bookstore-prod-ecom-db-restored \</span>
+<span class="comment">#   --restore-to-time "2026-03-25T10:30:00Z"</span>
+
+<span class="comment"># Cross-region replica for DR (optional — significant cost)</span>
+<span class="comment"># Uncomment for mission-critical deployments</span>
+<span class="comment">#</span>
+<span class="comment"># resource "aws_rds_cluster" "ecom_dr" {</span>
+<span class="comment">#   provider = aws.dr_region</span>
+<span class="comment">#   cluster_identifier = "${var.project_name}-dr-ecom-db"</span>
+<span class="comment">#   engine = "aurora-postgresql"</span>
+<span class="comment">#   engine_version = "16.4"</span>
+<span class="comment">#   replication_source_identifier = aws_rds_cluster.db["ecom"].arn</span>
+<span class="comment">#   db_subnet_group_name = aws_db_subnet_group.aurora_dr.name</span>
+<span class="comment"># }</span></code></pre>
+  </div>
+
+  <div class="step green">
+    <h3><span class="step-num">2</span> MSK Topic Retention and Terraform State</h3>
+<pre><code><span class="comment"># dr-msk.tf — Kafka message retention</span>
+<span class="comment">#</span>
+<span class="comment"># MSK topic retention is configured in the cluster configuration:</span>
+<span class="comment"># log.retention.hours=168 (7 days)</span>
+<span class="comment"># This means Kafka retains 7 days of messages for replay.</span>
+<span class="comment"># For DR, this allows re-processing from any point in the last 7 days.</span>
+
+<span class="comment"># Terraform state backup — S3 with versioning + DynamoDB locking</span>
+<span class="comment"># This is critical: if you lose your Terraform state, you cannot</span>
+<span class="comment"># manage your infrastructure. S3 versioning provides state history.</span>
+
+resource "aws_s3_bucket" "terraform_state" {
+  bucket = "${var.project_name}-${var.environment}-terraform-state"
+
+  <span class="comment"># Prevent accidental deletion</span>
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  tags = local.common_tags
+}
+
+resource "aws_s3_bucket_versioning" "terraform_state" {
+  bucket = aws_s3_bucket.terraform_state.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "terraform_state" {
+  bucket = aws_s3_bucket.terraform_state.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "aws:kms"
+    }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "terraform_state" {
+  bucket = aws_s3_bucket.terraform_state.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_dynamodb_table" "terraform_locks" {
+  name         = "${var.project_name}-${var.environment}-terraform-locks"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "LockID"
+
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+
+  tags = local.common_tags
+}</code></pre>
+  </div>
+
+  <div class="step purple">
+    <h3><span class="step-num">3</span> EKS Cluster Backup with Velero</h3>
+<pre><code><span class="comment"># dr-velero.tf — Velero for Kubernetes resource backup</span>
+<span class="comment">#</span>
+<span class="comment"># Velero backs up Kubernetes resources (Deployments, ConfigMaps,</span>
+<span class="comment"># Secrets, etc.) to S3. This is NOT for data backup (Aurora handles that).</span>
+<span class="comment"># Velero restores your cluster configuration after a full rebuild.</span>
+
+resource "aws_s3_bucket" "velero" {
+  bucket = "${var.project_name}-${var.environment}-velero-backups"
+  tags   = local.common_tags
+}
+
+resource "aws_s3_bucket_versioning" "velero" {
+  bucket = aws_s3_bucket.velero.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "velero" {
+  bucket = aws_s3_bucket.velero.id
+
+  rule {
+    id     = "expire-old-backups"
+    status = "Enabled"
+
+    <span class="comment"># Keep backups for 30 days</span>
+    expiration {
+      days = 30
+    }
+
+    <span class="comment"># Move to Glacier after 7 days</span>
+    transition {
+      days          = 7
+      storage_class = "GLACIER"
+    }
+  }
+}
+
+resource "helm_release" "velero" {
+  name       = "velero"
+  repository = "https://vmware-tanzu.github.io/helm-charts"
+  chart      = "velero"
+  namespace  = "velero"
+  version    = "5.4.0"
+
+  create_namespace = true
+
+  set {
+    name  = "configuration.backupStorageLocation[0].bucket"
+    value = aws_s3_bucket.velero.id
+  }
+
+  set {
+    name  = "configuration.backupStorageLocation[0].config.region"
+    value = var.aws_region
+  }
+
+  set {
+    name  = "configuration.provider"
+    value = "aws"
+  }
+
+  set {
+    name  = "schedules.daily.schedule"
+    value = "0 2 * * *"
+  }
+
+  set {
+    name  = "schedules.daily.template.ttl"
+    value = "720h"
+  }
+}</code></pre>
+  </div>
+
+  <div class="callout info">
+    <strong>Cross-region DR strategy overview:</strong> For full region-level DR, deploy a passive EKS cluster in a secondary region (e.g., us-west-2). Use Aurora Global Database for async cross-region replication (~1s lag). MSK does not support native cross-region replication; use MirrorMaker2 or MSK Replicator. DNS failover via Route 53 health checks. Estimated additional cost: ~$2,000/month for a warm standby.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="failures">12. Failure Scenarios &amp; Recovery</h2>
+
+  <p>This table documents what happens during every common failure scenario, how the system recovers automatically, and what (if any) manual action is required.</p>
+
+  <table>
+    <tr>
+      <th>Failure Scenario</th>
+      <th>Impact</th>
+      <th>Auto Recovery</th>
+      <th>RTO</th>
+      <th>RPO</th>
+      <th>Manual Action</th>
+    </tr>
+    <tr>
+      <td><strong>Single EC2 instance failure</strong></td>
+      <td>Pods on that node become unavailable. ALB health check fails for those targets.</td>
+      <td>Kubernetes reschedules pods to other nodes in other AZs. ASG replaces the failed instance. ALB deregisters unhealthy target.</td>
+      <td>~15s</td>
+      <td>0</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <td><strong>Single AZ outage</strong></td>
+      <td>All nodes, pods, and managed service instances in that AZ are unavailable. ~33% capacity lost.</td>
+      <td>ALB routes to remaining 2 AZs. Pods rescheduled to surviving AZs. Aurora fails over if writer was in that AZ (~30s). MSK leader election (~10s). Redis failover if primary was in that AZ (~30s).</td>
+      <td>~30-60s</td>
+      <td>0</td>
+      <td>Monitor recovery. Consider scaling up surviving AZs if load is high.</td>
+    </tr>
+    <tr>
+      <td><strong>Aurora primary failure</strong></td>
+      <td>Write operations fail for ~30s during failover. Read replicas continue serving reads.</td>
+      <td>Aurora promotes reader to writer. Cluster endpoint DNS updates. Connections using cluster endpoint reconnect automatically.</td>
+      <td>~30s</td>
+      <td>0</td>
+      <td>Verify application reconnected. Check for connection pool errors in logs.</td>
+    </tr>
+    <tr>
+      <td><strong>MSK broker failure</strong></td>
+      <td>Partitions led by that broker are temporarily unavailable. Producers receive errors for ~10s.</td>
+      <td>Kafka elects new leaders from ISR replicas on surviving brokers. Producers retry and succeed. Consumers rebalance.</td>
+      <td>~10s</td>
+      <td>0</td>
+      <td>None. MSK replaces the broker automatically.</td>
+    </tr>
+    <tr>
+      <td><strong>Redis primary failure</strong></td>
+      <td>CSRF token validation and rate limiting fail for ~30s. Users may see 403 errors on form submissions.</td>
+      <td>ElastiCache promotes a replica to primary. Primary endpoint DNS updates. Application reconnects automatically.</td>
+      <td>~30s</td>
+      <td>&lt; 1s</td>
+      <td>None. Some CSRF tokens issued in the last second may be lost (users retry).</td>
+    </tr>
+    <tr>
+      <td><strong>EKS control plane issue</strong></td>
+      <td>Cannot deploy new resources or scale pods. Running pods continue serving traffic unaffected.</td>
+      <td>AWS auto-heals the control plane (runs across 3 AZs). No user-visible impact if pods are already running.</td>
+      <td>~5 min</td>
+      <td>0</td>
+      <td>None. Wait for AWS to restore the control plane. Open support ticket if &gt; 15 min.</td>
+    </tr>
+    <tr>
+      <td><strong>NAT Gateway failure</strong></td>
+      <td>Pods in that AZ cannot make outbound internet calls (pull images, reach AWS APIs). Pods in other AZs unaffected.</td>
+      <td>AWS replaces the NAT Gateway. New pods schedule in other AZs. Existing pods in affected AZ retry when NAT recovers.</td>
+      <td>~5 min</td>
+      <td>0</td>
+      <td>None (per-AZ NAT design limits blast radius).</td>
+    </tr>
+    <tr>
+      <td><strong>Full region outage</strong></td>
+      <td>Complete platform outage.</td>
+      <td>Not automatic. Requires cross-region DR setup (Aurora Global Database, secondary EKS cluster, Route 53 failover).</td>
+      <td>~15-30 min</td>
+      <td>&lt; 1s (async replication lag)</td>
+      <td>Trigger Route 53 failover. Promote Aurora secondary. Update DNS. Validate services in DR region.</td>
+    </tr>
+  </table>
+
+  <div class="callout warn">
+    <strong>AZ outage frequency:</strong> AWS AZ outages are rare (a few times per year, usually partial) but they do happen. The December 2021 us-east-1 outage affected a single AZ for several hours. Multi-AZ deployments continued operating. The cost of Multi-AZ HA is paid back the first time an AZ fails.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="cost">13. Cost Analysis</h2>
+
+  <p>Multi-AZ HA adds cost compared to a single-AZ deployment. This table breaks down the incremental cost for each component. All prices are approximate monthly costs for <code>us-east-1</code> as of 2026.</p>
+
+  <table>
+    <tr>
+      <th>Component</th>
+      <th>Single-AZ Config</th>
+      <th>Single-AZ Cost</th>
+      <th>Multi-AZ Config</th>
+      <th>Multi-AZ Cost</th>
+      <th>HA Premium</th>
+    </tr>
+    <tr>
+      <td><strong>NAT Gateway</strong></td>
+      <td>1 NAT GW</td>
+      <td>$32/mo</td>
+      <td>3 NAT GWs (1 per AZ)</td>
+      <td>$96/mo</td>
+      <td>+$64/mo</td>
+    </tr>
+    <tr>
+      <td><strong>EKS Nodes (system)</strong></td>
+      <td>1x m5.large</td>
+      <td>$70/mo</td>
+      <td>2x m5.large</td>
+      <td>$140/mo</td>
+      <td>+$70/mo</td>
+    </tr>
+    <tr>
+      <td><strong>EKS Nodes (app)</strong></td>
+      <td>1x m5.xlarge</td>
+      <td>$140/mo</td>
+      <td>3x m5.xlarge</td>
+      <td>$420/mo</td>
+      <td>+$280/mo</td>
+    </tr>
+    <tr>
+      <td><strong>Aurora (ecom)</strong></td>
+      <td>1 writer (db.r6g.large)</td>
+      <td>$190/mo</td>
+      <td>1 writer + 1 reader</td>
+      <td>$380/mo</td>
+      <td>+$190/mo</td>
+    </tr>
+    <tr>
+      <td><strong>Aurora (inventory)</strong></td>
+      <td>1 writer</td>
+      <td>$190/mo</td>
+      <td>1 writer + 1 reader</td>
+      <td>$380/mo</td>
+      <td>+$190/mo</td>
+    </tr>
+    <tr>
+      <td><strong>Aurora (analytics)</strong></td>
+      <td>1 writer</td>
+      <td>$190/mo</td>
+      <td>1 writer + 1 reader</td>
+      <td>$380/mo</td>
+      <td>+$190/mo</td>
+    </tr>
+    <tr>
+      <td><strong>Aurora (keycloak)</strong></td>
+      <td>1 writer</td>
+      <td>$190/mo</td>
+      <td>1 writer + 1 reader</td>
+      <td>$380/mo</td>
+      <td>+$190/mo</td>
+    </tr>
+    <tr>
+      <td><strong>MSK Kafka</strong></td>
+      <td>1 broker (kafka.m5.large)</td>
+      <td>$160/mo</td>
+      <td>3 brokers (1 per AZ)</td>
+      <td>$480/mo</td>
+      <td>+$320/mo</td>
+    </tr>
+    <tr>
+      <td><strong>ElastiCache Redis</strong></td>
+      <td>1 node (cache.r6g.large)</td>
+      <td>$130/mo</td>
+      <td>1 primary + 2 replicas</td>
+      <td>$390/mo</td>
+      <td>+$260/mo</td>
+    </tr>
+    <tr>
+      <td><strong>ALB</strong></td>
+      <td>1 ALB (2 AZ min)</td>
+      <td>$22/mo</td>
+      <td>1 ALB (3 AZs)</td>
+      <td>$22/mo</td>
+      <td>$0</td>
+    </tr>
+    <tr style="font-weight: bold;">
+      <td><strong>TOTAL</strong></td>
+      <td></td>
+      <td><strong>$1,314/mo</strong></td>
+      <td></td>
+      <td><strong>$3,068/mo</strong></td>
+      <td><strong>+$1,754/mo</strong></td>
+    </tr>
+  </table>
+
+  <div class="callout info">
+    <strong>The cost of downtime:</strong> The HA premium is ~$1,754/month (~$21K/year). For an e-commerce platform, even 1 hour of downtime can cost far more than the annual HA premium in lost revenue, customer trust, and SLA penalties. A single AZ outage lasting 4 hours without Multi-AZ would mean 4 hours of complete downtime. With Multi-AZ, it means 30-60 seconds of degraded performance.
+  </div>
+
+  <div class="callout tip">
+    <strong>Cost optimization strategies:</strong>
+    <ul style="margin-top: 8px;">
+      <li><strong>Reserved Instances:</strong> Commit to 1-year RIs for Aurora and ElastiCache for 30-40% savings</li>
+      <li><strong>Savings Plans:</strong> Compute Savings Plans for EC2/Fargate at 20-30% discount</li>
+      <li><strong>Right-sizing:</strong> Start with smaller instances and scale up based on CloudWatch metrics</li>
+      <li><strong>Analytics DB:</strong> Analytics read-heavy workload may not need a reader replica (use Serverless v2 instead)</li>
+      <li><strong>Spot instances:</strong> Use Spot for non-critical batch workloads (Flink, Superset) — up to 70% savings</li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="deploy">14. Terraform Deployment Commands</h2>
+
+  <div class="step green">
+    <h3><span class="step-num">1</span> Initialize and Plan</h3>
+<pre><code><span class="comment"># Navigate to the Terraform directory</span>
+cd terraform/environments/prod
+
+<span class="comment"># Initialize Terraform with S3 backend</span>
+terraform init \
+  -backend-config="bucket=bookstore-prod-terraform-state" \
+  -backend-config="key=ha-infrastructure/terraform.tfstate" \
+  -backend-config="region=us-east-1" \
+  -backend-config="dynamodb_table=bookstore-prod-terraform-locks"
+
+<span class="comment"># Validate configuration syntax</span>
+terraform validate
+
+<span class="comment"># Preview all changes (review carefully!)</span>
+terraform plan -out=ha-deploy.tfplan
+
+<span class="comment"># Review the plan output — verify:</span>
+<span class="comment"># - 3 NAT Gateways (one per AZ)</span>
+<span class="comment"># - 9 subnets (3 public + 3 private + 3 database)</span>
+<span class="comment"># - 4 Aurora clusters with 2 instances each</span>
+<span class="comment"># - 3 MSK brokers</span>
+<span class="comment"># - 1 Redis replication group with 3 nodes</span></code></pre>
+  </div>
+
+  <div class="step blue">
+    <h3><span class="step-num">2</span> Apply Infrastructure</h3>
+<pre><code><span class="comment"># Apply the plan (requires approval)</span>
+terraform apply ha-deploy.tfplan
+
+<span class="comment"># Wait for completion — Aurora clusters take ~15 minutes</span>
+<span class="comment"># MSK cluster takes ~20 minutes</span>
+<span class="comment"># Total: ~25-30 minutes for full HA infrastructure</span></code></pre>
+  </div>
+
+  <div class="step purple">
+    <h3><span class="step-num">3</span> Validate Multi-AZ Deployment</h3>
+<pre><code><span class="comment"># Verify EKS nodes are spread across 3 AZs</span>
+kubectl get nodes -o custom-columns=\
+  NAME:.metadata.name,\
+  AZ:.metadata.labels.topology\\.kubernetes\\.io/zone,\
+  STATUS:.status.conditions[-1].type
+
+<span class="comment"># Expected output:</span>
+<span class="comment"># NAME                                AZ            STATUS</span>
+<span class="comment"># ip-10-0-11-xxx.ec2.internal         us-east-1a    Ready</span>
+<span class="comment"># ip-10-0-12-xxx.ec2.internal         us-east-1b    Ready</span>
+<span class="comment"># ip-10-0-13-xxx.ec2.internal         us-east-1c    Ready</span>
+
+<span class="comment"># Verify pods are spread across AZs</span>
+kubectl get pods -A -o custom-columns=\
+  NAMESPACE:.metadata.namespace,\
+  POD:.metadata.name,\
+  NODE:.spec.nodeName,\
+  AZ:.spec.nodeName \
+  | head -30
+
+<span class="comment"># Verify Aurora cluster endpoints</span>
+aws rds describe-db-clusters \
+  --query "DBClusters[?starts_with(DBClusterIdentifier,'bookstore-prod')].{Cluster:DBClusterIdentifier,Endpoint:Endpoint,ReaderEndpoint:ReaderEndpoint,AZs:AvailabilityZones}" \
+  --output table
+
+<span class="comment"># Verify MSK broker distribution</span>
+aws kafka list-nodes \
+  --cluster-arn $(terraform output -raw msk_cluster_arn) \
+  --query "NodeInfoList[].{Broker:BrokerNodeInfo.BrokerId,AZ:BrokerNodeInfo.AvailabilityZone}" \
+  --output table
+
+<span class="comment"># Verify Redis replication group</span>
+aws elasticache describe-replication-groups \
+  --replication-group-id bookstore-prod-redis \
+  --query "ReplicationGroups[0].{Status:Status,AutoFailover:AutomaticFailover,MultiAZ:MultiAZ,Nodes:NodeGroups[0].NodeGroupMembers[].{NodeId:CacheClusterId,AZ:PreferredAvailabilityZone,Role:CurrentRole}}" \
+  --output table</code></pre>
+  </div>
+
+  <div class="step amber">
+    <h3><span class="step-num">4</span> Chaos Testing — Simulate AZ Failure</h3>
+<pre><code><span class="comment"># ── WARNING: Run these in a staging environment first! ──</span>
+
+<span class="comment"># 1. Simulate node failure: cordon and drain a node in AZ-a</span>
+<span class="comment"># This forces all pods off that node, simulating an AZ loss</span>
+NODE_AZ_A=$(kubectl get nodes -l topology.kubernetes.io/zone=us-east-1a \
+  -o jsonpath='{.items[0].metadata.name}')
+kubectl cordon $NODE_AZ_A
+kubectl drain $NODE_AZ_A --ignore-daemonsets --delete-emptydir-data --force
+
+<span class="comment"># Verify pods rescheduled to other AZs</span>
+kubectl get pods -A -o wide | grep -v Completed
+
+<span class="comment"># Verify ALB still serving traffic</span>
+curl -sk https://myecom.net/ecom/books | head -c 100
+
+<span class="comment"># Uncordon when done testing</span>
+kubectl uncordon $NODE_AZ_A
+
+<span class="comment"># 2. Simulate Aurora failover</span>
+aws rds failover-db-cluster \
+  --db-cluster-identifier bookstore-prod-ecom-db
+
+<span class="comment"># Monitor failover progress</span>
+watch -n 2 'aws rds describe-db-clusters \
+  --db-cluster-identifier bookstore-prod-ecom-db \
+  --query "DBClusters[0].Status" --output text'
+
+<span class="comment"># Verify application recovered</span>
+curl -sk https://api.service.net/ecom/books | head -c 100
+
+<span class="comment"># 3. Verify MSK resilience — stop a broker (via AWS console)</span>
+<span class="comment"># MSK does not support broker stop via CLI. Use the console:</span>
+<span class="comment"># MSK → Cluster → Reboot broker</span>
+<span class="comment"># Then verify consumers still working:</span>
+kubectl logs -n ecom deploy/ecom-service --tail=20 | grep -i kafka
+
+<span class="comment"># 4. Full chaos test with AWS Fault Injection Simulator (FIS)</span>
+<span class="comment"># Create an FIS experiment template to terminate instances in AZ-a</span>
+aws fis create-experiment-template \
+  --description "Terminate EC2 instances in us-east-1a" \
+  --targets '{
+    "eks-nodes": {
+      "resourceType": "aws:ec2:instance",
+      "selectionMode": "ALL",
+      "filters": [
+        {"path": "Placement.AvailabilityZone", "values": ["us-east-1a"]},
+        {"path": "State.Name", "values": ["running"]}
+      ]
+    }
+  }' \
+  --actions '{
+    "terminate-instances": {
+      "actionId": "aws:ec2:terminate-instances",
+      "targets": {"Instances": "eks-nodes"}
+    }
+  }' \
+  --stop-conditions '[{"source": "none"}]' \
+  --role-arn "${var.fis_role_arn}"</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="checklist">15. HA Compliance Checklist</h2>
+
+  <p>Use this checklist to verify your Multi-AZ deployment is complete. Every item should be checked before going to production.</p>
+
+  <h3>Networking</h3>
+  <ul class="checklist">
+    <li><div class="check-box done">&#10003;</div>VPC spans 3 Availability Zones (us-east-1a, 1b, 1c)</li>
+    <li><div class="check-box done">&#10003;</div>3 public subnets (one per AZ) for ALB</li>
+    <li><div class="check-box done">&#10003;</div>3 private subnets (one per AZ) for EKS nodes</li>
+    <li><div class="check-box done">&#10003;</div>3 database subnets (one per AZ) for Aurora and ElastiCache</li>
+    <li><div class="check-box done">&#10003;</div>NAT Gateway per AZ (3 total) — no single NAT SPOF</li>
+    <li><div class="check-box done">&#10003;</div>Per-AZ route tables for private subnets</li>
+    <li><div class="check-box done">&#10003;</div>Database subnets have no internet route</li>
+  </ul>
+
+  <h3>Compute (EKS)</h3>
+  <ul class="checklist">
+    <li><div class="check-box done">&#10003;</div>EKS control plane in all 3 AZs (automatic)</li>
+    <li><div class="check-box done">&#10003;</div>System node group: min 2 nodes across 3 AZs</li>
+    <li><div class="check-box done">&#10003;</div>App node group: min 3 nodes (one per AZ), max 9</li>
+    <li><div class="check-box done">&#10003;</div>Node group update_config.max_unavailable = 1</li>
+    <li><div class="check-box done">&#10003;</div>topologySpreadConstraints on ALL Deployments (maxSkew: 1, zone key)</li>
+    <li><div class="check-box done">&#10003;</div>Pod anti-affinity (preferred) to avoid co-location</li>
+    <li><div class="check-box done">&#10003;</div>PodDisruptionBudget on ALL stateless services</li>
+    <li><div class="check-box done">&#10003;</div>HPA with minReplicas &gt;= 2 for all critical services</li>
+    <li><div class="check-box done">&#10003;</div>Readiness probes on all containers</li>
+    <li><div class="check-box done">&#10003;</div>Liveness probes on all containers</li>
+    <li><div class="check-box done">&#10003;</div>preStop hooks for graceful shutdown</li>
+    <li><div class="check-box done">&#10003;</div>terminationGracePeriodSeconds configured</li>
+  </ul>
+
+  <h3>Database (Aurora PostgreSQL)</h3>
+  <ul class="checklist">
+    <li><div class="check-box done">&#10003;</div>All 4 Aurora clusters created (ecom, inventory, analytics, keycloak)</li>
+    <li><div class="check-box done">&#10003;</div>Writer + Reader instance per cluster (2 instances each)</li>
+    <li><div class="check-box done">&#10003;</div>Writer and Reader in different AZs</li>
+    <li><div class="check-box done">&#10003;</div>Cluster parameter group with rds.logical_replication = 1</li>
+    <li><div class="check-box done">&#10003;</div>Backup retention = 35 days (PITR enabled)</li>
+    <li><div class="check-box done">&#10003;</div>Enhanced monitoring enabled (60s interval)</li>
+    <li><div class="check-box done">&#10003;</div>Performance Insights enabled (7-day retention)</li>
+    <li><div class="check-box done">&#10003;</div>Deletion protection enabled</li>
+    <li><div class="check-box done">&#10003;</div>Storage encryption at rest</li>
+    <li><div class="check-box done">&#10003;</div>Applications use cluster endpoint (not instance endpoint)</li>
+  </ul>
+
+  <h3>Messaging (MSK Kafka)</h3>
+  <ul class="checklist">
+    <li><div class="check-box done">&#10003;</div>3 brokers across 3 AZs (one per AZ)</li>
+    <li><div class="check-box done">&#10003;</div>default.replication.factor = 3</li>
+    <li><div class="check-box done">&#10003;</div>min.insync.replicas = 2</li>
+    <li><div class="check-box done">&#10003;</div>unclean.leader.election.enable = false</li>
+    <li><div class="check-box done">&#10003;</div>All topics created with replication-factor 3</li>
+    <li><div class="check-box done">&#10003;</div>Encryption in transit (TLS) and at rest (KMS)</li>
+    <li><div class="check-box done">&#10003;</div>Storage autoscaling configured</li>
+    <li><div class="check-box done">&#10003;</div>Broker logs to CloudWatch</li>
+  </ul>
+
+  <h3>Cache (ElastiCache Redis)</h3>
+  <ul class="checklist">
+    <li><div class="check-box done">&#10003;</div>1 primary + 2 replicas (3 nodes total)</li>
+    <li><div class="check-box done">&#10003;</div>automatic_failover_enabled = true</li>
+    <li><div class="check-box done">&#10003;</div>multi_az_enabled = true</li>
+    <li><div class="check-box done">&#10003;</div>Encryption at rest and in transit</li>
+    <li><div class="check-box done">&#10003;</div>Auth token configured</li>
+    <li><div class="check-box done">&#10003;</div>Snapshot retention = 7 days</li>
+  </ul>
+
+  <h3>Load Balancer</h3>
+  <ul class="checklist">
+    <li><div class="check-box done">&#10003;</div>ALB spans all 3 public subnets (3 AZs)</li>
+    <li><div class="check-box done">&#10003;</div>Cross-zone load balancing enabled</li>
+    <li><div class="check-box done">&#10003;</div>Health check configured (interval, threshold, path)</li>
+    <li><div class="check-box done">&#10003;</div>Connection draining (deregistration_delay = 30s)</li>
+    <li><div class="check-box done">&#10003;</div>HTTP to HTTPS redirect</li>
+    <li><div class="check-box done">&#10003;</div>TLS 1.3 security policy</li>
+  </ul>
+
+  <h3>Monitoring &amp; Alerting</h3>
+  <ul class="checklist">
+    <li><div class="check-box done">&#10003;</div>SNS alert topic with email subscription</li>
+    <li><div class="check-box done">&#10003;</div>Aurora failover alarm</li>
+    <li><div class="check-box done">&#10003;</div>Aurora CPU and memory alarms</li>
+    <li><div class="check-box done">&#10003;</div>EKS node NotReady alarm</li>
+    <li><div class="check-box done">&#10003;</div>Pod restart count alarm</li>
+    <li><div class="check-box done">&#10003;</div>MSK under-replicated partitions alarm</li>
+    <li><div class="check-box done">&#10003;</div>MSK offline partitions alarm (critical)</li>
+    <li><div class="check-box done">&#10003;</div>Redis failover and CPU alarms</li>
+    <li><div class="check-box done">&#10003;</div>ALB 5xx spike alarm</li>
+    <li><div class="check-box done">&#10003;</div>ALB unhealthy targets alarm</li>
+  </ul>
+
+  <h3>Disaster Recovery</h3>
+  <ul class="checklist">
+    <li><div class="check-box done">&#10003;</div>Aurora backup retention = 35 days (PITR)</li>
+    <li><div class="check-box done">&#10003;</div>MSK topic retention = 7 days</li>
+    <li><div class="check-box done">&#10003;</div>Terraform state in S3 with versioning</li>
+    <li><div class="check-box done">&#10003;</div>Terraform state lock in DynamoDB</li>
+    <li><div class="check-box done">&#10003;</div>Velero daily backups to S3</li>
+    <li><div class="check-box done">&#10003;</div>Chaos testing performed (node drain, Aurora failover)</li>
+  </ul>
+
+  <h3>Service Mesh (Istio)</h3>
+  <ul class="checklist">
+    <li><div class="check-box done">&#10003;</div>Circuit breakers (DestinationRule outlierDetection) on all services</li>
+    <li><div class="check-box done">&#10003;</div>consecutive5xxErrors threshold configured</li>
+    <li><div class="check-box done">&#10003;</div>Connection pool limits set</li>
+    <li><div class="check-box done">&#10003;</div>mTLS STRICT for all namespaces</li>
+  </ul>
+
+  <footer>
+    <p>BookStore Platform &mdash; Multi-AZ High Availability on AWS EKS</p>
+    <p style="margin-top: 8px;">
+      <a href="index.html">Home</a> &middot;
+      <a href="architecture.html">Architecture</a> &middot;
+      <a href="deploy-aws.html">AWS Deploy</a> &middot;
+      <a href="quick-start.html">Quick Start</a> &middot;
+      <a href="bookstore-platform-manual.html">Full Manual</a> &middot;
+      <a href="https://github.com/a2z-ice/ecom-ms">GitHub</a>
+    </p>
+  </footer>
+
+</div>
+
+</body>
+</html>

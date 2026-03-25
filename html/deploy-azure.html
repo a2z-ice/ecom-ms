@@ -1,0 +1,3433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deploy to Azure (Terraform) — BookStore Platform</title>
+  <meta property="og:title" content="BookStore Platform — Azure Deployment Guide" />
+  <meta property="og:description" content="Deploy the entire BookStore microservices platform to Azure using Terraform. AKS, PostgreSQL Flexible Server, Event Hubs, Redis, Key Vault, and more." />
+  <meta property="og:type" content="article" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; --cyan: #06b6d4; --purple: #8b5cf6; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 960px; margin: 0 auto; padding: 40px 24px 60px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p.subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 52px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 28px 0 10px; color: #cbd5e1; }
+    h4 { font-size: 0.95rem; font-weight: 600; margin: 20px 0 8px; color: #94a3b8; }
+    p { margin-bottom: 16px; color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.82rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.04); }
+    code { background: var(--card); padding: 2px 7px; border-radius: 4px; font-size: 0.86em; color: #fbbf24; }
+    pre { background: var(--card); padding: 18px 20px; border-radius: 10px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); position: relative; }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.84rem; line-height: 1.65; }
+    pre .comment { color: #64748b; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badge.blue { background: linear-gradient(135deg, #2563eb, #3b82f6); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* ── Step Cards ── */
+    .step { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px 28px; margin: 20px 0; position: relative; overflow: hidden; }
+    .step::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; border-radius: 4px 0 0 4px; }
+    .step.blue::before { background: linear-gradient(180deg, #3b82f6, #60a5fa); }
+    .step.green::before { background: linear-gradient(180deg, #059669, #34d399); }
+    .step.purple::before { background: linear-gradient(180deg, #7c3aed, #a78bfa); }
+    .step.amber::before { background: linear-gradient(180deg, #d97706, #fbbf24); }
+    .step.red::before { background: linear-gradient(180deg, #dc2626, #f87171); }
+    .step.cyan::before { background: linear-gradient(180deg, #0891b2, #22d3ee); }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: white; font-weight: 800; font-size: 0.88rem; margin-right: 12px; flex-shrink: 0; }
+    .step h3 { display: flex; align-items: center; margin: 0 0 12px; color: #f1f5f9; }
+    .step p { margin-bottom: 10px; }
+    .step pre { margin: 10px 0 8px; }
+    .step .time { font-size: 0.75rem; color: var(--muted); font-weight: 600; margin-top: 10px; }
+
+    /* ── Info/Warning/Tip boxes ── */
+    .callout { padding: 16px 20px; border-radius: 10px; margin: 16px 0; font-size: 0.88rem; line-height: 1.6; border-left: 4px solid; }
+    .callout.info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+    .callout.warn { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
+    .callout.tip { background: rgba(16,185,129,0.08); border-color: #10b981; }
+    .callout.danger { background: rgba(239,68,68,0.08); border-color: #ef4444; }
+    .callout strong { color: #f1f5f9; }
+    .callout code { font-size: 0.84em; }
+
+    /* ── TOC ── */
+    .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 24px 0 40px; }
+    .toc h3 { font-size: 0.9rem; font-weight: 700; color: #f1f5f9; margin: 0 0 12px; }
+    .toc ol { margin: 0; padding-left: 20px; }
+    .toc li { margin-bottom: 4px; }
+    .toc a { font-size: 0.85rem; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+    .toc a:hover { color: var(--accent); }
+
+    /* ── Prereq checklist ── */
+    .prereq-list { list-style: none; margin: 12px 0 20px; padding: 0; }
+    .prereq-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(51,65,85,0.4); font-size: 0.88rem; }
+    .prereq-list li:last-child { border-bottom: none; }
+    .prereq-check { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; flex-shrink: 0; }
+    .prereq-check.required { border-color: var(--accent); color: var(--accent); }
+    .prereq-name { font-weight: 600; color: #cbd5e1; min-width: 90px; }
+    .prereq-ver { font-size: 0.78rem; color: var(--muted); }
+    .prereq-purpose { font-size: 0.78rem; color: #64748b; margin-left: auto; }
+
+    /* ── Architecture diagram (ASCII) ── */
+    .arch-diagram { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; overflow-x: auto; }
+    .arch-diagram pre { background: none; border: none; padding: 0; margin: 0; }
+    .arch-diagram pre code { font-size: 0.78rem; line-height: 1.5; color: #94a3b8; }
+    .arch-diagram .az { color: #60a5fa; }
+    .arch-diagram .svc { color: #a78bfa; }
+    .arch-diagram .data { color: #34d399; }
+    .arch-diagram .net { color: #fbbf24; }
+
+    /* ── File tree ── */
+    .file-tree { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 16px 0 24px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.84rem; line-height: 1.8; color: var(--muted); white-space: pre; overflow-x: auto; }
+    .file-tree .dir { color: #60a5fa; font-weight: 600; }
+    .file-tree .file { color: #cbd5e1; }
+    .file-tree .desc { color: #64748b; }
+
+    /* ── Cost table ── */
+    .cost-table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    .cost-table th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.82rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    .cost-table td { padding: 10px 14px; font-size: 0.85rem; border-bottom: 1px solid var(--border); }
+    .cost-table .total td { font-weight: 700; color: #f1f5f9; border-top: 2px solid var(--accent); }
+    .cost-table .dev { color: var(--green); }
+    .cost-table .prod { color: var(--yellow); }
+
+    /* ── Topnav (hidden by nav.js) ── */
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 960px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>Deploy to Azure with Terraform</h1>
+  <p class="subtitle">Production deployment of the full BookStore Platform to Azure managed services</p>
+
+  <div class="badges">
+    <span class="badge blue">Azure Cloud</span>
+    <span class="badge purple">Terraform IaC</span>
+    <span class="badge green">AKS + Managed Services</span>
+    <span class="badge cyan">Istio Ambient Mesh</span>
+    <span class="badge orange">14 Terraform Files</span>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#architecture">Architecture Overview</a></li>
+      <li><a href="#prereqs">Prerequisites</a></li>
+      <li><a href="#identity-setup">Identity &amp; RBAC Setup (Service Principal, Roles per Component)</a></li>
+      <li><a href="#project-structure">Terraform Project Structure</a></li>
+      <li><a href="#backend">Step 1 &mdash; State Backend (00-backend.tf)</a></li>
+      <li><a href="#versions">Step 2 &mdash; Provider Versions (01-versions.tf)</a></li>
+      <li><a href="#variables">Step 3 &mdash; Input Variables (02-variables.tf)</a></li>
+      <li><a href="#rg">Step 4 &mdash; Resource Group (03-resource-group.tf)</a></li>
+      <li><a href="#vnet">Step 5 &mdash; Virtual Network (04-vnet.tf)</a></li>
+      <li><a href="#aks">Step 6 &mdash; AKS Cluster (05-aks.tf)</a></li>
+      <li><a href="#acr">Step 7 &mdash; Container Registry (06-acr.tf)</a></li>
+      <li><a href="#postgresql">Step 8 &mdash; PostgreSQL Flexible Server (07-postgresql.tf)</a></li>
+      <li><a href="#eventhubs">Step 9 &mdash; Event Hubs / Kafka (08-eventhubs.tf)</a></li>
+      <li><a href="#redis">Step 10 &mdash; Azure Cache for Redis (09-redis.tf)</a></li>
+      <li><a href="#keyvault">Step 11 &mdash; Key Vault (10-keyvault.tf)</a></li>
+      <li><a href="#dns">Step 12 &mdash; DNS + Application Gateway (11-dns.tf)</a></li>
+      <li><a href="#outputs">Step 13 &mdash; Outputs (12-outputs.tf)</a></li>
+      <li><a href="#k8s">Step 14 &mdash; Kubernetes Resources (13-k8s-resources.tf)</a></li>
+      <li><a href="#tfvars">Step 15 &mdash; Example Variables File</a></li>
+      <li><a href="#deploy">Deployment Commands</a></li>
+      <li><a href="#cost">Cost Estimation</a></li>
+      <li><a href="#teardown">Teardown</a></li>
+      <li><a href="#security">Security Best Practices</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="architecture">1. Architecture Overview</h2>
+
+  <p>The Azure deployment replaces every local component with a managed Azure equivalent. The application code and Kubernetes manifests remain largely the same &mdash; only the backing services change.</p>
+
+  <h3>Architecture Diagram</h3>
+  <img src="diagrams/aks-architecture.svg" alt="BookStore Platform — Azure AKS Architecture (Terraform)" style="width:100%;border-radius:12px;border:1px solid #334155;margin:16px 0 28px;" />
+
+  <h3>Service Mapping: Local to Azure</h3>
+  <table>
+    <tr><th>Local (kind)</th><th>Azure Managed Service</th><th>Why</th></tr>
+    <tr><td>kind cluster</td><td><strong>Azure Kubernetes Service (AKS)</strong></td><td>Managed K8s control plane, auto-scaling node pools</td></tr>
+    <tr><td>CloudNativePG (4 clusters)</td><td><strong>Azure Database for PostgreSQL Flexible Server</strong> (4 instances)</td><td>Built-in HA, backups, monitoring, VNet integration</td></tr>
+    <tr><td>Self-hosted Kafka (KRaft)</td><td><strong>Azure Event Hubs</strong> (Kafka protocol)</td><td>Fully managed, auto-scaling, Kafka-wire-compatible</td></tr>
+    <tr><td>Self-hosted Redis</td><td><strong>Azure Cache for Redis</strong></td><td>Managed HA, TLS, private endpoint</td></tr>
+    <tr><td>K8s Secrets</td><td><strong>Azure Key Vault</strong></td><td>HSM-backed, RBAC, audit logging, rotation</td></tr>
+    <tr><td>kind NodePorts</td><td><strong>Application Gateway + Azure DNS</strong></td><td>WAF, TLS termination, public DNS</td></tr>
+    <tr><td>Local Docker images</td><td><strong>Azure Container Registry (ACR)</strong></td><td>Private registry, geo-replication, vulnerability scanning</td></tr>
+    <tr><td>Istio Ambient Mesh</td><td><strong>Istio on AKS</strong> (self-managed)</td><td>Same mesh; AKS supports ambient mode</td></tr>
+    <tr><td>cert-manager (self-signed)</td><td><strong>cert-manager + Let's Encrypt</strong></td><td>Real CA-signed certificates via ACME</td></tr>
+    <tr><td>N/A</td><td><strong>Managed Identities</strong></td><td>Passwordless auth between Azure services</td></tr>
+    <tr><td>N/A</td><td><strong>VNet + NSGs</strong></td><td>Network isolation, private endpoints</td></tr>
+    <tr><td>N/A</td><td><strong>Azure Blob Storage</strong></td><td>Terraform remote state with locking</td></tr>
+  </table>
+
+  <h3>Architecture Diagram</h3>
+  <div class="arch-diagram">
+<pre><code>                          <span class="net">Internet</span>
+                             |
+                    <span class="net">[Azure DNS Zone]</span>
+                             |
+                  <span class="az">[Application Gateway]</span>
+                   WAF v2 + TLS (HTTPS)
+                     /       |       \
+              <span class="net">myecom.net</span>  <span class="net">api.svc.net</span>  <span class="net">idp.kc.net</span>
+                     \       |       /
+            +-----------------------------------------+
+            |         <span class="az">AKS Cluster (VNet)</span>              |
+            |                                         |
+            |  <span class="svc">[UI Service]</span>  <span class="svc">[ecom-service]</span>  <span class="svc">[inventory]</span> |
+            |  <span class="svc">[Keycloak]</span>    <span class="svc">[Debezium]</span>     <span class="svc">[Flink]</span>    |
+            |  <span class="svc">[Superset]</span>    <span class="svc">[Prometheus]</span>   <span class="svc">[Grafana]</span>  |
+            |                                         |
+            |  <span class="svc">[Istio Ambient Mesh - ztunnel mTLS]</span>    |
+            +--------------+---------+----------------+
+                           |         |
+          +----------------+---------+------------------+
+          |                |         |                  |
+  <span class="data">[PostgreSQL x4]</span>    <span class="data">[Event Hubs]</span>  <span class="data">[Redis]</span>     <span class="az">[Key Vault]</span>
+  <span class="data">Flexible Server</span>    <span class="data">Kafka proto</span>   <span class="data">Cache</span>       <span class="az">Secrets</span>
+  <span class="data">(Private DNS)</span>      <span class="data">(Svc Endpt)</span>   <span class="data">(Priv EP)</span>   <span class="az">(Priv EP)</span>
+          |                |         |                  |
+          +----------------+---------+------------------+
+                           |
+                    <span class="az">[Azure Container Registry]</span>
+                      Docker images (ACR)</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="prereqs">2. Prerequisites</h2>
+
+  <h3>Required Tools</h3>
+  <ul class="prereq-list">
+    <li><div class="prereq-check required">*</div><span class="prereq-name">Azure CLI</span><span class="prereq-ver">v2.60+</span><span class="prereq-purpose">Azure resource management</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">Terraform</span><span class="prereq-ver">v1.7+</span><span class="prereq-purpose">Infrastructure as Code</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">kubectl</span><span class="prereq-ver">v1.28+</span><span class="prereq-purpose">Kubernetes CLI</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">helm</span><span class="prereq-ver">v3.12+</span><span class="prereq-purpose">K8s package manager</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">istioctl</span><span class="prereq-ver">v1.29+</span><span class="prereq-purpose">Service mesh CLI</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">Docker</span><span class="prereq-ver">v24+</span><span class="prereq-purpose">Container image builds</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">Azure Sub</span><span class="prereq-ver">Active</span><span class="prereq-purpose">Pay-as-you-go or Enterprise</span></li>
+  </ul>
+
+  <h3>Install and Authenticate</h3>
+<pre><code><span class="comment"># Install Azure CLI (macOS)</span>
+brew install azure-cli terraform kubectl helm istioctl
+
+<span class="comment"># Login to Azure</span>
+az login
+
+<span class="comment"># Set the subscription (replace with your subscription ID)</span>
+az account set --subscription "YOUR_SUBSCRIPTION_ID"
+
+<span class="comment"># Verify</span>
+az account show --output table
+terraform version
+kubectl version --client</code></pre>
+
+  <!-- ═══ AZURE IDENTITY SETUP — CRITICAL ═══ -->
+  <h3 id="identity-setup">Identity &amp; RBAC Setup (Required Before Any Terraform Command)</h3>
+
+  <div class="callout danger">
+    <strong>Without proper Azure identity and role assignments, Terraform cannot create any resource.</strong> Complete this section BEFORE running <code>terraform init</code>. Choose <strong>Option A</strong> (interactive login — dev/personal) or <strong>Option B</strong> (Service Principal — CI/CD and teams).
+  </div>
+
+  <h4>Option A: Interactive Login (Personal / Dev)</h4>
+
+  <div class="step blue">
+    <h3><span class="step-num">A1</span> Login and assign roles</h3>
+<pre><code><span class="comment"># Step 1: Login to Azure (opens browser)</span>
+az login
+
+<span class="comment"># Step 2: List subscriptions and pick the right one</span>
+az account list --output table
+
+<span class="comment"># Step 3: Set the active subscription</span>
+az account set --subscription "YOUR_SUBSCRIPTION_ID"
+
+<span class="comment"># Step 4: Check your current roles</span>
+az role assignment list --assignee $(az ad signed-in-user show --query id -o tsv) \
+  --output table
+
+<span class="comment"># You need AT MINIMUM these roles on the subscription:</span>
+<span class="comment"># - Contributor         (create/manage all resources)</span>
+<span class="comment"># - User Access Admin   (assign roles to managed identities)</span>
+<span class="comment"># - Key Vault Admin     (manage Key Vault secrets)</span>
+
+<span class="comment"># Step 5: If you're subscription Owner, you already have everything.</span>
+<span class="comment"># If not, ask your admin to assign:</span>
+SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+USER_ID=$(az ad signed-in-user show --query id -o tsv)
+
+az role assignment create --assignee "$USER_ID" \
+  --role "Contributor" --scope "/subscriptions/$SUBSCRIPTION_ID"
+
+az role assignment create --assignee "$USER_ID" \
+  --role "User Access Administrator" --scope "/subscriptions/$SUBSCRIPTION_ID"
+
+az role assignment create --assignee "$USER_ID" \
+  --role "Key Vault Administrator" --scope "/subscriptions/$SUBSCRIPTION_ID"
+
+<span class="comment"># Step 6: Verify</span>
+az account show --output table
+az role assignment list --assignee "$USER_ID" --output table</code></pre>
+  </div>
+
+  <h4>Option B: Service Principal (CI/CD / Teams — Recommended for Production)</h4>
+
+  <div class="step purple">
+    <h3><span class="step-num">B1</span> Create a Service Principal with required roles</h3>
+<pre><code><span class="comment"># Step 1: Create a Service Principal with Contributor role</span>
+SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+
+SP_OUTPUT=$(az ad sp create-for-rbac \
+  --name "sp-bookstore-terraform" \
+  --role "Contributor" \
+  --scopes "/subscriptions/$SUBSCRIPTION_ID" \
+  --output json)
+
+echo "$SP_OUTPUT"
+<span class="comment"># SAVE THIS OUTPUT! Contains:</span>
+<span class="comment">#   appId       → ARM_CLIENT_ID</span>
+<span class="comment">#   password    → ARM_CLIENT_SECRET (shown ONCE, never again)</span>
+<span class="comment">#   tenant      → ARM_TENANT_ID</span>
+
+<span class="comment"># Step 2: Extract values</span>
+ARM_CLIENT_ID=$(echo $SP_OUTPUT | jq -r '.appId')
+ARM_CLIENT_SECRET=$(echo $SP_OUTPUT | jq -r '.password')
+ARM_TENANT_ID=$(echo $SP_OUTPUT | jq -r '.tenant')
+
+<span class="comment"># Step 3: Assign additional required roles</span>
+<span class="comment"># User Access Administrator — needed to assign roles to AKS managed identity</span>
+az role assignment create --assignee "$ARM_CLIENT_ID" \
+  --role "User Access Administrator" \
+  --scope "/subscriptions/$SUBSCRIPTION_ID"
+
+<span class="comment"># Key Vault Administrator — needed to create Key Vault and manage secrets</span>
+az role assignment create --assignee "$ARM_CLIENT_ID" \
+  --role "Key Vault Administrator" \
+  --scope "/subscriptions/$SUBSCRIPTION_ID"
+
+<span class="comment"># Network Contributor — needed for private endpoints and VNet operations</span>
+az role assignment create --assignee "$ARM_CLIENT_ID" \
+  --role "Network Contributor" \
+  --scope "/subscriptions/$SUBSCRIPTION_ID"
+
+<span class="comment"># Step 4: Set environment variables for Terraform</span>
+export ARM_CLIENT_ID="$ARM_CLIENT_ID"
+export ARM_CLIENT_SECRET="$ARM_CLIENT_SECRET"
+export ARM_TENANT_ID="$ARM_TENANT_ID"
+export ARM_SUBSCRIPTION_ID="$SUBSCRIPTION_ID"
+
+<span class="comment"># Step 5: Verify the Service Principal can authenticate</span>
+az login --service-principal \
+  -u "$ARM_CLIENT_ID" \
+  -p "$ARM_CLIENT_SECRET" \
+  --tenant "$ARM_TENANT_ID"
+
+az account show --output table</code></pre>
+  </div>
+
+  <h4>Required Azure Roles Per Component</h4>
+
+  <table>
+    <tr><th>Component</th><th>Required Role</th><th>Scope</th><th>Why Needed</th></tr>
+    <tr><td><strong>Resource Group</strong></td><td>Contributor</td><td>Subscription</td><td>Create/delete resource groups</td></tr>
+    <tr><td><strong>VNet, Subnets, NSGs</strong></td><td>Network Contributor</td><td>Subscription</td><td>Create VNet, subnets, NSGs, NAT GW, private endpoints</td></tr>
+    <tr><td><strong>AKS Cluster</strong></td><td>Contributor</td><td>Subscription</td><td>Create AKS, node pools, managed identity</td></tr>
+    <tr><td><strong>AKS Role Assignments</strong></td><td>User Access Administrator</td><td>Subscription</td><td>Assign AcrPull, Network Contributor to AKS identity</td></tr>
+    <tr><td><strong>ACR</strong></td><td>Contributor</td><td>Subscription</td><td>Create container registry</td></tr>
+    <tr><td><strong>PostgreSQL Flexible Server</strong></td><td>Contributor</td><td>Subscription</td><td>Create DB servers, configure VNet integration</td></tr>
+    <tr><td><strong>Event Hubs</strong></td><td>Contributor</td><td>Subscription</td><td>Create namespace, event hubs, SAS policies</td></tr>
+    <tr><td><strong>Azure Cache for Redis</strong></td><td>Contributor</td><td>Subscription</td><td>Create Redis, private endpoints</td></tr>
+    <tr><td><strong>Key Vault</strong></td><td>Key Vault Administrator</td><td>Subscription</td><td>Create vault, secrets, access policies</td></tr>
+    <tr><td><strong>App Gateway</strong></td><td>Contributor + Network Contributor</td><td>Subscription</td><td>Create gateway, public IP, backend pools</td></tr>
+    <tr><td><strong>Azure DNS</strong></td><td>DNS Zone Contributor</td><td>Subscription</td><td>Create zone, A records</td></tr>
+    <tr><td><strong>Private DNS Zones</strong></td><td>Private DNS Zone Contributor</td><td>Subscription</td><td>Create private DNS for PostgreSQL, Redis</td></tr>
+    <tr><td><strong>Blob Storage (TF state)</strong></td><td>Storage Blob Data Contributor</td><td>Storage account</td><td>Read/write Terraform state file</td></tr>
+    <tr><td><strong>Monitoring</strong></td><td>Monitoring Contributor</td><td>Subscription</td><td>Create alerts, action groups</td></tr>
+  </table>
+
+  <div class="callout tip">
+    <strong>Shortcut for dev/test:</strong> If you are the <strong>subscription Owner</strong>, you already have all permissions. The table above is for organizations where you need to request specific roles from your Azure AD admin.
+  </div>
+
+  <h4>For CI/CD: Set Environment Variables in Pipeline</h4>
+
+  <div class="step amber">
+    <h3><span class="step-num">C1</span> GitHub Actions / GitLab CI / Jenkins</h3>
+<pre><code><span class="comment"># Add these as pipeline secrets (NEVER commit to git):</span>
+<span class="comment"># ARM_CLIENT_ID       = Service Principal appId</span>
+<span class="comment"># ARM_CLIENT_SECRET   = Service Principal password</span>
+<span class="comment"># ARM_TENANT_ID       = Azure AD tenant ID</span>
+<span class="comment"># ARM_SUBSCRIPTION_ID = Target subscription ID</span>
+
+<span class="comment"># Terraform reads these automatically — no az login needed</span>
+<span class="comment"># The azurerm provider detects ARM_* env vars and authenticates</span>
+
+<span class="comment"># Example GitHub Actions step:</span>
+<span class="comment"># - name: Terraform Apply</span>
+<span class="comment">#   env:</span>
+<span class="comment">#     ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}</span>
+<span class="comment">#     ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}</span>
+<span class="comment">#     ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}</span>
+<span class="comment">#     ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}</span>
+<span class="comment">#   run: terraform apply -auto-approve</span></code></pre>
+  </div>
+
+  <div class="callout warn">
+    <strong>Security best practices for Azure identity:</strong>
+    <ul style="margin-top:8px;">
+      <li><strong>Never use your personal account</strong> for CI/CD — always create a Service Principal</li>
+      <li><strong>Rotate client secrets</strong> every 90 days: <code>az ad sp credential reset</code></li>
+      <li><strong>Use federated credentials</strong> for GitHub Actions (no secrets needed): <code>az ad app federated-credential create</code></li>
+      <li><strong>Scope roles</strong> to resource group level in production (not subscription)</li>
+      <li><strong>Enable audit logging</strong>: Azure Activity Log tracks all ARM operations</li>
+      <li><strong>Use Managed Identity</strong> instead of SP when Terraform runs inside Azure (e.g., Azure DevOps hosted agents)</li>
+    </ul>
+  </div>
+
+  <div class="callout info">
+    <strong>Verify your permissions work:</strong>
+<pre style="margin:8px 0 0;"><code>az group list --output table                     <span class="comment"># List resource groups</span>
+az aks list --output table                        <span class="comment"># Should return [] or list</span>
+az postgres flexible-server list --output table   <span class="comment"># Should return []</span>
+az account show --output table                    <span class="comment"># Must show your subscription</span></code></pre>
+    If any command returns <code>AuthorizationFailed</code>, you're missing that role assignment.
+  </div>
+
+  <h3>Register Required Resource Providers</h3>
+<pre><code><span class="comment"># These providers must be registered in your subscription</span>
+az provider register --namespace Microsoft.ContainerService
+az provider register --namespace Microsoft.DBforPostgreSQL
+az provider register --namespace Microsoft.EventHub
+az provider register --namespace Microsoft.Cache
+az provider register --namespace Microsoft.KeyVault
+az provider register --namespace Microsoft.Network
+az provider register --namespace Microsoft.ContainerRegistry
+az provider register --namespace Microsoft.OperationalInsights
+
+<span class="comment"># Verify all are registered</span>
+az provider list --query "[?namespace=='Microsoft.ContainerService'].registrationState" -o tsv</code></pre>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="project-structure">3. Terraform Project Structure</h2>
+
+  <div class="file-tree">
+    <span class="dir">terraform/azure/</span><br>
+    &nbsp;&nbsp;<span class="file">00-backend.tf</span> <span class="desc">&mdash; Azure Blob state backend with locking</span><br>
+    &nbsp;&nbsp;<span class="file">01-versions.tf</span> <span class="desc">&mdash; Provider versions (azurerm, kubernetes, helm)</span><br>
+    &nbsp;&nbsp;<span class="file">02-variables.tf</span> <span class="desc">&mdash; All input variables with defaults</span><br>
+    &nbsp;&nbsp;<span class="file">03-resource-group.tf</span> <span class="desc">&mdash; Resource group with cost/env tags</span><br>
+    &nbsp;&nbsp;<span class="file">04-vnet.tf</span> <span class="desc">&mdash; VNet, subnets, NSGs, service endpoints</span><br>
+    &nbsp;&nbsp;<span class="file">05-aks.tf</span> <span class="desc">&mdash; AKS cluster + system/app node pools</span><br>
+    &nbsp;&nbsp;<span class="file">06-acr.tf</span> <span class="desc">&mdash; Container Registry + AKS pull role</span><br>
+    &nbsp;&nbsp;<span class="file">07-postgresql.tf</span> <span class="desc">&mdash; 4 PostgreSQL Flexible Server instances</span><br>
+    &nbsp;&nbsp;<span class="file">08-eventhubs.tf</span> <span class="desc">&mdash; Event Hubs namespace (Kafka protocol)</span><br>
+    &nbsp;&nbsp;<span class="file">09-redis.tf</span> <span class="desc">&mdash; Azure Cache for Redis + private endpoint</span><br>
+    &nbsp;&nbsp;<span class="file">10-keyvault.tf</span> <span class="desc">&mdash; Key Vault with secrets for all services</span><br>
+    &nbsp;&nbsp;<span class="file">11-dns.tf</span> <span class="desc">&mdash; Azure DNS zone + Application Gateway</span><br>
+    &nbsp;&nbsp;<span class="file">12-outputs.tf</span> <span class="desc">&mdash; Connection strings, FQDNs, kubeconfig</span><br>
+    &nbsp;&nbsp;<span class="file">13-k8s-resources.tf</span> <span class="desc">&mdash; Istio, cert-manager, namespaces, app deploys</span><br>
+    &nbsp;&nbsp;<span class="file">terraform.tfvars.example</span> <span class="desc">&mdash; Example variable values</span><br>
+    &nbsp;&nbsp;<span class="file">destroy.sh</span> <span class="desc">&mdash; Clean teardown script</span>
+  </div>
+
+  <div class="callout tip">
+    <strong>Tip:</strong> Files are numbered <code>00-</code> through <code>13-</code> to indicate logical ordering. Terraform processes all <code>.tf</code> files in a directory together regardless of filename, but the numbering helps human readers follow the dependency chain.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="backend">4. Step 1 &mdash; State Backend (00-backend.tf)</h2>
+
+  <p>Before running <code>terraform init</code>, you need a storage account for remote state. This ensures state is shared across team members and locked during applies.</p>
+
+  <div class="step blue">
+    <h3><span class="step-num">1</span> Create the state backend (one-time setup)</h3>
+<pre><code><span class="comment"># Run these Azure CLI commands BEFORE terraform init</span>
+<span class="comment"># They create the storage account that Terraform will use for state</span>
+
+<span class="comment"># Variables</span>
+RESOURCE_GROUP="bookstore-tfstate-rg"
+STORAGE_ACCOUNT="bookstoretfstate$RANDOM"
+CONTAINER_NAME="tfstate"
+LOCATION="eastus"
+
+<span class="comment"># Create resource group for state</span>
+az group create --name $RESOURCE_GROUP --location $LOCATION
+
+<span class="comment"># Create storage account (must be globally unique)</span>
+az storage account create \
+  --name $STORAGE_ACCOUNT \
+  --resource-group $RESOURCE_GROUP \
+  --location $LOCATION \
+  --sku Standard_LRS \
+  --encryption-services blob \
+  --min-tls-version TLS1_2
+
+<span class="comment"># Create blob container</span>
+az storage container create \
+  --name $CONTAINER_NAME \
+  --account-name $STORAGE_ACCOUNT
+
+<span class="comment"># Print the values to use in 00-backend.tf</span>
+echo "Storage Account: $STORAGE_ACCOUNT"
+echo "Resource Group:  $RESOURCE_GROUP"</code></pre>
+  </div>
+
+  <h3>00-backend.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 00-backend.tf — Azure Blob Storage remote state backend</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Terraform state is stored in Azure Blob Storage with</span>
+<span class="comment"># native state locking via blob leases. This prevents</span>
+<span class="comment"># concurrent applies from corrupting state.</span>
+<span class="comment">#</span>
+<span class="comment"># IMPORTANT: The storage account must exist BEFORE running</span>
+<span class="comment"># `terraform init`. Create it with the Azure CLI commands above.</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+
+terraform {
+  backend "azurerm" {
+    <span class="comment"># Resource group containing the storage account</span>
+    resource_group_name = "bookstore-tfstate-rg"
+
+    <span class="comment"># Storage account name (must match what you created)</span>
+    storage_account_name = "bookstoretfstate"
+
+    <span class="comment"># Blob container for state files</span>
+    container_name = "tfstate"
+
+    <span class="comment"># State file name — unique per environment</span>
+    key = "bookstore.terraform.tfstate"
+
+    <span class="comment"># Use Azure CLI auth (inherits `az login` session)</span>
+    use_azuread_auth = true
+  }
+}</code></pre>
+
+  <div class="callout warn">
+    <strong>Update the storage account name:</strong> Replace <code>bookstoretfstate</code> with the actual name printed by the setup script. Azure storage account names must be globally unique and 3-24 characters (lowercase letters and numbers only).
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="versions">5. Step 2 &mdash; Provider Versions (01-versions.tf)</h2>
+
+  <h3>01-versions.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 01-versions.tf — Provider version constraints</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Pin provider versions to avoid breaking changes.</span>
+<span class="comment"># The azurerm provider v4.x is a major upgrade with</span>
+<span class="comment"># breaking changes from v3.x — do not downgrade.</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+
+terraform {
+  required_version = "&gt;= 1.7.0"
+
+  required_providers {
+    <span class="comment"># Azure Resource Manager — manages all Azure resources</span>
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~&gt; 4.0"
+    }
+
+    <span class="comment"># Kubernetes — deploys K8s resources into AKS</span>
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~&gt; 2.35"
+    }
+
+    <span class="comment"># Helm — installs charts (Istio, cert-manager, etc.)</span>
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~&gt; 2.17"
+    }
+
+    <span class="comment"># Random — generates unique suffixes and passwords</span>
+    random = {
+      source  = "hashicorp/random"
+      version = "~&gt; 3.6"
+    }
+  }
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Azure provider configuration</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># features {} block is required by azurerm v4.x even if empty.</span>
+<span class="comment"># resource_group.prevent_deletion_if_contains_resources</span>
+<span class="comment"># prevents accidental deletion of non-empty resource groups.</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+provider "azurerm" {
+  features {
+    resource_group {
+      prevent_deletion_if_contains_resources = false
+    }
+
+    key_vault {
+      <span class="comment"># Purge soft-deleted Key Vaults on destroy</span>
+      purge_soft_delete_on_destroy    = true
+      recover_soft_deleted_key_vaults = true
+    }
+  }
+
+  subscription_id = var.subscription_id
+}</code></pre>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="variables">6. Step 3 &mdash; Input Variables (02-variables.tf)</h2>
+
+  <h3>02-variables.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 02-variables.tf — Input variables for the entire deployment</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Override defaults via terraform.tfvars or -var flags.</span>
+<span class="comment"># Sensitive values should come from environment variables:</span>
+<span class="comment">#   export TF_VAR_db_admin_password="your-password"</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># ── Azure Subscription ──</span>
+
+variable "subscription_id" {
+  description = "Azure subscription ID"
+  type        = string
+}
+
+<span class="comment"># ── General ──</span>
+
+variable "project" {
+  description = "Project name used as prefix for all resources"
+  type        = string
+  default     = "bookstore"
+}
+
+variable "environment" {
+  description = "Deployment environment (dev, staging, prod)"
+  type        = string
+  default     = "dev"
+
+  validation {
+    condition     = contains(["dev", "staging", "prod"], var.environment)
+    error_message = "Environment must be one of: dev, staging, prod."
+  }
+}
+
+variable "location" {
+  description = "Azure region for all resources"
+  type        = string
+  default     = "eastus"
+}
+
+variable "resource_group_name" {
+  description = "Name of the resource group"
+  type        = string
+  default     = "bookstore-rg"
+}
+
+<span class="comment"># ── Networking ──</span>
+
+variable "vnet_address_space" {
+  description = "Address space for the Virtual Network"
+  type        = list(string)
+  default     = ["10.0.0.0/16"]
+}
+
+variable "aks_subnet_cidr" {
+  description = "CIDR for AKS subnet (/22 for Azure CNI pod IPs)"
+  type        = string
+  default     = "10.0.0.0/22"
+}
+
+variable "db_subnet_cidr" {
+  description = "CIDR for PostgreSQL delegated subnet"
+  type        = string
+  default     = "10.0.10.0/24"
+}
+
+variable "redis_subnet_cidr" {
+  description = "CIDR for Redis private endpoint subnet"
+  type        = string
+  default     = "10.0.20.0/24"
+}
+
+variable "appgw_subnet_cidr" {
+  description = "CIDR for Application Gateway subnet"
+  type        = string
+  default     = "10.0.30.0/24"
+}
+
+<span class="comment"># ── AKS ──</span>
+
+variable "kubernetes_version" {
+  description = "Kubernetes version for AKS"
+  type        = string
+  default     = "1.31"
+}
+
+variable "system_node_vm_size" {
+  description = "VM size for system node pool"
+  type        = string
+  default     = "Standard_D2s_v3"
+}
+
+variable "system_node_count" {
+  description = "Number of nodes in system pool"
+  type        = number
+  default     = 2
+}
+
+variable "app_node_vm_size" {
+  description = "VM size for application node pool"
+  type        = string
+  default     = "Standard_D4s_v3"
+}
+
+variable "app_node_min_count" {
+  description = "Minimum nodes in app pool (autoscaler)"
+  type        = number
+  default     = 2
+}
+
+variable "app_node_max_count" {
+  description = "Maximum nodes in app pool (autoscaler)"
+  type        = number
+  default     = 5
+}
+
+<span class="comment"># ── Databases ──</span>
+
+variable "db_admin_username" {
+  description = "PostgreSQL administrator username"
+  type        = string
+  default     = "pgadmin"
+}
+
+variable "db_admin_password" {
+  description = "PostgreSQL administrator password (same for all 4 instances in dev)"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_sku_name" {
+  description = "PostgreSQL SKU (B_Standard_B1ms for dev, GP_Standard_D2s_v3 for prod)"
+  type        = string
+  default     = "B_Standard_B1ms"
+}
+
+variable "db_storage_mb" {
+  description = "PostgreSQL storage size in MB"
+  type        = number
+  default     = 32768
+}
+
+variable "db_postgresql_version" {
+  description = "PostgreSQL major version"
+  type        = string
+  default     = "16"
+}
+
+<span class="comment"># ── Event Hubs ──</span>
+
+variable "eventhubs_sku" {
+  description = "Event Hubs tier (Standard or Premium)"
+  type        = string
+  default     = "Standard"
+}
+
+variable "eventhubs_capacity" {
+  description = "Throughput units for Event Hubs"
+  type        = number
+  default     = 2
+}
+
+variable "eventhubs_auto_inflate_max" {
+  description = "Maximum throughput units for auto-inflate (0 to disable)"
+  type        = number
+  default     = 5
+}
+
+<span class="comment"># ── Redis ──</span>
+
+variable "redis_sku_name" {
+  description = "Redis SKU (Basic for dev, Standard for prod)"
+  type        = string
+  default     = "Basic"
+}
+
+variable "redis_family" {
+  description = "Redis family (C for Basic/Standard, P for Premium)"
+  type        = string
+  default     = "C"
+}
+
+variable "redis_capacity" {
+  description = "Redis cache size (0 = 250MB, 1 = 1GB, 2 = 2.5GB)"
+  type        = number
+  default     = 0
+}
+
+<span class="comment"># ── DNS / Domain ──</span>
+
+variable "domain_name" {
+  description = "Base domain name for the application"
+  type        = string
+  default     = "bookstore.example.com"
+}
+
+variable "enable_waf" {
+  description = "Enable WAF v2 on Application Gateway (adds cost)"
+  type        = bool
+  default     = false
+}
+
+<span class="comment"># ── ACR ──</span>
+
+variable "acr_sku" {
+  description = "ACR SKU (Standard for dev, Premium for prod geo-replication)"
+  type        = string
+  default     = "Standard"
+}
+
+<span class="comment"># ── Tags ──</span>
+
+variable "tags" {
+  description = "Common tags applied to all resources"
+  type        = map(string)
+  default     = {}
+}</code></pre>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="rg">7. Step 4 &mdash; Resource Group (03-resource-group.tf)</h2>
+
+  <h3>03-resource-group.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 03-resource-group.tf — Resource group for all resources</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># All BookStore resources live in a single resource group.</span>
+<span class="comment"># This simplifies cost tracking and teardown.</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># Common tags merged with user-provided tags</span>
+locals {
+  common_tags = merge({
+    project     = var.project
+    environment = var.environment
+    managed_by  = "terraform"
+    created_at  = timestamp()
+  }, var.tags)
+
+  <span class="comment"># Resource name prefix: "bookstore-dev" or "bookstore-prod"</span>
+  name_prefix = "${var.project}-${var.environment}"
+}
+
+resource "azurerm_resource_group" "main" {
+  name     = var.resource_group_name
+  location = var.location
+  tags     = local.common_tags
+}</code></pre>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="vnet">8. Step 5 &mdash; Virtual Network (04-vnet.tf)</h2>
+
+  <p>The VNet provides network isolation for all Azure resources. Each service type gets its own subnet with appropriate NSG rules and service delegations.</p>
+
+  <h3>Subnet Layout</h3>
+  <table>
+    <tr><th>Subnet</th><th>CIDR</th><th>Purpose</th></tr>
+    <tr><td>aks-subnet</td><td>10.0.0.0/22</td><td>AKS nodes + pod IPs (Azure CNI needs large range)</td></tr>
+    <tr><td>db-subnet</td><td>10.0.10.0/24</td><td>PostgreSQL Flexible Server (service delegation)</td></tr>
+    <tr><td>redis-subnet</td><td>10.0.20.0/24</td><td>Redis private endpoint</td></tr>
+    <tr><td>appgw-subnet</td><td>10.0.30.0/24</td><td>Application Gateway v2</td></tr>
+  </table>
+
+  <h3>04-vnet.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 04-vnet.tf — Virtual Network, subnets, and NSGs</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Network architecture:</span>
+<span class="comment">#   10.0.0.0/16   — VNet address space</span>
+<span class="comment">#   10.0.0.0/22   — AKS (1022 usable IPs for nodes + pods)</span>
+<span class="comment">#   10.0.10.0/24  — PostgreSQL (delegated to Microsoft.DBforPostgreSQL)</span>
+<span class="comment">#   10.0.20.0/24  — Redis private endpoints</span>
+<span class="comment">#   10.0.30.0/24  — Application Gateway</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+
+resource "azurerm_virtual_network" "main" {
+  name                = "${local.name_prefix}-vnet"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  address_space       = var.vnet_address_space
+  tags                = local.common_tags
+}
+
+<span class="comment"># ── AKS Subnet ──</span>
+<span class="comment"># /22 gives 1022 usable IPs. Azure CNI assigns a VNet IP to</span>
+<span class="comment"># every pod, so a /24 (254 IPs) would be exhausted quickly.</span>
+<span class="comment"># Service endpoints allow AKS pods to reach Event Hubs and</span>
+<span class="comment"># Storage without going through the public internet.</span>
+
+resource "azurerm_subnet" "aks" {
+  name                 = "${local.name_prefix}-aks-subnet"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.aks_subnet_cidr]
+
+  service_endpoints = [
+    "Microsoft.Sql",
+    "Microsoft.Storage",
+    "Microsoft.EventHub",
+    "Microsoft.KeyVault",
+  ]
+}
+
+<span class="comment"># ── Database Subnet ──</span>
+<span class="comment"># PostgreSQL Flexible Server requires a dedicated subnet with</span>
+<span class="comment"># service delegation. No other resources can share this subnet.</span>
+
+resource "azurerm_subnet" "database" {
+  name                 = "${local.name_prefix}-db-subnet"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.db_subnet_cidr]
+
+  delegation {
+    name = "postgresql-delegation"
+
+    service_delegation {
+      name = "Microsoft.DBforPostgreSQL/flexibleServers"
+      actions = [
+        "Microsoft.Network/virtualNetworks/subnets/join/action",
+      ]
+    }
+  }
+
+  service_endpoints = [
+    "Microsoft.Storage",
+  ]
+}
+
+<span class="comment"># ── Redis Subnet ──</span>
+<span class="comment"># Used for Redis private endpoint. Private endpoints ensure</span>
+<span class="comment"># Redis traffic stays within the VNet (no public exposure).</span>
+
+resource "azurerm_subnet" "redis" {
+  name                 = "${local.name_prefix}-redis-subnet"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.redis_subnet_cidr]
+}
+
+<span class="comment"># ── Application Gateway Subnet ──</span>
+<span class="comment"># App Gateway v2 requires its own dedicated subnet.</span>
+<span class="comment"># Must not contain any other resources.</span>
+
+resource "azurerm_subnet" "appgw" {
+  name                 = "${local.name_prefix}-appgw-subnet"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.appgw_subnet_cidr]
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Network Security Groups (NSGs)</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># ── AKS NSG ──</span>
+<span class="comment"># AKS manages its own NSG rules for node communication.</span>
+<span class="comment"># We add explicit rules for known traffic patterns.</span>
+
+resource "azurerm_network_security_group" "aks" {
+  name                = "${local.name_prefix}-aks-nsg"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.common_tags
+
+  <span class="comment"># Allow inbound from Application Gateway to AKS</span>
+  security_rule {
+    name                       = "AllowAppGateway"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "80-443"
+    source_address_prefix      = var.appgw_subnet_cidr
+    destination_address_prefix = var.aks_subnet_cidr
+  }
+
+  <span class="comment"># Allow inbound from AKS to AKS (inter-node)</span>
+  security_rule {
+    name                       = "AllowAKSInternal"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = var.aks_subnet_cidr
+    destination_address_prefix = var.aks_subnet_cidr
+  }
+
+  <span class="comment"># Allow outbound to PostgreSQL subnet</span>
+  security_rule {
+    name                       = "AllowOutboundPostgreSQL"
+    priority                   = 100
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5432"
+    source_address_prefix      = var.aks_subnet_cidr
+    destination_address_prefix = var.db_subnet_cidr
+  }
+
+  <span class="comment"># Allow outbound to Redis subnet</span>
+  security_rule {
+    name                       = "AllowOutboundRedis"
+    priority                   = 110
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "6380"
+    source_address_prefix      = var.aks_subnet_cidr
+    destination_address_prefix = var.redis_subnet_cidr
+  }
+}
+
+resource "azurerm_subnet_network_security_group_association" "aks" {
+  subnet_id                 = azurerm_subnet.aks.id
+  network_security_group_id = azurerm_network_security_group.aks.id
+}
+
+<span class="comment"># ── Database NSG ──</span>
+
+resource "azurerm_network_security_group" "database" {
+  name                = "${local.name_prefix}-db-nsg"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.common_tags
+
+  <span class="comment"># Allow PostgreSQL from AKS subnet only</span>
+  security_rule {
+    name                       = "AllowPostgreSQLFromAKS"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5432"
+    source_address_prefix      = var.aks_subnet_cidr
+    destination_address_prefix = var.db_subnet_cidr
+  }
+
+  <span class="comment"># Deny all other inbound</span>
+  security_rule {
+    name                       = "DenyAllInbound"
+    priority                   = 4096
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}
+
+resource "azurerm_subnet_network_security_group_association" "database" {
+  subnet_id                 = azurerm_subnet.database.id
+  network_security_group_id = azurerm_network_security_group.database.id
+}
+
+<span class="comment"># ── Application Gateway NSG ──</span>
+
+resource "azurerm_network_security_group" "appgw" {
+  name                = "${local.name_prefix}-appgw-nsg"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.common_tags
+
+  <span class="comment"># Allow HTTPS from internet</span>
+  security_rule {
+    name                       = "AllowHTTPS"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "Internet"
+    destination_address_prefix = "*"
+  }
+
+  <span class="comment"># Allow HTTP (for redirect to HTTPS)</span>
+  security_rule {
+    name                       = "AllowHTTP"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "80"
+    source_address_prefix      = "Internet"
+    destination_address_prefix = "*"
+  }
+
+  <span class="comment"># Required: Azure Gateway Manager health probes</span>
+  security_rule {
+    name                       = "AllowGatewayManager"
+    priority                   = 120
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "65200-65535"
+    source_address_prefix      = "GatewayManager"
+    destination_address_prefix = "*"
+  }
+}
+
+resource "azurerm_subnet_network_security_group_association" "appgw" {
+  subnet_id                 = azurerm_subnet.appgw.id
+  network_security_group_id = azurerm_network_security_group.appgw.id
+}
+
+<span class="comment"># ── Private DNS Zone for PostgreSQL ──</span>
+<span class="comment"># PostgreSQL Flexible Server with VNet integration requires</span>
+<span class="comment"># a private DNS zone linked to the VNet.</span>
+
+resource "azurerm_private_dns_zone" "postgresql" {
+  name                = "${local.name_prefix}.postgres.database.azure.com"
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.common_tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "postgresql" {
+  name                  = "${local.name_prefix}-pg-dns-link"
+  private_dns_zone_name = azurerm_private_dns_zone.postgresql.name
+  resource_group_name   = azurerm_resource_group.main.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+  registration_enabled  = false
+}</code></pre>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="aks">9. Step 6 &mdash; AKS Cluster (05-aks.tf)</h2>
+
+  <div class="callout info">
+    <strong>Where does the AKS control plane (master) live?</strong><br>
+    The AKS control plane (API Server, etcd, Scheduler, Controller Manager) runs in <strong>Azure-managed infrastructure outside your VNet and resource group</strong>. You cannot see, access, or configure the underlying VMs &mdash; Azure manages everything. With the <strong>Standard tier</strong>, the control plane is zone-redundant (distributed across Availability Zones) and backed by a <strong>99.95% SLA</strong>. The <strong>Premium tier</strong> provides 99.99% SLA.<br><br>
+    Your <code>05-aks.tf</code> only defines worker node pools. The control plane connects to your AKS subnet via an <strong>Azure-managed tunnel</strong> (or <strong>private link</strong> with <code>private_cluster_enabled = true</code>). kubectl traffic stays within the VNet when private cluster mode is enabled.<br><br>
+    <strong>OIDC Issuer:</strong> When <code>oidc_issuer_enabled = true</code>, AKS creates an OIDC identity provider for <strong>Workload Identity</strong>, allowing pods to authenticate to Azure services (Key Vault, Blob Storage, PostgreSQL) without static credentials &mdash; similar to AWS IRSA.<br>
+    <strong>Free vs Standard vs Premium:</strong> Free tier has no SLA and a shared control plane. Standard tier ($0.10/hr) adds SLA, zone-redundancy, and uptime guarantee. Premium tier adds long-term support and advanced features.
+  </div>
+
+  <h3>05-aks.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 05-aks.tf — Azure Kubernetes Service cluster</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Two node pools:</span>
+<span class="comment">#   - system: runs kube-system, istio, cert-manager (tainted)</span>
+<span class="comment">#   - app:    runs application workloads (auto-scaling)</span>
+<span class="comment">#</span>
+<span class="comment"># Azure CNI networking gives every pod a VNet IP, enabling</span>
+<span class="comment"># direct communication with PostgreSQL and Redis in the VNet.</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># Log Analytics workspace for Container Insights</span>
+resource "azurerm_log_analytics_workspace" "aks" {
+  name                = "${local.name_prefix}-logs"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+  tags                = local.common_tags
+}
+
+resource "azurerm_kubernetes_cluster" "main" {
+  name                = "${local.name_prefix}-aks"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  dns_prefix          = "${local.name_prefix}-aks"
+  kubernetes_version  = var.kubernetes_version
+  tags                = local.common_tags
+
+  <span class="comment"># ── System Node Pool (default) ──</span>
+  <span class="comment"># Runs cluster-critical workloads: kube-system, Istio,</span>
+  <span class="comment"># cert-manager, External Secrets Operator.</span>
+  default_node_pool {
+    name                = "system"
+    vm_size             = var.system_node_vm_size
+    node_count          = var.system_node_count
+    vnet_subnet_id      = azurerm_subnet.aks.id
+    os_disk_size_gb     = 128
+    os_disk_type        = "Managed"
+    type                = "VirtualMachineScaleSets"
+    max_pods            = 50
+
+    <span class="comment"># Taint system pool so app workloads land on app pool</span>
+    node_labels = {
+      "nodepool-type" = "system"
+    }
+
+    upgrade_settings {
+      max_surge                     = "10%"
+      drain_timeout_in_minutes      = 0
+      node_soak_duration_in_minutes = 0
+    }
+  }
+
+  <span class="comment"># ── Identity ──</span>
+  <span class="comment"># SystemAssigned managed identity eliminates the need for</span>
+  <span class="comment"># service principal credentials. Azure auto-manages rotation.</span>
+  identity {
+    type = "SystemAssigned"
+  }
+
+  <span class="comment"># ── Network Profile ──</span>
+  <span class="comment"># Azure CNI: every pod gets a VNet IP from the AKS subnet.</span>
+  <span class="comment"># Calico network policy: enforces K8s NetworkPolicy resources.</span>
+  network_profile {
+    network_plugin    = "azure"
+    network_policy    = "calico"
+    service_cidr      = "10.1.0.0/16"
+    dns_service_ip    = "10.1.0.10"
+    load_balancer_sku = "standard"
+  }
+
+  <span class="comment"># ── OIDC Issuer (for Workload Identity) ──</span>
+  <span class="comment"># Enables pods to authenticate to Azure services using</span>
+  <span class="comment"># Kubernetes ServiceAccount tokens (no passwords needed).</span>
+  oidc_issuer_enabled       = true
+  workload_identity_enabled = true
+
+  <span class="comment"># ── Monitoring ──</span>
+  oms_agent {
+    log_analytics_workspace_id = azurerm_log_analytics_workspace.aks.id
+  }
+
+  <span class="comment"># ── Azure Policy ──</span>
+  <span class="comment"># Enforces Kubernetes best practices (e.g., no privileged</span>
+  <span class="comment"># containers, resource limits required).</span>
+  azure_policy_enabled = true
+
+  <span class="comment"># ── Auto-scaler Profile ──</span>
+  auto_scaler_profile {
+    balance_similar_node_groups = true
+    max_graceful_termination_sec = "600"
+    scale_down_delay_after_add   = "10m"
+    scale_down_unneeded          = "10m"
+    scan_interval                = "10s"
+  }
+}
+
+<span class="comment"># ── Application Node Pool ──</span>
+<span class="comment"># Separate pool for app workloads with auto-scaling.</span>
+<span class="comment"># Uses larger VMs (D4s_v3 = 4 vCPU, 16 GB RAM).</span>
+
+resource "azurerm_kubernetes_cluster_node_pool" "app" {
+  name                  = "app"
+  kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
+  vm_size               = var.app_node_vm_size
+  min_count             = var.app_node_min_count
+  max_count             = var.app_node_max_count
+  auto_scaling_enabled  = true
+  os_disk_size_gb       = 128
+  os_disk_type          = "Managed"
+  vnet_subnet_id        = azurerm_subnet.aks.id
+  max_pods              = 50
+  tags                  = local.common_tags
+
+  node_labels = {
+    "nodepool-type" = "app"
+  }
+
+  <span class="comment"># Tolerate app workload scheduling</span>
+  node_taints = []
+
+  upgrade_settings {
+    max_surge                     = "10%"
+    drain_timeout_in_minutes      = 0
+    node_soak_duration_in_minutes = 0
+  }
+}
+
+<span class="comment"># ── Role Assignments ──</span>
+<span class="comment"># Grant AKS identity Network Contributor on the VNet</span>
+<span class="comment"># (required for Azure CNI to assign pod IPs).</span>
+
+resource "azurerm_role_assignment" "aks_network" {
+  scope                = azurerm_virtual_network.main.id
+  role_definition_name = "Network Contributor"
+  principal_id         = azurerm_kubernetes_cluster.main.identity[0].principal_id
+}</code></pre>
+
+  <div class="callout info">
+    <strong>Node pool sizing:</strong> For dev, you can reduce costs by using <code>Standard_D2s_v3</code> for both pools and setting <code>app_node_min_count = 1</code>. For production, the defaults (D4s_v3, 2-5 nodes) handle real traffic with headroom for rolling updates.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="acr">10. Step 7 &mdash; Container Registry (06-acr.tf)</h2>
+
+  <h3>06-acr.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 06-acr.tf — Azure Container Registry</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Stores Docker images for all microservices.</span>
+<span class="comment"># AKS authenticates via AcrPull role assignment (no docker</span>
+<span class="comment"># login credentials needed on the cluster).</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># Random suffix to ensure globally unique ACR name</span>
+<span class="comment"># (ACR names must be alphanumeric, 5-50 chars)</span>
+resource "random_string" "acr_suffix" {
+  length  = 6
+  special = false
+  upper   = false
+  numeric = true
+}
+
+resource "azurerm_container_registry" "main" {
+  name                = "${var.project}acr${random_string.acr_suffix.result}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  sku                 = var.acr_sku
+  admin_enabled       = true
+  tags                = local.common_tags
+
+  <span class="comment"># Premium-only features (uncomment for prod)</span>
+  <span class="comment"># georeplications {</span>
+  <span class="comment">#   location = "westus"</span>
+  <span class="comment">#   tags     = local.common_tags</span>
+  <span class="comment"># }</span>
+}
+
+<span class="comment"># Grant AKS the ability to pull images from ACR</span>
+<span class="comment"># This uses the kubelet identity (not the cluster identity)</span>
+resource "azurerm_role_assignment" "aks_acr_pull" {
+  scope                = azurerm_container_registry.main.id
+  role_definition_name = "AcrPull"
+  principal_id         = azurerm_kubernetes_cluster.main.kubelet_identity[0].object_id
+}</code></pre>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="postgresql">11. Step 8 &mdash; PostgreSQL Flexible Server (07-postgresql.tf)</h2>
+
+  <p>Four isolated PostgreSQL instances, one per service boundary. Each uses VNet integration (private DNS) so traffic never leaves the VNet.</p>
+
+  <h3>07-postgresql.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 07-postgresql.tf — 4 Azure Database for PostgreSQL Flexible</span>
+<span class="comment"># Server instances (ecom, inventory, analytics, keycloak)</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Each service gets its own isolated DB server. No cross-service</span>
+<span class="comment"># database access is permitted (enforced by credentials).</span>
+<span class="comment">#</span>
+<span class="comment"># VNet integration: servers are accessible only from within</span>
+<span class="comment"># the VNet via private DNS zone. No public endpoint.</span>
+<span class="comment">#</span>
+<span class="comment"># wal_level = logical: required for Debezium CDC to capture</span>
+<span class="comment"># row-level changes from the ecom and inventory databases.</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># Database definitions — name, database, and user for each service</span>
+locals {
+  databases = {
+    ecom = {
+      name     = "${local.name_prefix}-ecom-db"
+      database = "ecom"
+      user     = "ecom"
+    }
+    inventory = {
+      name     = "${local.name_prefix}-inventory-db"
+      database = "inventory"
+      user     = "inventory"
+    }
+    analytics = {
+      name     = "${local.name_prefix}-analytics-db"
+      database = "analytics"
+      user     = "analytics"
+    }
+    keycloak = {
+      name     = "${local.name_prefix}-keycloak-db"
+      database = "keycloak"
+      user     = "keycloak"
+    }
+  }
+}
+
+<span class="comment"># Generate a unique password for each database instance</span>
+resource "random_password" "db_passwords" {
+  for_each = local.databases
+
+  length           = 32
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+  min_lower        = 4
+  min_upper        = 4
+  min_numeric      = 4
+  min_special      = 2
+}
+
+<span class="comment"># ── PostgreSQL Flexible Server instances ──</span>
+
+resource "azurerm_postgresql_flexible_server" "databases" {
+  for_each = local.databases
+
+  name                          = each.value.name
+  resource_group_name           = azurerm_resource_group.main.name
+  location                      = azurerm_resource_group.main.location
+  version                       = var.db_postgresql_version
+  administrator_login           = var.db_admin_username
+  administrator_password        = random_password.db_passwords[each.key].result
+  storage_mb                    = var.db_storage_mb
+  sku_name                      = var.db_sku_name
+  zone                          = "1"
+  tags                          = local.common_tags
+
+  <span class="comment"># VNet integration — private access only</span>
+  delegated_subnet_id = azurerm_subnet.database.id
+  private_dns_zone_id = azurerm_private_dns_zone.postgresql.id
+
+  <span class="comment"># Backup configuration</span>
+  backup_retention_days        = 7
+  geo_redundant_backup_enabled = var.environment == "prod" ? true : false
+
+  <span class="comment"># High availability (prod only — doubles cost)</span>
+  dynamic "high_availability" {
+    for_each = var.environment == "prod" ? [1] : []
+    content {
+      mode                      = "ZoneRedundant"
+      standby_availability_zone = "2"
+    }
+  }
+
+  depends_on = [
+    azurerm_private_dns_zone_virtual_network_link.postgresql,
+  ]
+}
+
+<span class="comment"># ── Databases ──</span>
+<span class="comment"># Create the application database on each server</span>
+
+resource "azurerm_postgresql_flexible_server_database" "databases" {
+  for_each = local.databases
+
+  name      = each.value.database
+  server_id = azurerm_postgresql_flexible_server.databases[each.key].id
+  charset   = "UTF8"
+  collation = "en_US.utf8"
+}
+
+<span class="comment"># ── Server Parameters ──</span>
+<span class="comment"># wal_level = logical: enables logical replication slots for</span>
+<span class="comment"># Debezium CDC. Required on ecom and inventory; set on all</span>
+<span class="comment"># for consistency.</span>
+
+resource "azurerm_postgresql_flexible_server_configuration" "wal_level" {
+  for_each = local.databases
+
+  name      = "wal_level"
+  server_id = azurerm_postgresql_flexible_server.databases[each.key].id
+  value     = "logical"
+}
+
+<span class="comment"># max_replication_slots: Debezium creates one slot per connector.</span>
+<span class="comment"># Default (10) is sufficient but we set it explicitly.</span>
+
+resource "azurerm_postgresql_flexible_server_configuration" "max_replication_slots" {
+  for_each = local.databases
+
+  name      = "max_replication_slots"
+  server_id = azurerm_postgresql_flexible_server.databases[each.key].id
+  value     = "10"
+}
+
+<span class="comment"># max_wal_senders: number of concurrent WAL streaming connections.</span>
+
+resource "azurerm_postgresql_flexible_server_configuration" "max_wal_senders" {
+  for_each = local.databases
+
+  name      = "max_wal_senders"
+  server_id = azurerm_postgresql_flexible_server.databases[each.key].id
+  value     = "10"
+}
+
+<span class="comment"># ── Firewall rule: Allow Azure services ──</span>
+<span class="comment"># Allows Azure-internal traffic (e.g., from AKS via VNet).</span>
+<span class="comment"># Note: With VNet integration, this is optional but adds</span>
+<span class="comment"># defense in depth for Azure-to-Azure communication.</span>
+
+resource "azurerm_postgresql_flexible_server_firewall_rule" "allow_azure" {
+  for_each = local.databases
+
+  name             = "AllowAzureServices"
+  server_id        = azurerm_postgresql_flexible_server.databases[each.key].id
+  start_ip_address = "0.0.0.0"
+  end_ip_address   = "0.0.0.0"
+}</code></pre>
+
+  <div class="callout warn">
+    <strong>Burstable vs General Purpose:</strong> The default <code>B_Standard_B1ms</code> (1 vCore, 2 GB RAM, ~$15/mo) is sufficient for development. For production, switch to <code>GP_Standard_D2s_v3</code> (2 vCores, 8 GB RAM, ~$125/mo) with zone-redundant HA enabled.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="eventhubs">12. Step 9 &mdash; Event Hubs / Kafka (08-eventhubs.tf)</h2>
+
+  <h3>08-eventhubs.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 08-eventhubs.tf — Azure Event Hubs (Kafka protocol)</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Event Hubs with Kafka surface protocol replaces the</span>
+<span class="comment"># self-hosted Kafka instance. Applications connect using</span>
+<span class="comment"># standard Kafka clients — only the bootstrap server and</span>
+<span class="comment"># auth mechanism change.</span>
+<span class="comment">#</span>
+<span class="comment"># Topics (Event Hubs):</span>
+<span class="comment">#   - order-created:     checkout events from ecom-service</span>
+<span class="comment">#   - inventory-updated: stock changes from inventory-service</span>
+<span class="comment">#   - Debezium CDC topics are auto-created by Debezium</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+
+resource "azurerm_eventhub_namespace" "main" {
+  name                = "${local.name_prefix}-eventhubs"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  sku                 = var.eventhubs_sku
+  capacity            = var.eventhubs_capacity
+  tags                = local.common_tags
+
+  <span class="comment"># Auto-inflate scales throughput units automatically</span>
+  <span class="comment"># when traffic exceeds current capacity (Standard+ only)</span>
+  auto_inflate_enabled     = var.eventhubs_auto_inflate_max > 0
+  maximum_throughput_units = var.eventhubs_auto_inflate_max
+
+  <span class="comment"># Kafka surface protocol — enables standard Kafka clients</span>
+  <span class="comment"># to connect using SASL/PLAIN with the Event Hubs</span>
+  <span class="comment"># connection string as the password</span>
+
+  <span class="comment"># Network rules — restrict to VNet</span>
+  network_rulesets {
+    default_action                 = "Deny"
+    trusted_service_access_enabled = true
+    public_network_access_enabled  = true
+
+    virtual_network_rule {
+      subnet_id = azurerm_subnet.aks.id
+    }
+  }
+}
+
+<span class="comment"># ── Event Hub: order-created ──</span>
+<span class="comment"># Published by ecom-service on checkout.</span>
+<span class="comment"># Consumed by inventory-service and Flink analytics.</span>
+
+resource "azurerm_eventhub" "order_created" {
+  name                = "order-created"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 4
+  message_retention   = 7
+}
+
+<span class="comment"># ── Event Hub: inventory-updated ──</span>
+<span class="comment"># Published by inventory-service after stock deduction.</span>
+<span class="comment"># Consumed by Flink analytics pipeline.</span>
+
+resource "azurerm_eventhub" "inventory_updated" {
+  name                = "inventory-updated"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 4
+  message_retention   = 7
+}
+
+<span class="comment"># ── Consumer Groups ──</span>
+<span class="comment"># Each consumer needs its own consumer group for independent</span>
+<span class="comment"># offset tracking. $Default exists automatically.</span>
+
+resource "azurerm_eventhub_consumer_group" "inventory_consumer" {
+  name                = "inventory-service"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  eventhub_name       = azurerm_eventhub.order_created.name
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_eventhub_consumer_group" "flink_orders" {
+  name                = "flink-analytics-orders"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  eventhub_name       = azurerm_eventhub.order_created.name
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_eventhub_consumer_group" "flink_inventory" {
+  name                = "flink-analytics-inventory"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  eventhub_name       = azurerm_eventhub.inventory_updated.name
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+<span class="comment"># ── Shared Access Policies ──</span>
+<span class="comment"># Service-specific SAS policies with least-privilege access.</span>
+
+resource "azurerm_eventhub_namespace_authorization_rule" "ecom_producer" {
+  name                = "ecom-producer"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+
+  listen = false
+  send   = true
+  manage = false
+}
+
+resource "azurerm_eventhub_namespace_authorization_rule" "inventory_consumer" {
+  name                = "inventory-consumer"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+
+  listen = true
+  send   = true
+  manage = false
+}
+
+resource "azurerm_eventhub_namespace_authorization_rule" "debezium" {
+  name                = "debezium-cdc"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+
+  <span class="comment"># Debezium needs manage for auto-creating CDC topics</span>
+  listen = true
+  send   = true
+  manage = true
+}
+
+resource "azurerm_eventhub_namespace_authorization_rule" "flink" {
+  name                = "flink-analytics"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+
+  listen = true
+  send   = false
+  manage = false
+}</code></pre>
+
+  <div class="callout info">
+    <strong>Kafka compatibility:</strong> Event Hubs exposes a Kafka-compatible endpoint at <code>&lt;namespace&gt;.servicebus.windows.net:9093</code> with SASL/PLAIN over TLS. Set <code>security.protocol=SASL_SSL</code> and <code>sasl.mechanism=PLAIN</code> in your Kafka client config. The username is <code>$ConnectionString</code> and the password is the full connection string.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="redis">13. Step 10 &mdash; Azure Cache for Redis (09-redis.tf)</h2>
+
+  <h3>09-redis.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 09-redis.tf — Azure Cache for Redis</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Used for:</span>
+<span class="comment">#   - CSRF token storage (csrf-service)</span>
+<span class="comment">#   - Session caching</span>
+<span class="comment">#   - Rate limiting token buckets (ecom-service)</span>
+<span class="comment">#</span>
+<span class="comment"># Private endpoint ensures traffic stays within the VNet.</span>
+<span class="comment"># TLS 1.2 enforced on all connections (port 6380).</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+
+resource "azurerm_redis_cache" "main" {
+  name                = "${local.name_prefix}-redis"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  capacity            = var.redis_capacity
+  family              = var.redis_family
+  sku_name            = var.redis_sku_name
+  tags                = local.common_tags
+
+  <span class="comment"># TLS enforcement — all clients must connect over TLS</span>
+  minimum_tls_version = "1.2"
+
+  <span class="comment"># Disable non-TLS port (6379); only TLS port (6380) open</span>
+  non_ssl_port_enabled = false
+
+  <span class="comment"># Redis 6.x for module support and improved performance</span>
+  redis_version = "6"
+
+  <span class="comment"># Redis configuration</span>
+  redis_configuration {
+    <span class="comment"># maxmemory-policy: evict least-recently-used keys when</span>
+    <span class="comment"># memory is full (appropriate for cache/session use)</span>
+    maxmemory_policy = "allkeys-lru"
+  }
+
+  <span class="comment"># Disable public network access — VNet only</span>
+  public_network_access_enabled = false
+}
+
+<span class="comment"># ── Private Endpoint ──</span>
+<span class="comment"># Creates a private IP in the redis subnet that routes</span>
+<span class="comment"># to the Redis cache. AKS pods connect via this IP.</span>
+
+resource "azurerm_private_endpoint" "redis" {
+  name                = "${local.name_prefix}-redis-pe"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.redis.id
+  tags                = local.common_tags
+
+  private_service_connection {
+    name                           = "${local.name_prefix}-redis-psc"
+    private_connection_resource_id = azurerm_redis_cache.main.id
+    subresource_names              = ["redisCache"]
+    is_manual_connection           = false
+  }
+}
+
+<span class="comment"># ── Private DNS Zone for Redis ──</span>
+<span class="comment"># Enables AKS pods to resolve the Redis hostname to its</span>
+<span class="comment"># private IP address (instead of the public IP).</span>
+
+resource "azurerm_private_dns_zone" "redis" {
+  name                = "privatelink.redis.cache.windows.net"
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.common_tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "redis" {
+  name                  = "${local.name_prefix}-redis-dns-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.redis.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
+resource "azurerm_private_dns_a_record" "redis" {
+  name                = azurerm_redis_cache.main.name
+  zone_name           = azurerm_private_dns_zone.redis.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 300
+  records             = [azurerm_private_endpoint.redis.private_service_connection[0].private_ip_address]
+}</code></pre>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="keyvault">14. Step 11 &mdash; Key Vault (10-keyvault.tf)</h2>
+
+  <h3>10-keyvault.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 10-keyvault.tf — Azure Key Vault for secret management</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Replaces Kubernetes Secrets with a centralized, HSM-backed</span>
+<span class="comment"># secret store. Secrets are synced to K8s via External Secrets</span>
+<span class="comment"># Operator (deployed in 13-k8s-resources.tf).</span>
+<span class="comment">#</span>
+<span class="comment"># All database passwords, connection strings, and API keys</span>
+<span class="comment"># are stored here. Never hardcode secrets in Terraform state</span>
+<span class="comment"># or Kubernetes manifests.</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+
+data "azurerm_client_config" "current" {}
+
+<span class="comment"># Random suffix for globally unique Key Vault name</span>
+resource "random_string" "kv_suffix" {
+  length  = 6
+  special = false
+  upper   = false
+  numeric = true
+}
+
+resource "azurerm_key_vault" "main" {
+  name                = "${var.project}-kv-${random_string.kv_suffix.result}"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  tenant_id           = data.azurerm_client_config.current.tenant_id
+  sku_name            = "standard"
+  tags                = local.common_tags
+
+  <span class="comment"># Soft delete: deleted secrets are retained for 90 days</span>
+  <span class="comment"># and can be recovered (required by Azure policy)</span>
+  soft_delete_retention_days = 90
+
+  <span class="comment"># Purge protection: prevents permanent deletion during</span>
+  <span class="comment"># the soft-delete retention period (cannot be disabled</span>
+  <span class="comment"># once enabled — set false for dev if needed)</span>
+  purge_protection_enabled = var.environment == "prod" ? true : false
+
+  <span class="comment"># Enable RBAC authorization (recommended over access policies)</span>
+  enable_rbac_authorization = true
+
+  <span class="comment"># Network ACLs — restrict to VNet + Azure services</span>
+  network_acls {
+    default_action             = "Deny"
+    bypass                     = "AzureServices"
+    virtual_network_subnet_ids = [azurerm_subnet.aks.id]
+  }
+}
+
+<span class="comment"># ── RBAC: Grant the deployer (current user) full access ──</span>
+resource "azurerm_role_assignment" "kv_admin" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Administrator"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
+<span class="comment"># ── RBAC: Grant AKS managed identity Secret Reader ──</span>
+<span class="comment"># External Secrets Operator uses this to read secrets</span>
+resource "azurerm_role_assignment" "aks_kv_reader" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_kubernetes_cluster.main.identity[0].principal_id
+}
+
+<span class="comment"># ── Secrets: Database passwords ──</span>
+
+resource "azurerm_key_vault_secret" "db_ecom_password" {
+  name         = "db-ecom-password"
+  value        = random_password.db_passwords["ecom"].result
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [azurerm_role_assignment.kv_admin]
+}
+
+resource "azurerm_key_vault_secret" "db_inventory_password" {
+  name         = "db-inventory-password"
+  value        = random_password.db_passwords["inventory"].result
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [azurerm_role_assignment.kv_admin]
+}
+
+resource "azurerm_key_vault_secret" "db_analytics_password" {
+  name         = "db-analytics-password"
+  value        = random_password.db_passwords["analytics"].result
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [azurerm_role_assignment.kv_admin]
+}
+
+resource "azurerm_key_vault_secret" "db_keycloak_password" {
+  name         = "db-keycloak-password"
+  value        = random_password.db_passwords["keycloak"].result
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [azurerm_role_assignment.kv_admin]
+}
+
+<span class="comment"># ── Secret: Redis access key ──</span>
+
+resource "azurerm_key_vault_secret" "redis_access_key" {
+  name         = "redis-access-key"
+  value        = azurerm_redis_cache.main.primary_access_key
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [azurerm_role_assignment.kv_admin]
+}
+
+<span class="comment"># ── Secret: Event Hubs connection strings ──</span>
+
+resource "azurerm_key_vault_secret" "eventhubs_ecom_connection" {
+  name         = "eventhubs-ecom-connection"
+  value        = azurerm_eventhub_namespace_authorization_rule.ecom_producer.primary_connection_string
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [azurerm_role_assignment.kv_admin]
+}
+
+resource "azurerm_key_vault_secret" "eventhubs_inventory_connection" {
+  name         = "eventhubs-inventory-connection"
+  value        = azurerm_eventhub_namespace_authorization_rule.inventory_consumer.primary_connection_string
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [azurerm_role_assignment.kv_admin]
+}
+
+resource "azurerm_key_vault_secret" "eventhubs_debezium_connection" {
+  name         = "eventhubs-debezium-connection"
+  value        = azurerm_eventhub_namespace_authorization_rule.debezium.primary_connection_string
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [azurerm_role_assignment.kv_admin]
+}
+
+resource "azurerm_key_vault_secret" "eventhubs_flink_connection" {
+  name         = "eventhubs-flink-connection"
+  value        = azurerm_eventhub_namespace_authorization_rule.flink.primary_connection_string
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [azurerm_role_assignment.kv_admin]
+}</code></pre>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="dns">15. Step 12 &mdash; DNS + Application Gateway (11-dns.tf)</h2>
+
+  <h3>11-dns.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 11-dns.tf — Azure DNS Zone + Application Gateway</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Application Gateway provides:</span>
+<span class="comment">#   - HTTPS termination (TLS 1.2+)</span>
+<span class="comment">#   - HTTP-to-HTTPS redirect (301)</span>
+<span class="comment">#   - Path-based routing to AKS services</span>
+<span class="comment">#   - Optional WAF v2 protection</span>
+<span class="comment">#   - Health probes for backend pools</span>
+<span class="comment">#</span>
+<span class="comment"># DNS Zone hosts records for the three application domains:</span>
+<span class="comment">#   - myecom.net        → UI service</span>
+<span class="comment">#   - api.service.net   → API gateway</span>
+<span class="comment">#   - idp.keycloak.net  → Keycloak identity provider</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># ── Public IP for Application Gateway ──</span>
+
+resource "azurerm_public_ip" "appgw" {
+  name                = "${local.name_prefix}-appgw-pip"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  domain_name_label   = local.name_prefix
+  tags                = local.common_tags
+}
+
+<span class="comment"># ── Azure DNS Zone ──</span>
+<span class="comment"># After deployment, update your domain registrar's NS records</span>
+<span class="comment"># to point to Azure's nameservers (shown in outputs).</span>
+
+resource "azurerm_dns_zone" "main" {
+  name                = var.domain_name
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.common_tags
+}
+
+<span class="comment"># ── DNS A Records ──</span>
+<span class="comment"># All three domains point to the Application Gateway public IP.</span>
+
+resource "azurerm_dns_a_record" "ui" {
+  name                = "shop"
+  zone_name           = azurerm_dns_zone.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 300
+  target_resource_id  = azurerm_public_ip.appgw.id
+}
+
+resource "azurerm_dns_a_record" "api" {
+  name                = "api"
+  zone_name           = azurerm_dns_zone.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 300
+  target_resource_id  = azurerm_public_ip.appgw.id
+}
+
+resource "azurerm_dns_a_record" "idp" {
+  name                = "idp"
+  zone_name           = azurerm_dns_zone.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 300
+  target_resource_id  = azurerm_public_ip.appgw.id
+}
+
+<span class="comment"># ── User-Assigned Managed Identity for App Gateway ──</span>
+<span class="comment"># Used to access Key Vault for TLS certificates.</span>
+
+resource "azurerm_user_assigned_identity" "appgw" {
+  name                = "${local.name_prefix}-appgw-identity"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.common_tags
+}
+
+resource "azurerm_role_assignment" "appgw_kv_reader" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_user_assigned_identity.appgw.principal_id
+}
+
+<span class="comment"># ── Application Gateway ──</span>
+
+locals {
+  appgw_name                 = "${local.name_prefix}-appgw"
+  appgw_frontend_port_https  = "https-port"
+  appgw_frontend_port_http   = "http-port"
+  appgw_frontend_ip          = "public-frontend-ip"
+  appgw_backend_pool_aks     = "aks-backend-pool"
+  appgw_http_setting         = "aks-http-setting"
+  appgw_listener_https       = "https-listener"
+  appgw_listener_http        = "http-listener"
+  appgw_redirect_config      = "http-to-https-redirect"
+  appgw_routing_rule_https   = "https-routing-rule"
+  appgw_routing_rule_http    = "http-redirect-rule"
+  appgw_health_probe         = "aks-health-probe"
+}
+
+resource "azurerm_application_gateway" "main" {
+  name                = local.appgw_name
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.common_tags
+
+  <span class="comment"># ── SKU ──</span>
+  <span class="comment"># Standard_v2 for basic load balancing</span>
+  <span class="comment"># WAF_v2 adds web application firewall (set enable_waf = true)</span>
+  sku {
+    name     = var.enable_waf ? "WAF_v2" : "Standard_v2"
+    tier     = var.enable_waf ? "WAF_v2" : "Standard_v2"
+  }
+
+  <span class="comment"># Autoscaling: 1-3 instances (saves cost vs fixed capacity)</span>
+  autoscale_configuration {
+    min_capacity = 1
+    max_capacity = 3
+  }
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.appgw.id]
+  }
+
+  <span class="comment"># ── Gateway IP Configuration ──</span>
+  gateway_ip_configuration {
+    name      = "gateway-ip-config"
+    subnet_id = azurerm_subnet.appgw.id
+  }
+
+  <span class="comment"># ── Frontend Ports ──</span>
+  frontend_port {
+    name = local.appgw_frontend_port_https
+    port = 443
+  }
+
+  frontend_port {
+    name = local.appgw_frontend_port_http
+    port = 80
+  }
+
+  <span class="comment"># ── Frontend IP ──</span>
+  frontend_ip_configuration {
+    name                 = local.appgw_frontend_ip
+    public_ip_address_id = azurerm_public_ip.appgw.id
+  }
+
+  <span class="comment"># ── Backend Pool (AKS Ingress) ──</span>
+  <span class="comment"># Points to the AKS internal load balancer or Istio ingress</span>
+  <span class="comment"># gateway. The FQDN is resolved within the VNet.</span>
+  backend_address_pool {
+    name = local.appgw_backend_pool_aks
+  }
+
+  <span class="comment"># ── Backend HTTP Settings ──</span>
+  backend_http_settings {
+    name                  = local.appgw_http_setting
+    cookie_based_affinity = "Disabled"
+    port                  = 80
+    protocol              = "Http"
+    request_timeout       = 30
+    probe_name            = local.appgw_health_probe
+
+    <span class="comment"># Pick host name from backend — lets the Istio gateway</span>
+    <span class="comment"># see the correct Host header for routing</span>
+    pick_host_name_from_backend_address = false
+  }
+
+  <span class="comment"># ── Health Probe ──</span>
+  probe {
+    name                = local.appgw_health_probe
+    protocol            = "Http"
+    path                = "/healthz"
+    host                = "127.0.0.1"
+    interval            = 30
+    timeout             = 30
+    unhealthy_threshold = 3
+  }
+
+  <span class="comment"># ── HTTPS Listener ──</span>
+  <span class="comment"># Multi-site listener accepts traffic for all three domains.</span>
+  <span class="comment"># TLS certificate is managed by cert-manager + Key Vault.</span>
+  http_listener {
+    name                           = local.appgw_listener_https
+    frontend_ip_configuration_name = local.appgw_frontend_ip
+    frontend_port_name             = local.appgw_frontend_port_https
+    protocol                       = "Https"
+    ssl_certificate_name           = "appgw-ssl-cert"
+  }
+
+  <span class="comment"># ── HTTP Listener (for redirect) ──</span>
+  http_listener {
+    name                           = local.appgw_listener_http
+    frontend_ip_configuration_name = local.appgw_frontend_ip
+    frontend_port_name             = local.appgw_frontend_port_http
+    protocol                       = "Http"
+  }
+
+  <span class="comment"># ── SSL Certificate (placeholder — replace with Key Vault ref) ──</span>
+  <span class="comment"># In production, use Key Vault certificate reference:</span>
+  <span class="comment"># ssl_certificate {</span>
+  <span class="comment">#   name                = "appgw-ssl-cert"</span>
+  <span class="comment">#   key_vault_secret_id = azurerm_key_vault_certificate.appgw.secret_id</span>
+  <span class="comment"># }</span>
+  <span class="comment"># For initial deployment, use a self-signed cert or</span>
+  <span class="comment"># provision via cert-manager after AKS is running.</span>
+  ssl_certificate {
+    name     = "appgw-ssl-cert"
+    data     = filebase64("${path.module}/certs/appgw.pfx")
+    password = ""
+  }
+
+  <span class="comment"># ── HTTP-to-HTTPS Redirect ──</span>
+  redirect_configuration {
+    name                 = local.appgw_redirect_config
+    redirect_type        = "Permanent"
+    target_listener_name = local.appgw_listener_https
+    include_path         = true
+    include_query_string = true
+  }
+
+  <span class="comment"># ── Routing Rules ──</span>
+
+  <span class="comment"># HTTPS traffic → AKS backend</span>
+  request_routing_rule {
+    name                       = local.appgw_routing_rule_https
+    priority                   = 100
+    rule_type                  = "Basic"
+    http_listener_name         = local.appgw_listener_https
+    backend_address_pool_name  = local.appgw_backend_pool_aks
+    backend_http_settings_name = local.appgw_http_setting
+  }
+
+  <span class="comment"># HTTP traffic → redirect to HTTPS</span>
+  request_routing_rule {
+    name                        = local.appgw_routing_rule_http
+    priority                    = 200
+    rule_type                   = "Basic"
+    http_listener_name          = local.appgw_listener_http
+    redirect_configuration_name = local.appgw_redirect_config
+  }
+
+  <span class="comment"># ── WAF Configuration (when enabled) ──</span>
+  dynamic "waf_configuration" {
+    for_each = var.enable_waf ? [1] : []
+    content {
+      enabled          = true
+      firewall_mode    = "Prevention"
+      rule_set_type    = "OWASP"
+      rule_set_version = "3.2"
+    }
+  }
+
+  <span class="comment"># ── SSL Policy ──</span>
+  ssl_policy {
+    policy_type = "Predefined"
+    policy_name = "AppGwSslPolicy20220101S"
+  }
+}</code></pre>
+
+  <div class="callout tip">
+    <strong>Alternative: NGINX Ingress + Let's Encrypt.</strong> If you prefer not to use Application Gateway, you can deploy NGINX Ingress Controller inside AKS with cert-manager and Let's Encrypt. This approach is simpler and cheaper for dev/staging. The <code>13-k8s-resources.tf</code> file includes the Helm chart for this alternative.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="outputs">16. Step 13 &mdash; Outputs (12-outputs.tf)</h2>
+
+  <h3>12-outputs.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 12-outputs.tf — Deployment outputs</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># These values are needed for post-deployment configuration:</span>
+<span class="comment">#   - kubectl access to AKS</span>
+<span class="comment">#   - Docker push to ACR</span>
+<span class="comment">#   - Database connection strings</span>
+<span class="comment">#   - DNS nameserver delegation</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># ── AKS ──</span>
+
+output "aks_cluster_name" {
+  description = "AKS cluster name"
+  value       = azurerm_kubernetes_cluster.main.name
+}
+
+output "aks_resource_group" {
+  description = "Resource group name"
+  value       = azurerm_resource_group.main.name
+}
+
+output "aks_get_credentials_command" {
+  description = "Command to configure kubectl"
+  value       = "az aks get-credentials --resource-group ${azurerm_resource_group.main.name} --name ${azurerm_kubernetes_cluster.main.name}"
+}
+
+output "aks_oidc_issuer_url" {
+  description = "OIDC issuer URL for workload identity"
+  value       = azurerm_kubernetes_cluster.main.oidc_issuer_url
+}
+
+<span class="comment"># ── ACR ──</span>
+
+output "acr_login_server" {
+  description = "ACR login server URL"
+  value       = azurerm_container_registry.main.login_server
+}
+
+output "acr_login_command" {
+  description = "Command to login to ACR"
+  value       = "az acr login --name ${azurerm_container_registry.main.name}"
+}
+
+<span class="comment"># ── PostgreSQL ──</span>
+
+output "postgresql_fqdns" {
+  description = "PostgreSQL server FQDNs"
+  value = {
+    for key, server in azurerm_postgresql_flexible_server.databases :
+    key =&gt; server.fqdn
+  }
+}
+
+output "postgresql_connection_strings" {
+  description = "PostgreSQL connection strings (sensitive)"
+  sensitive   = true
+  value = {
+    for key, db in local.databases :
+    key =&gt; "postgresql://${var.db_admin_username}:${random_password.db_passwords[key].result}@${azurerm_postgresql_flexible_server.databases[key].fqdn}:5432/${db.database}?sslmode=require"
+  }
+}
+
+<span class="comment"># ── Event Hubs ──</span>
+
+output "eventhubs_namespace" {
+  description = "Event Hubs namespace FQDN (Kafka bootstrap server)"
+  value       = "${azurerm_eventhub_namespace.main.name}.servicebus.windows.net:9093"
+}
+
+output "eventhubs_connection_string" {
+  description = "Event Hubs namespace connection string"
+  sensitive   = true
+  value       = azurerm_eventhub_namespace.main.default_primary_connection_string
+}
+
+<span class="comment"># ── Redis ──</span>
+
+output "redis_hostname" {
+  description = "Redis cache hostname"
+  value       = azurerm_redis_cache.main.hostname
+}
+
+output "redis_ssl_port" {
+  description = "Redis TLS port"
+  value       = azurerm_redis_cache.main.ssl_port
+}
+
+output "redis_connection_string" {
+  description = "Redis connection string (sensitive)"
+  sensitive   = true
+  value       = azurerm_redis_cache.main.primary_connection_string
+}
+
+<span class="comment"># ── Key Vault ──</span>
+
+output "key_vault_uri" {
+  description = "Key Vault URI"
+  value       = azurerm_key_vault.main.vault_uri
+}
+
+output "key_vault_name" {
+  description = "Key Vault name"
+  value       = azurerm_key_vault.main.name
+}
+
+<span class="comment"># ── DNS ──</span>
+
+output "dns_nameservers" {
+  description = "Azure DNS nameservers (configure at your registrar)"
+  value       = azurerm_dns_zone.main.name_servers
+}
+
+output "application_gateway_ip" {
+  description = "Application Gateway public IP"
+  value       = azurerm_public_ip.appgw.ip_address
+}
+
+<span class="comment"># ── Application URLs ──</span>
+
+output "application_urls" {
+  description = "Application endpoint URLs"
+  value = {
+    ui       = "https://shop.${var.domain_name}"
+    api      = "https://api.${var.domain_name}"
+    keycloak = "https://idp.${var.domain_name}"
+  }
+}</code></pre>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="k8s">17. Step 14 &mdash; Kubernetes Resources (13-k8s-resources.tf)</h2>
+
+  <p>This file configures the Kubernetes and Helm providers to talk to the freshly created AKS cluster, then installs Istio, cert-manager, External Secrets Operator, application namespaces, and deploys all services.</p>
+
+  <h3>13-k8s-resources.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 13-k8s-resources.tf — Kubernetes resources on AKS</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Deploys the full application stack into AKS:</span>
+<span class="comment">#   1. Istio Ambient Mesh (ztunnel-based mTLS)</span>
+<span class="comment">#   2. cert-manager (Let's Encrypt TLS certificates)</span>
+<span class="comment">#   3. External Secrets Operator (Key Vault → K8s Secrets)</span>
+<span class="comment">#   4. Application namespaces with ambient mesh labels</span>
+<span class="comment">#   5. Keycloak identity provider</span>
+<span class="comment">#   6. Microservices (ecom, inventory, UI, CSRF)</span>
+<span class="comment">#   7. Debezium CDC connectors</span>
+<span class="comment">#   8. Flink analytics pipeline</span>
+<span class="comment">#   9. Superset dashboards</span>
+<span class="comment">#  10. Observability (Prometheus, Grafana, Loki, Tempo)</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># ── Provider Configuration ──</span>
+<span class="comment"># Connect to AKS using the cluster's admin kubeconfig.</span>
+
+provider "kubernetes" {
+  host                   = azurerm_kubernetes_cluster.main.kube_admin_config[0].host
+  client_certificate     = base64decode(azurerm_kubernetes_cluster.main.kube_admin_config[0].client_certificate)
+  client_key             = base64decode(azurerm_kubernetes_cluster.main.kube_admin_config[0].client_key)
+  cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.main.kube_admin_config[0].cluster_ca_certificate)
+}
+
+provider "helm" {
+  kubernetes {
+    host                   = azurerm_kubernetes_cluster.main.kube_admin_config[0].host
+    client_certificate     = base64decode(azurerm_kubernetes_cluster.main.kube_admin_config[0].client_certificate)
+    client_key             = base64decode(azurerm_kubernetes_cluster.main.kube_admin_config[0].client_key)
+    cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.main.kube_admin_config[0].cluster_ca_certificate)
+  }
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 1. Istio Ambient Mesh</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Installs Istio in ambient mode (no sidecars).</span>
+<span class="comment"># ztunnel provides L4 mTLS between all pods in labeled</span>
+<span class="comment"># namespaces. Waypoint proxies handle L7 policy if needed.</span>
+
+resource "helm_release" "istio_base" {
+  name             = "istio-base"
+  repository       = "https://istio-release.storage.googleapis.com/charts"
+  chart            = "base"
+  version          = "1.29.1"
+  namespace        = "istio-system"
+  create_namespace = true
+
+  set {
+    name  = "defaultRevision"
+    value = "default"
+  }
+}
+
+resource "helm_release" "istio_cni" {
+  name       = "istio-cni"
+  repository = "https://istio-release.storage.googleapis.com/charts"
+  chart      = "cni"
+  version    = "1.29.1"
+  namespace  = "istio-system"
+
+  set {
+    name  = "profile"
+    value = "ambient"
+  }
+
+  depends_on = [helm_release.istio_base]
+}
+
+resource "helm_release" "istiod" {
+  name       = "istiod"
+  repository = "https://istio-release.storage.googleapis.com/charts"
+  chart      = "istiod"
+  version    = "1.29.1"
+  namespace  = "istio-system"
+
+  set {
+    name  = "profile"
+    value = "ambient"
+  }
+
+  depends_on = [helm_release.istio_base]
+}
+
+resource "helm_release" "ztunnel" {
+  name       = "ztunnel"
+  repository = "https://istio-release.storage.googleapis.com/charts"
+  chart      = "ztunnel"
+  version    = "1.29.1"
+  namespace  = "istio-system"
+
+  depends_on = [helm_release.istiod]
+}
+
+resource "helm_release" "istio_gateway" {
+  name       = "istio-ingress"
+  repository = "https://istio-release.storage.googleapis.com/charts"
+  chart      = "gateway"
+  version    = "1.29.1"
+  namespace  = "istio-system"
+
+  set {
+    name  = "service.type"
+    value = "ClusterIP"
+  }
+
+  depends_on = [helm_release.istiod]
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 2. cert-manager (Let's Encrypt)</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Automatically provisions and renews TLS certificates.</span>
+<span class="comment"># Uses Let's Encrypt ACME with DNS-01 challenge (Azure DNS).</span>
+
+resource "helm_release" "cert_manager" {
+  name             = "cert-manager"
+  repository       = "https://charts.jetstack.io"
+  chart            = "cert-manager"
+  version          = "v1.17.2"
+  namespace        = "cert-manager"
+  create_namespace = true
+
+  set {
+    name  = "installCRDs"
+    value = "true"
+  }
+
+  set {
+    name  = "podDnsPolicy"
+    value = "None"
+  }
+
+  set {
+    name  = "podDnsConfig.nameservers[0]"
+    value = "168.63.129.16"
+  }
+}
+
+<span class="comment"># Let's Encrypt ClusterIssuer for production certificates</span>
+resource "kubernetes_manifest" "letsencrypt_issuer" {
+  manifest = {
+    apiVersion = "cert-manager.io/v1"
+    kind       = "ClusterIssuer"
+    metadata = {
+      name = "letsencrypt-prod"
+    }
+    spec = {
+      acme = {
+        server = "https://acme-v02.api.letsencrypt.org/directory"
+        email  = "admin@${var.domain_name}"
+        privateKeySecretRef = {
+          name = "letsencrypt-prod-key"
+        }
+        solvers = [{
+          dns01 = {
+            azureDNS = {
+              subscriptionID    = var.subscription_id
+              resourceGroupName = azurerm_resource_group.main.name
+              hostedZoneName    = var.domain_name
+              environment       = "AzurePublicCloud"
+              managedIdentity = {
+                clientID = azurerm_kubernetes_cluster.main.kubelet_identity[0].client_id
+              }
+            }
+          }
+        }]
+      }
+    }
+  }
+
+  depends_on = [helm_release.cert_manager]
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 3. External Secrets Operator</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Syncs secrets from Azure Key Vault into Kubernetes Secrets.</span>
+<span class="comment"># Pods reference K8s Secrets as usual — ESO handles the bridge.</span>
+
+resource "helm_release" "external_secrets" {
+  name             = "external-secrets"
+  repository       = "https://charts.external-secrets.io"
+  chart            = "external-secrets"
+  version          = "0.12.1"
+  namespace        = "external-secrets"
+  create_namespace = true
+
+  set {
+    name  = "installCRDs"
+    value = "true"
+  }
+
+  depends_on = [helm_release.istio_base]
+}
+
+<span class="comment"># ClusterSecretStore pointing to Azure Key Vault</span>
+resource "kubernetes_manifest" "cluster_secret_store" {
+  manifest = {
+    apiVersion = "external-secrets.io/v1beta1"
+    kind       = "ClusterSecretStore"
+    metadata = {
+      name = "azure-keyvault"
+    }
+    spec = {
+      provider = {
+        azurekv = {
+          authType    = "ManagedIdentity"
+          vaultUrl    = azurerm_key_vault.main.vault_uri
+        }
+      }
+    }
+  }
+
+  depends_on = [helm_release.external_secrets]
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 4. Application Namespaces</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Each service gets its own namespace with Istio ambient</span>
+<span class="comment"># mesh label for automatic mTLS enrollment.</span>
+
+locals {
+  namespaces = {
+    ecom       = { istio = true }
+    inventory  = { istio = true }
+    identity   = { istio = true }
+    infra      = { istio = true }
+    analytics  = { istio = true }
+    observability = { istio = false }
+  }
+}
+
+resource "kubernetes_namespace" "app_namespaces" {
+  for_each = local.namespaces
+
+  metadata {
+    name = each.key
+    labels = merge(
+      { "app.kubernetes.io/managed-by" = "terraform" },
+      each.value.istio ? { "istio.io/dataplane-mode" = "ambient" } : {}
+    )
+  }
+
+  depends_on = [helm_release.ztunnel]
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 5. External Secrets for each namespace</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Sync database passwords and connection strings from</span>
+<span class="comment"># Key Vault into Kubernetes Secrets in each namespace.</span>
+
+resource "kubernetes_manifest" "ecom_db_secret" {
+  manifest = {
+    apiVersion = "external-secrets.io/v1beta1"
+    kind       = "ExternalSecret"
+    metadata = {
+      name      = "ecom-db-credentials"
+      namespace = "ecom"
+    }
+    spec = {
+      refreshInterval = "1h"
+      secretStoreRef = {
+        name = "azure-keyvault"
+        kind = "ClusterSecretStore"
+      }
+      target = {
+        name = "ecom-db-credentials"
+      }
+      data = [
+        {
+          secretKey = "password"
+          remoteRef = { key = "db-ecom-password" }
+        }
+      ]
+    }
+  }
+
+  depends_on = [
+    kubernetes_namespace.app_namespaces,
+    kubernetes_manifest.cluster_secret_store,
+  ]
+}
+
+resource "kubernetes_manifest" "inventory_db_secret" {
+  manifest = {
+    apiVersion = "external-secrets.io/v1beta1"
+    kind       = "ExternalSecret"
+    metadata = {
+      name      = "inventory-db-credentials"
+      namespace = "inventory"
+    }
+    spec = {
+      refreshInterval = "1h"
+      secretStoreRef = {
+        name = "azure-keyvault"
+        kind = "ClusterSecretStore"
+      }
+      target = {
+        name = "inventory-db-credentials"
+      }
+      data = [
+        {
+          secretKey = "password"
+          remoteRef = { key = "db-inventory-password" }
+        }
+      ]
+    }
+  }
+
+  depends_on = [
+    kubernetes_namespace.app_namespaces,
+    kubernetes_manifest.cluster_secret_store,
+  ]
+}
+
+resource "kubernetes_manifest" "analytics_db_secret" {
+  manifest = {
+    apiVersion = "external-secrets.io/v1beta1"
+    kind       = "ExternalSecret"
+    metadata = {
+      name      = "analytics-db-credentials"
+      namespace = "analytics"
+    }
+    spec = {
+      refreshInterval = "1h"
+      secretStoreRef = {
+        name = "azure-keyvault"
+        kind = "ClusterSecretStore"
+      }
+      target = {
+        name = "analytics-db-credentials"
+      }
+      data = [
+        {
+          secretKey = "password"
+          remoteRef = { key = "db-analytics-password" }
+        }
+      ]
+    }
+  }
+
+  depends_on = [
+    kubernetes_namespace.app_namespaces,
+    kubernetes_manifest.cluster_secret_store,
+  ]
+}
+
+resource "kubernetes_manifest" "keycloak_db_secret" {
+  manifest = {
+    apiVersion = "external-secrets.io/v1beta1"
+    kind       = "ExternalSecret"
+    metadata = {
+      name      = "keycloak-db-credentials"
+      namespace = "identity"
+    }
+    spec = {
+      refreshInterval = "1h"
+      secretStoreRef = {
+        name = "azure-keyvault"
+        kind = "ClusterSecretStore"
+      }
+      target = {
+        name = "keycloak-db-credentials"
+      }
+      data = [
+        {
+          secretKey = "password"
+          remoteRef = { key = "db-keycloak-password" }
+        }
+      ]
+    }
+  }
+
+  depends_on = [
+    kubernetes_namespace.app_namespaces,
+    kubernetes_manifest.cluster_secret_store,
+  ]
+}
+
+resource "kubernetes_manifest" "redis_secret" {
+  manifest = {
+    apiVersion = "external-secrets.io/v1beta1"
+    kind       = "ExternalSecret"
+    metadata = {
+      name      = "redis-credentials"
+      namespace = "infra"
+    }
+    spec = {
+      refreshInterval = "1h"
+      secretStoreRef = {
+        name = "azure-keyvault"
+        kind = "ClusterSecretStore"
+      }
+      target = {
+        name = "redis-credentials"
+      }
+      data = [
+        {
+          secretKey = "access-key"
+          remoteRef = { key = "redis-access-key" }
+        }
+      ]
+    }
+  }
+
+  depends_on = [
+    kubernetes_namespace.app_namespaces,
+    kubernetes_manifest.cluster_secret_store,
+  ]
+}
+
+resource "kubernetes_manifest" "eventhubs_secret" {
+  manifest = {
+    apiVersion = "external-secrets.io/v1beta1"
+    kind       = "ExternalSecret"
+    metadata = {
+      name      = "eventhubs-credentials"
+      namespace = "infra"
+    }
+    spec = {
+      refreshInterval = "1h"
+      secretStoreRef = {
+        name = "azure-keyvault"
+        kind = "ClusterSecretStore"
+      }
+      target = {
+        name = "eventhubs-credentials"
+      }
+      data = [
+        {
+          secretKey = "debezium-connection"
+          remoteRef = { key = "eventhubs-debezium-connection" }
+        },
+        {
+          secretKey = "flink-connection"
+          remoteRef = { key = "eventhubs-flink-connection" }
+        }
+      ]
+    }
+  }
+
+  depends_on = [
+    kubernetes_namespace.app_namespaces,
+    kubernetes_manifest.cluster_secret_store,
+  ]
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 6. Keycloak (Identity Provider)</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Deploys Keycloak using the Bitnami Helm chart with the</span>
+<span class="comment"># Azure PostgreSQL instance as its backend database.</span>
+
+resource "helm_release" "keycloak" {
+  name       = "keycloak"
+  repository = "oci://registry-1.docker.io/bitnamicharts"
+  chart      = "keycloak"
+  version    = "24.4.2"
+  namespace  = "identity"
+
+  set {
+    name  = "auth.adminUser"
+    value = "admin"
+  }
+
+  set_sensitive {
+    name  = "auth.adminPassword"
+    value = "CHANGE_ME"
+  }
+
+  set {
+    name  = "externalDatabase.host"
+    value = azurerm_postgresql_flexible_server.databases["keycloak"].fqdn
+  }
+
+  set {
+    name  = "externalDatabase.port"
+    value = "5432"
+  }
+
+  set {
+    name  = "externalDatabase.database"
+    value = "keycloak"
+  }
+
+  set {
+    name  = "externalDatabase.user"
+    value = var.db_admin_username
+  }
+
+  set_sensitive {
+    name  = "externalDatabase.password"
+    value = random_password.db_passwords["keycloak"].result
+  }
+
+  set {
+    name  = "postgresql.enabled"
+    value = "false"
+  }
+
+  set {
+    name  = "proxy"
+    value = "edge"
+  }
+
+  set {
+    name  = "service.type"
+    value = "ClusterIP"
+  }
+
+  depends_on = [
+    kubernetes_namespace.app_namespaces,
+    azurerm_postgresql_flexible_server_database.databases,
+  ]
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 7. Application Deployments</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Deploy the BookStore microservices using the ACR images.</span>
+<span class="comment"># Environment variables point to Azure managed services</span>
+<span class="comment"># instead of the local kind equivalents.</span>
+<span class="comment">#</span>
+<span class="comment"># NOTE: In a real deployment, you would use separate Helm</span>
+<span class="comment"># charts or Kustomize overlays for each service. Below shows</span>
+<span class="comment"># the ecom-service as a representative example. The pattern</span>
+<span class="comment"># repeats for inventory-service, ui-service, and csrf-service.</span>
+
+resource "kubernetes_deployment" "ecom_service" {
+  metadata {
+    name      = "ecom-service"
+    namespace = "ecom"
+    labels = {
+      app = "ecom-service"
+    }
+  }
+
+  spec {
+    replicas = 2
+
+    selector {
+      match_labels = {
+        app = "ecom-service"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "ecom-service"
+        }
+      }
+
+      spec {
+        <span class="comment"># Init container: run Liquibase migrations before app start</span>
+        init_container {
+          name    = "migrate"
+          image   = "${azurerm_container_registry.main.login_server}/ecom-service:latest"
+          command = ["java", "-cp", "/app/app.jar", "liquibase.integration.commandline.LiquibaseCommandLine", "update"]
+
+          env {
+            name  = "SPRING_DATASOURCE_URL"
+            value = "jdbc:postgresql://${azurerm_postgresql_flexible_server.databases["ecom"].fqdn}:5432/ecom?sslmode=require"
+          }
+          env {
+            name  = "SPRING_DATASOURCE_USERNAME"
+            value = var.db_admin_username
+          }
+          env {
+            name = "SPRING_DATASOURCE_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = "ecom-db-credentials"
+                key  = "password"
+              }
+            }
+          }
+        }
+
+        container {
+          name  = "ecom-service"
+          image = "${azurerm_container_registry.main.login_server}/ecom-service:latest"
+
+          port {
+            container_port = 8080
+          }
+
+          <span class="comment"># ── Database ──</span>
+          env {
+            name  = "SPRING_DATASOURCE_URL"
+            value = "jdbc:postgresql://${azurerm_postgresql_flexible_server.databases["ecom"].fqdn}:5432/ecom?sslmode=require"
+          }
+          env {
+            name  = "SPRING_DATASOURCE_USERNAME"
+            value = var.db_admin_username
+          }
+          env {
+            name = "SPRING_DATASOURCE_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = "ecom-db-credentials"
+                key  = "password"
+              }
+            }
+          }
+
+          <span class="comment"># ── Kafka (Event Hubs) ──</span>
+          env {
+            name  = "SPRING_KAFKA_BOOTSTRAP_SERVERS"
+            value = "${azurerm_eventhub_namespace.main.name}.servicebus.windows.net:9093"
+          }
+          env {
+            name  = "SPRING_KAFKA_PROPERTIES_SECURITY_PROTOCOL"
+            value = "SASL_SSL"
+          }
+          env {
+            name  = "SPRING_KAFKA_PROPERTIES_SASL_MECHANISM"
+            value = "PLAIN"
+          }
+          env {
+            name  = "SPRING_KAFKA_PROPERTIES_SASL_JAAS_CONFIG"
+            value = "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"$$ConnectionString\" password=\"${azurerm_eventhub_namespace_authorization_rule.ecom_producer.primary_connection_string}\";"
+          }
+
+          <span class="comment"># ── Keycloak OIDC ──</span>
+          env {
+            name  = "KEYCLOAK_ISSUER_URI"
+            value = "https://idp.${var.domain_name}/realms/bookstore"
+          }
+          env {
+            name  = "KEYCLOAK_JWKS_URI"
+            value = "http://keycloak.identity.svc.cluster.local:8080/realms/bookstore/protocol/openid-connect/certs"
+          }
+
+          <span class="comment"># ── Redis ──</span>
+          env {
+            name  = "SPRING_REDIS_HOST"
+            value = azurerm_redis_cache.main.hostname
+          }
+          env {
+            name  = "SPRING_REDIS_PORT"
+            value = tostring(azurerm_redis_cache.main.ssl_port)
+          }
+          env {
+            name  = "SPRING_REDIS_SSL"
+            value = "true"
+          }
+          env {
+            name = "SPRING_REDIS_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = "redis-credentials"
+                key  = "access-key"
+              }
+            }
+          }
+
+          <span class="comment"># ── Swagger (disabled in production) ──</span>
+          env {
+            name  = "SWAGGER_ENABLED"
+            value = var.environment == "dev" ? "true" : "false"
+          }
+
+          resources {
+            requests = {
+              cpu    = "250m"
+              memory = "512Mi"
+            }
+            limits = {
+              cpu    = "1000m"
+              memory = "1Gi"
+            }
+          }
+
+          liveness_probe {
+            http_get {
+              path = "/ecom/actuator/health/liveness"
+              port = 8080
+            }
+            initial_delay_seconds = 30
+            period_seconds        = 10
+          }
+
+          readiness_probe {
+            http_get {
+              path = "/ecom/actuator/health/readiness"
+              port = 8080
+            }
+            initial_delay_seconds = 15
+            period_seconds        = 5
+          }
+
+          security_context {
+            run_as_non_root            = true
+            run_as_user                = 1000
+            read_only_root_filesystem  = true
+            allow_privilege_escalation = false
+          }
+        }
+      }
+    }
+  }
+
+  depends_on = [
+    kubernetes_manifest.ecom_db_secret,
+    helm_release.keycloak,
+  ]
+}
+
+<span class="comment"># ── Service for ecom-service ──</span>
+resource "kubernetes_service" "ecom_service" {
+  metadata {
+    name      = "ecom-service"
+    namespace = "ecom"
+  }
+
+  spec {
+    selector = {
+      app = "ecom-service"
+    }
+
+    port {
+      port        = 8080
+      target_port = 8080
+      protocol    = "TCP"
+    }
+
+    type = "ClusterIP"
+  }
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 8. Observability Stack</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Prometheus + Grafana via kube-prometheus-stack Helm chart.</span>
+<span class="comment"># Includes pre-configured dashboards for AKS and Istio.</span>
+
+resource "helm_release" "prometheus_stack" {
+  name             = "prometheus"
+  repository       = "https://prometheus-community.github.io/helm-charts"
+  chart            = "kube-prometheus-stack"
+  version          = "67.9.0"
+  namespace        = "observability"
+  create_namespace = false
+
+  set {
+    name  = "grafana.adminPassword"
+    value = "admin"
+  }
+
+  set {
+    name  = "grafana.service.type"
+    value = "ClusterIP"
+  }
+
+  set {
+    name  = "prometheus.prometheusSpec.retention"
+    value = "7d"
+  }
+
+  set {
+    name  = "prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage"
+    value = "20Gi"
+  }
+
+  depends_on = [kubernetes_namespace.app_namespaces]
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># 9. Kiali (Service Mesh Observability)</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+
+resource "helm_release" "kiali" {
+  name       = "kiali"
+  repository = "https://kiali.org/helm-charts"
+  chart      = "kiali-server"
+  version    = "2.4.0"
+  namespace  = "istio-system"
+
+  set {
+    name  = "auth.strategy"
+    value = "anonymous"
+  }
+
+  set {
+    name  = "external_services.prometheus.url"
+    value = "http://prometheus-kube-prometheus-prometheus.observability:9090"
+  }
+
+  depends_on = [helm_release.istiod, helm_release.prometheus_stack]
+}</code></pre>
+
+  <div class="callout warn">
+    <strong>Partial listing:</strong> The <code>13-k8s-resources.tf</code> file above shows the core infrastructure components and the ecom-service as a representative example. In your actual deployment, replicate the deployment pattern for <code>inventory-service</code>, <code>ui-service</code>, <code>csrf-service</code>, <code>debezium-server</code> (x2), <code>flink</code>, and <code>superset</code>. Each follows the same structure &mdash; change the image, environment variables, and port numbers.
+  </div>
+
+  <div class="callout info">
+    <strong>Inventory Service env vars to change:</strong> <code>DATABASE_URL</code> points to the inventory PostgreSQL FQDN; <code>KAFKA_BOOTSTRAP_SERVERS</code> points to Event Hubs with SASL_SSL; <code>REDIS_URL</code> uses the private endpoint hostname with TLS on port 6380. The same pattern applies to all other services.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="tfvars">18. Step 15 &mdash; Example Variables File</h2>
+
+  <h3>terraform.tfvars.example</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># terraform.tfvars.example</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Copy this file to terraform.tfvars and fill in your values.</span>
+<span class="comment"># Sensitive values (passwords) should be set via environment</span>
+<span class="comment"># variables instead: export TF_VAR_db_admin_password="..."</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># Azure subscription</span>
+subscription_id = "00000000-0000-0000-0000-000000000000"
+
+<span class="comment"># General</span>
+project             = "bookstore"
+environment         = "dev"
+location            = "eastus"
+resource_group_name = "bookstore-rg"
+
+<span class="comment"># AKS</span>
+kubernetes_version  = "1.31"
+system_node_vm_size = "Standard_D2s_v3"
+system_node_count   = 2
+app_node_vm_size    = "Standard_D4s_v3"
+app_node_min_count  = 2
+app_node_max_count  = 5
+
+<span class="comment"># Databases</span>
+db_admin_username     = "pgadmin"
+db_sku_name           = "B_Standard_B1ms"
+db_storage_mb         = 32768
+db_postgresql_version = "16"
+
+<span class="comment"># Event Hubs</span>
+eventhubs_sku                = "Standard"
+eventhubs_capacity           = 2
+eventhubs_auto_inflate_max   = 5
+
+<span class="comment"># Redis</span>
+redis_sku_name = "Basic"
+redis_family   = "C"
+redis_capacity = 0
+
+<span class="comment"># DNS / Domain</span>
+domain_name = "bookstore.example.com"
+enable_waf  = false
+
+<span class="comment"># ACR</span>
+acr_sku = "Standard"
+
+<span class="comment"># Tags</span>
+tags = {
+  team = "platform"
+  cost_center = "engineering"
+}</code></pre>
+
+  <h3>destroy.sh</h3>
+<pre><code><span class="comment">#!/usr/bin/env bash</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># destroy.sh — Clean teardown of all Azure resources</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Destroys resources in reverse dependency order to avoid</span>
+<span class="comment"># errors from dangling references.</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+set -euo pipefail
+
+echo "WARNING: This will destroy ALL BookStore Azure resources."
+echo "Type 'yes' to confirm:"
+read -r CONFIRM
+if [[ "$CONFIRM" != "yes" ]]; then
+  echo "Aborted."
+  exit 1
+fi
+
+echo "==> Removing Kubernetes resources first..."
+terraform destroy \
+  -target=kubernetes_deployment.ecom_service \
+  -target=kubernetes_service.ecom_service \
+  -target=helm_release.keycloak \
+  -target=helm_release.kiali \
+  -target=helm_release.prometheus_stack \
+  -auto-approve
+
+echo "==> Removing Helm releases..."
+terraform destroy \
+  -target=helm_release.external_secrets \
+  -target=helm_release.cert_manager \
+  -target=helm_release.ztunnel \
+  -target=helm_release.istiod \
+  -target=helm_release.istio_cni \
+  -target=helm_release.istio_gateway \
+  -target=helm_release.istio_base \
+  -auto-approve
+
+echo "==> Destroying all remaining infrastructure..."
+terraform destroy -auto-approve
+
+echo "==> Done. All resources destroyed."
+echo ""
+echo "NOTE: The Terraform state backend (storage account) was NOT destroyed."
+echo "To remove it: az group delete --name bookstore-tfstate-rg --yes"</code></pre>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="deploy">19. Deployment Commands</h2>
+
+  <div class="step green">
+    <h3><span class="step-num">1</span> Initialize and plan</h3>
+<pre><code><span class="comment"># Navigate to the Terraform directory</span>
+cd terraform/azure
+
+<span class="comment"># Copy and edit variables</span>
+cp terraform.tfvars.example terraform.tfvars
+<span class="comment"># Edit terraform.tfvars with your subscription ID, domain, etc.</span>
+
+<span class="comment"># Set sensitive variables via environment</span>
+export TF_VAR_db_admin_password="YourSecurePassword123!"
+
+<span class="comment"># Initialize Terraform (downloads providers, configures backend)</span>
+terraform init
+
+<span class="comment"># Preview what will be created</span>
+terraform plan -out=tfplan</code></pre>
+  </div>
+
+  <div class="step blue">
+    <h3><span class="step-num">2</span> Apply the infrastructure</h3>
+<pre><code><span class="comment"># Apply the plan (creates all Azure resources)</span>
+<span class="comment"># This takes 15-25 minutes (PostgreSQL and AKS are slow)</span>
+terraform apply tfplan
+
+<span class="comment"># Save outputs for reference</span>
+terraform output -json &gt; deployment-outputs.json</code></pre>
+  </div>
+
+  <div class="step purple">
+    <h3><span class="step-num">3</span> Configure kubectl</h3>
+<pre><code><span class="comment"># Get AKS credentials (configures ~/.kube/config)</span>
+az aks get-credentials \
+  --resource-group bookstore-rg \
+  --name bookstore-dev-aks
+
+<span class="comment"># Verify connection</span>
+kubectl get nodes
+kubectl get namespaces</code></pre>
+  </div>
+
+  <div class="step amber">
+    <h3><span class="step-num">4</span> Build and push Docker images to ACR</h3>
+<pre><code><span class="comment"># Login to ACR</span>
+ACR_NAME=$(terraform output -raw acr_login_server)
+az acr login --name $(echo $ACR_NAME | cut -d. -f1)
+
+<span class="comment"># Build and push ecom-service</span>
+docker build -t ${ACR_NAME}/ecom-service:latest ./ecom-service
+docker push ${ACR_NAME}/ecom-service:latest
+
+<span class="comment"># Build and push inventory-service</span>
+docker build -t ${ACR_NAME}/inventory-service:latest ./inventory-service
+docker push ${ACR_NAME}/inventory-service:latest
+
+<span class="comment"># Build and push UI (with HTTPS domain URLs)</span>
+docker build \
+  --build-arg VITE_KEYCLOAK_AUTHORITY=https://idp.$(terraform output -raw domain_name)/realms/bookstore \
+  --build-arg VITE_KEYCLOAK_CLIENT_ID=ui-client \
+  --build-arg VITE_REDIRECT_URI=https://shop.$(terraform output -raw domain_name)/callback \
+  -t ${ACR_NAME}/ui-service:latest ./ui
+docker push ${ACR_NAME}/ui-service:latest
+
+<span class="comment"># Build and push CSRF service</span>
+docker build -t ${ACR_NAME}/csrf-service:latest ./csrf-service
+docker push ${ACR_NAME}/csrf-service:latest
+
+<span class="comment"># Build and push Flink</span>
+docker build -t ${ACR_NAME}/flink:latest ./analytics/flink
+docker push ${ACR_NAME}/flink:latest</code></pre>
+  </div>
+
+  <div class="step cyan">
+    <h3><span class="step-num">5</span> Verify the deployment</h3>
+<pre><code><span class="comment"># Check all pods are running</span>
+kubectl get pods -A | grep -E "ecom|inventory|identity|infra|analytics|observability"
+
+<span class="comment"># Check Istio mesh status</span>
+istioctl version
+istioctl proxy-status
+
+<span class="comment"># Test the API (replace with your domain)</span>
+curl -s https://api.bookstore.example.com/ecom/books | head -c 200
+
+<span class="comment"># Test Keycloak</span>
+curl -s https://idp.bookstore.example.com/realms/bookstore/.well-known/openid-configuration | python3 -m json.tool | head -5
+
+<span class="comment"># Open the UI</span>
+echo "UI: https://shop.bookstore.example.com"</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="cost">20. Cost Estimation</h2>
+
+  <p>Approximate monthly costs for Azure resources (East US region, March 2026 pricing). All prices in USD.</p>
+
+  <h3>Development Environment</h3>
+  <table class="cost-table">
+    <tr><th>Service</th><th>SKU / Config</th><th class="dev">Monthly Cost</th></tr>
+    <tr><td>AKS Cluster</td><td>Control plane free + 2x D2s_v3 system + 2x D4s_v3 app</td><td class="dev">~$430</td></tr>
+    <tr><td>PostgreSQL (x4)</td><td>B_Standard_B1ms (1 vCore, 2 GB, 32 GB storage)</td><td class="dev">~$60</td></tr>
+    <tr><td>Event Hubs</td><td>Standard, 2 TU</td><td class="dev">~$44</td></tr>
+    <tr><td>Azure Cache for Redis</td><td>Basic C0 (250 MB)</td><td class="dev">~$16</td></tr>
+    <tr><td>Key Vault</td><td>Standard (10 secrets, ~10K ops/mo)</td><td class="dev">~$1</td></tr>
+    <tr><td>Application Gateway</td><td>Standard_v2, 1-3 instances</td><td class="dev">~$175</td></tr>
+    <tr><td>Container Registry</td><td>Standard</td><td class="dev">~$20</td></tr>
+    <tr><td>Log Analytics</td><td>5 GB/day ingestion</td><td class="dev">~$12</td></tr>
+    <tr><td>Azure DNS</td><td>1 zone, ~10K queries/mo</td><td class="dev">~$1</td></tr>
+    <tr><td>VNet / Public IP</td><td>Standard static IP</td><td class="dev">~$4</td></tr>
+    <tr class="total"><td>Total (Dev)</td><td></td><td class="dev">~$763/mo</td></tr>
+  </table>
+
+  <h3>Production Environment</h3>
+  <table class="cost-table">
+    <tr><th>Service</th><th>SKU / Config</th><th class="prod">Monthly Cost</th></tr>
+    <tr><td>AKS Cluster</td><td>Control plane free + 2x D2s_v3 system + 3-5x D4s_v3 app</td><td class="prod">~$750</td></tr>
+    <tr><td>PostgreSQL (x4)</td><td>GP_Standard_D2s_v3 (2 vCore, HA, geo-backup)</td><td class="prod">~$1,000</td></tr>
+    <tr><td>Event Hubs</td><td>Standard, 2-5 TU (auto-inflate)</td><td class="prod">~$88</td></tr>
+    <tr><td>Azure Cache for Redis</td><td>Standard C1 (1 GB, replicated)</td><td class="prod">~$80</td></tr>
+    <tr><td>Key Vault</td><td>Standard (purge protection)</td><td class="prod">~$3</td></tr>
+    <tr><td>Application Gateway</td><td>WAF_v2, 2-3 instances</td><td class="prod">~$350</td></tr>
+    <tr><td>Container Registry</td><td>Premium (geo-replication)</td><td class="prod">~$167</td></tr>
+    <tr><td>Log Analytics</td><td>10 GB/day ingestion</td><td class="prod">~$73</td></tr>
+    <tr><td>Azure DNS</td><td>1 zone, ~1M queries/mo</td><td class="prod">~$1</td></tr>
+    <tr><td>VNet / Public IP</td><td>Standard static IP</td><td class="prod">~$4</td></tr>
+    <tr class="total"><td>Total (Prod)</td><td></td><td class="prod">~$2,516/mo</td></tr>
+  </table>
+
+  <div class="callout tip">
+    <strong>Cost optimization tips:</strong>
+    <ul style="margin-top:8px;">
+      <li>Use <strong>Azure Reserved Instances</strong> (1yr or 3yr) for AKS VMs and PostgreSQL to save 30-60%.</li>
+      <li>Use <strong>Spot instances</strong> for the app node pool in dev/staging (up to 90% savings).</li>
+      <li>Scale down to 1 app node in dev during off-hours with cluster autoscaler.</li>
+      <li>Use <strong>burstable B-series</strong> VMs for non-production (they are significantly cheaper).</li>
+      <li>Disable geo-redundant backup and HA on PostgreSQL for dev.</li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="teardown">21. Teardown</h2>
+
+  <div class="step red">
+    <h3><span class="step-num">!</span> Destroy all resources</h3>
+<pre><code><span class="comment"># Option 1: Use the destroy script (recommended — handles ordering)</span>
+bash destroy.sh
+
+<span class="comment"># Option 2: Direct terraform destroy</span>
+cd terraform/azure
+terraform destroy
+
+<span class="comment"># Option 3: Delete the entire resource group (nuclear option)</span>
+<span class="comment"># This bypasses Terraform state — use only if Terraform is broken</span>
+az group delete --name bookstore-rg --yes --no-wait
+
+<span class="comment"># Clean up Terraform state backend (optional)</span>
+az group delete --name bookstore-tfstate-rg --yes</code></pre>
+  </div>
+
+  <div class="callout danger">
+    <strong>Data loss warning:</strong> <code>terraform destroy</code> deletes all databases and their data permanently. PostgreSQL soft-delete retains backups for the configured retention period (7 days), but after that, data is unrecoverable. Always run <code>terraform plan -destroy</code> first to review what will be deleted.
+  </div>
+
+  <div class="callout warn">
+    <strong>Key Vault soft delete:</strong> If purge protection is enabled (production), the Key Vault enters a soft-deleted state for 90 days. You cannot create a new Key Vault with the same name until the retention period expires or you manually purge it: <code>az keyvault purge --name bookstore-kv-xxxxx</code>.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="security">22. Security Best Practices</h2>
+
+  <h3>Identity and Access</h3>
+  <table>
+    <tr><th>Practice</th><th>Implementation</th></tr>
+    <tr><td>Managed Identities</td><td>AKS uses SystemAssigned identity. No service principal secrets to rotate.</td></tr>
+    <tr><td>Workload Identity</td><td>OIDC issuer enabled on AKS. Pods authenticate to Azure services via K8s ServiceAccount tokens.</td></tr>
+    <tr><td>Key Vault RBAC</td><td>RBAC authorization (not access policies). AKS identity gets <code>Key Vault Secrets User</code> role only.</td></tr>
+    <tr><td>External Secrets Operator</td><td>Syncs Key Vault secrets to K8s Secrets. Pods never call Key Vault directly.</td></tr>
+    <tr><td>ACR Pull via Identity</td><td>AKS kubelet identity has <code>AcrPull</code> role. No docker login credentials on cluster.</td></tr>
+  </table>
+
+  <h3>Network Security</h3>
+  <table>
+    <tr><th>Practice</th><th>Implementation</th></tr>
+    <tr><td>Private Endpoints</td><td>Redis and Key Vault use private endpoints (no public IP). Traffic stays in VNet.</td></tr>
+    <tr><td>VNet Integration</td><td>PostgreSQL uses delegated subnet with private DNS. No public endpoint.</td></tr>
+    <tr><td>Service Endpoints</td><td>Event Hubs accessed via VNet service endpoint from AKS subnet.</td></tr>
+    <tr><td>NSGs</td><td>Explicit allow rules per subnet. Default deny on database subnet.</td></tr>
+    <tr><td>Istio mTLS</td><td>All pod-to-pod traffic encrypted via ztunnel (ambient mode, STRICT PeerAuth).</td></tr>
+    <tr><td>TLS Everywhere</td><td>Application Gateway terminates TLS 1.2+. Internal services use mTLS.</td></tr>
+  </table>
+
+  <h3>Data Protection</h3>
+  <table>
+    <tr><th>Practice</th><th>Implementation</th></tr>
+    <tr><td>Encryption at Rest</td><td>All Azure services encrypt data at rest by default (Microsoft-managed keys).</td></tr>
+    <tr><td>Encryption in Transit</td><td>TLS 1.2 enforced on PostgreSQL, Redis, Event Hubs. mTLS between pods.</td></tr>
+    <tr><td>Backup</td><td>PostgreSQL: 7-day retention, geo-redundant in prod. Key Vault: soft-delete 90 days.</td></tr>
+    <tr><td>Secret Rotation</td><td>Key Vault supports automatic rotation. ESO refreshes secrets hourly.</td></tr>
+  </table>
+
+  <h3>Compliance and Governance</h3>
+  <table>
+    <tr><th>Practice</th><th>Implementation</th></tr>
+    <tr><td>Azure Policy</td><td>Enabled on AKS. Enforces pod security standards (no privileged containers).</td></tr>
+    <tr><td>Resource Tags</td><td>All resources tagged with project, environment, managed_by, created_at.</td></tr>
+    <tr><td>Container Insights</td><td>Log Analytics workspace collects pod logs, metrics, and performance data.</td></tr>
+    <tr><td>Audit Logging</td><td>Key Vault diagnostic logs track all secret access. AKS API server audit logs enabled.</td></tr>
+  </table>
+
+  <div class="callout tip">
+    <strong>Additional hardening for production:</strong>
+    <ul style="margin-top:8px;">
+      <li>Enable <strong>Defender for Containers</strong> for runtime threat detection and vulnerability scanning.</li>
+      <li>Enable <strong>Customer-Managed Keys (CMK)</strong> for PostgreSQL and ACR encryption.</li>
+      <li>Use <strong>Azure Private Link</strong> for ACR (Premium SKU) to eliminate public exposure.</li>
+      <li>Configure <strong>Azure AD Conditional Access</strong> policies for kubectl access.</li>
+      <li>Enable <strong>WAF v2</strong> on Application Gateway with OWASP 3.2 ruleset.</li>
+      <li>Set up <strong>Azure Backup</strong> for AKS persistent volumes.</li>
+    </ul>
+  </div>
+
+  <footer>
+    <p>BookStore Platform &mdash; Azure Deployment Guide (Terraform)</p>
+    <p style="margin-top: 8px;">
+      <a href="index.html">Home</a> &middot;
+      <a href="architecture.html">Architecture</a> &middot;
+      <a href="quick-start.html">Quick Start (Local)</a> &middot;
+      <a href="bookstore-platform-manual.html">Full Manual</a> &middot;
+      <a href="https://github.com/a2z-ice/ecom-ms">GitHub</a>
+    </p>
+  </footer>
+
+</div>
+</body>
+</html>
