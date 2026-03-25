@@ -21,7 +21,9 @@
         { label: 'HA Multi-AZ: AWS EKS', href: 'ha-multi-az-aws.html' },
         { label: 'HA Multi-AZ: Azure AKS', href: 'ha-multi-az-azure.html' },
         { label: 'Visual: AWS Terraform', href: 'terraform-visual-aws.html' },
-        { label: 'Visual: Azure Terraform', href: 'terraform-visual-azure.html' }
+        { label: 'Visual: Azure Terraform', href: 'terraform-visual-azure.html' },
+        { label: 'Learn EKS (A to Z)', href: 'knowledge-eks.html', highlight: true },
+        { label: 'Learn AKS (A to Z)', href: 'knowledge-aks.html', highlight: true }
       ]
     },
     {

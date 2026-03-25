@@ -146,6 +146,7 @@
     <ol>
       <li><a href="#overview">Architecture Overview</a></li>
       <li><a href="#prereqs">Prerequisites</a></li>
+      <li><a href="#iam-setup">IAM Setup (Users, Roles, Policies per Component)</a></li>
       <li><a href="#structure">Terraform Project Structure</a></li>
       <li><a href="#backend">Step 1 &mdash; S3 State Backend</a></li>
       <li><a href="#versions">Step 2 &mdash; Provider Versions</a></li>
@@ -242,9 +243,8 @@
 
   <h3>AWS Account Requirements</h3>
   <ul>
-    <li>An AWS account with <strong>AdministratorAccess</strong> or equivalent IAM permissions</li>
+    <li>An AWS account with appropriate IAM permissions (see IAM Setup below)</li>
     <li>A <strong>registered domain</strong> in Route53 (or ability to delegate DNS to Route53)</li>
-    <li>AWS CLI configured: <code>aws configure</code> with valid credentials</li>
     <li>Service quotas sufficient for EKS, RDS, MSK, and ElastiCache in your region</li>
   </ul>
 
@@ -253,20 +253,759 @@
 <pre><code><span class="comment"># macOS (Homebrew)</span>
 brew install awscli terraform kubectl helm istioctl docker jq
 
+<span class="comment"># Linux (apt)</span>
+<span class="comment"># AWS CLI: https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2-linux.html</span>
+<span class="comment"># Terraform: https://developer.hashicorp.com/terraform/install</span>
+
 <span class="comment"># Verify all tools</span>
-aws --version
-terraform --version
-kubectl version --client
-helm version --short
-istioctl version --remote=false
-docker --version
+aws --version &amp;&amp; terraform --version &amp;&amp; kubectl version --client &amp;&amp; helm version --short</code></pre>
+  </div>
 
-<span class="comment"># Configure AWS credentials</span>
-aws configure
-<span class="comment"># Enter: Access Key ID, Secret Access Key, Region (us-east-1), Output (json)</span>
+  <!-- ═══ IAM SETUP — CRITICAL PREREQUISITE ═══ -->
+  <h3 id="iam-setup">IAM Setup (Required Before Any Terraform Command)</h3>
 
-<span class="comment"># Verify AWS access</span>
+  <div class="callout danger">
+    <strong>Without proper IAM, Terraform cannot create any resource.</strong> You must complete this section BEFORE running <code>terraform init</code>. There are two approaches: <strong>Option A</strong> (IAM User with programmatic access — simple, good for personal accounts) and <strong>Option B</strong> (IAM Role with SSO — recommended for organizations).
+  </div>
+
+  <h4>Option A: IAM User (Personal / Dev Account)</h4>
+
+  <div class="step red">
+    <h3><span class="step-num">A1</span> Create a dedicated IAM user for Terraform</h3>
+<pre><code><span class="comment"># Step 1: Create the IAM user (no console access — CLI only)</span>
+aws iam create-user --user-name terraform-bookstore
+
+<span class="comment"># Step 2: Create access keys (save these securely!)</span>
+aws iam create-access-key --user-name terraform-bookstore
+<span class="comment"># Output: AccessKeyId + SecretAccessKey — save to a password manager NOW</span>
+<span class="comment"># You will NEVER see the SecretAccessKey again after this command</span>
+
+<span class="comment"># Step 3: Create FINE-GRAINED least-privilege policies</span>
+<span class="comment"># We split into SEPARATE policies per service for minimal attack surface.</span>
+<span class="comment"># Each policy is scoped to specific resources where possible.</span>
+<span class="comment"># Replace ACCOUNT_ID and REGION below with your values.</span>
+
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+REGION="us-east-1"
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># POLICY 1: VPC &amp; Networking</span>
+<span class="comment"># WHY: Create VPC, subnets, route tables, NAT GW, IGW, SGs</span>
+<span class="comment"># RISK if over-permissioned: could modify OTHER VPCs in account</span>
+<span class="comment"># SCOPING: limited to ec2 actions needed for VPC (no RunInstances)</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+cat &gt; /tmp/policy-networking.json &lt;&lt; POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "VPCManagement",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:CreateVpc", "ec2:DeleteVpc", "ec2:ModifyVpcAttribute",
+        "ec2:DescribeVpcs", "ec2:DescribeVpcAttribute",
+        "ec2:CreateSubnet", "ec2:DeleteSubnet", "ec2:DescribeSubnets",
+        "ec2:CreateRouteTable", "ec2:DeleteRouteTable",
+        "ec2:AssociateRouteTable", "ec2:DisassociateRouteTable",
+        "ec2:CreateRoute", "ec2:DeleteRoute", "ec2:DescribeRouteTables",
+        "ec2:CreateInternetGateway", "ec2:DeleteInternetGateway",
+        "ec2:AttachInternetGateway", "ec2:DetachInternetGateway",
+        "ec2:DescribeInternetGateways",
+        "ec2:AllocateAddress", "ec2:ReleaseAddress", "ec2:DescribeAddresses",
+        "ec2:CreateNatGateway", "ec2:DeleteNatGateway", "ec2:DescribeNatGateways",
+        "ec2:CreateSecurityGroup", "ec2:DeleteSecurityGroup",
+        "ec2:AuthorizeSecurityGroupIngress", "ec2:RevokeSecurityGroupIngress",
+        "ec2:AuthorizeSecurityGroupEgress", "ec2:RevokeSecurityGroupEgress",
+        "ec2:DescribeSecurityGroups", "ec2:DescribeSecurityGroupRules",
+        "ec2:CreateNetworkAclEntry", "ec2:DeleteNetworkAclEntry",
+        "ec2:DescribeNetworkAcls",
+        "ec2:CreateTags", "ec2:DeleteTags", "ec2:DescribeTags",
+        "ec2:DescribeAvailabilityZones", "ec2:DescribeAccountAttributes",
+        "ec2:CreateFlowLogs", "ec2:DeleteFlowLogs", "ec2:DescribeFlowLogs",
+        "ec2:CreateVpcEndpoint", "ec2:DeleteVpcEndpoints",
+        "ec2:DescribeVpcEndpoints", "ec2:ModifyVpcEndpoint",
+        "ec2:DescribePrefixLists"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": { "aws:RequestedRegion": "$REGION" }
+      }
+    }
+  ]
+}
+POLICY
+<span class="comment"># NOTE: ec2 actions cannot be scoped to specific VPC at creation time</span>
+<span class="comment"># (the VPC ARN doesn't exist yet). Region condition limits blast radius.</span>
+<span class="comment"># EXCLUDED: RunInstances, TerminateInstances — EKS manages EC2 directly.</span>
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># POLICY 2: EKS Cluster &amp; Node Groups</span>
+<span class="comment"># WHY: Create/manage EKS cluster and managed node groups</span>
+<span class="comment"># SCOPING: cluster name prefix "bookstore-*"</span>
+<span class="comment"># Includes EC2 for node groups (launch templates, ASG)</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+cat &gt; /tmp/policy-eks.json &lt;&lt; POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EKSClusterManagement",
+      "Effect": "Allow",
+      "Action": [
+        "eks:CreateCluster", "eks:DeleteCluster", "eks:UpdateClusterConfig",
+        "eks:UpdateClusterVersion", "eks:DescribeCluster", "eks:ListClusters",
+        "eks:TagResource", "eks:UntagResource", "eks:ListTagsForResource",
+        "eks:CreateNodegroup", "eks:DeleteNodegroup", "eks:UpdateNodegroupConfig",
+        "eks:UpdateNodegroupVersion", "eks:DescribeNodegroup", "eks:ListNodegroups",
+        "eks:CreateAddon", "eks:DeleteAddon", "eks:UpdateAddon",
+        "eks:DescribeAddon", "eks:DescribeAddonVersions", "eks:ListAddons",
+        "eks:AssociateEncryptionConfig",
+        "eks:DescribeIdentityProviderConfig",
+        "eks:AssociateIdentityProviderConfig"
+      ],
+      "Resource": [
+        "arn:aws:eks:$REGION:$ACCOUNT_ID:cluster/bookstore-*",
+        "arn:aws:eks:$REGION:$ACCOUNT_ID:nodegroup/bookstore-*/*/*",
+        "arn:aws:eks:$REGION:$ACCOUNT_ID:addon/bookstore-*/*/*"
+      ]
+    },
+    {
+      "Sid": "EKSListAndDescribeAll",
+      "Effect": "Allow",
+      "Action": [
+        "eks:ListClusters",
+        "eks:DescribeAddonVersions"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EC2ForNodeGroups",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:RunInstances", "ec2:TerminateInstances",
+        "ec2:DescribeInstances", "ec2:DescribeInstanceTypes",
+        "ec2:CreateLaunchTemplate", "ec2:DeleteLaunchTemplate",
+        "ec2:DescribeLaunchTemplates", "ec2:DescribeLaunchTemplateVersions",
+        "ec2:CreateLaunchTemplateVersion",
+        "ec2:DescribeImages", "ec2:DescribeKeyPairs",
+        "ec2:CreateNetworkInterface", "ec2:DeleteNetworkInterface",
+        "ec2:DescribeNetworkInterfaces", "ec2:AttachNetworkInterface",
+        "ec2:DetachNetworkInterface",
+        "autoscaling:CreateAutoScalingGroup", "autoscaling:DeleteAutoScalingGroup",
+        "autoscaling:UpdateAutoScalingGroup", "autoscaling:DescribeAutoScalingGroups",
+        "autoscaling:DescribeLaunchConfigurations",
+        "autoscaling:DescribeScalingActivities",
+        "autoscaling:CreateOrUpdateTags", "autoscaling:DeleteTags",
+        "autoscaling:SetDesiredCapacity", "autoscaling:TerminateInstanceInAutoScalingGroup"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": { "aws:RequestedRegion": "$REGION" }
+      }
+    }
+  ]
+}
+POLICY
+<span class="comment"># SCOPED: EKS actions restricted to "bookstore-*" named clusters only.</span>
+<span class="comment"># EC2 RunInstances is needed by EKS to launch worker nodes.</span>
+<span class="comment"># Cannot scope EC2 further because EKS creates instances dynamically.</span>
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># POLICY 3: IAM Roles (for EKS, IRSA, ALB Controller)</span>
+<span class="comment"># WHY: Create roles for node groups, IRSA pod identities, LB controller</span>
+<span class="comment"># RISK: IAM is the most sensitive — scope to "bookstore-*" roles only</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+cat &gt; /tmp/policy-iam.json &lt;&lt; POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "IAMRolesForBookstore",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole", "iam:DeleteRole", "iam:GetRole",
+        "iam:UpdateRole", "iam:UpdateAssumeRolePolicy",
+        "iam:TagRole", "iam:UntagRole", "iam:ListRoleTags",
+        "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:GetRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:AttachRolePolicy", "iam:DetachRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:CreateInstanceProfile", "iam:DeleteInstanceProfile",
+        "iam:GetInstanceProfile",
+        "iam:AddRoleToInstanceProfile", "iam:RemoveRoleFromInstanceProfile",
+        "iam:ListInstanceProfilesForRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::$ACCOUNT_ID:role/bookstore-*",
+        "arn:aws:iam::$ACCOUNT_ID:instance-profile/bookstore-*"
+      ]
+    },
+    {
+      "Sid": "IAMPoliciesForBookstore",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreatePolicy", "iam:DeletePolicy",
+        "iam:GetPolicy", "iam:GetPolicyVersion",
+        "iam:ListPolicyVersions", "iam:CreatePolicyVersion",
+        "iam:DeletePolicyVersion"
+      ],
+      "Resource": "arn:aws:iam::$ACCOUNT_ID:policy/bookstore-*"
+    },
+    {
+      "Sid": "IAMPassRoleToEKS",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::$ACCOUNT_ID:role/bookstore-*",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": [
+            "eks.amazonaws.com",
+            "ec2.amazonaws.com",
+            "elasticloadbalancing.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "OIDCProviderForIRSA",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateOpenIDConnectProvider",
+        "iam:DeleteOpenIDConnectProvider",
+        "iam:GetOpenIDConnectProvider",
+        "iam:TagOpenIDConnectProvider",
+        "iam:ListOpenIDConnectProviders"
+      ],
+      "Resource": "arn:aws:iam::$ACCOUNT_ID:oidc-provider/*"
+    },
+    {
+      "Sid": "ServiceLinkedRoles",
+      "Effect": "Allow",
+      "Action": "iam:CreateServiceLinkedRole",
+      "Resource": "arn:aws:iam::*:role/aws-service-role/*",
+      "Condition": {
+        "StringLike": {
+          "iam:AWSServiceName": [
+            "eks.amazonaws.com",
+            "eks-nodegroup.amazonaws.com",
+            "elasticloadbalancing.amazonaws.com",
+            "autoscaling.amazonaws.com"
+          ]
+        }
+      }
+    }
+  ]
+}
+POLICY
+<span class="comment"># FINE-GRAINED: Only roles/policies prefixed "bookstore-*" can be managed.</span>
+<span class="comment"># PassRole limited to EKS/EC2/ELB services only (prevents privilege escalation).</span>
+<span class="comment"># OIDC scoped to the account's OIDC providers (for IRSA).</span>
+<span class="comment"># ServiceLinkedRole limited to specific AWS services.</span>
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># POLICY 4: ECR (Container Registry)</span>
+<span class="comment"># WHY: Create repos, push/pull images, manage lifecycle</span>
+<span class="comment"># SCOPED to bookstore/* repositories only</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+cat &gt; /tmp/policy-ecr.json &lt;&lt; POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ECRRepositoryManagement",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:CreateRepository", "ecr:DeleteRepository",
+        "ecr:DescribeRepositories", "ecr:ListTagsForResource",
+        "ecr:TagResource", "ecr:UntagResource",
+        "ecr:PutLifecyclePolicy", "ecr:GetLifecyclePolicy",
+        "ecr:PutImageScanningConfiguration",
+        "ecr:SetRepositoryPolicy", "ecr:GetRepositoryPolicy",
+        "ecr:DeleteRepositoryPolicy"
+      ],
+      "Resource": "arn:aws:ecr:$REGION:$ACCOUNT_ID:repository/bookstore/*"
+    },
+    {
+      "Sid": "ECRImagePushPull",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ECRImageOperations",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability", "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage", "ecr:PutImage", "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart", "ecr:CompleteLayerUpload",
+        "ecr:DescribeImages", "ecr:ListImages"
+      ],
+      "Resource": "arn:aws:ecr:$REGION:$ACCOUNT_ID:repository/bookstore/*"
+    }
+  ]
+}
+POLICY
+<span class="comment"># SCOPED: Only "bookstore/*" repos. Cannot touch other teams' repos.</span>
+<span class="comment"># GetAuthorizationToken must be Resource: "*" (AWS limitation).</span>
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># POLICY 5: Aurora PostgreSQL (RDS)</span>
+<span class="comment"># WHY: Create 4 Aurora clusters with parameter groups, subnet groups</span>
+<span class="comment"># SCOPED to "bookstore-*" named clusters</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+cat &gt; /tmp/policy-rds.json &lt;&lt; POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AuroraClusterManagement",
+      "Effect": "Allow",
+      "Action": [
+        "rds:CreateDBCluster", "rds:DeleteDBCluster", "rds:ModifyDBCluster",
+        "rds:DescribeDBClusters", "rds:StartDBCluster", "rds:StopDBCluster",
+        "rds:CreateDBInstance", "rds:DeleteDBInstance", "rds:ModifyDBInstance",
+        "rds:DescribeDBInstances", "rds:RebootDBInstance",
+        "rds:CreateDBSubnetGroup", "rds:DeleteDBSubnetGroup",
+        "rds:DescribeDBSubnetGroups", "rds:ModifyDBSubnetGroup",
+        "rds:CreateDBClusterParameterGroup", "rds:DeleteDBClusterParameterGroup",
+        "rds:ModifyDBClusterParameterGroup", "rds:DescribeDBClusterParameterGroups",
+        "rds:DescribeDBClusterParameters",
+        "rds:DescribeDBEngineVersions", "rds:DescribeOrderableDBInstanceOptions",
+        "rds:AddTagsToResource", "rds:RemoveTagsFromResource",
+        "rds:ListTagsForResource",
+        "rds:DescribeDBLogFiles", "rds:DescribeEvents",
+        "rds:EnableEnhancedMonitoring", "rds:DescribeCertificates"
+      ],
+      "Resource": [
+        "arn:aws:rds:$REGION:$ACCOUNT_ID:cluster:bookstore-*",
+        "arn:aws:rds:$REGION:$ACCOUNT_ID:db:bookstore-*",
+        "arn:aws:rds:$REGION:$ACCOUNT_ID:subgrp:bookstore-*",
+        "arn:aws:rds:$REGION:$ACCOUNT_ID:cluster-pg:bookstore-*"
+      ]
+    },
+    {
+      "Sid": "RDSDescribeAll",
+      "Effect": "Allow",
+      "Action": [
+        "rds:DescribeDBEngineVersions",
+        "rds:DescribeOrderableDBInstanceOptions",
+        "rds:DescribeCertificates"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+POLICY
+<span class="comment"># SCOPED: Only "bookstore-*" clusters, instances, subnet groups, param groups.</span>
+<span class="comment"># EXCLUDED: rds:RestoreDBClusterFromSnapshot (prevent importing foreign data).</span>
+<span class="comment"># EXCLUDED: rds:ModifyDBClusterSnapshotAttribute (prevent sharing snapshots).</span>
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># POLICY 6: MSK (Kafka), ElastiCache (Redis), Route53, ACM, WAF</span>
+<span class="comment"># WHY: Create managed messaging, caching, DNS, TLS, and WAF</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+cat &gt; /tmp/policy-managed-services.json &lt;&lt; POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "MSKKafkaManagement",
+      "Effect": "Allow",
+      "Action": [
+        "kafka:CreateCluster", "kafka:DeleteCluster", "kafka:UpdateClusterConfiguration",
+        "kafka:DescribeCluster", "kafka:DescribeClusterV2", "kafka:ListClusters",
+        "kafka:ListClustersV2", "kafka:GetBootstrapBrokers",
+        "kafka:CreateConfiguration", "kafka:DeleteConfiguration",
+        "kafka:DescribeConfiguration", "kafka:DescribeConfigurationRevision",
+        "kafka:ListConfigurations",
+        "kafka:UpdateBrokerStorage", "kafka:UpdateBrokerCount",
+        "kafka:TagResource", "kafka:UntagResource", "kafka:ListTagsForResource",
+        "kafka:UpdateMonitoring", "kafka:UpdateSecurity"
+      ],
+      "Resource": "arn:aws:kafka:$REGION:$ACCOUNT_ID:cluster/bookstore-*/*"
+    },
+    {
+      "Sid": "MSKConfigAndList",
+      "Effect": "Allow",
+      "Action": [
+        "kafka:ListClusters", "kafka:ListClustersV2",
+        "kafka:ListConfigurations", "kafka:ListKafkaVersions",
+        "kafka:CreateConfiguration", "kafka:DescribeConfiguration",
+        "kafka:DescribeConfigurationRevision"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ElastiCacheManagement",
+      "Effect": "Allow",
+      "Action": [
+        "elasticache:CreateReplicationGroup", "elasticache:DeleteReplicationGroup",
+        "elasticache:ModifyReplicationGroup", "elasticache:DescribeReplicationGroups",
+        "elasticache:CreateCacheSubnetGroup", "elasticache:DeleteCacheSubnetGroup",
+        "elasticache:DescribeCacheSubnetGroups", "elasticache:ModifyCacheSubnetGroup",
+        "elasticache:CreateCacheParameterGroup", "elasticache:DeleteCacheParameterGroup",
+        "elasticache:ModifyCacheParameterGroup", "elasticache:DescribeCacheParameterGroups",
+        "elasticache:DescribeCacheParameters", "elasticache:DescribeCacheEngineVersions",
+        "elasticache:AddTagsToResource", "elasticache:RemoveTagsFromResource",
+        "elasticache:ListTagsForResource",
+        "elasticache:DescribeEvents"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": { "aws:RequestedRegion": "$REGION" }
+      }
+    },
+    {
+      "Sid": "Route53DNSManagement",
+      "Effect": "Allow",
+      "Action": [
+        "route53:CreateHostedZone", "route53:DeleteHostedZone",
+        "route53:GetHostedZone", "route53:ListHostedZones",
+        "route53:ChangeResourceRecordSets", "route53:GetChange",
+        "route53:ListResourceRecordSets",
+        "route53:ChangeTagsForResource", "route53:ListTagsForResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ACMCertificateManagement",
+      "Effect": "Allow",
+      "Action": [
+        "acm:RequestCertificate", "acm:DeleteCertificate",
+        "acm:DescribeCertificate", "acm:ListCertificates",
+        "acm:ListTagsForCertificate", "acm:AddTagsToCertificate",
+        "acm:GetCertificate"
+      ],
+      "Resource": "arn:aws:acm:$REGION:$ACCOUNT_ID:certificate/*"
+    },
+    {
+      "Sid": "WAFv2Management",
+      "Effect": "Allow",
+      "Action": [
+        "wafv2:CreateWebACL", "wafv2:DeleteWebACL",
+        "wafv2:GetWebACL", "wafv2:UpdateWebACL",
+        "wafv2:AssociateWebACL", "wafv2:DisassociateWebACL",
+        "wafv2:ListWebACLs", "wafv2:ListTagsForResource",
+        "wafv2:TagResource", "wafv2:UntagResource"
+      ],
+      "Resource": "arn:aws:wafv2:$REGION:$ACCOUNT_ID:regional/webacl/bookstore-*/*"
+    },
+    {
+      "Sid": "ELBForALBController",
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:CreateLoadBalancer", "elasticloadbalancing:DeleteLoadBalancer",
+        "elasticloadbalancing:DescribeLoadBalancers", "elasticloadbalancing:ModifyLoadBalancerAttributes",
+        "elasticloadbalancing:CreateTargetGroup", "elasticloadbalancing:DeleteTargetGroup",
+        "elasticloadbalancing:DescribeTargetGroups", "elasticloadbalancing:ModifyTargetGroupAttributes",
+        "elasticloadbalancing:RegisterTargets", "elasticloadbalancing:DeregisterTargets",
+        "elasticloadbalancing:DescribeTargetHealth",
+        "elasticloadbalancing:CreateListener", "elasticloadbalancing:DeleteListener",
+        "elasticloadbalancing:DescribeListeners", "elasticloadbalancing:ModifyListener",
+        "elasticloadbalancing:CreateRule", "elasticloadbalancing:DeleteRule",
+        "elasticloadbalancing:DescribeRules", "elasticloadbalancing:ModifyRule",
+        "elasticloadbalancing:AddTags", "elasticloadbalancing:RemoveTags",
+        "elasticloadbalancing:DescribeTags",
+        "elasticloadbalancing:DescribeLoadBalancerAttributes",
+        "elasticloadbalancing:DescribeTargetGroupAttributes",
+        "elasticloadbalancing:DescribeListenerCertificates",
+        "elasticloadbalancing:AddListenerCertificates",
+        "elasticloadbalancing:SetSecurityGroups", "elasticloadbalancing:SetSubnets"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": { "aws:RequestedRegion": "$REGION" }
+      }
+    }
+  ]
+}
+POLICY
+<span class="comment"># MSK: Scoped to "bookstore-*" clusters. Cannot touch other Kafka clusters.</span>
+<span class="comment"># ElastiCache: Region-locked. Cannot create resources in other regions.</span>
+<span class="comment"># Route53: Needs "*" because hosted zone ARNs include random IDs.</span>
+<span class="comment"># ACM: Scoped to region. WAF: Scoped to "bookstore-*" named ACLs.</span>
+<span class="comment"># ELB: Region-locked. ALB Controller in K8s creates ALBs dynamically.</span>
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># POLICY 7: S3, DynamoDB, Secrets Manager, KMS, CloudWatch</span>
+<span class="comment"># WHY: Terraform state, secrets, encryption, monitoring</span>
+<span class="comment"># TIGHTEST SCOPING: named resources only</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+cat &gt; /tmp/policy-state-secrets.json &lt;&lt; POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S3TerraformState",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket", "s3:DeleteBucket",
+        "s3:GetBucketVersioning", "s3:PutBucketVersioning",
+        "s3:GetBucketEncryption", "s3:PutBucketEncryption",
+        "s3:GetBucketPolicy", "s3:PutBucketPolicy",
+        "s3:GetBucketPublicAccessBlock", "s3:PutBucketPublicAccessBlock",
+        "s3:GetBucketAcl", "s3:PutBucketAcl",
+        "s3:GetBucketTagging", "s3:PutBucketTagging",
+        "s3:ListBucket", "s3:GetObject", "s3:PutObject", "s3:DeleteObject",
+        "s3:GetBucketLocation"
+      ],
+      "Resource": [
+        "arn:aws:s3:::bookstore-terraform-state-*",
+        "arn:aws:s3:::bookstore-terraform-state-*/*"
+      ]
+    },
+    {
+      "Sid": "DynamoDBStateLock",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:CreateTable", "dynamodb:DeleteTable",
+        "dynamodb:DescribeTable", "dynamodb:GetItem", "dynamodb:PutItem",
+        "dynamodb:DeleteItem", "dynamodb:TagResource",
+        "dynamodb:DescribeContinuousBackups", "dynamodb:DescribeTimeToLive"
+      ],
+      "Resource": "arn:aws:dynamodb:$REGION:$ACCOUNT_ID:table/bookstore-terraform-lock"
+    },
+    {
+      "Sid": "SecretsManagerBookstore",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:CreateSecret", "secretsmanager:DeleteSecret",
+        "secretsmanager:GetSecretValue", "secretsmanager:PutSecretValue",
+        "secretsmanager:UpdateSecret", "secretsmanager:DescribeSecret",
+        "secretsmanager:TagResource", "secretsmanager:GetResourcePolicy",
+        "secretsmanager:PutResourcePolicy", "secretsmanager:DeleteResourcePolicy"
+      ],
+      "Resource": "arn:aws:secretsmanager:$REGION:$ACCOUNT_ID:secret:bookstore-*"
+    },
+    {
+      "Sid": "KMSForEncryption",
+      "Effect": "Allow",
+      "Action": [
+        "kms:CreateKey", "kms:DescribeKey", "kms:GetKeyPolicy",
+        "kms:PutKeyPolicy", "kms:EnableKeyRotation",
+        "kms:GetKeyRotationStatus", "kms:ListResourceTags",
+        "kms:TagResource", "kms:CreateAlias", "kms:DeleteAlias",
+        "kms:ListAliases", "kms:ScheduleKeyDeletion",
+        "kms:GenerateDataKey", "kms:GenerateDataKeyWithoutPlaintext",
+        "kms:Decrypt", "kms:Encrypt", "kms:CreateGrant", "kms:ListGrants"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": { "aws:RequestedRegion": "$REGION" }
+      }
+    },
+    {
+      "Sid": "CloudWatchLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup", "logs:DeleteLogGroup",
+        "logs:PutRetentionPolicy", "logs:DescribeLogGroups",
+        "logs:TagLogGroup", "logs:ListTagsLogGroup",
+        "logs:TagResource", "logs:ListTagsForResource"
+      ],
+      "Resource": "arn:aws:logs:$REGION:$ACCOUNT_ID:log-group:/aws/eks/bookstore-*:*"
+    },
+    {
+      "Sid": "CloudWatchAlarms",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetricAlarm", "cloudwatch:DeleteAlarms",
+        "cloudwatch:DescribeAlarms", "cloudwatch:ListTagsForResource",
+        "cloudwatch:TagResource",
+        "sns:CreateTopic", "sns:DeleteTopic", "sns:Subscribe",
+        "sns:GetTopicAttributes", "sns:SetTopicAttributes",
+        "sns:ListTagsForResource", "sns:TagResource"
+      ],
+      "Resource": [
+        "arn:aws:cloudwatch:$REGION:$ACCOUNT_ID:alarm:bookstore-*",
+        "arn:aws:sns:$REGION:$ACCOUNT_ID:bookstore-*"
+      ]
+    },
+    {
+      "Sid": "STSIdentity",
+      "Effect": "Allow",
+      "Action": [
+        "sts:GetCallerIdentity",
+        "sts:DecodeAuthorizationMessage"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+POLICY
+<span class="comment"># S3: Only "bookstore-terraform-state-*" buckets. Cannot access other S3 data.</span>
+<span class="comment"># DynamoDB: Only the specific lock table. No scan/query on other tables.</span>
+<span class="comment"># Secrets Manager: Only "bookstore-*" secrets. Cannot read other secrets.</span>
+<span class="comment"># KMS: Region-locked. CreateGrant needed for RDS/EKS to use the key.</span>
+<span class="comment"># CloudWatch: Only "/aws/eks/bookstore-*" log groups and "bookstore-*" alarms.</span>
+
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+<span class="comment"># Step 4: Create all policies and attach to the user</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────</span>
+for POLICY_FILE in networking eks iam ecr rds managed-services state-secrets; do
+  POLICY_NAME="bookstore-terraform-${POLICY_FILE}"
+  echo "Creating policy: $POLICY_NAME"
+
+  aws iam create-policy \
+    --policy-name "$POLICY_NAME" \
+    --policy-document "file:///tmp/policy-${POLICY_FILE}.json" \
+    --description "BookStore Terraform - ${POLICY_FILE} permissions"
+
+  aws iam attach-user-policy \
+    --user-name terraform-bookstore \
+    --policy-arn "arn:aws:iam::${ACCOUNT_ID}:policy/${POLICY_NAME}"
+done
+
+echo "All 7 policies created and attached."
+
+<span class="comment"># Step 4: Create the IAM policy</span>
+aws iam create-policy \
+  --policy-name BookstoreTerraformPolicy \
+  --policy-document file:///tmp/terraform-policy.json
+
+<span class="comment"># Step 5: Attach the policy to the user</span>
+<span class="comment"># Replace ACCOUNT_ID with your 12-digit AWS account ID</span>
+aws iam attach-user-policy \
+  --user-name terraform-bookstore \
+  --policy-arn arn:aws:iam::ACCOUNT_ID:policy/BookstoreTerraformPolicy
+
+<span class="comment"># Step 6: Configure AWS CLI with the new credentials</span>
+aws configure --profile bookstore
+<span class="comment"># Enter: AccessKeyId, SecretAccessKey, us-east-1, json</span>
+
+<span class="comment"># Step 7: Set the profile for this terminal session</span>
+export AWS_PROFILE=bookstore
+
+<span class="comment"># Step 8: Verify identity</span>
+aws sts get-caller-identity
+<span class="comment"># Should show: "Arn": "arn:aws:iam::ACCOUNT_ID:user/terraform-bookstore"</span></code></pre>
+  </div>
+
+  <h4>Option B: IAM Role with AWS SSO (Organizations / Production)</h4>
+
+  <div class="step purple">
+    <h3><span class="step-num">B1</span> Use AWS SSO / Identity Center</h3>
+<pre><code><span class="comment"># If your organization uses AWS SSO (recommended for teams):</span>
+
+<span class="comment"># Step 1: Configure SSO</span>
+aws configure sso
+<span class="comment"># Enter: SSO start URL, SSO region, choose the account and role</span>
+<span class="comment"># The role needs the same permissions as the policy above</span>
+
+<span class="comment"># Step 2: Login</span>
+aws sso login --profile bookstore-sso
+
+<span class="comment"># Step 3: Set for Terraform</span>
+export AWS_PROFILE=bookstore-sso
+
+<span class="comment"># Step 4: Verify</span>
 aws sts get-caller-identity</code></pre>
+  </div>
+
+  <h4>Option C: Environment Variables (CI/CD Pipelines)</h4>
+
+  <div class="step amber">
+    <h3><span class="step-num">C1</span> Export credentials as environment variables</h3>
+<pre><code><span class="comment"># For CI/CD (GitHub Actions, GitLab CI, Jenkins):</span>
+<span class="comment"># Set these as pipeline secrets — NEVER commit to git</span>
+export AWS_ACCESS_KEY_ID="AKIA..."
+export AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG/..."
+export AWS_DEFAULT_REGION="us-east-1"
+
+<span class="comment"># Terraform automatically reads these environment variables</span>
+<span class="comment"># No aws configure needed</span>
+
+<span class="comment"># Verify</span>
+aws sts get-caller-identity</code></pre>
+  </div>
+
+  <div class="callout warn">
+    <strong>Security best practices for IAM:</strong>
+    <ul style="margin-top:8px;">
+      <li><strong>Never use root account credentials</strong> for Terraform. Create a dedicated IAM user or role.</li>
+      <li><strong>Rotate access keys</strong> every 90 days: <code>aws iam create-access-key</code> then <code>aws iam delete-access-key</code></li>
+      <li><strong>Enable MFA</strong> on the IAM user: <code>aws iam enable-mfa-device</code></li>
+      <li><strong>Use SSO/roles</strong> instead of static keys when possible (Option B)</li>
+      <li><strong>Scope the policy</strong> to specific resources in production (the policy above is scoped to <code>bookstore-*</code> for S3/Secrets)</li>
+      <li><strong>Audit access</strong> with CloudTrail: every API call is logged</li>
+    </ul>
+  </div>
+
+  <div class="callout tip">
+    <strong>Verify your permissions work:</strong>
+<pre style="margin:8px 0 0;"><code>aws eks list-clusters --region us-east-1        <span class="comment"># Should return [] or list</span>
+aws rds describe-db-clusters --region us-east-1  <span class="comment"># Should return []</span>
+aws s3 ls                                        <span class="comment"># Should list buckets</span>
+aws sts get-caller-identity                      <span class="comment"># Must show your user/role</span></code></pre>
+    If any command returns <code>AccessDenied</code>, the policy is missing that permission.
+  </div>
+
+  <h4>Fine-Grained IAM: Policy-to-Component Mapping</h4>
+
+  <div class="callout tip">
+    <strong>7 separate policies</strong> instead of 1 monolithic policy. If a team member only manages databases, attach only <code>bookstore-terraform-rds</code>. Principle of least privilege = minimal blast radius.
+  </div>
+
+  <table>
+    <tr><th>Policy File</th><th>Component</th><th>Resource Scope</th><th>Key Actions (NOT wildcards)</th><th>Attack Surface</th></tr>
+    <tr><td rowspan="3"><strong>policy-networking</strong></td><td>VPC</td><td>Region-locked</td><td><code>ec2:CreateVpc</code>, <code>CreateSubnet</code>, <code>CreateRouteTable</code></td><td rowspan="3">Cannot RunInstances or touch non-VPC EC2</td></tr>
+    <tr><td>NAT/IGW</td><td>Region-locked</td><td><code>ec2:CreateNatGateway</code>, <code>CreateInternetGateway</code></td></tr>
+    <tr><td>Security Groups</td><td>Region-locked</td><td><code>ec2:CreateSecurityGroup</code>, <code>AuthorizeIngress/Egress</code></td></tr>
+    <tr><td rowspan="2"><strong>policy-eks</strong></td><td>EKS Cluster</td><td><code>bookstore-*</code> clusters</td><td><code>eks:CreateCluster</code>, <code>CreateNodegroup</code>, <code>CreateAddon</code></td><td rowspan="2">Cannot touch non-bookstore clusters</td></tr>
+    <tr><td>Node Groups</td><td>Region-locked</td><td><code>ec2:RunInstances</code> (EKS-managed only), <code>autoscaling:*</code></td></tr>
+    <tr><td rowspan="3"><strong>policy-iam</strong></td><td>IAM Roles</td><td><code>bookstore-*</code> roles</td><td><code>iam:CreateRole</code>, <code>AttachRolePolicy</code></td><td rowspan="3">Cannot create/modify non-bookstore roles. PassRole limited to EKS/EC2/ELB services only.</td></tr>
+    <tr><td>OIDC (IRSA)</td><td>Account OIDC providers</td><td><code>iam:CreateOpenIDConnectProvider</code></td></tr>
+    <tr><td>Policies</td><td><code>bookstore-*</code> policies</td><td><code>iam:CreatePolicy</code>, <code>DeletePolicy</code></td></tr>
+    <tr><td><strong>policy-ecr</strong></td><td>Container Registry</td><td><code>bookstore/*</code> repos</td><td><code>ecr:CreateRepository</code>, <code>PutImage</code>, <code>PutLifecyclePolicy</code></td><td>Cannot access other teams' repos</td></tr>
+    <tr><td><strong>policy-rds</strong></td><td>Aurora PostgreSQL</td><td><code>bookstore-*</code> clusters</td><td><code>rds:CreateDBCluster</code>, <code>CreateDBInstance</code>, <code>CreateDBSubnetGroup</code></td><td>Cannot RestoreSnapshot or share snapshots</td></tr>
+    <tr><td rowspan="5"><strong>policy-managed-services</strong></td><td>MSK (Kafka)</td><td><code>bookstore-*</code> clusters</td><td><code>kafka:CreateCluster</code>, <code>DescribeCluster</code></td><td rowspan="5">Each service scoped by name or region</td></tr>
+    <tr><td>ElastiCache</td><td>Region-locked</td><td><code>elasticache:CreateReplicationGroup</code></td></tr>
+    <tr><td>Route 53</td><td>All zones (AWS limit)</td><td><code>route53:CreateHostedZone</code>, <code>ChangeResourceRecordSets</code></td></tr>
+    <tr><td>ACM</td><td>Region-scoped</td><td><code>acm:RequestCertificate</code>, <code>DescribeCertificate</code></td></tr>
+    <tr><td>ALB + WAF</td><td>Region-locked / <code>bookstore-*</code></td><td><code>elasticloadbalancing:Create*</code>, <code>wafv2:CreateWebACL</code></td></tr>
+    <tr><td rowspan="5"><strong>policy-state-secrets</strong></td><td>S3 State</td><td><code>bookstore-terraform-state-*</code></td><td><code>s3:GetObject</code>, <code>PutObject</code>, <code>PutBucketVersioning</code></td><td rowspan="5">Tightest scope: named buckets, single table, prefixed secrets, prefixed log groups</td></tr>
+    <tr><td>DynamoDB Lock</td><td>Single table</td><td><code>dynamodb:GetItem</code>, <code>PutItem</code>, <code>DeleteItem</code></td></tr>
+    <tr><td>Secrets Manager</td><td><code>bookstore-*</code> secrets</td><td><code>secretsmanager:CreateSecret</code>, <code>GetSecretValue</code></td></tr>
+    <tr><td>KMS</td><td>Region-locked</td><td><code>kms:CreateKey</code>, <code>Encrypt</code>, <code>Decrypt</code>, <code>CreateGrant</code></td></tr>
+    <tr><td>CloudWatch</td><td><code>bookstore-*</code> log groups</td><td><code>logs:CreateLogGroup</code>, <code>cloudwatch:PutMetricAlarm</code></td></tr>
+  </table>
+
+  <div class="callout danger">
+    <strong>What is explicitly DENIED / NOT included (reduces attack surface):</strong>
+    <ul style="margin-top:8px;">
+      <li><code>ec2:RunInstances</code> outside of EKS node groups — prevents launching rogue instances</li>
+      <li><code>iam:CreateUser</code>, <code>iam:CreateAccessKey</code> — prevents privilege escalation (creating new users)</li>
+      <li><code>iam:PassRole</code> to non-EKS services — prevents lateral movement to Lambda, ECS, etc.</li>
+      <li><code>rds:RestoreDBClusterFromSnapshot</code> — prevents importing foreign/tampered data</li>
+      <li><code>rds:ModifyDBClusterSnapshotAttribute</code> — prevents sharing snapshots publicly</li>
+      <li><code>s3:*</code> on non-bookstore buckets — cannot access other teams' S3 data</li>
+      <li><code>secretsmanager:*</code> on non-bookstore secrets — cannot read other apps' passwords</li>
+      <li><code>ecr:*</code> on non-bookstore repos — cannot push to or pull from other teams' images</li>
+      <li><code>sts:AssumeRole</code> on arbitrary roles — prevents assuming admin roles</li>
+    </ul>
+  </div>
+
+  <div class="callout info">
+    <strong>Validate fine-grained permissions:</strong>
+<pre style="margin:8px 0 0;"><code><span class="comment"># Test each policy group</span>
+aws iam simulate-principal-policy \
+  --policy-source-arn "arn:aws:iam::${ACCOUNT_ID}:user/terraform-bookstore" \
+  --action-names eks:CreateCluster rds:CreateDBCluster kafka:CreateCluster \
+  --resource-arns "arn:aws:eks:us-east-1:${ACCOUNT_ID}:cluster/bookstore-prod" \
+  --query 'EvaluationResults[].{Action:EvalActionName,Decision:EvalDecision}' \
+  --output table
+<span class="comment"># All should show "allowed"</span>
+
+<span class="comment"># Verify DENIED actions (should show "implicitDeny")</span>
+aws iam simulate-principal-policy \
+  --policy-source-arn "arn:aws:iam::${ACCOUNT_ID}:user/terraform-bookstore" \
+  --action-names iam:CreateUser s3:GetObject \
+  --resource-arns "arn:aws:s3:::some-other-bucket/secret.txt" \
+  --query 'EvaluationResults[].{Action:EvalActionName,Decision:EvalDecision}' \
+  --output table
+<span class="comment"># Should show "implicitDeny" — proving least privilege works</span></code></pre>
   </div>
 
   <!-- ═══════════════════════════════════════ -->

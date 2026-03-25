@@ -149,6 +149,7 @@
     <ol>
       <li><a href="#architecture">Architecture Overview</a></li>
       <li><a href="#prereqs">Prerequisites</a></li>
+      <li><a href="#identity-setup">Identity &amp; RBAC Setup (Service Principal, Roles per Component)</a></li>
       <li><a href="#project-structure">Terraform Project Structure</a></li>
       <li><a href="#backend">Step 1 &mdash; State Backend (00-backend.tf)</a></li>
       <li><a href="#versions">Step 2 &mdash; Provider Versions (01-versions.tf)</a></li>
@@ -259,8 +260,175 @@ az account show --output table
 terraform version
 kubectl version --client</code></pre>
 
+  <!-- ═══ AZURE IDENTITY SETUP — CRITICAL ═══ -->
+  <h3 id="identity-setup">Identity &amp; RBAC Setup (Required Before Any Terraform Command)</h3>
+
+  <div class="callout danger">
+    <strong>Without proper Azure identity and role assignments, Terraform cannot create any resource.</strong> Complete this section BEFORE running <code>terraform init</code>. Choose <strong>Option A</strong> (interactive login — dev/personal) or <strong>Option B</strong> (Service Principal — CI/CD and teams).
+  </div>
+
+  <h4>Option A: Interactive Login (Personal / Dev)</h4>
+
+  <div class="step blue">
+    <h3><span class="step-num">A1</span> Login and assign roles</h3>
+<pre><code><span class="comment"># Step 1: Login to Azure (opens browser)</span>
+az login
+
+<span class="comment"># Step 2: List subscriptions and pick the right one</span>
+az account list --output table
+
+<span class="comment"># Step 3: Set the active subscription</span>
+az account set --subscription "YOUR_SUBSCRIPTION_ID"
+
+<span class="comment"># Step 4: Check your current roles</span>
+az role assignment list --assignee $(az ad signed-in-user show --query id -o tsv) \
+  --output table
+
+<span class="comment"># You need AT MINIMUM these roles on the subscription:</span>
+<span class="comment"># - Contributor         (create/manage all resources)</span>
+<span class="comment"># - User Access Admin   (assign roles to managed identities)</span>
+<span class="comment"># - Key Vault Admin     (manage Key Vault secrets)</span>
+
+<span class="comment"># Step 5: If you're subscription Owner, you already have everything.</span>
+<span class="comment"># If not, ask your admin to assign:</span>
+SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+USER_ID=$(az ad signed-in-user show --query id -o tsv)
+
+az role assignment create --assignee "$USER_ID" \
+  --role "Contributor" --scope "/subscriptions/$SUBSCRIPTION_ID"
+
+az role assignment create --assignee "$USER_ID" \
+  --role "User Access Administrator" --scope "/subscriptions/$SUBSCRIPTION_ID"
+
+az role assignment create --assignee "$USER_ID" \
+  --role "Key Vault Administrator" --scope "/subscriptions/$SUBSCRIPTION_ID"
+
+<span class="comment"># Step 6: Verify</span>
+az account show --output table
+az role assignment list --assignee "$USER_ID" --output table</code></pre>
+  </div>
+
+  <h4>Option B: Service Principal (CI/CD / Teams — Recommended for Production)</h4>
+
+  <div class="step purple">
+    <h3><span class="step-num">B1</span> Create a Service Principal with required roles</h3>
+<pre><code><span class="comment"># Step 1: Create a Service Principal with Contributor role</span>
+SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+
+SP_OUTPUT=$(az ad sp create-for-rbac \
+  --name "sp-bookstore-terraform" \
+  --role "Contributor" \
+  --scopes "/subscriptions/$SUBSCRIPTION_ID" \
+  --output json)
+
+echo "$SP_OUTPUT"
+<span class="comment"># SAVE THIS OUTPUT! Contains:</span>
+<span class="comment">#   appId       → ARM_CLIENT_ID</span>
+<span class="comment">#   password    → ARM_CLIENT_SECRET (shown ONCE, never again)</span>
+<span class="comment">#   tenant      → ARM_TENANT_ID</span>
+
+<span class="comment"># Step 2: Extract values</span>
+ARM_CLIENT_ID=$(echo $SP_OUTPUT | jq -r '.appId')
+ARM_CLIENT_SECRET=$(echo $SP_OUTPUT | jq -r '.password')
+ARM_TENANT_ID=$(echo $SP_OUTPUT | jq -r '.tenant')
+
+<span class="comment"># Step 3: Assign additional required roles</span>
+<span class="comment"># User Access Administrator — needed to assign roles to AKS managed identity</span>
+az role assignment create --assignee "$ARM_CLIENT_ID" \
+  --role "User Access Administrator" \
+  --scope "/subscriptions/$SUBSCRIPTION_ID"
+
+<span class="comment"># Key Vault Administrator — needed to create Key Vault and manage secrets</span>
+az role assignment create --assignee "$ARM_CLIENT_ID" \
+  --role "Key Vault Administrator" \
+  --scope "/subscriptions/$SUBSCRIPTION_ID"
+
+<span class="comment"># Network Contributor — needed for private endpoints and VNet operations</span>
+az role assignment create --assignee "$ARM_CLIENT_ID" \
+  --role "Network Contributor" \
+  --scope "/subscriptions/$SUBSCRIPTION_ID"
+
+<span class="comment"># Step 4: Set environment variables for Terraform</span>
+export ARM_CLIENT_ID="$ARM_CLIENT_ID"
+export ARM_CLIENT_SECRET="$ARM_CLIENT_SECRET"
+export ARM_TENANT_ID="$ARM_TENANT_ID"
+export ARM_SUBSCRIPTION_ID="$SUBSCRIPTION_ID"
+
+<span class="comment"># Step 5: Verify the Service Principal can authenticate</span>
+az login --service-principal \
+  -u "$ARM_CLIENT_ID" \
+  -p "$ARM_CLIENT_SECRET" \
+  --tenant "$ARM_TENANT_ID"
+
+az account show --output table</code></pre>
+  </div>
+
+  <h4>Required Azure Roles Per Component</h4>
+
+  <table>
+    <tr><th>Component</th><th>Required Role</th><th>Scope</th><th>Why Needed</th></tr>
+    <tr><td><strong>Resource Group</strong></td><td>Contributor</td><td>Subscription</td><td>Create/delete resource groups</td></tr>
+    <tr><td><strong>VNet, Subnets, NSGs</strong></td><td>Network Contributor</td><td>Subscription</td><td>Create VNet, subnets, NSGs, NAT GW, private endpoints</td></tr>
+    <tr><td><strong>AKS Cluster</strong></td><td>Contributor</td><td>Subscription</td><td>Create AKS, node pools, managed identity</td></tr>
+    <tr><td><strong>AKS Role Assignments</strong></td><td>User Access Administrator</td><td>Subscription</td><td>Assign AcrPull, Network Contributor to AKS identity</td></tr>
+    <tr><td><strong>ACR</strong></td><td>Contributor</td><td>Subscription</td><td>Create container registry</td></tr>
+    <tr><td><strong>PostgreSQL Flexible Server</strong></td><td>Contributor</td><td>Subscription</td><td>Create DB servers, configure VNet integration</td></tr>
+    <tr><td><strong>Event Hubs</strong></td><td>Contributor</td><td>Subscription</td><td>Create namespace, event hubs, SAS policies</td></tr>
+    <tr><td><strong>Azure Cache for Redis</strong></td><td>Contributor</td><td>Subscription</td><td>Create Redis, private endpoints</td></tr>
+    <tr><td><strong>Key Vault</strong></td><td>Key Vault Administrator</td><td>Subscription</td><td>Create vault, secrets, access policies</td></tr>
+    <tr><td><strong>App Gateway</strong></td><td>Contributor + Network Contributor</td><td>Subscription</td><td>Create gateway, public IP, backend pools</td></tr>
+    <tr><td><strong>Azure DNS</strong></td><td>DNS Zone Contributor</td><td>Subscription</td><td>Create zone, A records</td></tr>
+    <tr><td><strong>Private DNS Zones</strong></td><td>Private DNS Zone Contributor</td><td>Subscription</td><td>Create private DNS for PostgreSQL, Redis</td></tr>
+    <tr><td><strong>Blob Storage (TF state)</strong></td><td>Storage Blob Data Contributor</td><td>Storage account</td><td>Read/write Terraform state file</td></tr>
+    <tr><td><strong>Monitoring</strong></td><td>Monitoring Contributor</td><td>Subscription</td><td>Create alerts, action groups</td></tr>
+  </table>
+
+  <div class="callout tip">
+    <strong>Shortcut for dev/test:</strong> If you are the <strong>subscription Owner</strong>, you already have all permissions. The table above is for organizations where you need to request specific roles from your Azure AD admin.
+  </div>
+
+  <h4>For CI/CD: Set Environment Variables in Pipeline</h4>
+
+  <div class="step amber">
+    <h3><span class="step-num">C1</span> GitHub Actions / GitLab CI / Jenkins</h3>
+<pre><code><span class="comment"># Add these as pipeline secrets (NEVER commit to git):</span>
+<span class="comment"># ARM_CLIENT_ID       = Service Principal appId</span>
+<span class="comment"># ARM_CLIENT_SECRET   = Service Principal password</span>
+<span class="comment"># ARM_TENANT_ID       = Azure AD tenant ID</span>
+<span class="comment"># ARM_SUBSCRIPTION_ID = Target subscription ID</span>
+
+<span class="comment"># Terraform reads these automatically — no az login needed</span>
+<span class="comment"># The azurerm provider detects ARM_* env vars and authenticates</span>
+
+<span class="comment"># Example GitHub Actions step:</span>
+<span class="comment"># - name: Terraform Apply</span>
+<span class="comment">#   env:</span>
+<span class="comment">#     ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}</span>
+<span class="comment">#     ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}</span>
+<span class="comment">#     ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}</span>
+<span class="comment">#     ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}</span>
+<span class="comment">#   run: terraform apply -auto-approve</span></code></pre>
+  </div>
+
+  <div class="callout warn">
+    <strong>Security best practices for Azure identity:</strong>
+    <ul style="margin-top:8px;">
+      <li><strong>Never use your personal account</strong> for CI/CD — always create a Service Principal</li>
+      <li><strong>Rotate client secrets</strong> every 90 days: <code>az ad sp credential reset</code></li>
+      <li><strong>Use federated credentials</strong> for GitHub Actions (no secrets needed): <code>az ad app federated-credential create</code></li>
+      <li><strong>Scope roles</strong> to resource group level in production (not subscription)</li>
+      <li><strong>Enable audit logging</strong>: Azure Activity Log tracks all ARM operations</li>
+      <li><strong>Use Managed Identity</strong> instead of SP when Terraform runs inside Azure (e.g., Azure DevOps hosted agents)</li>
+    </ul>
+  </div>
+
   <div class="callout info">
-    <strong>Azure Subscription:</strong> You need at least <strong>Contributor</strong> role on the subscription. For Key Vault, you also need <strong>Key Vault Administrator</strong> role or equivalent. The deployment creates ~20 Azure resources.
+    <strong>Verify your permissions work:</strong>
+<pre style="margin:8px 0 0;"><code>az group list --output table                     <span class="comment"># List resource groups</span>
+az aks list --output table                        <span class="comment"># Should return [] or list</span>
+az postgres flexible-server list --output table   <span class="comment"># Should return []</span>
+az account show --output table                    <span class="comment"># Must show your subscription</span></code></pre>
+    If any command returns <code>AuthorizationFailed</code>, you're missing that role assignment.
   </div>
 
   <h3>Register Required Resource Providers</h3>
