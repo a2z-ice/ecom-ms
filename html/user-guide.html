@@ -149,7 +149,7 @@
     <tr><td>E-Commerce API</td><td><span class="url-highlight">https://api.service.net:30000/ecom</span></td><td>JWT token</td><td>REST API</td></tr>
     <tr><td>Inventory API</td><td><span class="url-highlight">https://api.service.net:30000/inven</span></td><td>JWT token</td><td>Stock API</td></tr>
     <tr><td>Keycloak Admin</td><td><span class="url-highlight">http://localhost:32400/admin</span></td><td><code>admin</code> / <code>CHANGE_ME</code></td><td>Identity</td></tr>
-    <tr><td>PgAdmin</td><td><span class="url-highlight">http://localhost:31111</span></td><td><code>admin@bookstore.local</code> / <code>CHANGE_ME</code></td><td>Database</td></tr>
+    <tr><td>PgAdmin</td><td><span class="url-highlight">http://localhost:31111</span></td><td><code>admin@bookstore.dev</code> / <code>CHANGE_ME</code></td><td>Database</td></tr>
     <tr><td>Superset</td><td><span class="url-highlight">http://localhost:32000</span></td><td><code>admin</code> / <code>CHANGE_ME</code></td><td>Analytics</td></tr>
     <tr><td>Grafana</td><td><span class="url-highlight">http://localhost:32500</span></td><td><code>admin</code> / <code>admin</code></td><td>Monitoring</td></tr>
     <tr><td>Kiali</td><td><span class="url-highlight">http://localhost:32100/kiali</span></td><td>(none)</td><td>Service Mesh</td></tr>
@@ -485,14 +485,14 @@ curl -X POST http://localhost:32600/api/renew \
     <h3><span class="step-number">1</span>Login to PgAdmin</h3>
     <p>URL: <span class="url-highlight">http://localhost:31111</span></p>
     <div class="credentials-box">
-      <strong>PgAdmin credentials:</strong> Email: <code>admin@bookstore.local</code> &mdash; Password: <code>CHANGE_ME</code>
+      <strong>PgAdmin credentials:</strong> Email: <code>admin@bookstore.dev</code> &mdash; Password: <code>CHANGE_ME</code>
     </div>
     <img src="screenshots/pgadmin-01-login.png" alt="PgAdmin login page with email and password fields" class="screenshot">
   </div>
 
   <div class="step">
-    <h3><span class="step-number">2</span>Add Database Servers</h3>
-    <p>Right-click <strong>Servers</strong> &rarr; <strong>Register</strong> &rarr; <strong>Server</strong>. Configure each database:</p>
+    <h3><span class="step-number">2</span>Browse Pre-Configured Servers</h3>
+    <p>All 4 PostgreSQL servers are <strong>pre-configured</strong> and appear automatically under the <strong>BookStore</strong> server group after login. Click a server name to connect -- PgAdmin will prompt for the database password:</p>
     <table>
       <tr><th>Database</th><th>Hostname</th><th>Port</th><th>DB Name</th><th>Username</th><th>Password</th></tr>
       <tr><td>E-Commerce</td><td><code>ecom-db-rw.ecom.svc.cluster.local</code></td><td>5432</td><td><code>ecomdb</code></td><td><code>ecomuser</code></td><td><code>CHANGE_ME</code></td></tr>

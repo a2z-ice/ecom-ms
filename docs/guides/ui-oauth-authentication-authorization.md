@@ -57,7 +57,7 @@ Key security properties enforced:
 | Realm | `bookstore` | — |
 | Client ID | `ui-client` | public (no secret) |
 | Token Validation (backend) | Spring Security OIDC Resource Server | Spring Boot 4.0.3 |
-| Service Mesh Auth | Istio Ambient + RequestAuthentication | 1.28.4 |
+| Service Mesh Auth | Istio Ambient + RequestAuthentication | 1.29.1 |
 
 ---
 

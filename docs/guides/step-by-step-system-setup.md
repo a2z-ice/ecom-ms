@@ -7,7 +7,7 @@ cluster completely from scratch (`up.sh --fresh --data`) and the exact fix appli
 one. Read this before attempting a fresh bootstrap so you do not have to rediscover these
 issues yourself.
 
-**Validated on**: macOS 15 (Darwin 25.3.0), Docker Desktop, kind 0.26, Istio 1.28.4,
+**Validated on**: macOS 15 (Darwin 25.3.0), Docker Desktop, kind 0.26, Istio 1.29.1,
 Keycloak 26.5.4, Flink 1.20, Apache Superset latest, Playwright 1.x
 **End state**: 89/89 E2E tests passing after a single `./scripts/up.sh --fresh --data`
 

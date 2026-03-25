@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PgAdmin Security Review — BookStore Platform</title>
+  <meta property="og:title" content="PgAdmin Security Review — BookStore Platform" />
+  <meta property="og:description" content="Security impact assessment of adding admin-tools namespace to database access policies for PgAdmin connectivity." />
+  <meta property="og:type" content="article" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #f97316, #ef4444); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 24px 0 8px; color: #cbd5e1; }
+    p { margin-bottom: 16px; color: var(--text); }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.85rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.05); }
+    code { background: var(--card); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: #f59e0b; }
+    pre { background: var(--card); padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.85rem; line-height: 1.6; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+    .callout { border-radius: 8px; padding: 16px 20px; margin: 16px 0 24px; border-left: 4px solid; }
+    .callout.info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+    .callout.warning { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
+    .callout.success { background: rgba(16,185,129,0.08); border-color: #10b981; }
+    .callout.danger { background: rgba(239,68,68,0.08); border-color: #ef4444; }
+    .callout strong { color: #f1f5f9; }
+    .callout p { margin-bottom: 0; font-size: 0.9rem; }
+    .risk-low { color: #34d399; font-weight: 600; }
+    .risk-medium { color: #fbbf24; font-weight: 600; }
+    .risk-high { color: #ef4444; font-weight: 600; }
+    .risk-none { color: var(--muted); font-weight: 600; }
+    .verdict-box { background: var(--card); border: 2px solid #10b981; border-radius: 12px; padding: 24px; margin: 24px 0; text-align: center; }
+    .verdict-box h3 { color: #34d399; font-size: 1.3rem; margin-bottom: 12px; }
+    .verdict-box p { color: var(--muted); margin-bottom: 0; }
+    .rec-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin: 12px 0; }
+    .rec-card .rec-priority { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .rec-card .rec-priority.high { color: #ef4444; }
+    .rec-card .rec-priority.medium { color: #f59e0b; }
+    .rec-card .rec-priority.low { color: #60a5fa; }
+    .rec-card h4 { font-size: 0.95rem; font-weight: 600; color: #f1f5f9; margin-bottom: 8px; }
+    .rec-card p { font-size: 0.88rem; color: var(--muted); margin-bottom: 0; }
+    .metric-row { display: flex; gap: 16px; margin: 16px 0 24px; flex-wrap: wrap; }
+    .metric-box { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; flex: 1; min-width: 140px; text-align: center; }
+    .metric-box .metric-value { font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .metric-box .metric-label { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+    .layer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 16px 0 24px; }
+    .layer-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    .layer-card h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; }
+    .layer-card.l1 h4 { color: #60a5fa; }
+    .layer-card.l2 h4 { color: #a78bfa; }
+    .layer-card.l3 h4 { color: #fbbf24; }
+    .layer-card.l4 h4 { color: #34d399; }
+    .layer-card p { font-size: 0.82rem; color: var(--muted); margin-bottom: 0; }
+  </style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="#summary">Summary</a>
+      <a href="#threats">Threats</a>
+      <a href="#controls">Controls</a>
+      <a href="#recommendations">Recommendations</a>
+      <a href="#verdict">Verdict</a>
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>PgAdmin Connectivity Fix -- Security Review</h1>
+  <p>Impact assessment of adding admin-tools namespace to database access policies</p>
+
+  <div class="badges">
+    <span class="badge green">Security Approved</span>
+    <span class="badge green">Double Encryption</span>
+    <span class="badge orange">5 Recommendations</span>
+    <span class="badge orange">Low-Medium Risk</span>
+  </div>
+
+  <!-- Change Summary -->
+  <h2 id="summary">1. Change Summary</h2>
+
+  <div class="metric-row">
+    <div class="metric-box">
+      <div class="metric-value">8</div>
+      <div class="metric-label">Policies Modified</div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-value">4</div>
+      <div class="metric-label">AuthorizationPolicies</div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-value">4</div>
+      <div class="metric-label">NetworkPolicies</div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-value">1</div>
+      <div class="metric-label">Namespace Labeled</div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Change</th><th>Scope</th><th>Affected Resources</th></tr>
+    <tr>
+      <td>Added <code>admin-tools</code> to AuthorizationPolicy</td>
+      <td>4 DB namespaces</td>
+      <td>ecom-db-policy, inventory-db-policy, analytics-db-policy, keycloak-db-policy</td>
+    </tr>
+    <tr>
+      <td>Added <code>admin-tools</code> to NetworkPolicy</td>
+      <td>4 DB namespaces</td>
+      <td>ecom-db-policy, inventory-db-policy, analytics-db-policy, keycloak-db-policy</td>
+    </tr>
+    <tr>
+      <td>Labeled admin-tools for ambient mesh</td>
+      <td>1 namespace</td>
+      <td>admin-tools (<code>istio.io/dataplane-mode=ambient</code>)</td>
+    </tr>
+  </table>
+
+  <!-- Threat Model -->
+  <h2 id="threats">2. Threat Model Assessment</h2>
+
+  <table>
+    <tr><th>Threat</th><th>Before Fix</th><th>After Fix</th><th>Risk Change</th></tr>
+    <tr>
+      <td>Unauthorized pod in admin-tools accessing DB</td>
+      <td>N/A (no DB access)</td>
+      <td>PgAdmin is the only pod; any new pod in admin-tools could reach DBs</td>
+      <td class="risk-low">LOW</td>
+    </tr>
+    <tr>
+      <td>Lateral movement from compromised PgAdmin</td>
+      <td>Blocked by both policy layers</td>
+      <td>Can reach 4 PostgreSQL clusters on port 5432</td>
+      <td class="risk-medium">MEDIUM</td>
+    </tr>
+    <tr>
+      <td>Data exfiltration via PgAdmin</td>
+      <td>Not possible</td>
+      <td>Possible if PgAdmin compromised (SELECT on all tables)</td>
+      <td class="risk-medium">MEDIUM</td>
+    </tr>
+    <tr>
+      <td>CSRF/XSS on PgAdmin web UI</td>
+      <td>Exists (PgAdmin is a web app with known historical CVEs)</td>
+      <td>Same risk, but impact is higher with DB access</td>
+      <td class="risk-medium">MEDIUM</td>
+    </tr>
+    <tr>
+      <td>Network sniffing on PgAdmin-to-DB path</td>
+      <td>N/A</td>
+      <td>Protected by ztunnel mTLS + PostgreSQL TLS 1.3</td>
+      <td class="risk-low">LOW</td>
+    </tr>
+    <tr>
+      <td>Credential theft from PgAdmin config</td>
+      <td>Passwords in container (no DB access)</td>
+      <td>Same -- passwords in PgAdmin container</td>
+      <td class="risk-low">LOW</td>
+    </tr>
+    <tr>
+      <td>Privilege escalation via SQL injection</td>
+      <td>N/A</td>
+      <td>Each DB user only owns its own database; no superuser</td>
+      <td class="risk-low">LOW</td>
+    </tr>
+  </table>
+
+  <div class="callout warning">
+    <p><strong>Overall risk: LOW-MEDIUM.</strong> The primary risk is PgAdmin becoming a pivot point if compromised. Attack surface is limited: localhost-only access (NodePort 31111), non-root container, per-service DB users with minimal privileges, and network access restricted to only the 4 DB pods.</p>
+  </div>
+
+  <!-- Security Controls -->
+  <h2 id="controls">3. Security Controls in Place</h2>
+
+  <h3>Network Layer (Defense in Depth)</h3>
+
+  <div class="layer-grid">
+    <div class="layer-card l1">
+      <h4>Layer 1: ztunnel mTLS (HBONE)</h4>
+      <p>All traffic between PgAdmin and DB pods is wrapped in HTTP/2 CONNECT tunnel with mutual TLS. SPIFFE-based identity verification. PeerAuthentication mode: STRICT. Cipher: TLS 1.3 with ECDHE.</p>
+    </div>
+    <div class="layer-card l2">
+      <h4>Layer 2: PostgreSQL TLS 1.3</h4>
+      <p>CNPG enforces <code>ssl=on</code> and <code>ssl_min_protocol_version=TLSv1.3</code>. Server certificates auto-rotated by CNPG. Even if ztunnel mTLS is bypassed, PostgreSQL connection is encrypted.</p>
+    </div>
+    <div class="layer-card l3">
+      <h4>Layer 3: AuthorizationPolicy (Istio L4 RBAC)</h4>
+      <p>ztunnel checks SPIFFE identity of source pod. Only specific namespaces permitted: service's own ns, infra (Debezium), cnpg-system (operator), admin-tools (PgAdmin). All others rejected with TCP RST.</p>
+    </div>
+    <div class="layer-card l4">
+      <h4>Layer 4: NetworkPolicy (Kubernetes CNI)</h4>
+      <p>Kernel-level packet filtering. Restricts DB ingress to the same set of namespaces. Defense-in-depth: even if Istio is compromised, CNI policy still blocks unauthorized traffic.</p>
+    </div>
+  </div>
+
+  <h3>Authentication</h3>
+
+  <table>
+    <tr><th>Component</th><th>Method</th><th>Strength</th></tr>
+    <tr><td>PgAdmin web UI</td><td>Email + password (admin@bookstore.dev)</td><td>Standard -- single factor</td></tr>
+    <tr><td>PostgreSQL wire protocol</td><td>SCRAM-SHA-256 (auth type 10)</td><td>Strong -- salted challenge-response, no plaintext on wire</td></tr>
+    <tr><td>DB credentials storage</td><td>Kubernetes Secrets (base64, etcd-backed)</td><td>Standard -- not encrypted at rest in default kind cluster</td></tr>
+  </table>
+
+  <h3>Authorization</h3>
+
+  <table>
+    <tr><th>Control</th><th>Details</th></tr>
+    <tr><td>DB user privileges</td><td>Each service user (ecom, inventory, analytics, keycloak) only owns its own database. No cross-database access. No superuser.</td></tr>
+    <tr><td>PgAdmin container</td><td>Runs as UID 5050 (pgadmin user), not root</td></tr>
+    <tr><td>PgAdmin filesystem</td><td>Read-only root filesystem with specific writable tmpfs mounts</td></tr>
+    <tr><td>Namespace isolation</td><td>admin-tools has no access to any service other than the 4 DB pods</td></tr>
+    <tr><td>PodSecurity</td><td>admin-tools uses <code>baseline</code> PodSecurity standard (not privileged)</td></tr>
+  </table>
+
+  <h3>Blast Radius Analysis</h3>
+
+  <div class="callout info">
+    <p><strong>If PgAdmin is compromised, the attacker CAN:</strong> Read and write data in all 4 PostgreSQL databases. Execute SQL as the respective service user on each database.</p>
+  </div>
+
+  <div class="callout success">
+    <p><strong>The attacker CANNOT:</strong> Access application pods (ecom-service, inventory-service). Access Kafka, Redis, or other infrastructure. Access the Kubernetes API with elevated permissions. Escape the container (non-root, read-only FS, capabilities dropped). Reach any service outside the 4 DB pods. Access the host network or other nodes.</p>
+  </div>
+
+  <!-- Recommendations -->
+  <h2 id="recommendations">4. Recommendations</h2>
+
+  <div class="rec-card">
+    <div class="rec-priority high">Priority: HIGH</div>
+    <h4>Recommendation 1: Rotate DB Passwords</h4>
+    <p>The current passwords are placeholder values (<code>CHANGE_ME</code>). In any environment beyond local development, replace with strong random passwords using <code>openssl rand -base64 32</code>. Update PgAdmin's server configuration and all Kubernetes Secrets to match.</p>
+  </div>
+
+  <div class="rec-card">
+    <div class="rec-priority medium">Priority: MEDIUM</div>
+    <h4>Recommendation 2: Add PgAdmin Authentication Hardening</h4>
+    <p>Enable PgAdmin's built-in login attempt limiting (<code>MAX_LOGIN_ATTEMPTS=5</code>). Restrict access to specific source IPs if deployed beyond localhost. Set <code>PGADMIN_CONFIG_LOGIN_BANNER</code> to warn that this is an administrative tool.</p>
+  </div>
+
+  <div class="rec-card">
+    <div class="rec-priority medium">Priority: MEDIUM</div>
+    <h4>Recommendation 3: Enable Audit Logging</h4>
+    <p>PgAdmin logs all executed SQL queries -- ensure these logs are collected and retained. Additionally, enable <code>pgaudit</code> on the PostgreSQL side (CNPG supports this) to log all SQL statements at the database level regardless of client.</p>
+  </div>
+
+  <div class="rec-card">
+    <div class="rec-priority medium">Priority: MEDIUM</div>
+    <h4>Recommendation 4: Create Read-Only DB Users</h4>
+    <p>For safer day-to-day browsing, create <code>pgadmin_readonly</code> users with SELECT-only privileges on each database. Configure PgAdmin to use read-only users by default, with full-privilege users available only when write access is explicitly needed.</p>
+  </div>
+
+  <div class="rec-card">
+    <div class="rec-priority low">Priority: LOW</div>
+    <h4>Recommendation 5: Restrict admin-tools Egress</h4>
+    <p>Add an egress NetworkPolicy to the admin-tools namespace. Ensure PgAdmin can only reach the 4 DB services on port 5432 and DNS (kube-dns on port 53). Block all other egress traffic to limit lateral movement if compromised.</p>
+  </div>
+
+  <!-- Verdict -->
+  <h2 id="verdict">5. Verdict</h2>
+
+  <div class="verdict-box">
+    <h3>APPROVED for Local Development</h3>
+    <p>The security posture is acceptable. Double encryption (ztunnel mTLS + PostgreSQL TLS 1.3), SCRAM-SHA-256 authentication, namespace-scoped access, dual-layer policy enforcement, and minimal-privilege container provide adequate protection.</p>
+  </div>
+
+  <h3>Justification</h3>
+
+  <ol>
+    <li><strong>Double encryption</strong> -- ztunnel mTLS (HBONE) + PostgreSQL TLS 1.3 protect data in transit</li>
+    <li><strong>SCRAM-SHA-256 authentication</strong> -- the strongest PostgreSQL auth method; no plaintext passwords on the wire</li>
+    <li><strong>Namespace-scoped access</strong> -- PgAdmin is allowed to reach only the 4 DB pods, not the entire cluster</li>
+    <li><strong>Dual-layer enforcement</strong> -- both AuthorizationPolicy (Istio) and NetworkPolicy (CNI) must pass; compromising one layer does not bypass the other</li>
+    <li><strong>Minimal privilege container</strong> -- non-root (UID 5050), read-only filesystem, all capabilities dropped</li>
+    <li><strong>Localhost-only exposure</strong> -- PgAdmin is on NodePort 31111, not routed through the HTTPS gateway</li>
+  </ol>
+
+  <h3>For Production Deployment</h3>
+
+  <p>Before deploying to any non-local environment, implement all 5 recommendations:</p>
+
+  <table>
+    <tr><th>Recommendation</th><th>Priority</th><th>Requirement</th></tr>
+    <tr><td>1. Rotate DB passwords</td><td class="risk-high">HIGH</td><td>MUST do</td></tr>
+    <tr><td>4. Read-only DB users</td><td class="risk-medium">MEDIUM</td><td>SHOULD do</td></tr>
+    <tr><td>5. Egress restriction</td><td class="risk-medium">MEDIUM</td><td>SHOULD do</td></tr>
+    <tr><td>2. Auth hardening</td><td class="risk-medium">MEDIUM</td><td>NICE to have</td></tr>
+    <tr><td>3. Audit logging</td><td class="risk-medium">MEDIUM</td><td>NICE to have</td></tr>
+  </table>
+
+  <h3>Sign-Off</h3>
+
+  <table>
+    <tr><th>Reviewer</th><th>Date</th><th>Decision</th></tr>
+    <tr><td>Security Review</td><td>2026-03-25</td><td class="risk-low">APPROVED for local dev</td></tr>
+  </table>
+
+  <footer>
+    <p>BookStore Platform &mdash; PgAdmin Security Review &mdash; <a href="pgadmin-connectivity-fix.html">Connectivity Fix</a> &mdash; <a href="index.html">Home</a></p>
+  </footer>
+
+</div>
+</body>
+</html>

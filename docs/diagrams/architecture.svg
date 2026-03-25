@@ -216,7 +216,7 @@
 
     <!-- Istio Ambient -->
     <rect x="900" y="196" width="250" height="56" rx="10" fill="url(#nodeIndigo)" filter="url(#glowBlue)"/>
-    <text x="1025" y="220" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Istio Ambient 1.28.4</text>
+    <text x="1025" y="220" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Istio Ambient 1.29.1</text>
     <text x="1025" y="238" text-anchor="middle" fill="#e0e7ff" font-size="10">mTLS STRICT | JWT | ztunnel</text>
 
     <!-- cert-manager -->

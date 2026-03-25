@@ -441,7 +441,7 @@
     <tr><td><strong>Backend (Java)</strong></td><td>Spring Boot</td><td>4.0.3</td><td>E-Commerce API, order management, admin</td></tr>
     <tr><td><strong>Backend (Python)</strong></td><td>FastAPI</td><td>latest</td><td>Inventory API, stock management</td></tr>
     <tr><td><strong>Identity</strong></td><td>Keycloak</td><td>26.5.4</td><td>OIDC provider, RBAC, realm management</td></tr>
-    <tr><td><strong>Service Mesh</strong></td><td>Istio Ambient</td><td>1.28.4</td><td>mTLS, zero-trust networking, L4 policies</td></tr>
+    <tr><td><strong>Service Mesh</strong></td><td>Istio Ambient</td><td>1.29.1</td><td>mTLS, zero-trust networking, L4 policies</td></tr>
     <tr><td><strong>Gateway</strong></td><td>K8s Gateway API</td><td>istio</td><td>HTTPS ingress, routing, TLS termination</td></tr>
     <tr><td><strong>Databases</strong></td><td>PostgreSQL (CNPG)</td><td>4 clusters</td><td>HA with auto-failover, 1 primary + 1 replica each</td></tr>
     <tr><td><strong>Messaging</strong></td><td>Apache Kafka</td><td>KRaft</td><td>Event streaming, CDC transport</td></tr>
@@ -461,7 +461,7 @@
   <table>
     <tr><th>Layer</th><th>Components</th><th>Technology</th></tr>
     <tr><td><strong>Client</strong></td><td>Single-page application, OIDC login</td><td>React 19.2 + Vite, PKCE (S256)</td></tr>
-    <tr><td><strong>Ingress / Security</strong></td><td>Gateway routing, TLS termination, mTLS mesh, JWT validation</td><td>Istio Ambient 1.28.4, K8s Gateway API, cert-manager 1.17.2</td></tr>
+    <tr><td><strong>Ingress / Security</strong></td><td>Gateway routing, TLS termination, mTLS mesh, JWT validation</td><td>Istio Ambient 1.29.1, K8s Gateway API, cert-manager 1.17.2</td></tr>
     <tr><td><strong>Application Services</strong></td><td>E-Commerce API, Inventory API, Admin API</td><td>Spring Boot 4.0.3, FastAPI</td></tr>
     <tr><td><strong>Identity</strong></td><td>OIDC provider, RBAC, realm management</td><td>Keycloak 26.5.4</td></tr>
     <tr><td><strong>Data &amp; Messaging</strong></td><td>4 isolated databases, event streaming, CDC</td><td>PostgreSQL (CNPG), Kafka KRaft, Debezium Server 3.4</td></tr>
@@ -515,7 +515,7 @@
     <tr><td><strong>kind</strong></td><td>0.20+</td><td>Local Kubernetes cluster</td><td><code>brew install kind</code></td></tr>
     <tr><td><strong>kubectl</strong></td><td>1.28+</td><td>Kubernetes CLI</td><td><code>brew install kubectl</code></td></tr>
     <tr><td><strong>Helm</strong></td><td>3.x</td><td>Kiali, Istio install</td><td><code>brew install helm</code></td></tr>
-    <tr><td><strong>istioctl</strong></td><td>1.28.4</td><td>Istio Ambient Mesh</td><td><code>brew install istioctl</code></td></tr>
+    <tr><td><strong>istioctl</strong></td><td>1.29.1</td><td>Istio Ambient Mesh</td><td><code>brew install istioctl</code></td></tr>
     <tr><td><strong>Maven</strong></td><td>3.9+</td><td>Build ecom-service</td><td><code>brew install maven</code></td></tr>
     <tr><td><strong>Java JDK</strong></td><td>21+</td><td>Spring Boot runtime</td><td><code>brew install openjdk@21</code></td></tr>
     <tr><td><strong>Python</strong></td><td>3.12+</td><td>Inventory service</td><td><code>brew install python@3.12</code></td></tr>
@@ -763,7 +763,7 @@ curl -sk https://idp.keycloak.net:30000/realms/bookstore/.well-known/openid-conf
     </tr>
     <tr>
       <td><strong>PgAdmin</strong></td>
-      <td><code>admin@bookstore.local</code></td>
+      <td><code>admin@bookstore.dev</code></td>
       <td><code>CHANGE_ME</code></td>
       <td>&mdash;</td>
       <td>PostgreSQL web admin</td>
@@ -1114,12 +1114,13 @@ curl -X POST http://localhost:32600/api/renew \
   <p>URL: <code class="url-highlight">http://localhost:31111</code></p>
   <div class="credentials-box">
     <strong>PgAdmin Credentials</strong><br>
-    Email: <code>admin@bookstore.local</code><br>
+    Email: <code>admin@bookstore.dev</code><br>
     Password: <code>CHANGE_ME</code>
   </div>
   <img class="screenshot" src="screenshots/pgadmin-01-login.png" alt="PgAdmin login page" />
 
-  <h3>Database Connections</h3>
+  <h3>Database Connections (Pre-Configured)</h3>
+  <p>All 4 PostgreSQL servers are pre-configured in PgAdmin via <code>servers.json</code> ConfigMap. They appear under the <strong>BookStore</strong> server group automatically after login. When clicking a server to connect, enter the password shown below.</p>
   <table>
     <tr><th>Database</th><th>Hostname (CNPG -rw service)</th><th>Port</th><th>DB Name</th><th>Username</th><th>Password</th></tr>
     <tr><td>E-Commerce</td><td><code>ecom-db-rw.ecom.svc.cluster.local</code></td><td>5432</td><td><code>ecomdb</code></td><td><code>ecomuser</code></td><td><code>CHANGE_ME</code></td></tr>

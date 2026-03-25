@@ -485,7 +485,7 @@
 
   <!-- ========== FOOTER ========== -->
   <text x="800" y="930" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="10" fill="#334155">
-    BookStore Platform  &#183;  TLS Everywhere (cert-manager)  &#183;  Istio Ambient 1.28.4  &#183;  mTLS  &#183;  Flink 2.2.0 SQL CDC  &#183;  Grafana/Loki/Tempo  &#183;  Cert Dashboard Operator
+    BookStore Platform  &#183;  TLS Everywhere (cert-manager)  &#183;  Istio Ambient 1.29.1  &#183;  mTLS  &#183;  Flink 2.2.0 SQL CDC  &#183;  Grafana/Loki/Tempo  &#183;  Cert Dashboard Operator
   </text>
   <text x="800" y="948" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="9" fill="#1e293b">
     Spring Boot 4.0.3  &#183;  Keycloak 26.5.4  &#183;  Debezium Server 3.4.1  &#183;  Kafka KRaft  &#183;  PostgreSQL (4 instances)

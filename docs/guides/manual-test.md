@@ -56,7 +56,7 @@ bash /Volumes/Other/rand/llm/microservice/scripts/verify-routes.sh
 | Keycloak Login | `http://idp.keycloak.net:30000/realms/bookstore` | user1 | `CHANGE_ME` |
 | Keycloak Admin | `http://idp.keycloak.net:30000/admin` | admin | `CHANGE_ME` |
 | Apache Superset | `http://localhost:32000` | admin | `CHANGE_ME` |
-| PgAdmin | `http://localhost:31111` | admin@bookstore.local | `CHANGE_ME` |
+| PgAdmin | `http://localhost:31111` | admin@bookstore.dev | `CHANGE_ME` |
 | Kiali | `http://localhost:32100/kiali` | — | — (anonymous) |
 
 > **Note — two UI origins:** `myecom.net:30000` and `localhost:30000` both serve the same app. OIDC PKCE requires `crypto.subtle` (Web Crypto API) which browsers only expose in **secure contexts** (HTTPS or localhost). Therefore `http://myecom.net:30000` cannot trigger OIDC directly; clicking Login there redirects to `localhost:30000/login?return=<path>` first, which then triggers Keycloak. `http://localhost:30000` is always a secure context.

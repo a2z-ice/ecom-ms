@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PgAdmin Database Connectivity Fix — BookStore Platform</title>
+  <meta property="og:title" content="PgAdmin Database Connectivity Fix — BookStore Platform" />
+  <meta property="og:description" content="Root cause analysis: how AuthorizationPolicy + NetworkPolicy blocked PgAdmin database connections, and the systematic debugging process to fix it." />
+  <meta property="og:type" content="article" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #f97316, #ef4444); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 24px 0 8px; color: #cbd5e1; }
+    p { margin-bottom: 16px; color: var(--text); }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.85rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.05); }
+    code { background: var(--card); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: #f59e0b; }
+    pre { background: var(--card); padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.85rem; line-height: 1.6; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+    .callout { border-radius: 8px; padding: 16px 20px; margin: 16px 0 24px; border-left: 4px solid; }
+    .callout.info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+    .callout.warning { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
+    .callout.success { background: rgba(16,185,129,0.08); border-color: #10b981; }
+    .callout.danger { background: rgba(239,68,68,0.08); border-color: #ef4444; }
+    .callout strong { color: #f1f5f9; }
+    .callout p { margin-bottom: 0; font-size: 0.9rem; }
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0 24px; }
+    @media (max-width: 700px) { .compare-grid { grid-template-columns: 1fr; } }
+    .compare-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .compare-card.before { border-left: 4px solid #ef4444; }
+    .compare-card.after { border-left: 4px solid #10b981; }
+    .compare-card h4 { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+    .compare-card.before h4 { color: #ef4444; }
+    .compare-card.after h4 { color: #10b981; }
+    .compare-card ul { margin: 0; padding-left: 16px; }
+    .compare-card li { font-size: 0.88rem; color: var(--muted); margin-bottom: 4px; }
+    .pipeline { display: flex; align-items: center; gap: 0; margin: 20px 0 28px; flex-wrap: wrap; justify-content: center; }
+    .pipeline-node { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; text-align: center; font-size: 0.82rem; font-weight: 600; min-width: 120px; }
+    .pipeline-node.source { border-color: #3b82f6; color: #60a5fa; }
+    .pipeline-node.capture { border-color: #f59e0b; color: #fbbf24; }
+    .pipeline-node.stream { border-color: #8b5cf6; color: #a78bfa; }
+    .pipeline-node.process { border-color: #06b6d4; color: #22d3ee; }
+    .pipeline-node.sink { border-color: #10b981; color: #34d399; }
+    .pipeline-arrow { color: var(--muted); font-size: 1.2rem; padding: 0 4px; }
+    .theory-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin: 12px 0; }
+    .theory-card .theory-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .theory-card .theory-label.wrong { color: #ef4444; }
+    .theory-card .theory-label.partial { color: #f59e0b; }
+    .theory-card h4 { font-size: 0.95rem; font-weight: 600; color: #f1f5f9; margin-bottom: 6px; }
+    .theory-card p { font-size: 0.88rem; color: var(--muted); margin-bottom: 0; }
+    .success-row { color: #34d399; font-weight: 600; }
+    .fail-row { color: #ef4444; font-weight: 600; }
+    .metric-row { display: flex; gap: 16px; margin: 16px 0 24px; flex-wrap: wrap; }
+    .metric-box { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; flex: 1; min-width: 140px; text-align: center; }
+    .metric-box .metric-value { font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .metric-box .metric-label { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+  </style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="#problem">Problem</a>
+      <a href="#misdiagnosis">Theories</a>
+      <a href="#root-cause">Root Cause</a>
+      <a href="#fix">Fix</a>
+      <a href="#verification">Verification</a>
+      <a href="#lessons">Lessons</a>
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>PgAdmin Database Connectivity Fix</h1>
+  <p>How AuthorizationPolicy + NetworkPolicy blocked PgAdmin, and the systematic debugging process</p>
+
+  <div class="badges">
+    <span class="badge green">Root Cause Found</span>
+    <span class="badge orange">2 Policy Layers</span>
+    <span class="badge green">4 Databases Fixed</span>
+    <span class="badge purple">SSL + SCRAM Auth</span>
+  </div>
+
+  <!-- Problem -->
+  <h2 id="problem">1. The Problem</h2>
+
+  <p>PgAdmin at <code>http://localhost:31111</code> was fully functional at the web UI level. Login worked, the "BookStore" server group displayed all 4 pre-configured servers, and the interface rendered correctly.</p>
+
+  <p>But clicking any server to establish a database connection failed immediately:</p>
+
+  <pre><code>connection to server at "ecom-db-rw.ecom.svc.cluster.local" (10.96.x.x), port 5432 failed:
+  server closed the connection unexpectedly
+  This probably means the server terminated abnormally before or while processing the request.</code></pre>
+
+  <p>At the wire protocol level:</p>
+  <pre><code>[Errno 104] Connection reset by peer</code></pre>
+
+  <p>This happened for all 4 databases: <code>ecom-db</code>, <code>inventory-db</code>, <code>analytics-db</code>, and <code>keycloak-db</code>.</p>
+
+  <div class="metric-row">
+    <div class="metric-box">
+      <div class="metric-value">4</div>
+      <div class="metric-label">Databases Affected</div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-value">RST</div>
+      <div class="metric-label">TCP Reset on Connect</div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-value">0</div>
+      <div class="metric-label">Bytes Exchanged</div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-value">5</div>
+      <div class="metric-label">Wrong Theories Tried</div>
+    </div>
+  </div>
+
+  <!-- Misdiagnosis -->
+  <h2 id="misdiagnosis">2. Initial Misdiagnosis</h2>
+
+  <p>Several theories were investigated and ruled out before reaching the root cause.</p>
+
+  <div class="theory-card">
+    <div class="theory-label wrong">WRONG</div>
+    <h4>Theory 1: Istio Ambient ztunnel Breaks PostgreSQL L4</h4>
+    <p>Hypothesis: ztunnel's HBONE tunneling corrupts or interferes with PostgreSQL's binary wire protocol. Disproved because Debezium Server (in <code>infra</code> namespace) connects cross-namespace to ecom-db using the same PostgreSQL wire protocol and it works perfectly through ztunnel.</p>
+  </div>
+
+  <div class="theory-card">
+    <div class="theory-label wrong">WRONG</div>
+    <h4>Theory 2: portLevelMtls PERMISSIVE Needed</h4>
+    <p>Hypothesis: the PostgreSQL port needs <code>portLevelMtls: PERMISSIVE</code> because PgAdmin sends plaintext. Disproved because ztunnel handles mTLS transparently for ambient-to-ambient connections. Both source and destination are in the mesh; the application sees plaintext in both directions.</p>
+  </div>
+
+  <div class="theory-card">
+    <div class="theory-label wrong">WRONG</div>
+    <h4>Theory 3: PgAdmin Must Be Outside the Mesh</h4>
+    <p>Hypothesis: remove ambient mesh label from admin-tools so PgAdmin bypasses ztunnel. This made things WORSE. Non-HBONE traffic is rejected by the DB-side ztunnel when the namespace has <code>mtls.mode: STRICT</code>. Being inside the mesh is required, not optional.</p>
+  </div>
+
+  <div class="theory-card">
+    <div class="theory-label partial">PARTIALLY WRONG</div>
+    <h4>Theory 4: SSLRequest Causes the Reset</h4>
+    <p>Hypothesis: PgAdmin's initial SSLRequest packet confuses ztunnel. While PgAdmin does send SSLRequest, even direct StartupMessages (bypassing SSLRequest) resulted in the same reset. The RST came before any application-layer protocol exchange.</p>
+  </div>
+
+  <div class="theory-card">
+    <div class="theory-label wrong">WRONG</div>
+    <h4>Theory 5: NodePort Bypass Needed</h4>
+    <p>Hypothesis: expose PostgreSQL directly via NodePort to bypass ztunnel. NodePorts do not bypass ztunnel when the destination pod is in the ambient mesh. And this would be a massive security hole.</p>
+  </div>
+
+  <!-- Breakthrough -->
+  <h2 id="breakthrough">3. The Breakthrough</h2>
+
+  <div class="callout success">
+    <p><strong>Key observation:</strong> Debezium Server (in the <code>infra</code> namespace) connects cross-namespace to ecom-db and it WORKS. PgAdmin (in the <code>admin-tools</code> namespace) connects cross-namespace to ecom-db and it FAILS. If ztunnel itself was the problem, Debezium would also fail. So ztunnel is NOT the issue.</p>
+  </div>
+
+  <p>This shifted the investigation from "is ztunnel breaking the protocol?" to "what is different about <code>admin-tools</code> vs <code>infra</code>?"</p>
+
+  <p>The answer: the AuthorizationPolicy and NetworkPolicy on the database pods explicitly allow <code>infra</code> but do NOT mention <code>admin-tools</code>.</p>
+
+  <!-- Root Cause -->
+  <h2 id="root-cause">4. Root Cause</h2>
+
+  <p>Two security policies blocked PgAdmin's traffic. Both must allow a connection for it to succeed.</p>
+
+  <div class="compare-grid">
+    <div class="compare-card before">
+      <h4>AuthorizationPolicy (Before)</h4>
+      <ul>
+        <li>ecom namespace -- allowed</li>
+        <li>infra namespace -- allowed (Debezium)</li>
+        <li>cnpg-system namespace -- allowed (operator)</li>
+        <li><strong>admin-tools -- NOT listed, BLOCKED</strong></li>
+      </ul>
+    </div>
+    <div class="compare-card after">
+      <h4>AuthorizationPolicy (After)</h4>
+      <ul>
+        <li>ecom namespace -- allowed</li>
+        <li>infra namespace -- allowed (Debezium)</li>
+        <li>cnpg-system namespace -- allowed (operator)</li>
+        <li><strong>admin-tools -- added, ALLOWED</strong></li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>AuthorizationPolicy (ecom namespace example)</h3>
+  <pre><code>apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: ecom-db-policy
+  namespace: ecom
+spec:
+  selector:
+    matchLabels:
+      cnpg.io/cluster: ecom-db
+  rules:
+  - from:
+    - source:
+        namespaces: [ecom]          # ecom-service
+  - from:
+    - source:
+        namespaces: [infra]         # Debezium
+  - from:
+    - source:
+        namespaces: [cnpg-system]   # CNPG operator
+  # admin-tools NOT listed -- PgAdmin BLOCKED</code></pre>
+
+  <h3>NetworkPolicy (ecom namespace example)</h3>
+  <pre><code>apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ecom-db-policy
+  namespace: ecom
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: ecom-db
+  policyTypes: [Ingress]
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: ecom-service
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: infra
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: cnpg-system
+  # admin-tools NOT listed -- PgAdmin BLOCKED</code></pre>
+
+  <div class="callout danger">
+    <p><strong>Dual-layer block:</strong> The same pattern existed for all 4 database namespaces: <code>ecom</code>, <code>inventory</code>, <code>analytics</code>, and <code>identity</code>. Both AuthorizationPolicy and NetworkPolicy had to be updated for each.</p>
+  </div>
+
+  <!-- Fix -->
+  <h2 id="fix">5. The Fix</h2>
+
+  <h3>Step 1: Ensure admin-tools Is in the Ambient Mesh</h3>
+  <pre><code>kubectl label namespace admin-tools istio.io/dataplane-mode=ambient --overwrite</code></pre>
+
+  <h3>Step 2: Update AuthorizationPolicy (all 4 namespaces)</h3>
+  <pre><code># ecom namespace
+kubectl -n ecom patch authorizationpolicy ecom-db-policy --type=json \
+  -p '[{"op":"add","path":"/spec/rules/-","value":{"from":[{"source":{"namespaces":["admin-tools"]}}]}}]'
+
+# inventory namespace
+kubectl -n inventory patch authorizationpolicy inventory-db-policy --type=json \
+  -p '[{"op":"add","path":"/spec/rules/-","value":{"from":[{"source":{"namespaces":["admin-tools"]}}]}}]'
+
+# analytics namespace
+kubectl -n analytics patch authorizationpolicy analytics-db-policy --type=json \
+  -p '[{"op":"add","path":"/spec/rules/-","value":{"from":[{"source":{"namespaces":["admin-tools"]}}]}}]'
+
+# identity namespace
+kubectl -n identity patch authorizationpolicy keycloak-db-policy --type=json \
+  -p '[{"op":"add","path":"/spec/rules/-","value":{"from":[{"source":{"namespaces":["admin-tools"]}}]}}]'</code></pre>
+
+  <h3>Step 3: Update NetworkPolicy (all 4 namespaces)</h3>
+  <pre><code># ecom namespace
+kubectl -n ecom patch networkpolicy ecom-db-policy --type=json \
+  -p '[{"op":"add","path":"/spec/ingress/-","value":{"from":[{"namespaceSelector":{"matchLabels":{"kubernetes.io/metadata.name":"admin-tools"}}}]}}]'
+
+# inventory namespace
+kubectl -n inventory patch networkpolicy inventory-db-policy --type=json \
+  -p '[{"op":"add","path":"/spec/ingress/-","value":{"from":[{"namespaceSelector":{"matchLabels":{"kubernetes.io/metadata.name":"admin-tools"}}}]}}]'
+
+# analytics namespace
+kubectl -n analytics patch networkpolicy analytics-db-policy --type=json \
+  -p '[{"op":"add","path":"/spec/ingress/-","value":{"from":[{"namespaceSelector":{"matchLabels":{"kubernetes.io/metadata.name":"admin-tools"}}}]}}]'
+
+# identity namespace
+kubectl -n identity patch networkpolicy keycloak-db-policy --type=json \
+  -p '[{"op":"add","path":"/spec/ingress/-","value":{"from":[{"namespaceSelector":{"matchLabels":{"kubernetes.io/metadata.name":"admin-tools"}}}]}}]'</code></pre>
+
+  <!-- Verification -->
+  <h2 id="verification">6. Verification</h2>
+
+  <p>Wire-protocol test results for all 4 databases:</p>
+
+  <table>
+    <tr><th>Database</th><th>Service Address</th><th>SSL</th><th>Auth Type</th><th>Status</th></tr>
+    <tr><td>ecom-db</td><td>ecom-db-rw.ecom.svc</td><td>TLS 1.3</td><td>SCRAM-SHA-256 (auth=10)</td><td class="success-row">SUCCESS</td></tr>
+    <tr><td>inventory-db</td><td>inventory-db-rw.inventory.svc</td><td>TLS 1.3</td><td>SCRAM-SHA-256 (auth=10)</td><td class="success-row">SUCCESS</td></tr>
+    <tr><td>analytics-db</td><td>analytics-db-rw.analytics.svc</td><td>TLS 1.3</td><td>SCRAM-SHA-256 (auth=10)</td><td class="success-row">SUCCESS</td></tr>
+    <tr><td>keycloak-db</td><td>keycloak-db-rw.identity.svc</td><td>TLS 1.3</td><td>SCRAM-SHA-256 (auth=10)</td><td class="success-row">SUCCESS</td></tr>
+  </table>
+
+  <div class="callout info">
+    <p><strong>auth=10</strong> means SASL/SCRAM-SHA-256 authentication -- the most secure PostgreSQL authentication method. <strong>SSL=True</strong> means the connection uses TLS 1.3 between PgAdmin and PostgreSQL, on top of the ztunnel mTLS layer.</p>
+  </div>
+
+  <!-- Comparison Table -->
+  <h2 id="comparison">7. Service Comparison -- Why Each Service Works</h2>
+
+  <table>
+    <tr><th>Service</th><th>Namespace</th><th>Target DB</th><th>AuthzPolicy</th><th>NetworkPolicy</th><th>Result</th></tr>
+    <tr><td>ecom-service</td><td>ecom</td><td>ecom-db</td><td>ecom allowed</td><td>ecom pods allowed</td><td class="success-row">WORKS</td></tr>
+    <tr><td>inventory-service</td><td>inventory</td><td>inventory-db</td><td>inventory allowed</td><td>inventory pods allowed</td><td class="success-row">WORKS</td></tr>
+    <tr><td>debezium-ecom</td><td>infra</td><td>ecom-db</td><td>infra allowed</td><td>infra ns allowed</td><td class="success-row">WORKS</td></tr>
+    <tr><td>debezium-inventory</td><td>infra</td><td>inventory-db</td><td>infra allowed</td><td>infra ns allowed</td><td class="success-row">WORKS</td></tr>
+    <tr><td>flink-jobmanager</td><td>analytics</td><td>analytics-db</td><td>analytics allowed</td><td>analytics pods allowed</td><td class="success-row">WORKS</td></tr>
+    <tr><td>superset</td><td>analytics</td><td>analytics-db</td><td>analytics allowed</td><td>analytics pods allowed</td><td class="success-row">WORKS</td></tr>
+    <tr><td>keycloak</td><td>identity</td><td>keycloak-db</td><td>identity allowed</td><td>identity pods allowed</td><td class="success-row">WORKS</td></tr>
+    <tr><td><strong>pgadmin (before)</strong></td><td><strong>admin-tools</strong></td><td><strong>all 4 DBs</strong></td><td><strong>NOT allowed</strong></td><td><strong>NOT allowed</strong></td><td class="fail-row">BLOCKED</td></tr>
+    <tr><td><strong>pgadmin (after)</strong></td><td><strong>admin-tools</strong></td><td><strong>all 4 DBs</strong></td><td><strong>admin-tools added</strong></td><td><strong>admin-tools added</strong></td><td class="success-row">WORKS</td></tr>
+  </table>
+
+  <!-- Connection Flow -->
+  <h2 id="flow">8. Connection Flow</h2>
+
+  <p>The complete path of a PgAdmin database connection after the fix:</p>
+
+  <div class="pipeline">
+    <div class="pipeline-node source">PgAdmin<br><small>admin-tools ns</small></div>
+    <div class="pipeline-arrow">--&gt;</div>
+    <div class="pipeline-node capture">ztunnel (src)<br><small>HBONE wrap</small></div>
+    <div class="pipeline-arrow">--&gt;</div>
+    <div class="pipeline-node stream">ztunnel (dst)<br><small>AuthzPolicy check</small></div>
+    <div class="pipeline-arrow">--&gt;</div>
+    <div class="pipeline-node process">NetworkPolicy<br><small>CNI check</small></div>
+    <div class="pipeline-arrow">--&gt;</div>
+    <div class="pipeline-node sink">PostgreSQL<br><small>TLS + SCRAM</small></div>
+  </div>
+
+  <pre><code>PgAdmin pod (admin-tools namespace, ambient mesh member)
+  |
+  | [1] PgAdmin opens TCP connection to ecom-db-rw.ecom.svc:5432
+  v
+ztunnel on PgAdmin's node
+  |
+  | [2] Wraps TCP stream in HBONE tunnel (HTTP/2 CONNECT)
+  | [3] Encrypts with mTLS (SPIFFE identity: ns/admin-tools/sa/pgadmin)
+  v
+ztunnel on DB pod's node
+  |
+  | [4] Terminates HBONE tunnel
+  | [5] Checks AuthorizationPolicy: admin-tools in allowed namespaces? YES
+  | [6] Unwraps to plaintext TCP stream
+  v
+Kubernetes NetworkPolicy (CNI level)
+  |
+  | [7] Checks ingress rules: admin-tools namespace allowed? YES
+  v
+PostgreSQL pod (ecom-db-1, port 5432)
+  |
+  | [8] Receives SSLRequest -> responds 'S' (SSL supported)
+  | [9] TLS 1.3 handshake (CNPG server certificate)
+  | [10] Receives StartupMessage (user=ecom, database=ecomdb)
+  | [11] SCRAM-SHA-256 authentication challenge/response
+  | [12] AuthenticationOk -> ReadyForQuery
+  v
+PgAdmin displays database tree and is ready for queries</code></pre>
+
+  <!-- Lessons -->
+  <h2 id="lessons">9. Lessons Learned</h2>
+
+  <div class="callout warning">
+    <p><strong>Lesson 1: Dual-layer defense.</strong> AuthorizationPolicy (Istio L4 RBAC) and NetworkPolicy (CNI packet filtering) are independent layers. Both must allow the traffic. Missing either one blocks the connection, even if the other allows it.</p>
+  </div>
+
+  <div class="callout info">
+    <p><strong>Lesson 2: "Connection reset by peer" = AuthorizationPolicy denial.</strong> When ztunnel's RBAC rejects a connection, the symptom is a TCP RST. This is NOT a protocol mismatch, NOT an mTLS issue, and NOT a PostgreSQL problem. Always check AuthorizationPolicy first when you see this error in an ambient mesh.</p>
+  </div>
+
+  <div class="callout success">
+    <p><strong>Lesson 3: Compare with a known-working service.</strong> Debezium's successful cross-namespace PostgreSQL connection proved that ztunnel and the wire protocol worked correctly. The only variable was the source namespace. This eliminated 90% of possible causes in one step.</p>
+  </div>
+
+  <div class="callout warning">
+    <p><strong>Lesson 4: New namespaces need explicit access.</strong> When deploying a new service in a new namespace, always check AuthorizationPolicy and NetworkPolicy on the target services. Zero-trust networking means no implicit access -- every cross-namespace connection must be explicitly authorized at both layers.</p>
+  </div>
+
+  <div class="callout danger">
+    <p><strong>Lesson 5: The error message is misleading.</strong> "Connection to server closed unexpectedly" suggests PostgreSQL crashed. In reality, PostgreSQL never saw the connection. The RST came from ztunnel sitting between PgAdmin and PostgreSQL. Always consider the full network path, not just the endpoints.</p>
+  </div>
+
+  <footer>
+    <p>BookStore Platform &mdash; PgAdmin Connectivity Fix &mdash; <a href="pgadmin-security-review.html">Security Review</a> &mdash; <a href="index.html">Home</a></p>
+  </footer>
+
+</div>
+</body>
+</html>
