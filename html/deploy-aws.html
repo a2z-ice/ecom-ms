@@ -1,0 +1,3566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AWS Deployment Guide — BookStore Platform</title>
+  <meta property="og:title" content="BookStore Platform — AWS Deployment with Terraform" />
+  <meta property="og:description" content="Deploy the full BookStore microservices platform to AWS using Terraform. EKS, Aurora PostgreSQL, MSK, ElastiCache, ACM, Route53, and more." />
+  <meta property="og:type" content="article" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; --cyan: #06b6d4; --purple: #8b5cf6; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 960px; margin: 0 auto; padding: 40px 24px 60px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #f97316, #fbbf24); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p.subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 52px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 28px 0 10px; color: #cbd5e1; }
+    h4 { font-size: 0.95rem; font-weight: 600; margin: 20px 0 8px; color: #94a3b8; }
+    p { margin-bottom: 16px; color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.82rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.04); }
+    code { background: var(--card); padding: 2px 7px; border-radius: 4px; font-size: 0.86em; color: #fbbf24; }
+    pre { background: var(--card); padding: 18px 20px; border-radius: 10px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); position: relative; }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.84rem; line-height: 1.65; }
+    pre .comment { color: #64748b; }
+    pre .keyword { color: #c084fc; }
+    pre .string { color: #34d399; }
+    pre .number { color: #fbbf24; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* ── Step Cards ── */
+    .step { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px 28px; margin: 20px 0; position: relative; overflow: hidden; }
+    .step::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; border-radius: 4px 0 0 4px; }
+    .step.blue::before { background: linear-gradient(180deg, #3b82f6, #60a5fa); }
+    .step.green::before { background: linear-gradient(180deg, #059669, #34d399); }
+    .step.purple::before { background: linear-gradient(180deg, #7c3aed, #a78bfa); }
+    .step.amber::before { background: linear-gradient(180deg, #d97706, #fbbf24); }
+    .step.red::before { background: linear-gradient(180deg, #dc2626, #f87171); }
+    .step.cyan::before { background: linear-gradient(180deg, #0891b2, #22d3ee); }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: white; font-weight: 800; font-size: 0.88rem; margin-right: 12px; flex-shrink: 0; }
+    .step h3 { display: flex; align-items: center; margin: 0 0 12px; color: #f1f5f9; }
+    .step p { margin-bottom: 10px; }
+    .step pre { margin: 10px 0 8px; }
+
+    /* ── Info/Warning/Tip boxes ── */
+    .callout { padding: 16px 20px; border-radius: 10px; margin: 16px 0; font-size: 0.88rem; line-height: 1.6; border-left: 4px solid; }
+    .callout.info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+    .callout.warn { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
+    .callout.tip { background: rgba(16,185,129,0.08); border-color: #10b981; }
+    .callout.danger { background: rgba(239,68,68,0.08); border-color: #ef4444; }
+    .callout strong { color: #f1f5f9; }
+    .callout code { font-size: 0.84em; }
+
+    /* ── TOC ── */
+    .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 24px 0 40px; }
+    .toc h3 { font-size: 0.9rem; font-weight: 700; color: #f1f5f9; margin: 0 0 12px; }
+    .toc ol { margin: 0; padding-left: 20px; }
+    .toc li { margin-bottom: 4px; }
+    .toc a { font-size: 0.85rem; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+    .toc a:hover { color: var(--accent); }
+
+    /* ── Prereq checklist ── */
+    .prereq-list { list-style: none; margin: 12px 0 20px; padding: 0; }
+    .prereq-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(51,65,85,0.4); font-size: 0.88rem; }
+    .prereq-list li:last-child { border-bottom: none; }
+    .prereq-check { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; flex-shrink: 0; }
+    .prereq-check.required { border-color: var(--accent); color: var(--accent); }
+    .prereq-name { font-weight: 600; color: #cbd5e1; min-width: 110px; }
+    .prereq-ver { font-size: 0.78rem; color: var(--muted); }
+    .prereq-purpose { font-size: 0.78rem; color: #64748b; margin-left: auto; }
+
+    /* ── Architecture diagram ── */
+    .arch-diagram { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; font-family: 'Courier New', monospace; font-size: 0.78rem; line-height: 1.5; color: #94a3b8; overflow-x: auto; white-space: pre; }
+    .arch-diagram .aws-service { color: #f97316; font-weight: 700; }
+    .arch-diagram .arrow { color: #3b82f6; }
+    .arch-diagram .label { color: #10b981; }
+
+    /* ── File tree ── */
+    .file-tree { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 24px; margin: 12px 0 20px; font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace; font-size: 0.84rem; line-height: 1.8; color: #94a3b8; white-space: pre; overflow-x: auto; }
+    .file-tree .dir { color: #60a5fa; font-weight: 600; }
+    .file-tree .file { color: #fbbf24; }
+    .file-tree .desc { color: #64748b; }
+
+    /* ── Cost table ── */
+    .cost-table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    .cost-table th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.82rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    .cost-table td { padding: 10px 14px; font-size: 0.85rem; border-bottom: 1px solid var(--border); }
+    .cost-table .cost-dev { color: var(--green); font-weight: 600; }
+    .cost-table .cost-prod { color: var(--yellow); font-weight: 600; }
+    .cost-table .cost-total { background: rgba(59,130,246,0.06); font-weight: 700; }
+
+    /* ── Topnav (hidden by nav.js) ── */
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 960px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>AWS Deployment Guide</h1>
+  <p class="subtitle">Deploy the full BookStore Platform to AWS using Terraform &mdash; EKS, Aurora, MSK, ElastiCache, and more</p>
+
+  <div class="badges">
+    <span class="badge orange">AWS + Terraform</span>
+    <span class="badge green">Production Ready</span>
+    <span class="badge purple">EKS + Istio Ambient</span>
+    <span class="badge cyan">Fully Managed Services</span>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#overview">Architecture Overview</a></li>
+      <li><a href="#prereqs">Prerequisites</a></li>
+      <li><a href="#structure">Terraform Project Structure</a></li>
+      <li><a href="#backend">Step 1 &mdash; S3 State Backend</a></li>
+      <li><a href="#versions">Step 2 &mdash; Provider Versions</a></li>
+      <li><a href="#variables">Step 3 &mdash; Input Variables</a></li>
+      <li><a href="#vpc">Step 4 &mdash; VPC &amp; Networking</a></li>
+      <li><a href="#eks">Step 5 &mdash; EKS Cluster</a></li>
+      <li><a href="#ecr">Step 6 &mdash; Container Registry (ECR)</a></li>
+      <li><a href="#rds">Step 7 &mdash; Aurora PostgreSQL</a></li>
+      <li><a href="#msk">Step 8 &mdash; Managed Kafka (MSK)</a></li>
+      <li><a href="#elasticache">Step 9 &mdash; ElastiCache Redis</a></li>
+      <li><a href="#iam">Step 10 &mdash; IAM &amp; IRSA Roles</a></li>
+      <li><a href="#route53">Step 11 &mdash; Route53 &amp; ACM Certificates</a></li>
+      <li><a href="#outputs">Step 12 &mdash; Outputs</a></li>
+      <li><a href="#k8s">Step 13 &mdash; Kubernetes Resources</a></li>
+      <li><a href="#tfvars">Step 14 &mdash; Example Variables File</a></li>
+      <li><a href="#deploy">Deployment Commands</a></li>
+      <li><a href="#costs">Cost Estimation</a></li>
+      <li><a href="#teardown">Teardown</a></li>
+      <li><a href="#security">Security Considerations</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="overview">1. Architecture Overview</h2>
+
+  <p>The BookStore Platform maps directly from local kind infrastructure to AWS managed services. Every component has a 1:1 replacement that provides production-grade availability, scaling, and security.</p>
+
+  <h3>Architecture Diagram</h3>
+  <img src="diagrams/eks-architecture.svg" alt="BookStore Platform — AWS EKS Architecture (Terraform)" style="width:100%;border-radius:12px;border:1px solid #334155;margin:16px 0 28px;" />
+
+  <h3>Service Mapping: Local to AWS</h3>
+  <table>
+    <tr><th>Local (kind)</th><th>AWS Service</th><th>Why</th></tr>
+    <tr><td>kind Kubernetes cluster</td><td><strong>Amazon EKS</strong></td><td>Managed control plane, auto-upgrades, IAM integration</td></tr>
+    <tr><td>CloudNativePG (4 clusters)</td><td><strong>Aurora PostgreSQL Serverless v2</strong></td><td>Auto-scaling, automated backups, Multi-AZ HA</td></tr>
+    <tr><td>Self-hosted Kafka (KRaft)</td><td><strong>Amazon MSK</strong></td><td>Managed brokers, auto-patching, IAM auth</td></tr>
+    <tr><td>Self-hosted Redis</td><td><strong>ElastiCache Redis</strong></td><td>Managed clustering, failover, encryption</td></tr>
+    <tr><td>cert-manager self-signed CA</td><td><strong>ACM + Route53</strong></td><td>Free public TLS certs, auto-renewal</td></tr>
+    <tr><td>kind NodePorts</td><td><strong>ALB (Load Balancer Controller)</strong></td><td>Layer 7 routing, WAF integration, auto-scaling</td></tr>
+    <tr><td>Local Docker images</td><td><strong>Amazon ECR</strong></td><td>Private registry, vulnerability scanning, lifecycle policies</td></tr>
+    <tr><td>K8s Secrets</td><td><strong>AWS Secrets Manager</strong></td><td>Rotation, audit logging, cross-account access</td></tr>
+    <tr><td>Local ./data/ directories</td><td><strong>EBS CSI + gp3 volumes</strong></td><td>Durable block storage, snapshots</td></tr>
+    <tr><td>Istio Ambient Mesh</td><td><strong>Istio Ambient on EKS</strong></td><td>Same mesh, managed nodes, ztunnel DaemonSet</td></tr>
+  </table>
+
+  <h3>Architecture Diagram</h3>
+  <div class="arch-diagram"><span class="label">                        AWS Cloud (us-east-1)</span>
+    <span class="arrow">┌──────────────────────────────────────────────────────────────────────┐</span>
+    <span class="arrow">│</span>  <span class="label">VPC 10.0.0.0/16</span>                                                    <span class="arrow">│</span>
+    <span class="arrow">│</span>                                                                      <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="label">Public Subnets (10.0.1-3.0/24)</span>                                     <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">┌─────────────┐</span>  <span class="arrow">┌─────────────┐</span>  <span class="arrow">┌─────────────┐</span>              <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">│</span> <span class="aws-service">ALB</span>         <span class="arrow">│</span>  <span class="arrow">│</span> <span class="aws-service">NAT GW</span>      <span class="arrow">│</span>  <span class="arrow">│</span> <span class="aws-service">IGW</span>         <span class="arrow">│</span>              <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">└──────┬──────┘</span>  <span class="arrow">└──────┬──────┘</span>  <span class="arrow">└─────────────┘</span>              <span class="arrow">│</span>
+    <span class="arrow">│</span>         <span class="arrow">│</span>                <span class="arrow">│</span>                                          <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="label">Private Subnets (10.0.10-30.0/24)</span>                                  <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">┌─────────────────────────────────────────────────────┐</span>            <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">│</span> <span class="aws-service">EKS Cluster</span>                                         <span class="arrow">│</span>            <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">│</span>  <span class="arrow">┌──────────┐</span> <span class="arrow">┌──────────┐</span> <span class="arrow">┌──────────┐</span> <span class="arrow">┌────────┐</span> <span class="arrow">│</span>            <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">│</span>  <span class="arrow">│</span><span class="label">ecom-svc</span>  <span class="arrow">│</span> <span class="arrow">│</span><span class="label">inven-svc</span> <span class="arrow">│</span> <span class="arrow">│</span><span class="label">ui-svc</span>    <span class="arrow">│</span> <span class="arrow">│</span><span class="label">keycloak</span><span class="arrow">│</span> <span class="arrow">│</span>            <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">│</span>  <span class="arrow">└────┬─────┘</span> <span class="arrow">└────┬─────┘</span> <span class="arrow">└──────────┘</span> <span class="arrow">└────┬───┘</span> <span class="arrow">│</span>            <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">│</span>       <span class="arrow">│</span>           <span class="arrow">│</span>     <span class="arrow">┌──────────┐</span>       <span class="arrow">│</span>      <span class="arrow">│</span>            <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">│</span>       <span class="arrow">│</span>           <span class="arrow">│</span>     <span class="arrow">│</span><span class="label">debezium</span>  <span class="arrow">│</span>       <span class="arrow">│</span>      <span class="arrow">│</span>            <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">│</span>       <span class="arrow">│</span>           <span class="arrow">│</span>     <span class="arrow">└────┬─────┘</span>       <span class="arrow">│</span>      <span class="arrow">│</span>            <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">└───────┼───────────┼──────────┼────────────┼──────┘</span>            <span class="arrow">│</span>
+    <span class="arrow">│</span>          <span class="arrow">│</span>           <span class="arrow">│</span>          <span class="arrow">│</span>            <span class="arrow">│</span>                   <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="label">Database Subnets (10.0.100-102.0/24)</span>                               <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">┌──────────┐</span> <span class="arrow">┌──────────┐</span> <span class="arrow">┌──────────┐</span> <span class="arrow">┌──────────┐</span>           <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">│</span><span class="aws-service">Aurora</span>    <span class="arrow">│</span> <span class="arrow">│</span><span class="aws-service">Aurora</span>    <span class="arrow">│</span> <span class="arrow">│</span><span class="aws-service">Aurora</span>    <span class="arrow">│</span> <span class="arrow">│</span><span class="aws-service">Aurora</span>    <span class="arrow">│</span>           <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">│</span><span class="label">ecom-db</span>   <span class="arrow">│</span> <span class="arrow">│</span><span class="label">inven-db</span>  <span class="arrow">│</span> <span class="arrow">│</span><span class="label">analytics</span> <span class="arrow">│</span> <span class="arrow">│</span><span class="label">keycloak</span>  <span class="arrow">│</span>           <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">└──────────┘</span> <span class="arrow">└──────────┘</span> <span class="arrow">└──────────┘</span> <span class="arrow">└──────────┘</span>           <span class="arrow">│</span>
+    <span class="arrow">│</span>                                                                      <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">┌──────────────┐</span>  <span class="arrow">┌──────────────┐</span>  <span class="arrow">┌──────────────────┐</span>       <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">│</span> <span class="aws-service">MSK (Kafka)</span>   <span class="arrow">│</span>  <span class="arrow">│</span> <span class="aws-service">ElastiCache</span>   <span class="arrow">│</span>  <span class="arrow">│</span> <span class="aws-service">Secrets Manager</span>  <span class="arrow">│</span>       <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">│</span> <span class="label">3 brokers</span>     <span class="arrow">│</span>  <span class="arrow">│</span> <span class="label">Redis 7.x</span>     <span class="arrow">│</span>  <span class="arrow">│</span> <span class="label">DB credentials</span>  <span class="arrow">│</span>       <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="arrow">└──────────────┘</span>  <span class="arrow">└──────────────┘</span>  <span class="arrow">└──────────────────┘</span>       <span class="arrow">│</span>
+    <span class="arrow">│</span>                                                                      <span class="arrow">│</span>
+    <span class="arrow">│</span>  <span class="aws-service">Route53</span> + <span class="aws-service">ACM</span>    <span class="arrow">──────────</span>    <span class="aws-service">ECR</span> (5 repos)                    <span class="arrow">│</span>
+    <span class="arrow">└──────────────────────────────────────────────────────────────────────┘</span></div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="prereqs">2. Prerequisites</h2>
+
+  <h3>Required Tools</h3>
+  <ul class="prereq-list">
+    <li><div class="prereq-check required">*</div><span class="prereq-name">AWS CLI</span><span class="prereq-ver">v2.15+</span><span class="prereq-purpose">AWS API access</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">Terraform</span><span class="prereq-ver">v1.7+</span><span class="prereq-purpose">Infrastructure as Code</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">kubectl</span><span class="prereq-ver">v1.29+</span><span class="prereq-purpose">Kubernetes CLI</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">helm</span><span class="prereq-ver">v3.14+</span><span class="prereq-purpose">K8s package manager</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">istioctl</span><span class="prereq-ver">v1.29.1</span><span class="prereq-purpose">Istio Ambient Mesh</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">Docker</span><span class="prereq-ver">v24+</span><span class="prereq-purpose">Container image builds</span></li>
+    <li><div class="prereq-check required">*</div><span class="prereq-name">jq</span><span class="prereq-ver">v1.6+</span><span class="prereq-purpose">JSON parsing</span></li>
+  </ul>
+
+  <h3>AWS Account Requirements</h3>
+  <ul>
+    <li>An AWS account with <strong>AdministratorAccess</strong> or equivalent IAM permissions</li>
+    <li>A <strong>registered domain</strong> in Route53 (or ability to delegate DNS to Route53)</li>
+    <li>AWS CLI configured: <code>aws configure</code> with valid credentials</li>
+    <li>Service quotas sufficient for EKS, RDS, MSK, and ElastiCache in your region</li>
+  </ul>
+
+  <div class="step blue">
+    <h3><span class="step-num">0</span> Install prerequisites</h3>
+<pre><code><span class="comment"># macOS (Homebrew)</span>
+brew install awscli terraform kubectl helm istioctl docker jq
+
+<span class="comment"># Verify all tools</span>
+aws --version
+terraform --version
+kubectl version --client
+helm version --short
+istioctl version --remote=false
+docker --version
+
+<span class="comment"># Configure AWS credentials</span>
+aws configure
+<span class="comment"># Enter: Access Key ID, Secret Access Key, Region (us-east-1), Output (json)</span>
+
+<span class="comment"># Verify AWS access</span>
+aws sts get-caller-identity</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="structure">3. Terraform Project Structure</h2>
+
+  <div class="file-tree">
+<span class="dir">terraform/aws/</span>
+<span class="arrow">├──</span> <span class="file">00-backend.tf</span>         <span class="desc"># S3 state backend + DynamoDB locking</span>
+<span class="arrow">├──</span> <span class="file">01-versions.tf</span>        <span class="desc"># Provider version constraints</span>
+<span class="arrow">├──</span> <span class="file">02-variables.tf</span>       <span class="desc"># All input variables</span>
+<span class="arrow">├──</span> <span class="file">03-vpc.tf</span>             <span class="desc"># VPC, subnets, NAT, IGW, route tables</span>
+<span class="arrow">├──</span> <span class="file">04-eks.tf</span>             <span class="desc"># EKS cluster + managed node groups</span>
+<span class="arrow">├──</span> <span class="file">05-ecr.tf</span>             <span class="desc"># 5 ECR container registries</span>
+<span class="arrow">├──</span> <span class="file">06-rds.tf</span>             <span class="desc"># 4 Aurora PostgreSQL Serverless v2 clusters</span>
+<span class="arrow">├──</span> <span class="file">07-msk.tf</span>             <span class="desc"># Amazon MSK (Managed Kafka)</span>
+<span class="arrow">├──</span> <span class="file">08-elasticache.tf</span>     <span class="desc"># ElastiCache Redis cluster</span>
+<span class="arrow">├──</span> <span class="file">09-iam.tf</span>             <span class="desc"># IAM roles, policies, IRSA bindings</span>
+<span class="arrow">├──</span> <span class="file">10-route53.tf</span>         <span class="desc"># DNS hosted zone + ACM certificates</span>
+<span class="arrow">├──</span> <span class="file">11-outputs.tf</span>         <span class="desc"># All output values</span>
+<span class="arrow">├──</span> <span class="file">12-k8s-resources.tf</span>   <span class="desc"># Istio, ALB Controller, namespaces, apps</span>
+<span class="arrow">├──</span> <span class="file">terraform.tfvars.example</span> <span class="desc"># Example variable values</span>
+<span class="arrow">└──</span> <span class="file">destroy.sh</span>            <span class="desc"># Clean teardown script</span>
+  </div>
+
+  <div class="callout info">
+    <strong>Convention:</strong> Files are numbered <code>00-</code> through <code>12-</code> to indicate logical dependency order. Terraform processes all <code>.tf</code> files together, but the numbering helps human readers follow the flow.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="backend">4. Step 1 &mdash; S3 State Backend</h2>
+
+  <p>Terraform state must be stored remotely for team collaboration and state locking. An S3 bucket stores the state file and DynamoDB provides distributed locking to prevent concurrent modifications.</p>
+
+  <div class="callout warn">
+    <strong>Bootstrap note:</strong> You must create the S3 bucket and DynamoDB table <em>before</em> running <code>terraform init</code>. Run the bootstrap commands below first, or comment out the backend block for the initial run and migrate later.
+  </div>
+
+  <div class="step blue">
+    <h3><span class="step-num">1</span> 00-backend.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────────────
+# 00-backend.tf — Remote state storage in S3 with DynamoDB locking
+#
+# WHY: Terraform state contains sensitive data (DB passwords, endpoints)
+# and must be stored securely with locking to prevent race conditions
+# when multiple team members run terraform simultaneously.
+#
+# LOCAL EQUIVALENT: On kind, state is implicit (cluster IS the state).
+# On AWS, we need explicit state tracking for reproducibility.
+# ─────────────────────────────────────────────────────────────────────</span>
+
+terraform {
+  backend "s3" {
+    <span class="comment"># S3 bucket for state storage — must exist before terraform init</span>
+    bucket = "bookstore-terraform-state"
+
+    <span class="comment"># State file path within the bucket — use env prefix for multi-env</span>
+    key = "bookstore/terraform.tfstate"
+
+    <span class="comment"># AWS region for the bucket</span>
+    region = "us-east-1"
+
+    <span class="comment"># DynamoDB table for state locking — prevents concurrent applies</span>
+    dynamodb_table = "bookstore-terraform-locks"
+
+    <span class="comment"># Encrypt state at rest — state contains DB passwords and endpoints</span>
+    encrypt = true
+  }
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────────────
+# Bootstrap: Create the S3 bucket and DynamoDB table BEFORE terraform init.
+# Run these AWS CLI commands once:
+#
+#   aws s3api create-bucket \
+#     --bucket bookstore-terraform-state \
+#     --region us-east-1
+#
+#   aws s3api put-bucket-versioning \
+#     --bucket bookstore-terraform-state \
+#     --versioning-configuration Status=Enabled
+#
+#   aws s3api put-bucket-encryption \
+#     --bucket bookstore-terraform-state \
+#     --server-side-encryption-configuration \
+#       '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"aws:kms"}}]}'
+#
+#   aws s3api put-public-access-block \
+#     --bucket bookstore-terraform-state \
+#     --public-access-block-configuration \
+#       BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+#
+#   aws dynamodb create-table \
+#     --table-name bookstore-terraform-locks \
+#     --attribute-definitions AttributeName=LockID,AttributeType=S \
+#     --key-schema AttributeName=LockID,KeyType=HASH \
+#     --billing-mode PAY_PER_REQUEST \
+#     --region us-east-1
+# ─────────────────────────────────────────────────────────────────────</span></code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="versions">5. Step 2 &mdash; Provider Versions</h2>
+
+  <p>Pin all provider versions to avoid unexpected breaking changes. The AWS provider manages infrastructure, while the Kubernetes and Helm providers deploy workloads into the EKS cluster.</p>
+
+  <div class="step green">
+    <h3><span class="step-num">2</span> 01-versions.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────────────
+# 01-versions.tf — Provider version constraints
+#
+# WHY: Pinning provider versions ensures reproducible deployments.
+# The ~&gt; operator allows patch updates (e.g., 5.0.x) but not minor/major.
+# ─────────────────────────────────────────────────────────────────────</span>
+
+terraform {
+  required_version = "&gt;= 1.7.0"
+
+  required_providers {
+    <span class="comment"># AWS provider — manages all AWS resources (VPC, EKS, RDS, MSK, etc.)</span>
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~&gt; 5.0"
+    }
+
+    <span class="comment"># Kubernetes provider — creates namespaces, configmaps, secrets in EKS</span>
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~&gt; 2.35"
+    }
+
+    <span class="comment"># Helm provider — installs Istio, ALB Controller, cert-manager via charts</span>
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~&gt; 2.17"
+    }
+
+    <span class="comment"># TLS provider — generates random passwords for databases</span>
+    random = {
+      source  = "hashicorp/random"
+      version = "~&gt; 3.6"
+    }
+  }
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────────────
+# AWS provider configuration
+# Uses credentials from AWS CLI profile or environment variables
+# ─────────────────────────────────────────────────────────────────────</span>
+provider "aws" {
+  region = var.aws_region
+
+  default_tags {
+    tags = {
+      Project     = "bookstore"
+      Environment = var.environment
+      ManagedBy   = "terraform"
+    }
+  }
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────────────
+# Kubernetes provider — configured AFTER EKS cluster is created
+# Uses the EKS cluster endpoint and auth token for API access
+# ─────────────────────────────────────────────────────────────────────</span>
+provider "kubernetes" {
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+  }
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────────────
+# Helm provider — same auth as Kubernetes provider
+# Used to install Istio, ALB Controller, External Secrets Operator
+# ─────────────────────────────────────────────────────────────────────</span>
+provider "helm" {
+  kubernetes {
+    host                   = module.eks.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "aws"
+      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+    }
+  }
+}</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="variables">6. Step 3 &mdash; Input Variables</h2>
+
+  <p>All configurable values are defined as variables with sensible defaults. Override them in <code>terraform.tfvars</code> for your environment.</p>
+
+  <div class="step purple">
+    <h3><span class="step-num">3</span> 02-variables.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────────────
+# 02-variables.tf — All input variables for the BookStore deployment
+#
+# Override these in terraform.tfvars (see terraform.tfvars.example).
+# Secrets (DB passwords) are generated randomly if not provided.
+# ─────────────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># ── Region &amp; Environment ──────────────────────────────────────────</span>
+
+variable "aws_region" {
+  description = "AWS region to deploy all resources into"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "environment" {
+  description = "Environment name (dev, staging, prod) — used in resource naming and tags"
+  type        = string
+  default     = "dev"
+
+  validation {
+    condition     = contains(["dev", "staging", "prod"], var.environment)
+    error_message = "Environment must be one of: dev, staging, prod."
+  }
+}
+
+variable "project_name" {
+  description = "Project name used as prefix for all resource names"
+  type        = string
+  default     = "bookstore"
+}
+
+<span class="comment"># ── Networking ────────────────────────────────────────────────────</span>
+
+variable "vpc_cidr" {
+  description = "CIDR block for the VPC — /16 gives 65,536 IPs"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "availability_zones" {
+  description = "List of AZs to deploy across — 3 for HA"
+  type        = list(string)
+  default     = ["us-east-1a", "us-east-1b", "us-east-1c"]
+}
+
+variable "single_nat_gateway" {
+  description = "Use single NAT Gateway (cost saving for dev). Set false for prod HA."
+  type        = bool
+  default     = true
+}
+
+<span class="comment"># ── EKS Cluster ──────────────────────────────────────────────────</span>
+
+variable "cluster_name" {
+  description = "Name of the EKS cluster"
+  type        = string
+  default     = "bookstore"
+}
+
+variable "cluster_version" {
+  description = "Kubernetes version for EKS — must be supported by AWS"
+  type        = string
+  default     = "1.31"
+}
+
+variable "system_node_instance_types" {
+  description = "EC2 instance types for the system node group (infra workloads)"
+  type        = list(string)
+  default     = ["t3.medium"]
+}
+
+variable "system_node_desired" {
+  description = "Desired number of system nodes"
+  type        = number
+  default     = 2
+}
+
+variable "app_node_instance_types" {
+  description = "EC2 instance types for the app node group (application workloads)"
+  type        = list(string)
+  default     = ["t3.large"]
+}
+
+variable "app_node_min" {
+  description = "Minimum number of app nodes (autoscaling lower bound)"
+  type        = number
+  default     = 2
+}
+
+variable "app_node_max" {
+  description = "Maximum number of app nodes (autoscaling upper bound)"
+  type        = number
+  default     = 5
+}
+
+variable "app_node_desired" {
+  description = "Desired number of app nodes at initial deployment"
+  type        = number
+  default     = 2
+}
+
+<span class="comment"># ── Database (Aurora PostgreSQL) ──────────────────────────────────</span>
+
+variable "db_engine_version" {
+  description = "Aurora PostgreSQL engine version"
+  type        = string
+  default     = "16.4"
+}
+
+variable "db_min_capacity" {
+  description = "Minimum ACU for Aurora Serverless v2 (0.5 = smallest, cheapest)"
+  type        = number
+  default     = 0.5
+}
+
+variable "db_max_capacity" {
+  description = "Maximum ACU for Aurora Serverless v2 (4 ACU for dev, 16+ for prod)"
+  type        = number
+  default     = 4
+}
+
+variable "db_backup_retention" {
+  description = "Number of days to retain automated backups"
+  type        = number
+  default     = 7
+}
+
+variable "db_deletion_protection" {
+  description = "Enable deletion protection — set true for prod"
+  type        = bool
+  default     = false
+}
+
+<span class="comment"># ── Kafka (MSK) ──────────────────────────────────────────────────</span>
+
+variable "msk_instance_type" {
+  description = "MSK broker instance type — kafka.t3.small for dev, kafka.m5.large for prod"
+  type        = string
+  default     = "kafka.t3.small"
+}
+
+variable "msk_broker_count" {
+  description = "Number of MSK brokers (must be multiple of AZ count)"
+  type        = number
+  default     = 3
+}
+
+variable "msk_kafka_version" {
+  description = "Kafka version for MSK"
+  type        = string
+  default     = "3.6.0"
+}
+
+variable "msk_ebs_volume_size" {
+  description = "EBS volume size (GB) per broker for log storage"
+  type        = number
+  default     = 100
+}
+
+<span class="comment"># ── Redis (ElastiCache) ──────────────────────────────────────────</span>
+
+variable "redis_node_type" {
+  description = "ElastiCache node type — cache.t3.micro for dev, cache.r7g.large for prod"
+  type        = string
+  default     = "cache.t3.micro"
+}
+
+variable "redis_num_cache_nodes" {
+  description = "Number of Redis nodes (1 for dev, 2+ for prod Multi-AZ)"
+  type        = number
+  default     = 1
+}
+
+variable "redis_engine_version" {
+  description = "Redis engine version"
+  type        = string
+  default     = "7.1"
+}
+
+<span class="comment"># ── DNS &amp; TLS ────────────────────────────────────────────────────</span>
+
+variable "domain_name" {
+  description = "Root domain name for the platform (e.g., bookstore.example.com)"
+  type        = string
+}
+
+variable "route53_zone_id" {
+  description = "Existing Route53 hosted zone ID. Leave empty to create a new zone."
+  type        = string
+  default     = ""
+}
+
+<span class="comment"># ── Keycloak ─────────────────────────────────────────────────────</span>
+
+variable "keycloak_admin_password" {
+  description = "Keycloak admin console password"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+<span class="comment"># ── Tags ─────────────────────────────────────────────────────────</span>
+
+variable "extra_tags" {
+  description = "Additional tags to apply to all resources"
+  type        = map(string)
+  default     = {}
+}</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="vpc">7. Step 4 &mdash; VPC &amp; Networking</h2>
+
+  <p>The VPC provides network isolation with three subnet tiers: public (ALB, NAT), private (EKS nodes), and database (RDS, ElastiCache). This replaces the kind cluster's flat Docker network.</p>
+
+  <div class="step cyan">
+    <h3><span class="step-num">4</span> 03-vpc.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────────────
+# 03-vpc.tf — VPC, Subnets, NAT Gateway, Internet Gateway
+#
+# LOCAL EQUIVALENT: kind uses Docker's bridge network (172.x.x.x).
+# On AWS, we need explicit VPC with 3 tiers:
+#   - Public subnets:   ALB, NAT Gateway (internet-facing)
+#   - Private subnets:  EKS worker nodes, MSK (no direct internet)
+#   - Database subnets: RDS, ElastiCache (most restricted)
+#
+# Using the official terraform-aws-modules/vpc module for best practices.
+# ─────────────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># Fetch available AZs in the region — used for subnet distribution</span>
+data "aws_availability_zones" "available" {
+  state = "available"
+  filter {
+    name   = "zone-type"
+    values = ["availability-zone"]
+  }
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────────────
+# VPC Module — creates VPC + all networking infrastructure
+# ─────────────────────────────────────────────────────────────────────</span>
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "~&gt; 5.16"
+
+  name = "${var.project_name}-${var.environment}-vpc"
+  cidr = var.vpc_cidr
+
+  <span class="comment"># Deploy across 3 AZs for high availability</span>
+  azs = var.availability_zones
+
+  <span class="comment"># ── Public Subnets ──────────────────────────────────────────────
+  # These host the ALB and NAT Gateway. They have direct internet access
+  # via the Internet Gateway. EKS tags enable the ALB Controller to
+  # auto-discover these subnets for internet-facing load balancers.
+  # ──────────────────────────────────────────────────────────────────</span>
+  public_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+  public_subnet_tags = {
+    "kubernetes.io/role/elb"                              = 1
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+  }
+
+  <span class="comment"># ── Private Subnets ─────────────────────────────────────────────
+  # EKS worker nodes run here. They access the internet through NAT
+  # Gateway (for pulling container images, etc.) but are not directly
+  # reachable from the internet. The internal-elb tag enables the ALB
+  # Controller to create internal load balancers in these subnets.
+  # ──────────────────────────────────────────────────────────────────</span>
+  private_subnets = ["10.0.10.0/24", "10.0.20.0/24", "10.0.30.0/24"]
+  private_subnet_tags = {
+    "kubernetes.io/role/internal-elb"                     = 1
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+  }
+
+  <span class="comment"># ── Database Subnets ────────────────────────────────────────────
+  # Aurora RDS and ElastiCache run here. Most restricted tier — no
+  # internet access at all. Only reachable from private subnets
+  # (EKS nodes) via security groups.
+  #
+  # LOCAL EQUIVALENT: On kind, PostgreSQL pods run in the same cluster
+  # network. On AWS, they're in an isolated subnet tier for defense
+  # in depth.
+  # ──────────────────────────────────────────────────────────────────</span>
+  database_subnets = ["10.0.100.0/24", "10.0.101.0/24", "10.0.102.0/24"]
+  database_subnet_tags = {
+    "Purpose" = "databases"
+  }
+
+  <span class="comment"># Create a DB subnet group that RDS and ElastiCache can reference</span>
+  create_database_subnet_group       = true
+  create_database_subnet_route_table = true
+  database_subnet_group_name         = "${var.project_name}-${var.environment}-db"
+
+  <span class="comment"># ── NAT Gateway ─────────────────────────────────────────────────
+  # Allows private subnet resources to reach the internet (outbound only).
+  # Single NAT for dev ($32/month savings), one per AZ for prod HA.
+  # ──────────────────────────────────────────────────────────────────</span>
+  enable_nat_gateway     = true
+  single_nat_gateway     = var.single_nat_gateway
+  one_nat_gateway_per_az = !var.single_nat_gateway
+
+  <span class="comment"># ── DNS ─────────────────────────────────────────────────────────
+  # Required for EKS service discovery and RDS endpoint resolution
+  # ──────────────────────────────────────────────────────────────────</span>
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
+  <span class="comment"># ── Flow Logs (optional, recommended for prod) ─────────────────
+  # Captures network traffic metadata for security auditing
+  # ──────────────────────────────────────────────────────────────────</span>
+  enable_flow_log                      = var.environment == "prod"
+  create_flow_log_cloudwatch_log_group = var.environment == "prod"
+  create_flow_log_iam_role             = var.environment == "prod"
+
+  tags = merge(var.extra_tags, {
+    Component = "networking"
+  })
+}</code></pre>
+  </div>
+
+  <div class="callout tip">
+    <strong>Cost tip:</strong> A single NAT Gateway costs ~$32/month + data transfer. For dev environments, one is sufficient. For production, enable <code>single_nat_gateway = false</code> so each AZ has its own NAT Gateway, eliminating cross-AZ traffic charges and the single point of failure.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="eks">8. Step 5 &mdash; EKS Cluster</h2>
+
+  <p>Amazon EKS replaces the local kind cluster. Two managed node groups separate infrastructure workloads (Istio, Debezium, Flink) from application workloads (ecom-service, inventory-service, UI).</p>
+
+  <div class="callout info">
+    <strong>Where does the EKS control plane (master) live?</strong><br>
+    The EKS control plane (API Server, etcd, Scheduler, Controller Manager) runs in an <strong>AWS-managed VPC that you do NOT own or see</strong>. AWS automatically distributes the control plane across <strong>3 Availability Zones</strong> for high availability &mdash; even in a "single AZ" deployment. You only manage the <strong>worker nodes</strong> in your VPC. AWS connects the control plane to your VPC via <strong>Elastic Network Interfaces (ENIs)</strong> injected into your private subnets. This is why your <code>04-eks.tf</code> only defines node groups, not the control plane infrastructure.<br><br>
+    <strong>Private endpoint:</strong> When <code>cluster_endpoint_private_access = true</code>, kubectl traffic stays within the VPC (via the ENIs) and never traverses the public internet.<br>
+    <strong>OIDC Provider:</strong> EKS automatically creates an OIDC identity provider for IRSA (IAM Roles for Service Accounts), allowing pods to assume IAM roles without static credentials.
+  </div>
+
+  <div class="step blue">
+    <h3><span class="step-num">5</span> 04-eks.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────────────
+# 04-eks.tf — Amazon EKS Cluster with Managed Node Groups
+#
+# LOCAL EQUIVALENT: kind cluster with 1 control-plane + 2 worker nodes.
+# On AWS, EKS manages the control plane (API server, etcd, scheduler).
+# We only manage the worker node groups.
+#
+# KEY DIFFERENCES FROM KIND:
+# - No NodePort exposure needed — ALB handles ingress
+# - OIDC provider enables IRSA (pod-level IAM roles)
+# - EBS CSI driver replaces kind's local-hostpath StorageClass
+# - Node autoscaling replaces static node count
+# ─────────────────────────────────────────────────────────────────────</span>
+
+module "eks" {
+  source  = "terraform-aws-modules/eks/aws"
+  version = "~&gt; 20.31"
+
+  <span class="comment"># ── Cluster Identity ────────────────────────────────────────────</span>
+  cluster_name    = var.cluster_name
+  cluster_version = var.cluster_version
+
+  <span class="comment"># ── Networking ──────────────────────────────────────────────────
+  # Control plane runs in AWS-managed VPC. Worker nodes run in our
+  # private subnets. The control plane ENIs are placed in private
+  # subnets for security.
+  # ──────────────────────────────────────────────────────────────────</span>
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.private_subnets
+
+  <span class="comment"># Allow public access to the K8s API (for terraform/kubectl from dev machine)
+  # In production, restrict to VPN CIDR or disable entirely</span>
+  cluster_endpoint_public_access = true
+
+  <span class="comment"># ── EKS Addons ──────────────────────────────────────────────────
+  # These are AWS-maintained components that run inside the cluster.
+  #
+  # vpc-cni:        Pod networking — assigns VPC IPs directly to pods
+  # coredns:        DNS resolution inside the cluster
+  # kube-proxy:     Service routing (iptables/IPVS rules)
+  # ebs-csi-driver: Persistent volumes backed by EBS (replaces kind's
+  #                 local-hostpath StorageClass)
+  # ──────────────────────────────────────────────────────────────────</span>
+  cluster_addons = {
+    vpc-cni = {
+      most_recent = true
+      configuration_values = jsonencode({
+        env = {
+          <span class="comment"># Enable prefix delegation for higher pod density per node</span>
+          ENABLE_PREFIX_DELEGATION = "true"
+        }
+      })
+    }
+    coredns = {
+      most_recent = true
+    }
+    kube-proxy = {
+      most_recent = true
+    }
+    aws-ebs-csi-driver = {
+      most_recent              = true
+      service_account_role_arn = module.ebs_csi_irsa.iam_role_arn
+    }
+  }
+
+  <span class="comment"># ── OIDC Provider ───────────────────────────────────────────────
+  # Enables IRSA (IAM Roles for Service Accounts) — pods assume
+  # specific IAM roles instead of using the node's broad role.
+  # This is how ecom-service gets RDS access without storing
+  # AWS credentials.
+  # ──────────────────────────────────────────────────────────────────</span>
+  enable_irsa = true
+
+  <span class="comment"># ── Managed Node Groups ─────────────────────────────────────────
+  # Two groups with different instance sizes for workload separation:
+  #
+  # system: Infrastructure pods (Istio, Debezium, Kafka clients, Flink)
+  #         t3.medium (2 vCPU, 4 GB) — fixed count for predictability
+  #
+  # app:    Application pods (ecom, inventory, UI, Keycloak)
+  #         t3.large (2 vCPU, 8 GB) — autoscaling 2-5 for traffic spikes
+  # ──────────────────────────────────────────────────────────────────</span>
+  eks_managed_node_groups = {
+    system = {
+      name = "${var.cluster_name}-system"
+
+      instance_types = var.system_node_instance_types
+      capacity_type  = "ON_DEMAND"
+
+      <span class="comment"># Fixed size — infra pods need predictable capacity</span>
+      min_size     = var.system_node_desired
+      max_size     = var.system_node_desired
+      desired_size = var.system_node_desired
+
+      <span class="comment"># Labels for pod scheduling — use nodeSelector in K8s manifests</span>
+      labels = {
+        "nodegroup" = "system"
+        "workload"  = "infrastructure"
+      }
+
+      <span class="comment"># Taint so only infra pods schedule here (must tolerate)</span>
+      taints = [{
+        key    = "workload"
+        value  = "system"
+        effect = "NO_SCHEDULE"
+      }]
+
+      <span class="comment"># EBS root volume for node OS + container runtime</span>
+      block_device_mappings = {
+        xvda = {
+          device_name = "/dev/xvda"
+          ebs = {
+            volume_size           = 50
+            volume_type           = "gp3"
+            encrypted             = true
+            delete_on_termination = true
+          }
+        }
+      }
+
+      tags = {
+        NodeGroup = "system"
+      }
+    }
+
+    app = {
+      name = "${var.cluster_name}-app"
+
+      instance_types = var.app_node_instance_types
+      capacity_type  = "ON_DEMAND"
+
+      <span class="comment"># Autoscaling range — scales between min and max based on demand
+      # The Cluster Autoscaler (or Karpenter) triggers scaling</span>
+      min_size     = var.app_node_min
+      max_size     = var.app_node_max
+      desired_size = var.app_node_desired
+
+      labels = {
+        "nodegroup" = "app"
+        "workload"  = "application"
+      }
+
+      block_device_mappings = {
+        xvda = {
+          device_name = "/dev/xvda"
+          ebs = {
+            volume_size           = 80
+            volume_type           = "gp3"
+            encrypted             = true
+            delete_on_termination = true
+          }
+        }
+      }
+
+      tags = {
+        NodeGroup = "app"
+      }
+    }
+  }
+
+  <span class="comment"># ── Access Configuration ────────────────────────────────────────
+  # EKS access entries replace the legacy aws-auth ConfigMap.
+  # Grant the Terraform executor cluster admin access.
+  # ──────────────────────────────────────────────────────────────────</span>
+  enable_cluster_creator_admin_permissions = true
+
+  <span class="comment"># ── Cluster Security Group ──────────────────────────────────────
+  # Additional rules for the cluster security group</span>
+  cluster_security_group_additional_rules = {
+    ingress_nodes_ephemeral_ports_tcp = {
+      description                = "Nodes on ephemeral ports"
+      protocol                   = "tcp"
+      from_port                  = 1025
+      to_port                    = 65535
+      type                       = "ingress"
+      source_node_security_group = true
+    }
+  }
+
+  <span class="comment"># ── Node Security Group ─────────────────────────────────────────
+  # Additional rules for worker node communication</span>
+  node_security_group_additional_rules = {
+    <span class="comment"># Allow nodes to communicate with each other on all ports
+    # Required for Istio Ambient's ztunnel HBONE tunnels (port 15008)</span>
+    ingress_self_all = {
+      description = "Node to node all ports/protocols"
+      protocol    = "-1"
+      from_port   = 0
+      to_port     = 0
+      type        = "ingress"
+      self        = true
+    }
+    <span class="comment"># Allow all egress from nodes (for NAT Gateway internet access)</span>
+    egress_all = {
+      description = "Node all egress"
+      protocol    = "-1"
+      from_port   = 0
+      to_port     = 0
+      type        = "egress"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  }
+
+  tags = merge(var.extra_tags, {
+    Component = "compute"
+  })
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────────────
+# EBS CSI Driver IRSA — allows the EBS CSI driver to manage EBS volumes
+# This replaces kind's local-hostpath StorageClass with real EBS volumes
+# ─────────────────────────────────────────────────────────────────────</span>
+module "ebs_csi_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~&gt; 5.47"
+
+  role_name             = "${var.cluster_name}-ebs-csi-driver"
+  attach_ebs_csi_policy = true
+
+  oidc_providers = {
+    main = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["kube-system:ebs-csi-controller-sa"]
+    }
+  }
+
+  tags = var.extra_tags
+}</code></pre>
+  </div>
+
+  <div class="callout info">
+    <strong>Node group taints:</strong> The system node group has a <code>workload=system:NoSchedule</code> taint. Only pods with a matching toleration will schedule there. Application pods (ecom, inventory, UI) go to the untainted app node group by default.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="ecr">9. Step 6 &mdash; Container Registry (ECR)</h2>
+
+  <p>ECR provides private Docker image storage with vulnerability scanning. Each service gets its own repository with lifecycle policies to control storage costs.</p>
+
+  <div class="step green">
+    <h3><span class="step-num">6</span> 05-ecr.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────────────
+# 05-ecr.tf — Amazon Elastic Container Registry repositories
+#
+# LOCAL EQUIVALENT: On kind, images are built locally and loaded via
+# `kind load docker-image`. On AWS, images are pushed to ECR and
+# pulled by EKS nodes via the ECR VPC endpoint.
+#
+# Creates 5 repositories — one per buildable service:
+# - ecom-service      (Spring Boot Java app)
+# - inventory-service  (Python FastAPI app)
+# - ui-service         (React + Nginx)
+# - csrf-service       (Go microservice)
+# - flink              (Custom Flink image with SQL pipeline)
+# ─────────────────────────────────────────────────────────────────────</span>
+
+locals {
+  <span class="comment"># All container images that need ECR repositories</span>
+  ecr_repositories = [
+    "ecom-service",
+    "inventory-service",
+    "ui-service",
+    "csrf-service",
+    "flink",
+  ]
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────────────
+# ECR Repositories — one per microservice
+# ─────────────────────────────────────────────────────────────────────</span>
+resource "aws_ecr_repository" "services" {
+  for_each = toset(local.ecr_repositories)
+
+  name = "${var.project_name}/${each.key}"
+
+  <span class="comment"># IMMUTABLE tags prevent overwriting existing image tags (safer deploys)
+  # Use MUTABLE during development if you push :latest frequently</span>
+  image_tag_mutability = var.environment == "prod" ? "IMMUTABLE" : "MUTABLE"
+
+  <span class="comment"># Scan images on push for CVEs (uses Amazon Inspector)</span>
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  <span class="comment"># Encrypt images at rest with AWS-managed KMS key</span>
+  encryption_configuration {
+    encryption_type = "AES256"
+  }
+
+  <span class="comment"># Force delete even if images exist (for dev teardown)</span>
+  force_delete = var.environment != "prod"
+
+  tags = merge(var.extra_tags, {
+    Component = "registry"
+    Service   = each.key
+  })
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────────────
+# Lifecycle Policy — keep only the last 10 tagged images per repo
+# Untagged images (intermediate layers) are cleaned up after 1 day.
+# This prevents storage cost creep from old deployments.
+# ─────────────────────────────────────────────────────────────────────</span>
+resource "aws_ecr_lifecycle_policy" "services" {
+  for_each = aws_ecr_repository.services
+
+  repository = each.value.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Remove untagged images after 1 day"
+        selection = {
+          tagStatus   = "untagged"
+          countType   = "sinceImagePushed"
+          countUnit   = "days"
+          countNumber = 1
+        }
+        action = {
+          type = "expire"
+        }
+      },
+      {
+        rulePriority = 2
+        description  = "Keep only the last 10 tagged images"
+        selection = {
+          tagStatus   = "tagged"
+          tagPrefixList = ["v", "latest", "sha-"]
+          countType   = "imageCountMoreThan"
+          countNumber = 10
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+}</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="rds">10. Step 7 &mdash; Aurora PostgreSQL</h2>
+
+  <p>Four Aurora PostgreSQL Serverless v2 clusters replace the four CloudNativePG clusters (ecom-db, inventory-db, analytics-db, keycloak-db). Serverless v2 scales automatically from 0.5 to 4 ACU, so you only pay for what you use.</p>
+
+  <div class="callout warn">
+    <strong>Critical for CDC:</strong> The <code>wal_level=logical</code> parameter is required for Debezium Change Data Capture. Aurora supports logical replication, but it must be enabled via a custom parameter group.
+  </div>
+
+  <div class="step amber">
+    <h3><span class="step-num">7</span> 06-rds.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────────────
+# 06-rds.tf — Aurora PostgreSQL Serverless v2 (4 clusters)
+#
+# LOCAL EQUIVALENT: 4 CloudNativePG clusters (2 instances each: primary
+# + standby). On AWS, Aurora handles replication, failover, backups,
+# patching, and scaling automatically.
+#
+# KEY DIFFERENCES:
+# - No init container migrations against localhost — services connect to
+#   Aurora endpoints via private DNS
+# - wal_level=logical enabled via parameter group (for Debezium CDC)
+# - Serverless v2: auto-scales ACUs (0.5 min = ~1 GB RAM, 4 max = ~8 GB)
+# - Encryption at rest via KMS (automatic)
+# - Automated backups with point-in-time recovery (7-day retention)
+# ─────────────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># ── Random passwords for each database ──────────────────────────</span>
+resource "random_password" "db_passwords" {
+  for_each = toset(["ecom", "inventory", "analytics", "keycloak"])
+
+  length           = 32
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+<span class="comment"># ── Store passwords in AWS Secrets Manager ──────────────────────</span>
+resource "aws_secretsmanager_secret" "db_passwords" {
+  for_each = toset(["ecom", "inventory", "analytics", "keycloak"])
+
+  name        = "${var.project_name}/${var.environment}/${each.key}-db-password"
+  description = "Database password for ${each.key} Aurora cluster"
+
+  tags = merge(var.extra_tags, {
+    Component = "database"
+    Service   = each.key
+  })
+}
+
+resource "aws_secretsmanager_secret_version" "db_passwords" {
+  for_each = aws_secretsmanager_secret.db_passwords
+
+  secret_id = each.value.id
+  secret_string = jsonencode({
+    username = each.key
+    password = random_password.db_passwords[each.key].result
+    dbname   = each.key
+  })
+}
+
+<span class="comment"># ── Security Group for Aurora ────────────────────────────────────
+# Only allows PostgreSQL traffic (5432) from EKS worker nodes.
+# No internet access — databases are in isolated database subnets.
+# ──────────────────────────────────────────────────────────────────</span>
+resource "aws_security_group" "aurora" {
+  name_prefix = "${var.project_name}-${var.environment}-aurora-"
+  description = "Security group for Aurora PostgreSQL clusters"
+  vpc_id      = module.vpc.vpc_id
+
+  <span class="comment"># Allow PostgreSQL from EKS worker nodes only</span>
+  ingress {
+    description     = "PostgreSQL from EKS nodes"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [module.eks.node_security_group_id]
+  }
+
+  <span class="comment"># No egress needed — Aurora doesn't initiate outbound connections</span>
+  egress {
+    description = "Allow all outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(var.extra_tags, {
+    Name      = "${var.project_name}-${var.environment}-aurora-sg"
+    Component = "database"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+<span class="comment"># ── Parameter Group with wal_level=logical ──────────────────────
+# Required for Debezium CDC to read the PostgreSQL Write-Ahead Log.
+# On kind, this was set via CNPG's postgresql.parameters in the
+# Cluster CR. On Aurora, we use a cluster parameter group.
+# ──────────────────────────────────────────────────────────────────</span>
+resource "aws_rds_cluster_parameter_group" "bookstore" {
+  name_prefix = "${var.project_name}-${var.environment}-pg16-"
+  family      = "aurora-postgresql16"
+  description = "BookStore Aurora PostgreSQL parameters with logical replication"
+
+  <span class="comment"># Enable logical replication for Debezium CDC</span>
+  parameter {
+    name         = "rds.logical_replication"
+    value        = "1"
+    apply_method = "pending-reboot"
+  }
+
+  <span class="comment"># Set max replication slots (one per Debezium connector + headroom)</span>
+  parameter {
+    name         = "max_replication_slots"
+    value        = "10"
+    apply_method = "pending-reboot"
+  }
+
+  <span class="comment"># Set max WAL senders for replication connections</span>
+  parameter {
+    name         = "max_wal_senders"
+    value        = "10"
+    apply_method = "pending-reboot"
+  }
+
+  <span class="comment"># Shared preload libraries for logical decoding</span>
+  parameter {
+    name         = "shared_preload_libraries"
+    value        = "pglogical"
+    apply_method = "pending-reboot"
+  }
+
+  tags = merge(var.extra_tags, {
+    Component = "database"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+<span class="comment"># ── Aurora Clusters ─────────────────────────────────────────────
+# One cluster per service — strict DB isolation (same as local setup).
+# Each cluster has a writer instance (primary) and auto-creates a
+# reader instance for failover in Multi-AZ.
+# ──────────────────────────────────────────────────────────────────</span>
+locals {
+  databases = {
+    ecom = {
+      database_name = "ecom"
+      description   = "E-Commerce Service database (books, orders, cart)"
+    }
+    inventory = {
+      database_name = "inventory"
+      description   = "Inventory Service database (stock levels)"
+    }
+    analytics = {
+      database_name = "analytics"
+      description   = "Analytics pipeline sink database (Flink CDC output)"
+    }
+    keycloak = {
+      database_name = "keycloak"
+      description   = "Keycloak identity provider database"
+    }
+  }
+}
+
+resource "aws_rds_cluster" "databases" {
+  for_each = local.databases
+
+  cluster_identifier = "${var.project_name}-${var.environment}-${each.key}-db"
+  engine             = "aurora-postgresql"
+  engine_mode        = "provisioned"
+  engine_version     = var.db_engine_version
+  database_name      = each.value.database_name
+
+  <span class="comment"># Master credentials — stored in Secrets Manager</span>
+  master_username = each.key
+  master_password = random_password.db_passwords[each.key].result
+
+  <span class="comment"># Network configuration — isolated in database subnets</span>
+  db_subnet_group_name   = module.vpc.database_subnet_group_name
+  vpc_security_group_ids = [aws_security_group.aurora.id]
+
+  <span class="comment"># Custom parameter group with wal_level=logical for CDC</span>
+  db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.bookstore.name
+
+  <span class="comment"># Serverless v2 scaling configuration</span>
+  serverlessv2_scaling_configuration {
+    min_capacity = var.db_min_capacity
+    max_capacity = var.db_max_capacity
+  }
+
+  <span class="comment"># Backup configuration — 7-day retention with preferred window</span>
+  backup_retention_period = var.db_backup_retention
+  preferred_backup_window = "03:00-04:00"
+
+  <span class="comment"># Maintenance window — updates applied during low-traffic hours</span>
+  preferred_maintenance_window = "sun:04:00-sun:05:00"
+
+  <span class="comment"># Encryption at rest using AWS-managed KMS key</span>
+  storage_encrypted = true
+
+  <span class="comment"># Skip final snapshot for dev (set false in prod)</span>
+  skip_final_snapshot = var.environment != "prod"
+  final_snapshot_identifier = var.environment == "prod" ? "${var.project_name}-${each.key}-final-${formatdate("YYYY-MM-DD", timestamp())}" : null
+
+  <span class="comment"># Deletion protection — prevent accidental destruction in prod</span>
+  deletion_protection = var.db_deletion_protection
+
+  <span class="comment"># Enable CloudWatch log exports for audit</span>
+  enabled_cloudwatch_logs_exports = ["postgresql"]
+
+  <span class="comment"># Apply changes immediately in dev, during maintenance window in prod</span>
+  apply_immediately = var.environment != "prod"
+
+  tags = merge(var.extra_tags, {
+    Component   = "database"
+    Service     = each.key
+    Description = each.value.description
+  })
+}
+
+<span class="comment"># ── Aurora Instances (Serverless v2) ────────────────────────────
+# Each cluster gets one writer instance. Aurora automatically handles
+# replication and failover. Serverless v2 scales ACUs (compute) based
+# on actual workload.
+# ──────────────────────────────────────────────────────────────────</span>
+resource "aws_rds_cluster_instance" "databases" {
+  for_each = local.databases
+
+  identifier         = "${var.project_name}-${var.environment}-${each.key}-db-1"
+  cluster_identifier = aws_rds_cluster.databases[each.key].id
+  instance_class     = "db.serverless"
+  engine             = "aurora-postgresql"
+  engine_version     = var.db_engine_version
+
+  <span class="comment"># Performance Insights for query analysis (free tier: 7 days)</span>
+  performance_insights_enabled    = true
+  performance_insights_retention_period = 7
+
+  <span class="comment"># Enable enhanced monitoring (free tier: 60s granularity)</span>
+  monitoring_interval = 60
+  monitoring_role_arn = aws_iam_role.rds_monitoring.arn
+
+  <span class="comment"># Auto minor version upgrades during maintenance window</span>
+  auto_minor_version_upgrade = true
+
+  tags = merge(var.extra_tags, {
+    Component = "database"
+    Service   = each.key
+  })
+}
+
+<span class="comment"># ── RDS Enhanced Monitoring IAM Role ────────────────────────────</span>
+resource "aws_iam_role" "rds_monitoring" {
+  name_prefix = "${var.project_name}-rds-monitoring-"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "monitoring.rds.amazonaws.com"
+      }
+    }]
+  })
+
+  tags = var.extra_tags
+}
+
+resource "aws_iam_role_policy_attachment" "rds_monitoring" {
+  role       = aws_iam_role.rds_monitoring.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+}</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="msk">11. Step 8 &mdash; Managed Kafka (MSK)</h2>
+
+  <p>Amazon MSK replaces the self-hosted Kafka KRaft deployment. Three brokers across three AZs provide fault tolerance. TLS encryption in-transit and IAM authentication replace the plaintext configuration used locally.</p>
+
+  <div class="step purple">
+    <h3><span class="step-num">8</span> 07-msk.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────────────
+# 07-msk.tf — Amazon MSK (Managed Streaming for Kafka)
+#
+# LOCAL EQUIVALENT: Single Kafka pod in KRaft mode (no ZooKeeper) in
+# the infra namespace. On AWS, MSK manages broker provisioning,
+# patching, replication, and monitoring.
+#
+# KEY DIFFERENCES:
+# - 3 brokers across 3 AZs (vs. single pod locally)
+# - TLS in-transit encryption (vs. plaintext locally)
+# - IAM authentication (vs. unauthenticated locally)
+# - Managed storage with auto-scaling (vs. PVC locally)
+#
+# DEBEZIUM NOTE: Debezium Server pods in EKS connect to MSK bootstrap
+# brokers. The offset storage topics (debezium.ecom.offsets,
+# debezium.inventory.offsets) are auto-created by MSK.
+# ─────────────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># ── Security Group for MSK ──────────────────────────────────────</span>
+resource "aws_security_group" "msk" {
+  name_prefix = "${var.project_name}-${var.environment}-msk-"
+  description = "Security group for MSK Kafka brokers"
+  vpc_id      = module.vpc.vpc_id
+
+  <span class="comment"># Allow Kafka from EKS nodes (plaintext + TLS + IAM)</span>
+  ingress {
+    description     = "Kafka plaintext from EKS"
+    from_port       = 9092
+    to_port         = 9092
+    protocol        = "tcp"
+    security_groups = [module.eks.node_security_group_id]
+  }
+
+  ingress {
+    description     = "Kafka TLS from EKS"
+    from_port       = 9094
+    to_port         = 9094
+    protocol        = "tcp"
+    security_groups = [module.eks.node_security_group_id]
+  }
+
+  ingress {
+    description     = "Kafka IAM auth from EKS"
+    from_port       = 9098
+    to_port         = 9098
+    protocol        = "tcp"
+    security_groups = [module.eks.node_security_group_id]
+  }
+
+  <span class="comment"># Allow ZooKeeper (needed for some admin operations)</span>
+  ingress {
+    description     = "ZooKeeper from EKS"
+    from_port       = 2181
+    to_port         = 2181
+    protocol        = "tcp"
+    security_groups = [module.eks.node_security_group_id]
+  }
+
+  egress {
+    description = "Allow all outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(var.extra_tags, {
+    Name      = "${var.project_name}-${var.environment}-msk-sg"
+    Component = "messaging"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+<span class="comment"># ── MSK Configuration ───────────────────────────────────────────
+# Custom Kafka broker configuration
+# ──────────────────────────────────────────────────────────────────</span>
+resource "aws_msk_configuration" "bookstore" {
+  name              = "${var.project_name}-${var.environment}-kafka-config"
+  kafka_versions    = [var.msk_kafka_version]
+  description       = "BookStore Kafka broker configuration"
+
+  server_properties = &lt;&lt;-PROPERTIES
+    <span class="comment"># Auto-create topics when producers/consumers reference them
+    # Required for Debezium offset topics and CDC topics</span>
+    auto.create.topics.enable=true
+
+    <span class="comment"># Default replication factor for auto-created topics
+    # 3 = replicated across all brokers for durability</span>
+    default.replication.factor=3
+
+    <span class="comment"># Minimum in-sync replicas before a write is acknowledged
+    # 2 = tolerate 1 broker failure without data loss</span>
+    min.insync.replicas=2
+
+    <span class="comment"># Number of partitions for auto-created topics</span>
+    num.partitions=3
+
+    <span class="comment"># Log retention — 7 days (168 hours)</span>
+    log.retention.hours=168
+
+    <span class="comment"># Maximum message size — 10 MB (for large Debezium snapshots)</span>
+    message.max.bytes=10485760
+
+    <span class="comment"># Allow deleting topics (useful for development)</span>
+    delete.topic.enable=true
+  PROPERTIES
+}
+
+<span class="comment"># ── MSK Cluster ─────────────────────────────────────────────────</span>
+resource "aws_msk_cluster" "bookstore" {
+  cluster_name           = "${var.project_name}-${var.environment}-kafka"
+  kafka_version          = var.msk_kafka_version
+  number_of_broker_nodes = var.msk_broker_count
+
+  <span class="comment"># Reference the custom configuration</span>
+  configuration_info {
+    arn      = aws_msk_configuration.bookstore.arn
+    revision = aws_msk_configuration.bookstore.latest_revision
+  }
+
+  <span class="comment"># ── Broker Configuration ──────────────────────────────────────</span>
+  broker_node_group_info {
+    instance_type = var.msk_instance_type
+
+    <span class="comment"># Deploy brokers in private subnets across all 3 AZs</span>
+    client_subnets  = module.vpc.private_subnets
+    security_groups = [aws_security_group.msk.id]
+
+    <span class="comment"># EBS storage per broker for Kafka log segments</span>
+    storage_info {
+      ebs_storage_info {
+        volume_size = var.msk_ebs_volume_size
+
+        <span class="comment"># Provisioned throughput for consistent I/O (prod only)</span>
+        provisioned_throughput {
+          enabled           = var.environment == "prod"
+          volume_throughput = var.environment == "prod" ? 250 : 0
+        }
+      }
+    }
+
+    <span class="comment"># Use latest Amazon Linux 2 for broker nodes</span>
+    connectivity_info {
+      public_access {
+        type = "DISABLED"
+      }
+    }
+  }
+
+  <span class="comment"># ── Encryption ────────────────────────────────────────────────
+  # TLS encryption for all broker communication</span>
+  encryption_info {
+    <span class="comment"># Encrypt data at rest with AWS-managed KMS key</span>
+    encryption_at_rest_kms_key_arn = ""
+
+    encryption_in_transit {
+      <span class="comment"># TLS between clients and brokers (require TLS in prod)</span>
+      client_broker = var.environment == "prod" ? "TLS" : "TLS_PLAINTEXT"
+
+      <span class="comment"># TLS between brokers (always enabled)</span>
+      in_cluster = true
+    }
+  }
+
+  <span class="comment"># ── Authentication ────────────────────────────────────────────
+  # Enable IAM authentication — pods use IRSA to authenticate</span>
+  client_authentication {
+    unauthenticated = var.environment != "prod"
+
+    sasl {
+      iam   = true
+      scram = false
+    }
+  }
+
+  <span class="comment"># ── Monitoring ────────────────────────────────────────────────</span>
+  open_monitoring {
+    prometheus {
+      jmx_exporter {
+        enabled_in_broker = true
+      }
+      node_exporter {
+        enabled_in_broker = true
+      }
+    }
+  }
+
+  <span class="comment"># ── Logging ───────────────────────────────────────────────────</span>
+  logging_info {
+    broker_logs {
+      cloudwatch_logs {
+        enabled   = true
+        log_group = aws_cloudwatch_log_group.msk.name
+      }
+    }
+  }
+
+  tags = merge(var.extra_tags, {
+    Component = "messaging"
+  })
+}
+
+<span class="comment"># ── CloudWatch Log Group for MSK ────────────────────────────────</span>
+resource "aws_cloudwatch_log_group" "msk" {
+  name              = "/aws/msk/${var.project_name}-${var.environment}"
+  retention_in_days = 14
+
+  tags = merge(var.extra_tags, {
+    Component = "messaging"
+  })
+}</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="elasticache">12. Step 9 &mdash; ElastiCache Redis</h2>
+
+  <p>ElastiCache Redis replaces the self-hosted Redis pod used for CSRF token storage, session management, and rate limiting. Transit encryption and auth tokens secure the connection.</p>
+
+  <div class="step cyan">
+    <h3><span class="step-num">9</span> 08-elasticache.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────────────
+# 08-elasticache.tf — Amazon ElastiCache Redis
+#
+# LOCAL EQUIVALENT: Single Redis pod in the infra namespace with a PVC
+# for persistence. On AWS, ElastiCache provides managed Redis with
+# automatic failover, patching, and encryption.
+#
+# USED BY:
+# - csrf-service: CSRF token storage (Redis SET/GET with TTL)
+# - ecom-service: Rate limiting token buckets (Bucket4j)
+# - Future: session store, distributed caching
+# ─────────────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># ── Random auth token for Redis ─────────────────────────────────</span>
+resource "random_password" "redis_auth" {
+  length  = 64
+  special = false
+}
+
+<span class="comment"># ── Store Redis auth token in Secrets Manager ───────────────────</span>
+resource "aws_secretsmanager_secret" "redis_auth" {
+  name        = "${var.project_name}/${var.environment}/redis-auth-token"
+  description = "Auth token for ElastiCache Redis"
+
+  tags = merge(var.extra_tags, {
+    Component = "cache"
+  })
+}
+
+resource "aws_secretsmanager_secret_version" "redis_auth" {
+  secret_id     = aws_secretsmanager_secret.redis_auth.id
+  secret_string = random_password.redis_auth.result
+}
+
+<span class="comment"># ── Security Group for Redis ────────────────────────────────────</span>
+resource "aws_security_group" "redis" {
+  name_prefix = "${var.project_name}-${var.environment}-redis-"
+  description = "Security group for ElastiCache Redis"
+  vpc_id      = module.vpc.vpc_id
+
+  <span class="comment"># Allow Redis from EKS nodes only</span>
+  ingress {
+    description     = "Redis from EKS nodes"
+    from_port       = 6379
+    to_port         = 6379
+    protocol        = "tcp"
+    security_groups = [module.eks.node_security_group_id]
+  }
+
+  egress {
+    description = "Allow all outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(var.extra_tags, {
+    Name      = "${var.project_name}-${var.environment}-redis-sg"
+    Component = "cache"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+<span class="comment"># ── Redis Subnet Group ──────────────────────────────────────────
+# Place Redis in database subnets for network isolation</span>
+resource "aws_elasticache_subnet_group" "redis" {
+  name       = "${var.project_name}-${var.environment}-redis"
+  subnet_ids = module.vpc.database_subnets
+
+  tags = merge(var.extra_tags, {
+    Component = "cache"
+  })
+}
+
+<span class="comment"># ── Redis Parameter Group ───────────────────────────────────────</span>
+resource "aws_elasticache_parameter_group" "redis" {
+  name   = "${var.project_name}-${var.environment}-redis7"
+  family = "redis7"
+
+  <span class="comment"># Enable keyspace notifications for CSRF token expiry events</span>
+  parameter {
+    name  = "notify-keyspace-events"
+    value = "Ex"
+  }
+
+  <span class="comment"># Max memory policy — evict least recently used keys when full</span>
+  parameter {
+    name  = "maxmemory-policy"
+    value = "allkeys-lru"
+  }
+
+  tags = merge(var.extra_tags, {
+    Component = "cache"
+  })
+}
+
+<span class="comment"># ── ElastiCache Redis Replication Group ─────────────────────────
+# Single node for dev, Multi-AZ with automatic failover for prod
+# ──────────────────────────────────────────────────────────────────</span>
+resource "aws_elasticache_replication_group" "redis" {
+  replication_group_id = "${var.project_name}-${var.environment}-redis"
+  description          = "BookStore Redis cluster for CSRF, rate-limiting, and sessions"
+
+  <span class="comment"># Node type — t3.micro for dev (~$12/month), r7g.large for prod</span>
+  node_type = var.redis_node_type
+
+  <span class="comment"># Number of cache clusters (1 for dev, 2+ for Multi-AZ prod)</span>
+  num_cache_clusters = var.redis_num_cache_nodes
+
+  <span class="comment"># Redis engine version</span>
+  engine_version = var.redis_engine_version
+
+  <span class="comment"># Network placement</span>
+  subnet_group_name  = aws_elasticache_subnet_group.redis.name
+  security_group_ids = [aws_security_group.redis.id]
+
+  <span class="comment"># Port — standard Redis port</span>
+  port = 6379
+
+  <span class="comment"># Parameter group with custom settings</span>
+  parameter_group_name = aws_elasticache_parameter_group.redis.name
+
+  <span class="comment"># ── Encryption ────────────────────────────────────────────────
+  # Encrypt data in transit (TLS) — clients connect via rediss://
+  # Encrypt data at rest — protects snapshots and swap files</span>
+  transit_encryption_enabled = true
+  at_rest_encryption_enabled = true
+
+  <span class="comment"># Auth token — required for client connections when TLS is enabled</span>
+  auth_token = random_password.redis_auth.result
+
+  <span class="comment"># ── High Availability ─────────────────────────────────────────
+  # Automatic failover only with 2+ nodes</span>
+  automatic_failover_enabled = var.redis_num_cache_nodes > 1
+  multi_az_enabled           = var.redis_num_cache_nodes > 1
+
+  <span class="comment"># ── Maintenance ───────────────────────────────────────────────</span>
+  maintenance_window       = "sun:05:00-sun:06:00"
+  snapshot_retention_limit = var.environment == "prod" ? 7 : 1
+  snapshot_window          = "03:00-04:00"
+
+  <span class="comment"># Auto minor version upgrades</span>
+  auto_minor_version_upgrade = true
+
+  <span class="comment"># Apply changes immediately in dev</span>
+  apply_immediately = var.environment != "prod"
+
+  tags = merge(var.extra_tags, {
+    Component = "cache"
+  })
+}</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="iam">13. Step 10 &mdash; IAM &amp; IRSA Roles</h2>
+
+  <p>IAM Roles for Service Accounts (IRSA) gives each Kubernetes pod exactly the AWS permissions it needs. This replaces the broad node-level IAM role with fine-grained, per-service access.</p>
+
+  <div class="step blue">
+    <h3><span class="step-num">10</span> 09-iam.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────────────
+# 09-iam.tf — IAM Roles, Policies, and IRSA bindings
+#
+# LOCAL EQUIVALENT: On kind, services access databases via K8s Secrets
+# containing plaintext passwords. On AWS, we use IRSA so pods assume
+# IAM roles and authenticate to AWS services (RDS, MSK, Secrets Manager)
+# without storing any credentials.
+#
+# IRSA FLOW:
+# 1. K8s ServiceAccount annotated with IAM role ARN
+# 2. Pod starts → receives OIDC token from EKS
+# 3. AWS SDK exchanges OIDC token for IAM credentials
+# 4. Pod accesses AWS services with IAM role permissions
+# ─────────────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># ── Data source: AWS account ID and region ──────────────────────</span>
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────────────
+# IRSA: ecom-service — needs RDS access + Secrets Manager for DB creds
+# Maps to: K8s ServiceAccount "ecom-service" in namespace "ecom"
+# ─────────────────────────────────────────────────────────────────────</span>
+module "ecom_service_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~&gt; 5.47"
+
+  role_name = "${var.cluster_name}-ecom-service"
+
+  <span class="comment"># Custom policy: read DB password from Secrets Manager</span>
+  role_policy_arns = {
+    secrets = aws_iam_policy.ecom_secrets_access.arn
+  }
+
+  oidc_providers = {
+    main = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["ecom:ecom-service"]
+    }
+  }
+
+  tags = var.extra_tags
+}
+
+resource "aws_iam_policy" "ecom_secrets_access" {
+  name_prefix = "${var.cluster_name}-ecom-secrets-"
+  description = "Allow ecom-service to read its DB credentials from Secrets Manager"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ReadEcomDBSecret"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = [
+          aws_secretsmanager_secret.db_passwords["ecom"].arn
+        ]
+      },
+      {
+        Sid    = "ReadRedisSecret"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = [
+          aws_secretsmanager_secret.redis_auth.arn
+        ]
+      }
+    ]
+  })
+
+  tags = var.extra_tags
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────────────
+# IRSA: inventory-service — needs RDS + MSK access
+# Maps to: K8s ServiceAccount "inventory-service" in namespace "inventory"
+# ─────────────────────────────────────────────────────────────────────</span>
+module "inventory_service_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~&gt; 5.47"
+
+  role_name = "${var.cluster_name}-inventory-service"
+
+  role_policy_arns = {
+    secrets = aws_iam_policy.inventory_secrets_access.arn
+    msk     = aws_iam_policy.msk_client_access.arn
+  }
+
+  oidc_providers = {
+    main = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["inventory:inventory-service"]
+    }
+  }
+
+  tags = var.extra_tags
+}
+
+resource "aws_iam_policy" "inventory_secrets_access" {
+  name_prefix = "${var.cluster_name}-inventory-secrets-"
+  description = "Allow inventory-service to read its DB credentials"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ReadInventoryDBSecret"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = [
+          aws_secretsmanager_secret.db_passwords["inventory"].arn
+        ]
+      }
+    ]
+  })
+
+  tags = var.extra_tags
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────────────
+# Shared MSK Client Policy — used by inventory-service and debezium
+# Allows producing and consuming from Kafka topics
+# ─────────────────────────────────────────────────────────────────────</span>
+resource "aws_iam_policy" "msk_client_access" {
+  name_prefix = "${var.cluster_name}-msk-client-"
+  description = "Allow Kafka client operations on MSK (produce, consume, manage topics)"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "MSKClusterAccess"
+        Effect = "Allow"
+        Action = [
+          "kafka-cluster:Connect",
+          "kafka-cluster:DescribeCluster"
+        ]
+        Resource = [
+          aws_msk_cluster.bookstore.arn
+        ]
+      },
+      {
+        Sid    = "MSKTopicAccess"
+        Effect = "Allow"
+        Action = [
+          "kafka-cluster:CreateTopic",
+          "kafka-cluster:DescribeTopic",
+          "kafka-cluster:AlterTopic",
+          "kafka-cluster:DeleteTopic",
+          "kafka-cluster:WriteData",
+          "kafka-cluster:ReadData"
+        ]
+        Resource = [
+          "arn:aws:kafka:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:topic/${aws_msk_cluster.bookstore.cluster_name}/*"
+        ]
+      },
+      {
+        Sid    = "MSKGroupAccess"
+        Effect = "Allow"
+        Action = [
+          "kafka-cluster:AlterGroup",
+          "kafka-cluster:DescribeGroup"
+        ]
+        Resource = [
+          "arn:aws:kafka:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:group/${aws_msk_cluster.bookstore.cluster_name}/*"
+        ]
+      }
+    ]
+  })
+
+  tags = var.extra_tags
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────────────
+# IRSA: debezium — needs RDS access (all DBs) + MSK for CDC
+# Maps to: K8s ServiceAccount "debezium" in namespace "infra"
+# ─────────────────────────────────────────────────────────────────────</span>
+module "debezium_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~&gt; 5.47"
+
+  role_name = "${var.cluster_name}-debezium"
+
+  role_policy_arns = {
+    secrets = aws_iam_policy.debezium_secrets_access.arn
+    msk     = aws_iam_policy.msk_client_access.arn
+  }
+
+  oidc_providers = {
+    main = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = [
+        "infra:debezium-ecom",
+        "infra:debezium-inventory"
+      ]
+    }
+  }
+
+  tags = var.extra_tags
+}
+
+resource "aws_iam_policy" "debezium_secrets_access" {
+  name_prefix = "${var.cluster_name}-debezium-secrets-"
+  description = "Allow Debezium to read DB credentials for CDC replication"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ReadAllDBSecrets"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = [
+          aws_secretsmanager_secret.db_passwords["ecom"].arn,
+          aws_secretsmanager_secret.db_passwords["inventory"].arn,
+          aws_secretsmanager_secret.db_passwords["analytics"].arn
+        ]
+      }
+    ]
+  })
+
+  tags = var.extra_tags
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────────────
+# IRSA: external-secrets-operator — syncs AWS Secrets Manager → K8s Secrets
+# This bridges the gap: AWS services use Secrets Manager, K8s pods use
+# K8s Secrets. ESO automatically syncs them.
+# ─────────────────────────────────────────────────────────────────────</span>
+module "external_secrets_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~&gt; 5.47"
+
+  role_name = "${var.cluster_name}-external-secrets"
+
+  role_policy_arns = {
+    secrets = aws_iam_policy.external_secrets_access.arn
+  }
+
+  oidc_providers = {
+    main = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["external-secrets:external-secrets"]
+    }
+  }
+
+  tags = var.extra_tags
+}
+
+resource "aws_iam_policy" "external_secrets_access" {
+  name_prefix = "${var.cluster_name}-external-secrets-"
+  description = "Allow External Secrets Operator to read all BookStore secrets"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ReadBookstoreSecrets"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:ListSecrets"
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}/*"
+        ]
+      }
+    ]
+  })
+
+  tags = var.extra_tags
+}
+
+<span class="comment"># ─────────────────────────────────────────────────────────────────────
+# IRSA: AWS Load Balancer Controller — manages ALB/NLB for K8s Ingress
+# Replaces kind's NodePort exposure with proper AWS load balancers
+# ─────────────────────────────────────────────────────────────────────</span>
+module "alb_controller_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~&gt; 5.47"
+
+  role_name                              = "${var.cluster_name}-alb-controller"
+  attach_load_balancer_controller_policy = true
+
+  oidc_providers = {
+    main = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["kube-system:aws-load-balancer-controller"]
+    }
+  }
+
+  tags = var.extra_tags
+}</code></pre>
+  </div>
+
+  <div class="callout tip">
+    <strong>IRSA best practice:</strong> Each service gets the minimum IAM permissions it needs. ecom-service can only read its own DB secret. Debezium can read ecom, inventory, and analytics secrets (it needs all three for CDC). No service has write access to Secrets Manager.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="route53">14. Step 11 &mdash; Route53 &amp; ACM Certificates</h2>
+
+  <p>ACM provides free, auto-renewing TLS certificates validated via DNS. Route53 handles domain resolution, pointing traffic to the ALB. This replaces the self-signed CA and cert-manager setup used locally.</p>
+
+  <div class="step green">
+    <h3><span class="step-num">11</span> 10-route53.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────────────
+# 10-route53.tf — Route53 DNS + ACM TLS Certificates
+#
+# LOCAL EQUIVALENT: /etc/hosts entries (myecom.net, api.service.net,
+# idp.keycloak.net) + cert-manager self-signed CA + cert rotation.
+# On AWS, Route53 provides real DNS and ACM provides free auto-renewing
+# TLS certificates trusted by all browsers (no CA trust needed).
+#
+# DNS RECORDS:
+# - myecom.net          → ALB (UI)
+# - api.myecom.net      → ALB (ecom + inventory APIs)
+# - idp.myecom.net      → ALB (Keycloak)
+#
+# NOTE: On AWS we use subdomains of the real domain instead of the
+# fake local hostnames. Update service configs accordingly.
+# ─────────────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># ── Route53 Hosted Zone ─────────────────────────────────────────
+# Use existing zone if provided, otherwise create a new one</span>
+resource "aws_route53_zone" "main" {
+  count = var.route53_zone_id == "" ? 1 : 0
+
+  name    = var.domain_name
+  comment = "BookStore Platform DNS zone"
+
+  tags = merge(var.extra_tags, {
+    Component = "dns"
+  })
+}
+
+locals {
+  <span class="comment"># Use existing zone ID or the newly created one</span>
+  zone_id = var.route53_zone_id != "" ? var.route53_zone_id : aws_route53_zone.main[0].zone_id
+
+  <span class="comment"># DNS hostnames for each service</span>
+  hostnames = {
+    ui       = var.domain_name
+    api      = "api.${var.domain_name}"
+    keycloak = "idp.${var.domain_name}"
+  }
+}
+
+<span class="comment"># ── ACM Certificate ─────────────────────────────────────────────
+# Single certificate with SAN (Subject Alternative Names) covering
+# all three hostnames. ACM validates ownership via DNS records.
+# Auto-renews before expiry — no manual rotation needed.
+#
+# LOCAL EQUIVALENT: cert-manager Certificate with multi-SAN (30-day
+# rotation, 7-day renewBefore). ACM handles all of this automatically.
+# ──────────────────────────────────────────────────────────────────</span>
+resource "aws_acm_certificate" "main" {
+  domain_name = var.domain_name
+
+  <span class="comment"># Additional domains covered by this certificate</span>
+  subject_alternative_names = [
+    "*.${var.domain_name}"
+  ]
+
+  <span class="comment"># DNS validation — ACM creates CNAME records to prove domain ownership</span>
+  validation_method = "DNS"
+
+  tags = merge(var.extra_tags, {
+    Component = "tls"
+    Name      = "${var.project_name}-${var.environment}-cert"
+  })
+
+  <span class="comment"># Create new cert before destroying old one (for zero-downtime rotation)</span>
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+<span class="comment"># ── DNS Validation Records ──────────────────────────────────────
+# ACM requires specific CNAME records to prove domain ownership.
+# These are created automatically in Route53.
+# ──────────────────────────────────────────────────────────────────</span>
+resource "aws_route53_record" "acm_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.main.domain_validation_options : dvo.domain_name =&gt; {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  zone_id = local.zone_id
+  name    = each.value.name
+  type    = each.value.type
+  ttl     = 60
+  records = [each.value.record]
+
+  allow_overwrite = true
+}
+
+<span class="comment"># ── Certificate Validation ──────────────────────────────────────
+# Wait for ACM to validate the certificate via DNS records</span>
+resource "aws_acm_certificate_validation" "main" {
+  certificate_arn         = aws_acm_certificate.main.arn
+  validation_record_fqdns = [for record in aws_route53_record.acm_validation : record.fqdn]
+}
+
+<span class="comment"># ── DNS A Records (Alias to ALB) ────────────────────────────────
+# These point the domain names to the ALB created by the AWS Load
+# Balancer Controller. The ALB ARN is set after K8s resources are
+# created — these records reference the ALB DNS name.
+#
+# NOTE: These records are created as placeholders. The actual ALB
+# DNS name is populated after the K8s Ingress/Gateway resources
+# are applied and the ALB Controller provisions the load balancer.
+# ──────────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># Root domain → ALB (UI service)</span>
+resource "aws_route53_record" "ui" {
+  zone_id = local.zone_id
+  name    = var.domain_name
+  type    = "A"
+
+  alias {
+    name                   = kubernetes_ingress_v1.main.status[0].load_balancer[0].ingress[0].hostname
+    zone_id                = data.aws_lb_hosted_zone_id.main.id
+    evaluate_target_health = true
+  }
+}
+
+<span class="comment"># api.domain → ALB (ecom + inventory APIs)</span>
+resource "aws_route53_record" "api" {
+  zone_id = local.zone_id
+  name    = "api.${var.domain_name}"
+  type    = "A"
+
+  alias {
+    name                   = kubernetes_ingress_v1.main.status[0].load_balancer[0].ingress[0].hostname
+    zone_id                = data.aws_lb_hosted_zone_id.main.id
+    evaluate_target_health = true
+  }
+}
+
+<span class="comment"># idp.domain → ALB (Keycloak)</span>
+resource "aws_route53_record" "keycloak" {
+  zone_id = local.zone_id
+  name    = "idp.${var.domain_name}"
+  type    = "A"
+
+  alias {
+    name                   = kubernetes_ingress_v1.main.status[0].load_balancer[0].ingress[0].hostname
+    zone_id                = data.aws_lb_hosted_zone_id.main.id
+    evaluate_target_health = true
+  }
+}
+
+<span class="comment"># ── ALB Hosted Zone ID (for Route53 alias records) ──────────────</span>
+data "aws_lb_hosted_zone_id" "main" {}</code></pre>
+  </div>
+
+  <div class="callout info">
+    <strong>DNS propagation:</strong> After <code>terraform apply</code>, ACM certificate validation typically takes 5-30 minutes. Route53 DNS propagation is near-instant for alias records. If using a newly registered domain, nameserver delegation may take up to 48 hours.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="outputs">15. Step 12 &mdash; Outputs</h2>
+
+  <p>Outputs expose key values needed for post-deployment configuration, CI/CD pipelines, and service connectivity.</p>
+
+  <div class="step purple">
+    <h3><span class="step-num">12</span> 11-outputs.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────────────
+# 11-outputs.tf — All output values
+#
+# These values are needed after deployment for:
+# - Configuring kubectl access
+# - Pushing Docker images to ECR
+# - Connecting to databases for debugging
+# - CI/CD pipeline configuration
+# ─────────────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># ── EKS Cluster ─────────────────────────────────────────────────</span>
+
+output "eks_cluster_name" {
+  description = "Name of the EKS cluster"
+  value       = module.eks.cluster_name
+}
+
+output "eks_cluster_endpoint" {
+  description = "EKS cluster API server endpoint"
+  value       = module.eks.cluster_endpoint
+}
+
+output "eks_cluster_certificate" {
+  description = "Base64 encoded cluster CA certificate"
+  value       = module.eks.cluster_certificate_authority_data
+  sensitive   = true
+}
+
+output "eks_update_kubeconfig" {
+  description = "Command to configure kubectl for this cluster"
+  value       = "aws eks update-kubeconfig --name ${module.eks.cluster_name} --region ${var.aws_region}"
+}
+
+<span class="comment"># ── ECR Repositories ────────────────────────────────────────────</span>
+
+output "ecr_repository_urls" {
+  description = "ECR repository URLs for each service (use for docker push)"
+  value = {
+    for name, repo in aws_ecr_repository.services : name =&gt; repo.repository_url
+  }
+}
+
+output "ecr_login_command" {
+  description = "Command to authenticate Docker with ECR"
+  value       = "aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com"
+}
+
+<span class="comment"># ── Database Endpoints ──────────────────────────────────────────</span>
+
+output "rds_endpoints" {
+  description = "Aurora PostgreSQL writer endpoints for each database"
+  value = {
+    for name, cluster in aws_rds_cluster.databases : name =&gt; {
+      writer_endpoint = cluster.endpoint
+      reader_endpoint = cluster.reader_endpoint
+      port            = cluster.port
+      database_name   = cluster.database_name
+    }
+  }
+}
+
+<span class="comment"># ── MSK (Kafka) ─────────────────────────────────────────────────</span>
+
+output "msk_bootstrap_brokers" {
+  description = "MSK bootstrap broker connection strings"
+  value = {
+    plaintext = aws_msk_cluster.bookstore.bootstrap_brokers
+    tls       = aws_msk_cluster.bookstore.bootstrap_brokers_tls
+    iam       = aws_msk_cluster.bookstore.bootstrap_brokers_sasl_iam
+  }
+}
+
+output "msk_zookeeper_connect" {
+  description = "MSK ZooKeeper connection string (for admin operations)"
+  value       = aws_msk_cluster.bookstore.zookeeper_connect_string
+}
+
+<span class="comment"># ── ElastiCache Redis ───────────────────────────────────────────</span>
+
+output "redis_endpoint" {
+  description = "ElastiCache Redis primary endpoint"
+  value = {
+    host = aws_elasticache_replication_group.redis.primary_endpoint_address
+    port = 6379
+  }
+}
+
+<span class="comment"># ── DNS &amp; TLS ────────────────────────────────────────────────────</span>
+
+output "route53_nameservers" {
+  description = "Route53 nameservers (delegate your domain to these)"
+  value       = var.route53_zone_id == "" ? aws_route53_zone.main[0].name_servers : []
+}
+
+output "acm_certificate_arn" {
+  description = "ACM certificate ARN for ALB HTTPS listener"
+  value       = aws_acm_certificate.main.arn
+}
+
+output "application_urls" {
+  description = "Application URLs after DNS propagation"
+  value = {
+    ui       = "https://${var.domain_name}"
+    api      = "https://api.${var.domain_name}"
+    keycloak = "https://idp.${var.domain_name}"
+  }
+}
+
+<span class="comment"># ── VPC ──────────────────────────────────────────────────────────</span>
+
+output "vpc_id" {
+  description = "VPC ID for reference by other stacks"
+  value       = module.vpc.vpc_id
+}
+
+output "private_subnet_ids" {
+  description = "Private subnet IDs (EKS worker nodes)"
+  value       = module.vpc.private_subnets
+}
+
+output "database_subnet_ids" {
+  description = "Database subnet IDs (RDS, ElastiCache)"
+  value       = module.vpc.database_subnets
+}</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="k8s">16. Step 13 &mdash; Kubernetes Resources</h2>
+
+  <p>This file deploys all Kubernetes workloads into EKS: Istio Ambient Mesh, AWS Load Balancer Controller, External Secrets Operator, namespaces, Keycloak, application services, Debezium, Flink, and observability tools. Environment variables point to AWS managed services instead of in-cluster pods.</p>
+
+  <div class="step red">
+    <h3><span class="step-num">13</span> 12-k8s-resources.tf</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────────────
+# 12-k8s-resources.tf — All Kubernetes resources deployed into EKS
+#
+# This is the largest file — it deploys the full application stack.
+# On kind, these resources are applied via kubectl/helm in infra-up.sh.
+# Here, Terraform manages them for consistency and dependency ordering.
+#
+# DEPLOYMENT ORDER:
+# 1. Namespaces
+# 2. Istio Ambient Mesh (service mesh)
+# 3. AWS Load Balancer Controller (ALB ingress)
+# 4. External Secrets Operator (Secrets Manager → K8s Secrets)
+# 5. cert-manager (internal certificate management)
+# 6. Keycloak (identity provider)
+# 7. Application services (ecom, inventory, ui, csrf)
+# 8. Debezium Server (CDC)
+# 9. Flink (analytics pipeline)
+# 10. Observability (Prometheus, Grafana, Loki, Tempo)
+# 11. Ingress resources (ALB routing)
+# ─────────────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># ── 1. Namespaces ───────────────────────────────────────────────
+# Same namespaces as the local kind setup. Istio ambient label enables
+# the ztunnel sidecar-free mesh for mTLS.
+# ──────────────────────────────────────────────────────────────────</span>
+locals {
+  namespaces = {
+    ecom = {
+      labels = {
+        "istio.io/dataplane-mode" = "ambient"
+      }
+    }
+    inventory = {
+      labels = {
+        "istio.io/dataplane-mode" = "ambient"
+      }
+    }
+    analytics = {
+      labels = {
+        "istio.io/dataplane-mode" = "ambient"
+      }
+    }
+    identity = {
+      labels = {
+        "istio.io/dataplane-mode" = "ambient"
+      }
+    }
+    infra = {
+      labels = {
+        "istio.io/dataplane-mode" = "ambient"
+      }
+    }
+    observability = {
+      labels = {
+        "istio.io/dataplane-mode" = "ambient"
+      }
+    }
+    otel = {
+      labels = {}
+    }
+    external-secrets = {
+      labels = {}
+    }
+  }
+}
+
+resource "kubernetes_namespace" "app" {
+  for_each = local.namespaces
+
+  metadata {
+    name   = each.key
+    labels = each.value.labels
+  }
+
+  depends_on = [module.eks]
+}
+
+<span class="comment"># ── 2. Istio Ambient Mesh ───────────────────────────────────────
+# Install Istio in ambient mode (ztunnel DaemonSet, no sidecars).
+# Same as local kind setup: PeerAuthentication STRICT, mTLS everywhere.
+# ──────────────────────────────────────────────────────────────────</span>
+resource "helm_release" "istio_base" {
+  name             = "istio-base"
+  repository       = "https://istio-release.storage.googleapis.com/charts"
+  chart            = "base"
+  version          = "1.29.1"
+  namespace        = "istio-system"
+  create_namespace = true
+
+  set {
+    name  = "defaultRevision"
+    value = "default"
+  }
+
+  depends_on = [module.eks]
+}
+
+resource "helm_release" "istio_cni" {
+  name       = "istio-cni"
+  repository = "https://istio-release.storage.googleapis.com/charts"
+  chart      = "cni"
+  version    = "1.29.1"
+  namespace  = "istio-system"
+
+  set {
+    name  = "profile"
+    value = "ambient"
+  }
+
+  depends_on = [helm_release.istio_base]
+}
+
+resource "helm_release" "istiod" {
+  name       = "istiod"
+  repository = "https://istio-release.storage.googleapis.com/charts"
+  chart      = "istiod"
+  version    = "1.29.1"
+  namespace  = "istio-system"
+
+  set {
+    name  = "profile"
+    value = "ambient"
+  }
+
+  depends_on = [helm_release.istio_base, helm_release.istio_cni]
+}
+
+resource "helm_release" "istio_ztunnel" {
+  name       = "ztunnel"
+  repository = "https://istio-release.storage.googleapis.com/charts"
+  chart      = "ztunnel"
+  version    = "1.29.1"
+  namespace  = "istio-system"
+
+  depends_on = [helm_release.istiod]
+}
+
+<span class="comment"># ── 3. AWS Load Balancer Controller ─────────────────────────────
+# Replaces kind's NodePort exposure. Watches for K8s Ingress resources
+# and creates/manages ALBs in AWS.
+# ──────────────────────────────────────────────────────────────────</span>
+resource "helm_release" "alb_controller" {
+  name       = "aws-load-balancer-controller"
+  repository = "https://aws.github.io/eks-charts"
+  chart      = "aws-load-balancer-controller"
+  version    = "1.10.0"
+  namespace  = "kube-system"
+
+  set {
+    name  = "clusterName"
+    value = module.eks.cluster_name
+  }
+
+  set {
+    name  = "serviceAccount.create"
+    value = "true"
+  }
+
+  set {
+    name  = "serviceAccount.name"
+    value = "aws-load-balancer-controller"
+  }
+
+  set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = module.alb_controller_irsa.iam_role_arn
+  }
+
+  set {
+    name  = "vpcId"
+    value = module.vpc.vpc_id
+  }
+
+  set {
+    name  = "region"
+    value = var.aws_region
+  }
+
+  depends_on = [module.eks, module.alb_controller_irsa]
+}
+
+<span class="comment"># ── 4. External Secrets Operator ────────────────────────────────
+# Syncs AWS Secrets Manager secrets → K8s Secrets automatically.
+# This lets pods use standard K8s Secret mounts while the actual
+# values are stored securely in AWS Secrets Manager.
+# ──────────────────────────────────────────────────────────────────</span>
+resource "helm_release" "external_secrets" {
+  name             = "external-secrets"
+  repository       = "https://charts.external-secrets.io"
+  chart            = "external-secrets"
+  version          = "0.12.1"
+  namespace        = "external-secrets"
+  create_namespace = false
+
+  set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = module.external_secrets_irsa.iam_role_arn
+  }
+
+  depends_on = [kubernetes_namespace.app["external-secrets"]]
+}
+
+<span class="comment"># ── ClusterSecretStore — tells ESO where to find secrets ────────</span>
+resource "kubernetes_manifest" "cluster_secret_store" {
+  manifest = {
+    apiVersion = "external-secrets.io/v1beta1"
+    kind       = "ClusterSecretStore"
+    metadata = {
+      name = "aws-secrets-manager"
+    }
+    spec = {
+      provider = {
+        aws = {
+          service = "SecretsManager"
+          region  = var.aws_region
+          auth = {
+            jwt = {
+              serviceAccountRef = {
+                name      = "external-secrets"
+                namespace = "external-secrets"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  depends_on = [helm_release.external_secrets]
+}
+
+<span class="comment"># ── ExternalSecret for each database ────────────────────────────
+# Creates K8s Secrets from Secrets Manager values in each namespace
+# ──────────────────────────────────────────────────────────────────</span>
+resource "kubernetes_manifest" "db_external_secrets" {
+  for_each = {
+    ecom      = "ecom"
+    inventory = "inventory"
+    analytics = "analytics"
+    keycloak  = "identity"
+  }
+
+  manifest = {
+    apiVersion = "external-secrets.io/v1beta1"
+    kind       = "ExternalSecret"
+    metadata = {
+      name      = "${each.key}-db-credentials"
+      namespace = each.value
+    }
+    spec = {
+      refreshInterval = "1h"
+      secretStoreRef = {
+        name = "aws-secrets-manager"
+        kind = "ClusterSecretStore"
+      }
+      target = {
+        name = "${each.key}-db-credentials"
+      }
+      dataFrom = [{
+        extract = {
+          key = "${var.project_name}/${var.environment}/${each.key}-db-password"
+        }
+      }]
+    }
+  }
+
+  depends_on = [
+    kubernetes_manifest.cluster_secret_store,
+    kubernetes_namespace.app
+  ]
+}
+
+<span class="comment"># ── 5. cert-manager (internal certs) ────────────────────────────
+# Still needed for Istio internal certificates and any in-cluster TLS.
+# Public TLS is handled by ACM + ALB (not cert-manager).
+# ──────────────────────────────────────────────────────────────────</span>
+resource "helm_release" "cert_manager" {
+  name             = "cert-manager"
+  repository       = "https://charts.jetstack.io"
+  chart            = "cert-manager"
+  version          = "v1.17.2"
+  namespace        = "cert-manager"
+  create_namespace = true
+
+  set {
+    name  = "installCRDs"
+    value = "true"
+  }
+
+  depends_on = [module.eks]
+}
+
+<span class="comment"># ── 6. Keycloak ─────────────────────────────────────────────────
+# Identity provider deployed as a K8s Deployment.
+# Points to Aurora PostgreSQL instead of in-cluster CNPG.
+# ──────────────────────────────────────────────────────────────────</span>
+resource "helm_release" "keycloak" {
+  name      = "keycloak"
+  chart     = "oci://registry-1.docker.io/bitnamicharts/keycloak"
+  version   = "24.4.0"
+  namespace = "identity"
+
+  set {
+    name  = "auth.adminUser"
+    value = "admin"
+  }
+
+  set_sensitive {
+    name  = "auth.adminPassword"
+    value = var.keycloak_admin_password != "" ? var.keycloak_admin_password : random_password.db_passwords["keycloak"].result
+  }
+
+  <span class="comment"># Point Keycloak to Aurora PostgreSQL instead of in-cluster DB</span>
+  set {
+    name  = "externalDatabase.host"
+    value = aws_rds_cluster.databases["keycloak"].endpoint
+  }
+
+  set {
+    name  = "externalDatabase.port"
+    value = "5432"
+  }
+
+  set {
+    name  = "externalDatabase.database"
+    value = "keycloak"
+  }
+
+  set {
+    name  = "externalDatabase.user"
+    value = "keycloak"
+  }
+
+  set_sensitive {
+    name  = "externalDatabase.password"
+    value = random_password.db_passwords["keycloak"].result
+  }
+
+  set {
+    name  = "postgresql.enabled"
+    value = "false"
+  }
+
+  set {
+    name  = "production"
+    value = "true"
+  }
+
+  set {
+    name  = "proxy"
+    value = "edge"
+  }
+
+  set {
+    name  = "hostname.hostname"
+    value = "idp.${var.domain_name}"
+  }
+
+  set {
+    name  = "hostname.strict"
+    value = "false"
+  }
+
+  depends_on = [
+    kubernetes_namespace.app["identity"],
+    aws_rds_cluster_instance.databases["keycloak"]
+  ]
+}
+
+<span class="comment"># ── 7. Application ConfigMaps ───────────────────────────────────
+# Environment variables pointing to AWS managed services.
+# On kind, these pointed to in-cluster services (kafka.infra.svc,
+# ecom-db.ecom.svc, etc.). On AWS, they point to MSK, Aurora, and
+# ElastiCache endpoints.
+# ──────────────────────────────────────────────────────────────────</span>
+resource "kubernetes_config_map" "ecom_config" {
+  metadata {
+    name      = "ecom-service-config"
+    namespace = "ecom"
+  }
+
+  data = {
+    <span class="comment"># Aurora PostgreSQL endpoint (replaces ecom-db.ecom.svc.cluster.local)</span>
+    DATABASE_HOST     = aws_rds_cluster.databases["ecom"].endpoint
+    DATABASE_PORT     = "5432"
+    DATABASE_NAME     = "ecom"
+    <span class="comment"># MSK bootstrap brokers (replaces kafka.infra.svc.cluster.local:9092)</span>
+    KAFKA_BROKERS     = aws_msk_cluster.bookstore.bootstrap_brokers_tls
+    <span class="comment"># ElastiCache Redis (replaces redis.infra.svc.cluster.local:6379)</span>
+    REDIS_HOST        = aws_elasticache_replication_group.redis.primary_endpoint_address
+    REDIS_PORT        = "6379"
+    REDIS_TLS         = "true"
+    <span class="comment"># Keycloak OIDC (now using real domain)</span>
+    KEYCLOAK_ISSUER_URI = "https://idp.${var.domain_name}/realms/bookstore"
+    KEYCLOAK_JWKS_URI   = "https://idp.${var.domain_name}/realms/bookstore/protocol/openid-connect/certs"
+    <span class="comment"># Swagger disabled in production</span>
+    SWAGGER_ENABLED = var.environment == "dev" ? "true" : "false"
+  }
+
+  depends_on = [kubernetes_namespace.app["ecom"]]
+}
+
+resource "kubernetes_config_map" "inventory_config" {
+  metadata {
+    name      = "inventory-service-config"
+    namespace = "inventory"
+  }
+
+  data = {
+    DATABASE_HOST       = aws_rds_cluster.databases["inventory"].endpoint
+    DATABASE_PORT       = "5432"
+    DATABASE_NAME       = "inventory"
+    KAFKA_BROKERS       = aws_msk_cluster.bookstore.bootstrap_brokers_tls
+    KEYCLOAK_ISSUER_URI = "https://idp.${var.domain_name}/realms/bookstore"
+    KEYCLOAK_JWKS_URI   = "https://idp.${var.domain_name}/realms/bookstore/protocol/openid-connect/certs"
+  }
+
+  depends_on = [kubernetes_namespace.app["inventory"]]
+}
+
+<span class="comment"># ── 8. Debezium Configuration ───────────────────────────────────
+# Debezium Server pods connect to Aurora (source) and MSK (sink).
+# On kind, Debezium connected to CNPG pods and self-hosted Kafka.
+# ──────────────────────────────────────────────────────────────────</span>
+resource "kubernetes_config_map" "debezium_ecom_config" {
+  metadata {
+    name      = "debezium-ecom-config"
+    namespace = "infra"
+  }
+
+  data = {
+    "application.properties" = &lt;&lt;-EOT
+      <span class="comment"># Debezium Server configuration for ecom database CDC</span>
+      <span class="comment"># Source: Aurora PostgreSQL (ecom-db)</span>
+      debezium.source.connector.class=io.debezium.connector.postgresql.PostgresConnector
+      debezium.source.database.hostname=${aws_rds_cluster.databases["ecom"].endpoint}
+      debezium.source.database.port=5432
+      debezium.source.database.dbname=ecom
+      debezium.source.database.user=ecom
+      debezium.source.topic.prefix=ecom-connector
+      debezium.source.plugin.name=pgoutput
+      debezium.source.schemas.enable=false
+      debezium.source.decimal.handling.mode=string
+
+      <span class="comment"># Sink: Amazon MSK (Kafka)</span>
+      debezium.sink.type=kafka
+      debezium.sink.kafka.producer.bootstrap.servers=${aws_msk_cluster.bookstore.bootstrap_brokers_tls}
+      debezium.sink.kafka.producer.security.protocol=SSL
+      debezium.sink.kafka.producer.key.serializer=org.apache.kafka.common.serialization.StringSerializer
+      debezium.sink.kafka.producer.value.serializer=org.apache.kafka.common.serialization.StringSerializer
+
+      <span class="comment"># Offset storage: MSK topic (survives pod restarts)</span>
+      debezium.source.offset.storage=org.apache.debezium.storage.kafka.KafkaOffsetBackingStore
+      debezium.source.offset.storage.topic=debezium.ecom.offsets
+      debezium.source.offset.storage.kafka.bootstrap.servers=${aws_msk_cluster.bookstore.bootstrap_brokers_tls}
+      debezium.source.offset.storage.kafka.security.protocol=SSL
+    EOT
+  }
+
+  depends_on = [kubernetes_namespace.app["infra"]]
+}
+
+resource "kubernetes_config_map" "debezium_inventory_config" {
+  metadata {
+    name      = "debezium-inventory-config"
+    namespace = "infra"
+  }
+
+  data = {
+    "application.properties" = &lt;&lt;-EOT
+      <span class="comment"># Debezium Server configuration for inventory database CDC</span>
+      debezium.source.connector.class=io.debezium.connector.postgresql.PostgresConnector
+      debezium.source.database.hostname=${aws_rds_cluster.databases["inventory"].endpoint}
+      debezium.source.database.port=5432
+      debezium.source.database.dbname=inventory
+      debezium.source.database.user=inventory
+      debezium.source.topic.prefix=inventory-connector
+      debezium.source.plugin.name=pgoutput
+      debezium.source.schemas.enable=false
+      debezium.source.decimal.handling.mode=string
+
+      debezium.sink.type=kafka
+      debezium.sink.kafka.producer.bootstrap.servers=${aws_msk_cluster.bookstore.bootstrap_brokers_tls}
+      debezium.sink.kafka.producer.security.protocol=SSL
+      debezium.sink.kafka.producer.key.serializer=org.apache.kafka.common.serialization.StringSerializer
+      debezium.sink.kafka.producer.value.serializer=org.apache.kafka.common.serialization.StringSerializer
+
+      debezium.source.offset.storage=org.apache.debezium.storage.kafka.KafkaOffsetBackingStore
+      debezium.source.offset.storage.topic=debezium.inventory.offsets
+      debezium.source.offset.storage.kafka.bootstrap.servers=${aws_msk_cluster.bookstore.bootstrap_brokers_tls}
+      debezium.source.offset.storage.kafka.security.protocol=SSL
+    EOT
+  }
+
+  depends_on = [kubernetes_namespace.app["infra"]]
+}
+
+<span class="comment"># ── 9. Observability Stack ──────────────────────────────────────
+# Prometheus + Grafana + Loki + Tempo via kube-prometheus-stack helm chart
+# ──────────────────────────────────────────────────────────────────</span>
+resource "helm_release" "kube_prometheus_stack" {
+  name       = "kube-prometheus-stack"
+  repository = "https://prometheus-community.github.io/helm-charts"
+  chart      = "kube-prometheus-stack"
+  version    = "67.9.0"
+  namespace  = "observability"
+
+  set {
+    name  = "grafana.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "grafana.adminPassword"
+    value = "admin"
+  }
+
+  set {
+    name  = "prometheus.prometheusSpec.retention"
+    value = "15d"
+  }
+
+  set {
+    name  = "prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage"
+    value = "50Gi"
+  }
+
+  depends_on = [kubernetes_namespace.app["observability"]]
+}
+
+<span class="comment"># ── 10. Kubernetes Ingress (ALB) ────────────────────────────────
+# Creates an Application Load Balancer with host-based routing.
+# Replaces kind's NodePort + Istio Gateway routing.
+#
+# The ALB Controller watches this Ingress resource and provisions:
+# - An internet-facing ALB in public subnets
+# - HTTPS listener with ACM certificate
+# - Host-based routing rules (ui, api, keycloak)
+# - HTTP → HTTPS redirect
+# ──────────────────────────────────────────────────────────────────</span>
+resource "kubernetes_ingress_v1" "main" {
+  metadata {
+    name      = "bookstore-ingress"
+    namespace = "ecom"
+
+    annotations = {
+      <span class="comment"># Use AWS ALB (not nginx or other ingress controllers)</span>
+      "kubernetes.io/ingress.class" = "alb"
+
+      <span class="comment"># Internet-facing ALB in public subnets</span>
+      "alb.ingress.kubernetes.io/scheme" = "internet-facing"
+
+      <span class="comment"># ALB target type — IP mode works best with Istio Ambient</span>
+      "alb.ingress.kubernetes.io/target-type" = "ip"
+
+      <span class="comment"># HTTPS listener with ACM certificate</span>
+      "alb.ingress.kubernetes.io/listen-ports"    = "[{\"HTTPS\":443},{\"HTTP\":80}]"
+      "alb.ingress.kubernetes.io/certificate-arn"  = aws_acm_certificate.main.arn
+      "alb.ingress.kubernetes.io/ssl-policy"       = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+
+      <span class="comment"># Redirect HTTP to HTTPS</span>
+      "alb.ingress.kubernetes.io/ssl-redirect" = "443"
+
+      <span class="comment"># Health check configuration</span>
+      "alb.ingress.kubernetes.io/healthcheck-path"             = "/health"
+      "alb.ingress.kubernetes.io/healthcheck-interval-seconds" = "30"
+
+      <span class="comment"># WAF integration (optional — create WAF WebACL separately)</span>
+      <span class="comment"># "alb.ingress.kubernetes.io/wafv2-acl-arn" = "arn:aws:wafv2:..."</span>
+
+      <span class="comment"># Tags for the ALB</span>
+      "alb.ingress.kubernetes.io/tags" = "Project=bookstore,Environment=${var.environment}"
+    }
+  }
+
+  spec {
+    <span class="comment"># ── UI: root domain → ui-service ──</span>
+    rule {
+      host = var.domain_name
+
+      http {
+        path {
+          path      = "/"
+          path_type = "Prefix"
+
+          backend {
+            service {
+              name = "ui-service"
+              port {
+                number = 80
+              }
+            }
+          }
+        }
+      }
+    }
+
+    <span class="comment"># ── API: api subdomain → ecom + inventory services ──</span>
+    rule {
+      host = "api.${var.domain_name}"
+
+      http {
+        path {
+          path      = "/ecom"
+          path_type = "Prefix"
+
+          backend {
+            service {
+              name = "ecom-service"
+              port {
+                number = 8080
+              }
+            }
+          }
+        }
+
+        path {
+          path      = "/inven"
+          path_type = "Prefix"
+
+          backend {
+            service {
+              name = "inventory-service"
+              port {
+                number = 8000
+              }
+            }
+          }
+        }
+      }
+    }
+
+    <span class="comment"># ── Keycloak: idp subdomain → keycloak ──</span>
+    rule {
+      host = "idp.${var.domain_name}"
+
+      http {
+        path {
+          path      = "/"
+          path_type = "Prefix"
+
+          backend {
+            service {
+              name = "keycloak"
+              port {
+                number = 8080
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  depends_on = [
+    helm_release.alb_controller,
+    kubernetes_namespace.app["ecom"]
+  ]
+}</code></pre>
+  </div>
+
+  <div class="callout warn">
+    <strong>Application Deployments:</strong> The actual K8s Deployment manifests for ecom-service, inventory-service, ui-service, csrf-service, Debezium, and Flink are not shown here for brevity. They are identical to the local kind manifests (in <code>infra/</code>) with two changes: (1) image references point to ECR instead of local, and (2) environment variables reference the ConfigMaps above instead of in-cluster service addresses. Apply them separately with <code>kubectl apply -f</code> after Terraform completes.
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="tfvars">17. Step 14 &mdash; Example Variables File</h2>
+
+  <div class="step amber">
+    <h3><span class="step-num">14</span> terraform.tfvars.example</h3>
+<pre><code><span class="comment"># ─────────────────────────────────────────────────────────────────────
+# terraform.tfvars.example — Copy to terraform.tfvars and edit
+#
+# cp terraform.tfvars.example terraform.tfvars
+# vim terraform.tfvars
+# ─────────────────────────────────────────────────────────────────────</span>
+
+<span class="comment"># ── Required ─────────────────────────────────────────────────────</span>
+domain_name = "bookstore.example.com"    <span class="comment"># Your registered domain</span>
+
+<span class="comment"># ── Optional overrides ───────────────────────────────────────────</span>
+aws_region   = "us-east-1"
+environment  = "dev"
+project_name = "bookstore"
+cluster_name = "bookstore"
+
+<span class="comment"># ── EKS ──────────────────────────────────────────────────────────</span>
+cluster_version            = "1.31"
+system_node_instance_types = ["t3.medium"]
+system_node_desired        = 2
+app_node_instance_types    = ["t3.large"]
+app_node_min               = 2
+app_node_max               = 5
+app_node_desired           = 2
+
+<span class="comment"># ── Database ─────────────────────────────────────────────────────</span>
+db_engine_version      = "16.4"
+db_min_capacity        = 0.5      <span class="comment"># Minimum ACU (Serverless v2)</span>
+db_max_capacity        = 4        <span class="comment"># Maximum ACU</span>
+db_backup_retention    = 7
+db_deletion_protection = false    <span class="comment"># Set true for prod</span>
+
+<span class="comment"># ── Kafka (MSK) ──────────────────────────────────────────────────</span>
+msk_instance_type   = "kafka.t3.small"
+msk_broker_count    = 3
+msk_kafka_version   = "3.6.0"
+msk_ebs_volume_size = 100
+
+<span class="comment"># ── Redis ────────────────────────────────────────────────────────</span>
+redis_node_type       = "cache.t3.micro"
+redis_num_cache_nodes = 1
+redis_engine_version  = "7.1"
+
+<span class="comment"># ── Networking ───────────────────────────────────────────────────</span>
+single_nat_gateway = true         <span class="comment"># false for prod HA</span>
+
+<span class="comment"># ── DNS (leave empty to create new Route53 zone) ────────────────</span>
+route53_zone_id = ""
+
+<span class="comment"># ── Keycloak ─────────────────────────────────────────────────────</span>
+keycloak_admin_password = ""      <span class="comment"># Generated if empty</span>
+
+<span class="comment"># ── Additional tags ──────────────────────────────────────────────</span>
+extra_tags = {
+  Team  = "platform"
+  Owner = "devops"
+}</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="deploy">18. Deployment Commands</h2>
+
+  <p>Follow these steps in order to deploy the entire platform.</p>
+
+  <div class="step green">
+    <h3><span class="step-num">1</span> Bootstrap the state backend</h3>
+<pre><code><span class="comment"># Create S3 bucket for Terraform state</span>
+aws s3api create-bucket \
+  --bucket bookstore-terraform-state \
+  --region us-east-1
+
+<span class="comment"># Enable versioning (recover from accidental state deletion)</span>
+aws s3api put-bucket-versioning \
+  --bucket bookstore-terraform-state \
+  --versioning-configuration Status=Enabled
+
+<span class="comment"># Enable server-side encryption</span>
+aws s3api put-bucket-encryption \
+  --bucket bookstore-terraform-state \
+  --server-side-encryption-configuration \
+    '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"aws:kms"}}]}'
+
+<span class="comment"># Block all public access</span>
+aws s3api put-public-access-block \
+  --bucket bookstore-terraform-state \
+  --public-access-block-configuration \
+    BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+
+<span class="comment"># Create DynamoDB table for state locking</span>
+aws dynamodb create-table \
+  --table-name bookstore-terraform-locks \
+  --attribute-definitions AttributeName=LockID,AttributeType=S \
+  --key-schema AttributeName=LockID,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST \
+  --region us-east-1</code></pre>
+  </div>
+
+  <div class="step blue">
+    <h3><span class="step-num">2</span> Configure variables and initialize</h3>
+<pre><code>cd terraform/aws
+
+<span class="comment"># Copy example vars and edit with your domain/settings</span>
+cp terraform.tfvars.example terraform.tfvars
+vim terraform.tfvars
+
+<span class="comment"># Initialize Terraform (downloads providers, configures backend)</span>
+terraform init</code></pre>
+  </div>
+
+  <div class="step purple">
+    <h3><span class="step-num">3</span> Plan and apply infrastructure</h3>
+<pre><code><span class="comment"># Preview all changes (review carefully!)</span>
+terraform plan -out=tfplan
+
+<span class="comment"># Apply the plan (creates ~60 resources, takes 25-40 minutes)</span>
+terraform apply tfplan
+
+<span class="comment"># EKS cluster: ~15 min
+# Aurora clusters: ~10 min
+# MSK cluster: ~15 min
+# Other resources: ~5 min</span></code></pre>
+  </div>
+
+  <div class="step cyan">
+    <h3><span class="step-num">4</span> Configure kubectl and verify</h3>
+<pre><code><span class="comment"># Configure kubectl to use the new EKS cluster</span>
+aws eks update-kubeconfig --name bookstore --region us-east-1
+
+<span class="comment"># Verify cluster access</span>
+kubectl get nodes
+kubectl get namespaces
+kubectl get pods -A</code></pre>
+  </div>
+
+  <div class="step amber">
+    <h3><span class="step-num">5</span> Build and push Docker images to ECR</h3>
+<pre><code><span class="comment"># Authenticate Docker with ECR</span>
+aws ecr get-login-password --region us-east-1 | \
+  docker login --username AWS --password-stdin \
+  $(terraform output -raw ecr_login_command | grep -oP '\d+\.dkr\.ecr\.\S+')
+
+<span class="comment"># Get ECR repository URLs</span>
+ECR_BASE=$(aws sts get-caller-identity --query Account --output text).dkr.ecr.us-east-1.amazonaws.com
+
+<span class="comment"># Build and push each service</span>
+docker build -t $ECR_BASE/bookstore/ecom-service:latest ./ecom-service
+docker push $ECR_BASE/bookstore/ecom-service:latest
+
+docker build -t $ECR_BASE/bookstore/inventory-service:latest ./inventory-service
+docker push $ECR_BASE/bookstore/inventory-service:latest
+
+docker build \
+  --build-arg VITE_KEYCLOAK_AUTHORITY=https://idp.$(terraform output -raw domain_name)/realms/bookstore \
+  --build-arg VITE_KEYCLOAK_CLIENT_ID=ui-client \
+  --build-arg VITE_REDIRECT_URI=https://$(terraform output -raw domain_name)/callback \
+  -t $ECR_BASE/bookstore/ui-service:latest ./ui
+docker push $ECR_BASE/bookstore/ui-service:latest
+
+docker build -t $ECR_BASE/bookstore/csrf-service:latest ./csrf-service
+docker push $ECR_BASE/bookstore/csrf-service:latest
+
+docker build -t $ECR_BASE/bookstore/flink:latest ./analytics/flink
+docker push $ECR_BASE/bookstore/flink:latest</code></pre>
+  </div>
+
+  <div class="step green">
+    <h3><span class="step-num">6</span> Deploy application manifests</h3>
+<pre><code><span class="comment"># Update image references in K8s manifests to point to ECR</span>
+<span class="comment"># Then apply them:</span>
+kubectl apply -f infra/istio/
+kubectl apply -f infra/keycloak/
+kubectl apply -f infra/ecom/
+kubectl apply -f infra/inventory/
+kubectl apply -f infra/debezium/
+kubectl apply -f infra/flink/
+kubectl apply -f infra/observability/
+
+<span class="comment"># Verify all pods are running</span>
+kubectl get pods -A
+
+<span class="comment"># Check application health</span>
+curl -s https://api.$(terraform output -raw domain_name)/ecom/books | head -c 200
+curl -s https://api.$(terraform output -raw domain_name)/inven/health</code></pre>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="costs">19. Cost Estimation</h2>
+
+  <p>Approximate monthly costs for the BookStore Platform on AWS. Prices are for <code>us-east-1</code> and vary by region.</p>
+
+  <table class="cost-table">
+    <tr>
+      <th>Service</th>
+      <th>Dev Configuration</th>
+      <th>Dev Cost/mo</th>
+      <th>Prod Configuration</th>
+      <th>Prod Cost/mo</th>
+    </tr>
+    <tr>
+      <td><strong>EKS Control Plane</strong></td>
+      <td>1 cluster</td>
+      <td class="cost-dev">$73</td>
+      <td>1 cluster</td>
+      <td class="cost-prod">$73</td>
+    </tr>
+    <tr>
+      <td><strong>EKS Nodes (system)</strong></td>
+      <td>2x t3.medium</td>
+      <td class="cost-dev">$61</td>
+      <td>3x t3.large</td>
+      <td class="cost-prod">$183</td>
+    </tr>
+    <tr>
+      <td><strong>EKS Nodes (app)</strong></td>
+      <td>2x t3.large</td>
+      <td class="cost-dev">$122</td>
+      <td>3-5x t3.xlarge</td>
+      <td class="cost-prod">$366-610</td>
+    </tr>
+    <tr>
+      <td><strong>Aurora PostgreSQL</strong></td>
+      <td>4 clusters, 0.5-4 ACU</td>
+      <td class="cost-dev">$175</td>
+      <td>4 clusters, 2-16 ACU, Multi-AZ</td>
+      <td class="cost-prod">$700</td>
+    </tr>
+    <tr>
+      <td><strong>MSK (Kafka)</strong></td>
+      <td>3x kafka.t3.small, 100GB</td>
+      <td class="cost-dev">$130</td>
+      <td>3x kafka.m5.large, 500GB</td>
+      <td class="cost-prod">$520</td>
+    </tr>
+    <tr>
+      <td><strong>ElastiCache Redis</strong></td>
+      <td>1x cache.t3.micro</td>
+      <td class="cost-dev">$12</td>
+      <td>2x cache.r7g.large (Multi-AZ)</td>
+      <td class="cost-prod">$300</td>
+    </tr>
+    <tr>
+      <td><strong>NAT Gateway</strong></td>
+      <td>1 (single AZ)</td>
+      <td class="cost-dev">$32</td>
+      <td>3 (one per AZ)</td>
+      <td class="cost-prod">$96</td>
+    </tr>
+    <tr>
+      <td><strong>ALB</strong></td>
+      <td>1 ALB</td>
+      <td class="cost-dev">$22</td>
+      <td>1 ALB</td>
+      <td class="cost-prod">$22</td>
+    </tr>
+    <tr>
+      <td><strong>ECR</strong></td>
+      <td>5 repos, ~2GB</td>
+      <td class="cost-dev">$1</td>
+      <td>5 repos, ~5GB</td>
+      <td class="cost-prod">$3</td>
+    </tr>
+    <tr>
+      <td><strong>Route53</strong></td>
+      <td>1 hosted zone</td>
+      <td class="cost-dev">$0.50</td>
+      <td>1 hosted zone</td>
+      <td class="cost-prod">$0.50</td>
+    </tr>
+    <tr>
+      <td><strong>Secrets Manager</strong></td>
+      <td>6 secrets</td>
+      <td class="cost-dev">$2.40</td>
+      <td>6 secrets</td>
+      <td class="cost-prod">$2.40</td>
+    </tr>
+    <tr>
+      <td><strong>Data Transfer</strong></td>
+      <td>~10GB/month</td>
+      <td class="cost-dev">$1</td>
+      <td>~100GB/month</td>
+      <td class="cost-prod">$9</td>
+    </tr>
+    <tr class="cost-total">
+      <td><strong>TOTAL (estimated)</strong></td>
+      <td></td>
+      <td class="cost-dev">~$632/mo</td>
+      <td></td>
+      <td class="cost-prod">~$2,275-2,520/mo</td>
+    </tr>
+  </table>
+
+  <div class="callout tip">
+    <strong>Cost optimization tips:</strong>
+    <ul style="margin-top:8px;margin-bottom:0;">
+      <li><strong>Spot instances</strong> for app node group: saves 60-70% on EC2 costs</li>
+      <li><strong>Aurora auto-pause</strong>: scales to 0 ACU when idle (Serverless v2 does not auto-pause; use v1 for dev-only)</li>
+      <li><strong>MSK Serverless</strong>: pay-per-use instead of provisioned brokers for dev</li>
+      <li><strong>Savings Plans</strong>: 1-year or 3-year commitments for 30-60% off EC2 and Fargate</li>
+      <li><strong>Tear down dev</strong> when not in use: <code>terraform destroy</code> and recreate when needed</li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="teardown">20. Teardown</h2>
+
+  <p>Destroy all AWS resources when done. Terraform handles dependency ordering automatically (K8s resources first, then EKS, then VPC).</p>
+
+  <div class="step red">
+    <h3><span class="step-num">!</span> destroy.sh</h3>
+<pre><code><span class="comment">#!/usr/bin/env bash</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────────────</span>
+<span class="comment"># destroy.sh — Clean teardown of all BookStore AWS resources</span>
+<span class="comment">#</span>
+<span class="comment"># Run from the terraform/aws directory:</span>
+<span class="comment">#   bash destroy.sh</span>
+<span class="comment">#</span>
+<span class="comment"># This script handles resources that Terraform can't always clean up:</span>
+<span class="comment"># - ALB created by the AWS Load Balancer Controller</span>
+<span class="comment"># - EBS volumes from PVCs</span>
+<span class="comment"># - Security group dependencies</span>
+<span class="comment"># ─────────────────────────────────────────────────────────────────────</span>
+
+set -euo pipefail
+
+echo "=== BookStore AWS Teardown ==="
+echo ""
+echo "WARNING: This will destroy ALL BookStore resources in AWS."
+echo "         Data in Aurora databases will be PERMANENTLY DELETED."
+echo ""
+read -p "Type 'destroy' to confirm: " CONFIRM
+if [ "$CONFIRM" != "destroy" ]; then
+  echo "Aborted."
+  exit 1
+fi
+
+CLUSTER_NAME="bookstore"
+REGION="us-east-1"
+
+<span class="comment"># Step 1: Delete K8s Ingress (triggers ALB deletion)</span>
+echo "--- Deleting Kubernetes Ingress (triggers ALB cleanup)..."
+kubectl delete ingress --all -A --ignore-not-found=true 2&gt;/dev/null || true
+
+<span class="comment"># Step 2: Wait for ALB to be deleted</span>
+echo "--- Waiting for ALB to be deleted (up to 5 minutes)..."
+for i in $(seq 1 30); do
+  ALB_COUNT=$(aws elbv2 describe-load-balancers \
+    --query "LoadBalancers[?contains(LoadBalancerName, '${CLUSTER_NAME}')]" \
+    --output text 2&gt;/dev/null | wc -l)
+  if [ "$ALB_COUNT" -eq 0 ]; then
+    echo "    ALB deleted."
+    break
+  fi
+  echo "    Waiting... ($i/30)"
+  sleep 10
+done
+
+<span class="comment"># Step 3: Delete Helm releases (prevents orphaned resources)</span>
+echo "--- Deleting Helm releases..."
+helm list -A --short 2&gt;/dev/null | while read -r release; do
+  ns=$(helm list -A --filter "^${release}$" -o json 2&gt;/dev/null | \
+    python3 -c "import sys,json; print(json.load(sys.stdin)[0]['namespace'])" 2&gt;/dev/null || echo "")
+  if [ -n "$ns" ]; then
+    helm uninstall "$release" -n "$ns" --wait 2&gt;/dev/null || true
+  fi
+done
+
+<span class="comment"># Step 4: Terraform destroy</span>
+echo "--- Running terraform destroy..."
+terraform destroy -auto-approve
+
+<span class="comment"># Step 5: Clean up any remaining EBS volumes</span>
+echo "--- Cleaning up orphaned EBS volumes..."
+aws ec2 describe-volumes \
+  --filters "Name=tag:kubernetes.io/cluster/${CLUSTER_NAME},Values=owned" \
+  --query "Volumes[].VolumeId" --output text 2&gt;/dev/null | \
+  while read -r vol; do
+    if [ -n "$vol" ]; then
+      echo "    Deleting volume: $vol"
+      aws ec2 delete-volume --volume-id "$vol" 2&gt;/dev/null || true
+    fi
+  done
+
+echo ""
+echo "=== Teardown complete ==="
+echo ""
+echo "NOTE: The S3 state bucket and DynamoDB lock table were NOT deleted."
+echo "To remove them:"
+echo "  aws s3 rb s3://bookstore-terraform-state --force"
+echo "  aws dynamodb delete-table --table-name bookstore-terraform-locks"</code></pre>
+  </div>
+
+  <div class="callout danger">
+    <strong>Irreversible:</strong> <code>terraform destroy</code> deletes Aurora databases permanently (unless deletion protection is enabled). Always take a manual snapshot before destroying production environments: <code>aws rds create-db-cluster-snapshot --db-cluster-identifier bookstore-prod-ecom-db --db-cluster-snapshot-identifier final-ecom-snapshot</code>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="security">21. Security Considerations</h2>
+
+  <p>The AWS deployment provides significant security improvements over the local kind setup.</p>
+
+  <h3>Encryption</h3>
+  <table>
+    <tr><th>Layer</th><th>Local (kind)</th><th>AWS</th></tr>
+    <tr><td><strong>Data at rest</strong></td><td>Unencrypted local volumes</td><td>KMS encryption on Aurora, MSK, ElastiCache, EBS</td></tr>
+    <tr><td><strong>Data in transit</strong></td><td>Istio mTLS (self-signed CA)</td><td>Istio mTLS + ACM TLS (public CA) + MSK TLS + Redis TLS</td></tr>
+    <tr><td><strong>Secrets</strong></td><td>K8s Secrets (base64, not encrypted)</td><td>AWS Secrets Manager (AES-256 encrypted, audit logged)</td></tr>
+    <tr><td><strong>Terraform state</strong></td><td>N/A</td><td>S3 with KMS encryption + versioning</td></tr>
+  </table>
+
+  <h3>Network Isolation</h3>
+  <table>
+    <tr><th>Layer</th><th>Local (kind)</th><th>AWS</th></tr>
+    <tr><td><strong>Network boundary</strong></td><td>Docker bridge network</td><td>VPC with public/private/database subnet tiers</td></tr>
+    <tr><td><strong>Database access</strong></td><td>NetworkPolicies</td><td>Security groups + database subnets (no internet)</td></tr>
+    <tr><td><strong>Internet access</strong></td><td>All pods via Docker</td><td>Only via NAT Gateway (controlled egress)</td></tr>
+    <tr><td><strong>Load balancer</strong></td><td>NodePort on localhost</td><td>ALB in public subnets with WAF support</td></tr>
+  </table>
+
+  <h3>Identity &amp; Access</h3>
+  <table>
+    <tr><th>Layer</th><th>Local (kind)</th><th>AWS</th></tr>
+    <tr><td><strong>Service identity</strong></td><td>K8s ServiceAccounts</td><td>IRSA (IAM roles per pod via OIDC federation)</td></tr>
+    <tr><td><strong>Secret access</strong></td><td>K8s RBAC</td><td>IAM policies (least privilege per service)</td></tr>
+    <tr><td><strong>Audit logging</strong></td><td>None</td><td>CloudTrail + Secrets Manager audit + EKS audit logs</td></tr>
+    <tr><td><strong>Container scanning</strong></td><td>None</td><td>ECR image scanning on push (Amazon Inspector)</td></tr>
+  </table>
+
+  <div class="callout tip">
+    <strong>Production hardening checklist:</strong>
+    <ul style="margin-top:8px;margin-bottom:0;">
+      <li>Enable <code>deletion_protection = true</code> on all Aurora clusters</li>
+      <li>Restrict <code>cluster_endpoint_public_access</code> to VPN CIDR or disable entirely</li>
+      <li>Enable AWS WAFv2 on the ALB for OWASP Top 10 protection</li>
+      <li>Enable GuardDuty for EKS threat detection</li>
+      <li>Enable VPC Flow Logs for network traffic auditing</li>
+      <li>Use <code>IMMUTABLE</code> image tags in ECR to prevent tag overwriting</li>
+      <li>Set up CloudWatch alarms for Aurora, MSK, and ElastiCache metrics</li>
+      <li>Enable AWS Config rules for compliance monitoring</li>
+      <li>Rotate Secrets Manager secrets on a schedule (30-90 days)</li>
+    </ul>
+  </div>
+
+  <footer>
+    <p>BookStore Platform &mdash; AWS Deployment Guide with Terraform</p>
+    <p style="margin-top: 8px;">
+      <a href="index.html">Home</a> &middot;
+      <a href="architecture.html">Architecture</a> &middot;
+      <a href="quick-start.html">Quick Start (Local)</a> &middot;
+      <a href="bookstore-platform-manual.html">Full Manual</a> &middot;
+      <a href="https://github.com/a2z-ice/ecom-ms">GitHub</a>
+    </p>
+  </footer>
+
+</div>
+</body>
+</html>

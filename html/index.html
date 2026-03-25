@@ -534,6 +534,30 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
       <h3>Quick Start Guide</h3>
       <p>Get the full platform running on macOS or Linux in under 30 minutes. Prerequisites, one-command bootstrap, verification, port map, credentials, and troubleshooting &mdash; all in one page.</p>
     </a>
+    <a href="deploy-aws.html" class="doc-card" style="border-color: #f97316; border-width: 2px; background: linear-gradient(135deg, rgba(249,115,22,0.08), rgba(245,158,11,0.05));">
+      <h3>Deploy to AWS (EKS + Terraform)</h3>
+      <p>Production deployment on AWS: EKS, Aurora PostgreSQL, MSK Kafka, ElastiCache Redis, ACM/Route53, ALB ingress. Complete Terraform code with S3 remote state, step-by-step explanations, and one-command teardown.</p>
+    </a>
+    <a href="deploy-azure.html" class="doc-card" style="border-color: #3b82f6; border-width: 2px; background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(96,165,250,0.05));">
+      <h3>Deploy to Azure (AKS + Terraform)</h3>
+      <p>Production deployment on Azure: AKS, PostgreSQL Flexible Server, Event Hubs (Kafka), Azure Cache for Redis, Key Vault, App Gateway. Complete Terraform code with Blob Storage remote state and managed identities.</p>
+    </a>
+    <a href="ha-multi-az-aws.html" class="doc-card" style="border-color: #ef4444; border-width: 2px; background: linear-gradient(135deg, rgba(239,68,68,0.08), rgba(249,115,22,0.05));">
+      <h3>HA Multi-AZ: AWS EKS</h3>
+      <p>Production-grade High Availability across 3 Availability Zones: NAT Gateway per AZ, Aurora Multi-AZ failover, MSK 3-broker quorum, Redis replication group, Pod topology spread, PDB, HPA. Failure scenarios with RPO/RTO targets.</p>
+    </a>
+    <a href="ha-multi-az-azure.html" class="doc-card" style="border-color: #0078d4; border-width: 2px; background: linear-gradient(135deg, rgba(0,120,212,0.08), rgba(59,130,246,0.05));">
+      <h3>HA Multi-AZ: Azure AKS</h3>
+      <p>Zone-redundant HA on Azure: AKS across 3 zones, PostgreSQL Flexible Server ZoneRedundant HA, Event Hubs zone-redundant, Redis Premium with zone spread, App Gateway v2 zones. Failure scenarios, cost analysis, compliance checklist.</p>
+    </a>
+    <a href="terraform-visual-aws.html" class="doc-card" style="border-color: #f59e0b; border-width: 2px; background: linear-gradient(135deg, rgba(245,158,11,0.08), rgba(255,153,0,0.04));">
+      <h3>Visual: AWS Terraform Walkthrough</h3>
+      <p>Side-by-side visual guide: each architecture component shown as an SVG diagram paired with its exact Terraform code. 18 components from VPC to observability, each with purpose, connections, and local-to-cloud mapping.</p>
+    </a>
+    <a href="terraform-visual-azure.html" class="doc-card" style="border-color: #06b6d4; border-width: 2px; background: linear-gradient(135deg, rgba(6,182,212,0.08), rgba(0,120,212,0.04));">
+      <h3>Visual: Azure Terraform Walkthrough</h3>
+      <p>Side-by-side visual guide: each AKS architecture component shown as an SVG diagram with corresponding Terraform code. 20 components from VNet to observability, with purpose and local-to-cloud mapping.</p>
+    </a>
     <a href="bookstore-platform-manual.html" class="doc-card" style="border-color: #f59e0b; border-width: 2px;">
       <h3>Technical Reference Manual v1.0</h3>
       <p>Complete 13-chapter professional manual — platform overview, user guide, admin panel, analytics, monitoring, security architecture, API reference, operations, and troubleshooting. All in one document.</p>

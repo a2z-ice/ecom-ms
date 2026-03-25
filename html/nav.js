@@ -15,7 +15,13 @@
       title: 'Home',
       links: [
         { label: 'Platform Overview', href: 'index.html' },
-        { label: 'Quick Start Guide', href: 'quick-start.html', highlight: true }
+        { label: 'Quick Start Guide', href: 'quick-start.html', highlight: true },
+        { label: 'Deploy to AWS (EKS)', href: 'deploy-aws.html' },
+        { label: 'Deploy to Azure (AKS)', href: 'deploy-azure.html' },
+        { label: 'HA Multi-AZ: AWS EKS', href: 'ha-multi-az-aws.html' },
+        { label: 'HA Multi-AZ: Azure AKS', href: 'ha-multi-az-azure.html' },
+        { label: 'Visual: AWS Terraform', href: 'terraform-visual-aws.html' },
+        { label: 'Visual: Azure Terraform', href: 'terraform-visual-azure.html' }
       ]
     },
     {

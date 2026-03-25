@@ -1,0 +1,316 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 960" font-family="Inter, -apple-system, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="960" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0f172a"/><stop offset="100%" stop-color="#1a2332"/>
+    </linearGradient>
+    <filter id="sh"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-opacity="0.3"/></filter>
+    <marker id="ar" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#475569"/></marker>
+    <marker id="arO" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ff9900"/></marker>
+    <marker id="arB" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#3b82f6"/></marker>
+    <marker id="arG" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#10b981"/></marker>
+    <marker id="arDb" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#336791"/></marker>
+    <marker id="arR" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#DC382D"/></marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="960" fill="url(#bg)" rx="12"/>
+
+  <!-- ============================================================ -->
+  <!-- ROW 0: TITLE                                                  -->
+  <!-- ============================================================ -->
+  <text x="600" y="32" text-anchor="middle" font-size="20" font-weight="800" fill="#f1f5f9">BookStore Platform &#x2014; AWS EKS Architecture (Terraform)</text>
+  <text x="600" y="52" text-anchor="middle" font-size="11" fill="#64748b">Managed Control Plane &#x2022; Private Worker Nodes &#x2022; Aurora Serverless v2 &#x2022; MSK Kafka &#x2022; Istio Ambient Mesh</text>
+
+  <!-- ============================================================ -->
+  <!-- ROW 1: USERS                                                  -->
+  <!-- ============================================================ -->
+  <rect x="490" y="66" width="220" height="34" rx="8" fill="#1e293b" stroke="#94a3b8" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="600" y="88" text-anchor="middle" font-size="12" font-weight="700" fill="#e2e8f0">Users (HTTPS :443)</text>
+  <line x1="600" y1="100" x2="600" y2="120" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <!-- ============================================================ -->
+  <!-- ROW 2: AWS-MANAGED VPC — EKS CONTROL PLANE                   -->
+  <!-- This is OUTSIDE the customer VPC                              -->
+  <!-- ============================================================ -->
+  <rect x="30" y="124" width="1140" height="120" rx="10" fill="rgba(255,153,0,0.08)" stroke="#ff9900" stroke-width="2" stroke-dasharray="8,4"/>
+
+  <!-- Badge: AWS-Managed -->
+  <rect x="38" y="128" width="280" height="20" rx="4" fill="#ff9900"/>
+  <text x="178" y="142" text-anchor="middle" font-size="11" font-weight="800" fill="#0f172a">AWS-Managed VPC (outside YOUR VPC)</text>
+  <text x="340" y="142" font-size="10" fill="#fbbf24" font-weight="600">You do NOT manage these</text>
+
+  <!-- Control Plane main box -->
+  <rect x="55" y="154" width="1090" height="78" rx="8" fill="#1e293b" stroke="#ff9900" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="600" y="174" text-anchor="middle" font-size="14" font-weight="800" fill="#ff9900">EKS Control Plane</text>
+  <text x="600" y="190" text-anchor="middle" font-size="10" fill="#fbbf24">Runs across 3 Availability Zones automatically &#x2022; Fully managed by AWS &#x2022; 99.95% SLA</text>
+
+  <!-- Sub-components row -->
+  <rect x="120" y="200" width="170" height="24" rx="5" fill="#0f172a" stroke="#f59e0b" stroke-width="1"/>
+  <text x="205" y="216" text-anchor="middle" font-size="10" font-weight="700" fill="#f59e0b">API Server (HA)</text>
+
+  <rect x="310" y="200" width="200" height="24" rx="5" fill="#0f172a" stroke="#f59e0b" stroke-width="1"/>
+  <text x="410" y="216" text-anchor="middle" font-size="10" font-weight="700" fill="#f59e0b">etcd (3 replicas, encrypted)</text>
+
+  <rect x="530" y="200" width="140" height="24" rx="5" fill="#0f172a" stroke="#f59e0b" stroke-width="1"/>
+  <text x="600" y="216" text-anchor="middle" font-size="10" font-weight="700" fill="#f59e0b">Scheduler</text>
+
+  <rect x="690" y="200" width="170" height="24" rx="5" fill="#0f172a" stroke="#f59e0b" stroke-width="1"/>
+  <text x="775" y="216" text-anchor="middle" font-size="10" font-weight="700" fill="#f59e0b">Controller Manager</text>
+
+  <rect x="880" y="200" width="170" height="24" rx="5" fill="#0f172a" stroke="#f59e0b" stroke-width="1"/>
+  <text x="965" y="216" text-anchor="middle" font-size="10" font-weight="700" fill="#f59e0b">OIDC Provider (IRSA)</text>
+
+  <!-- ENI arrow from Control Plane down to VPC -->
+  <line x1="600" y1="232" x2="600" y2="270" stroke="#ff9900" stroke-width="2" marker-end="url(#arO)" stroke-dasharray="6,3"/>
+  <rect x="540" y="242" width="120" height="18" rx="4" fill="#0f172a" stroke="#ff9900" stroke-width="1"/>
+  <text x="600" y="255" text-anchor="middle" font-size="9" font-weight="700" fill="#ff9900">ENI (private link)</text>
+
+  <!-- Connects label -->
+  <text x="730" y="255" font-size="9" fill="#64748b">Elastic Network Interfaces injected into your VPC subnets</text>
+
+  <!-- ============================================================ -->
+  <!-- ROW 3: CUSTOMER VPC                                           -->
+  <!-- ============================================================ -->
+  <rect x="30" y="268" width="1140" height="570" rx="10" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <rect x="38" y="272" width="200" height="20" rx="4" fill="#3b82f6"/>
+  <text x="138" y="286" text-anchor="middle" font-size="11" font-weight="800" fill="#0f172a">Your VPC 10.0.0.0/16</text>
+  <text x="255" y="286" font-size="10" fill="#3b82f6" font-weight="600">us-east-1 &#x2022; 3 AZs</text>
+
+  <!-- ============================================================ -->
+  <!-- ROW 3a: PUBLIC SUBNETS                                        -->
+  <!-- ============================================================ -->
+  <rect x="50" y="296" width="1100" height="64" rx="8" fill="rgba(16,185,129,0.06)" stroke="#10b981" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="70" y="312" font-size="10" font-weight="700" fill="#10b981">Public Subnets (10.0.1-3.0/24) &#x2014; Internet-Facing Resources Only</text>
+
+  <rect x="70" y="320" width="110" height="32" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="125" y="340" text-anchor="middle" font-size="10" font-weight="700" fill="#f59e0b">IGW</text>
+
+  <rect x="195" y="320" width="130" height="32" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="260" y="336" text-anchor="middle" font-size="10" font-weight="700" fill="#f59e0b">NAT Gateway</text>
+  <text x="260" y="348" text-anchor="middle" font-size="8" fill="#64748b">Elastic IP</text>
+
+  <rect x="340" y="320" width="250" height="32" rx="6" fill="#1e293b" stroke="#ff9900" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="465" y="336" text-anchor="middle" font-size="11" font-weight="700" fill="#ff9900">Application Load Balancer</text>
+  <text x="465" y="348" text-anchor="middle" font-size="8" fill="#64748b">HTTPS :443 &#x2022; ACM TLS &#x2022; WAF v2</text>
+
+  <rect x="605" y="320" width="160" height="32" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="685" y="340" text-anchor="middle" font-size="10" font-weight="700" fill="#8b5cf6">Route 53 DNS</text>
+
+  <rect x="780" y="320" width="100" height="32" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="830" y="340" text-anchor="middle" font-size="10" font-weight="700" fill="#10b981">ACM Certs</text>
+
+  <rect x="895" y="320" width="120" height="32" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1" filter="url(#sh)"/>
+  <text x="955" y="336" text-anchor="middle" font-size="9" font-weight="700" fill="#ef4444">S3 State</text>
+  <text x="955" y="348" text-anchor="middle" font-size="8" fill="#64748b">+ DynamoDB Lock</text>
+
+  <rect x="1030" y="320" width="100" height="32" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1" filter="url(#sh)"/>
+  <text x="1080" y="340" text-anchor="middle" font-size="9" font-weight="700" fill="#ef4444">Secrets Mgr</text>
+
+  <!-- Arrow: Users → ALB -->
+  <line x1="600" y1="120" x2="465" y2="320" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#ar)" stroke-dasharray="4,2"/>
+
+  <!-- ============================================================ -->
+  <!-- ROW 3b: PRIVATE SUBNETS — EKS WORKER NODES (left 55%)        -->
+  <!-- ============================================================ -->
+  <rect x="50" y="368" width="630" height="314" rx="8" fill="rgba(59,130,246,0.05)" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="70" y="386" font-size="11" font-weight="700" fill="#3b82f6">Private Subnets (10.0.10-30.0/24) &#x2014; EKS WORKER NODES (in YOUR VPC)</text>
+  <text x="70" y="400" font-size="9" fill="#64748b">No public IPs &#x2022; Egress via NAT &#x2022; SG: ALB ingress only &#x2022; Control Plane connects via ENIs</text>
+
+  <!-- Arrow: ALB → Worker Nodes -->
+  <line x1="465" y1="352" x2="350" y2="368" stroke="#ff9900" stroke-width="1.5" marker-end="url(#arO)"/>
+
+  <!-- Node Groups -->
+  <rect x="70" y="410" width="295" height="68" rx="7" fill="#1e293b" stroke="#64748b" stroke-width="1" filter="url(#sh)"/>
+  <text x="217" y="430" text-anchor="middle" font-size="11" font-weight="700" fill="#cbd5e1">System Node Group (2x t3.medium)</text>
+  <text x="217" y="446" text-anchor="middle" font-size="9" fill="#64748b">Istio Ambient &#x2022; cert-manager &#x2022; ALB Controller</text>
+  <text x="217" y="460" text-anchor="middle" font-size="9" fill="#64748b">Prometheus &#x2022; Grafana &#x2022; Loki &#x2022; Tempo</text>
+
+  <rect x="375" y="410" width="295" height="68" rx="7" fill="#1e293b" stroke="#64748b" stroke-width="1" filter="url(#sh)"/>
+  <text x="522" y="430" text-anchor="middle" font-size="11" font-weight="700" fill="#cbd5e1">App Node Group (2-5x t3.large)</text>
+  <text x="522" y="446" text-anchor="middle" font-size="9" fill="#64748b">ecom &#x2022; inventory &#x2022; UI &#x2022; CSRF &#x2022; Keycloak</text>
+  <text x="522" y="460" text-anchor="middle" font-size="9" fill="#64748b">Debezium &#x2022; Flink &#x2022; Superset &#x2022; PgAdmin</text>
+
+  <!-- Application Pod boxes -->
+  <rect x="70" y="490" width="82" height="30" rx="5" fill="#1e293b" stroke="#60a5fa" stroke-width="1"/>
+  <text x="111" y="509" text-anchor="middle" font-size="10" font-weight="600" fill="#60a5fa">ecom</text>
+
+  <rect x="160" y="490" width="90" height="30" rx="5" fill="#1e293b" stroke="#34d399" stroke-width="1"/>
+  <text x="205" y="509" text-anchor="middle" font-size="10" font-weight="600" fill="#34d399">inventory</text>
+
+  <rect x="258" y="490" width="55" height="30" rx="5" fill="#1e293b" stroke="#a78bfa" stroke-width="1"/>
+  <text x="285" y="509" text-anchor="middle" font-size="10" font-weight="600" fill="#a78bfa">UI</text>
+
+  <rect x="321" y="490" width="62" height="30" rx="5" fill="#1e293b" stroke="#f87171" stroke-width="1"/>
+  <text x="352" y="509" text-anchor="middle" font-size="10" font-weight="600" fill="#f87171">CSRF</text>
+
+  <rect x="391" y="490" width="88" height="30" rx="5" fill="#1e293b" stroke="#fbbf24" stroke-width="1"/>
+  <text x="435" y="509" text-anchor="middle" font-size="10" font-weight="600" fill="#fbbf24">Keycloak</text>
+
+  <rect x="487" y="490" width="88" height="30" rx="5" fill="#1e293b" stroke="#fb923c" stroke-width="1"/>
+  <text x="531" y="509" text-anchor="middle" font-size="10" font-weight="600" fill="#fb923c">Debezium</text>
+
+  <rect x="583" y="490" width="60" height="30" rx="5" fill="#1e293b" stroke="#22d3ee" stroke-width="1"/>
+  <text x="613" y="509" text-anchor="middle" font-size="10" font-weight="600" fill="#22d3ee">Flink</text>
+
+  <!-- Istio Ambient Mesh bar -->
+  <rect x="70" y="530" width="600" height="26" rx="5" fill="rgba(70,107,176,0.12)" stroke="#466BB0" stroke-width="1"/>
+  <text x="370" y="548" text-anchor="middle" font-size="10" font-weight="600" fill="#466BB0">Istio Ambient Mesh 1.29 &#x2014; mTLS STRICT &#x2022; L4 AuthorizationPolicy &#x2022; ztunnel</text>
+
+  <!-- ECR bar -->
+  <rect x="70" y="564" width="600" height="24" rx="5" fill="rgba(255,153,0,0.06)" stroke="#ff9900" stroke-width="0.8"/>
+  <text x="370" y="580" text-anchor="middle" font-size="9" font-weight="600" fill="#ff9900">Amazon ECR &#x2014; 5 Repos &#x2022; Scan on Push &#x2022; Lifecycle: Keep 10 &#x2022; VPC Endpoint</text>
+
+  <!-- EKS Addons bar -->
+  <rect x="70" y="596" width="600" height="24" rx="5" fill="rgba(59,130,246,0.05)" stroke="#3b82f6" stroke-width="0.8"/>
+  <text x="370" y="612" text-anchor="middle" font-size="9" font-weight="600" fill="#3b82f6">EKS Addons: vpc-cni &#x2022; coredns &#x2022; kube-proxy &#x2022; ebs-csi-driver &#x2022; external-secrets</text>
+
+  <!-- Managed Cluster label -->
+  <rect x="70" y="628" width="600" height="24" rx="5" fill="rgba(255,153,0,0.04)" stroke="#ff9900" stroke-width="0.8"/>
+  <text x="370" y="644" text-anchor="middle" font-size="9" font-weight="600" fill="#ff9900">Amazon EKS 1.31 &#x2014; Managed Node Groups &#x2022; Cluster Autoscaler &#x2022; Pod Identity Agent</text>
+
+  <!-- Arrow from worker nodes area to databases -->
+  <line x1="680" y1="480" x2="700" y2="420" stroke="#336791" stroke-width="1.2" marker-end="url(#arDb)" stroke-dasharray="5,3"/>
+  <text x="698" y="448" font-size="8" fill="#336791" transform="rotate(-70 698 448)">SQL</text>
+
+  <!-- Arrow from worker nodes to MSK -->
+  <line x1="680" y1="530" x2="700" y2="570" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#ar)" stroke-dasharray="5,3"/>
+  <text x="698" y="558" font-size="8" fill="#94a3b8">CDC</text>
+
+  <!-- Arrow from worker nodes to Redis -->
+  <line x1="680" y1="510" x2="700" y2="630" stroke="#DC382D" stroke-width="1" marker-end="url(#arR)" stroke-dasharray="5,3"/>
+
+  <!-- ============================================================ -->
+  <!-- ROW 3c: DATABASE SUBNETS (right 45%)                          -->
+  <!-- ============================================================ -->
+  <rect x="695" y="368" width="475" height="168" rx="8" fill="rgba(51,103,145,0.07)" stroke="#336791" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="715" y="386" font-size="10" font-weight="700" fill="#336791">Database Subnets (10.0.100-102.0/24)</text>
+  <text x="715" y="400" font-size="9" fill="#64748b">SG: EKS nodes only &#x2022; KMS encrypted &#x2022; No public access</text>
+
+  <!-- 4x Aurora PostgreSQL boxes -->
+  <rect x="715" y="408" width="218" height="50" rx="6" fill="#1e293b" stroke="#336791" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="824" y="428" text-anchor="middle" font-size="11" font-weight="700" fill="#336791">Aurora PostgreSQL</text>
+  <text x="824" y="444" text-anchor="middle" font-size="9" fill="#64748b">ecom-db &#x2022; Serverless v2</text>
+
+  <rect x="943" y="408" width="218" height="50" rx="6" fill="#1e293b" stroke="#336791" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="1052" y="428" text-anchor="middle" font-size="11" font-weight="700" fill="#336791">Aurora PostgreSQL</text>
+  <text x="1052" y="444" text-anchor="middle" font-size="9" fill="#64748b">inventory-db &#x2022; Serverless v2</text>
+
+  <rect x="715" y="466" width="218" height="50" rx="6" fill="#1e293b" stroke="#336791" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="824" y="486" text-anchor="middle" font-size="11" font-weight="700" fill="#336791">Aurora PostgreSQL</text>
+  <text x="824" y="502" text-anchor="middle" font-size="9" fill="#64748b">analytics-db &#x2022; Serverless v2</text>
+
+  <rect x="943" y="466" width="218" height="50" rx="6" fill="#1e293b" stroke="#336791" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="1052" y="486" text-anchor="middle" font-size="11" font-weight="700" fill="#336791">Aurora PostgreSQL</text>
+  <text x="1052" y="502" text-anchor="middle" font-size="9" fill="#64748b">keycloak-db &#x2022; Serverless v2</text>
+
+  <text x="932" y="530" text-anchor="middle" font-size="9" fill="#94a3b8">wal_level=logical &#x2022; Multi-AZ &#x2022; 7-day PITR &#x2022; Auto-scaling 0.5&#x2013;8 ACU</text>
+
+  <!-- ============================================================ -->
+  <!-- ROW 3d: PRIVATE MANAGED SERVICES (right 45%, below DBs)       -->
+  <!-- ============================================================ -->
+  <rect x="695" y="542" width="475" height="136" rx="8" fill="rgba(245,158,11,0.05)" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="715" y="560" font-size="10" font-weight="700" fill="#f59e0b">Private Managed Services</text>
+  <text x="715" y="574" font-size="9" fill="#64748b">VPC Endpoints &#x2022; Private DNS &#x2022; No public access</text>
+
+  <rect x="715" y="582" width="218" height="44" rx="6" fill="#1e293b" stroke="#e2e8f0" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="824" y="602" text-anchor="middle" font-size="11" font-weight="700" fill="#e2e8f0">Amazon MSK</text>
+  <text x="824" y="616" text-anchor="middle" font-size="9" fill="#64748b">Kafka 3.6 &#x2022; 3 Brokers &#x2022; TLS</text>
+
+  <rect x="943" y="582" width="218" height="44" rx="6" fill="#1e293b" stroke="#DC382D" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="1052" y="602" text-anchor="middle" font-size="11" font-weight="700" fill="#DC382D">ElastiCache Redis</text>
+  <text x="1052" y="616" text-anchor="middle" font-size="9" fill="#64748b">Redis 7 &#x2022; TLS 1.2 &#x2022; Auth Token</text>
+
+  <rect x="715" y="636" width="218" height="28" rx="5" fill="#1e293b" stroke="#22d3ee" stroke-width="0.8"/>
+  <text x="824" y="654" text-anchor="middle" font-size="9" font-weight="600" fill="#22d3ee">CloudWatch Logs + Metrics</text>
+
+  <rect x="943" y="636" width="218" height="28" rx="5" fill="#1e293b" stroke="#a78bfa" stroke-width="0.8"/>
+  <text x="1052" y="654" text-anchor="middle" font-size="9" font-weight="600" fill="#a78bfa">AWS Secrets Manager</text>
+
+  <!-- ============================================================ -->
+  <!-- ROW 4: SECURITY BADGES                                        -->
+  <!-- ============================================================ -->
+  <rect x="30" y="848" width="1140" height="46" rx="8" fill="rgba(239,68,68,0.04)" stroke="#f87171" stroke-width="0.8" stroke-dasharray="4,3"/>
+  <text x="50" y="866" font-size="10" font-weight="700" fill="#f87171">Security</text>
+
+  <rect x="110" y="856" width="96" height="18" rx="4" fill="#1e293b" stroke="#f87171" stroke-width="0.6"/>
+  <text x="158" y="869" text-anchor="middle" font-size="9" font-weight="600" fill="#f87171">IRSA Roles</text>
+
+  <rect x="216" y="856" width="110" height="18" rx="4" fill="#1e293b" stroke="#f87171" stroke-width="0.6"/>
+  <text x="271" y="869" text-anchor="middle" font-size="9" font-weight="600" fill="#f87171">Security Groups</text>
+
+  <rect x="336" y="856" width="110" height="18" rx="4" fill="#1e293b" stroke="#f87171" stroke-width="0.6"/>
+  <text x="391" y="869" text-anchor="middle" font-size="9" font-weight="600" fill="#f87171">KMS Encryption</text>
+
+  <rect x="456" y="856" width="108" height="18" rx="4" fill="#1e293b" stroke="#f87171" stroke-width="0.6"/>
+  <text x="510" y="869" text-anchor="middle" font-size="9" font-weight="600" fill="#f87171">VPC Endpoints</text>
+
+  <rect x="574" y="856" width="108" height="18" rx="4" fill="#1e293b" stroke="#f87171" stroke-width="0.6"/>
+  <text x="628" y="869" text-anchor="middle" font-size="9" font-weight="600" fill="#f87171">WAF v2 + TLS</text>
+
+  <rect x="692" y="856" width="90" height="18" rx="4" fill="#1e293b" stroke="#f87171" stroke-width="0.6"/>
+  <text x="737" y="869" text-anchor="middle" font-size="9" font-weight="600" fill="#f87171">Non-Root</text>
+
+  <rect x="792" y="856" width="120" height="18" rx="4" fill="#1e293b" stroke="#f87171" stroke-width="0.6"/>
+  <text x="852" y="869" text-anchor="middle" font-size="9" font-weight="600" fill="#f87171">NetworkPolicies</text>
+
+  <rect x="922" y="856" width="120" height="18" rx="4" fill="#1e293b" stroke="#f87171" stroke-width="0.6"/>
+  <text x="982" y="869" text-anchor="middle" font-size="9" font-weight="600" fill="#f87171">mTLS (Istio)</text>
+
+  <rect x="1052" y="856" width="108" height="18" rx="4" fill="#1e293b" stroke="#f87171" stroke-width="0.6"/>
+  <text x="1106" y="869" text-anchor="middle" font-size="9" font-weight="600" fill="#f87171">Secrets Mgr</text>
+
+  <!-- ============================================================ -->
+  <!-- ROW 5: TERRAFORM PIPELINE                                     -->
+  <!-- ============================================================ -->
+  <rect x="30" y="698" width="1140" height="60" rx="8" fill="rgba(16,185,129,0.05)" stroke="#10b981" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="50" y="718" font-size="11" font-weight="700" fill="#10b981">Terraform Deployment Pipeline</text>
+
+  <rect x="50" y="726" width="110" height="24" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+  <text x="105" y="742" text-anchor="middle" font-size="10" font-weight="600" fill="#10b981">terraform init</text>
+  <line x1="160" y1="738" x2="180" y2="738" stroke="#10b981" stroke-width="1.2" marker-end="url(#arG)"/>
+
+  <rect x="185" y="726" width="120" height="24" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+  <text x="245" y="742" text-anchor="middle" font-size="10" font-weight="600" fill="#10b981">terraform plan</text>
+  <line x1="305" y1="738" x2="325" y2="738" stroke="#10b981" stroke-width="1.2" marker-end="url(#arG)"/>
+
+  <rect x="330" y="726" width="125" height="24" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+  <text x="392" y="742" text-anchor="middle" font-size="10" font-weight="600" fill="#10b981">terraform apply</text>
+  <line x1="455" y1="738" x2="475" y2="738" stroke="#ff9900" stroke-width="1.2" marker-end="url(#arO)"/>
+
+  <rect x="480" y="726" width="110" height="24" rx="5" fill="#1e293b" stroke="#ff9900" stroke-width="1"/>
+  <text x="535" y="742" text-anchor="middle" font-size="10" font-weight="600" fill="#ff9900">Push to ECR</text>
+  <line x1="590" y1="738" x2="610" y2="738" stroke="#3b82f6" stroke-width="1.2" marker-end="url(#arB)"/>
+
+  <rect x="615" y="726" width="140" height="24" rx="5" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+  <text x="685" y="742" text-anchor="middle" font-size="10" font-weight="600" fill="#3b82f6">Deploy K8s Manifests</text>
+  <line x1="755" y1="738" x2="775" y2="738" stroke="#466BB0" stroke-width="1.2" marker-end="url(#ar)"/>
+
+  <rect x="780" y="726" width="130" height="24" rx="5" fill="#1e293b" stroke="#466BB0" stroke-width="1"/>
+  <text x="845" y="742" text-anchor="middle" font-size="10" font-weight="600" fill="#466BB0">Istio + Mesh</text>
+  <line x1="910" y1="738" x2="930" y2="738" stroke="#a78bfa" stroke-width="1.2" marker-end="url(#ar)"/>
+
+  <rect x="935" y="726" width="120" height="24" rx="5" fill="#1e293b" stroke="#a78bfa" stroke-width="1"/>
+  <text x="995" y="742" text-anchor="middle" font-size="10" font-weight="600" fill="#a78bfa">Smoke Test</text>
+
+  <!-- ============================================================ -->
+  <!-- DATA FLOW LABELS                                              -->
+  <!-- ============================================================ -->
+  <rect x="30" y="770" width="1140" height="68" rx="8" fill="rgba(96,165,250,0.04)" stroke="#475569" stroke-width="0.8" stroke-dasharray="4,3"/>
+  <text x="50" y="790" font-size="10" font-weight="700" fill="#94a3b8">Data Flow</text>
+
+  <text x="50" y="808" font-size="9" fill="#60a5fa">User &#x2192; ALB &#x2192; Istio Gateway &#x2192; UI Pod</text>
+  <text x="50" y="824" font-size="9" fill="#34d399">UI &#x2192; Keycloak (OIDC PKCE) &#x2192; ecom-service (JWT) &#x2192; inventory-service (mTLS)</text>
+
+  <text x="500" y="808" font-size="9" fill="#fb923c">ecom-db &#x2192; Debezium CDC &#x2192; MSK Kafka &#x2192; Flink SQL &#x2192; analytics-db</text>
+  <text x="500" y="824" font-size="9" fill="#fb923c">inventory-db &#x2192; Debezium CDC &#x2192; MSK Kafka &#x2192; Flink SQL &#x2192; analytics-db</text>
+
+  <text x="950" y="808" font-size="9" fill="#DC382D">CSRF tokens &#x2192; ElastiCache Redis</text>
+  <text x="950" y="824" font-size="9" fill="#22d3ee">Superset &#x2192; analytics-db (read-only)</text>
+
+  <!-- ============================================================ -->
+  <!-- FOOTER                                                        -->
+  <!-- ============================================================ -->
+  <text x="600" y="912" text-anchor="middle" font-size="10" fill="#475569">All workloads in private subnets &#x2022; ALB is the ONLY public endpoint &#x2022; VPC endpoints for AWS services &#x2022; Zero public IPs on nodes</text>
+  <text x="600" y="932" text-anchor="middle" font-size="11" fill="#64748b" font-weight="600">BookStore Platform &#x2022; AWS EKS Production Architecture &#x2022; Terraform IaC</text>
+  <text x="600" y="950" text-anchor="middle" font-size="9" fill="#334155">Control Plane: AWS-managed (3 AZ) &#x2022; Worker Nodes: Customer VPC (private subnets) &#x2022; Databases: Isolated DB subnets</text>
+</svg>
