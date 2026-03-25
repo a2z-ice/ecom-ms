@@ -108,6 +108,34 @@
     .toc li { margin-bottom: 4px; }
     .toc a { color: var(--muted); text-decoration: none; font-size: 0.88rem; }
     .toc a:hover { color: var(--text); }
+    /* ── LinkedIn Banner ── */
+    .linkedin-banner { position: relative; width: 100%; background: linear-gradient(135deg, #0c1222 0%, #162044 35%, #1e1b4b 60%, #312e81 100%); overflow: hidden; }
+    .linkedin-banner::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle at 15% 50%, rgba(59,130,246,0.1) 0%, transparent 50%), radial-gradient(circle at 85% 20%, rgba(139,92,246,0.12) 0%, transparent 40%), radial-gradient(circle at 50% 90%, rgba(16,185,129,0.06) 0%, transparent 40%); pointer-events: none; }
+    .linkedin-banner::after { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px); background-size: 48px 48px; pointer-events: none; }
+    .banner-inner { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 52px 48px 48px; display: flex; align-items: center; gap: 44px; }
+    .banner-shield { flex-shrink: 0; width: 130px; height: 150px; }
+    .banner-shield svg { width: 100%; height: 100%; filter: drop-shadow(0 0 24px rgba(59,130,246,0.3)); }
+    .banner-text { flex: 1; min-width: 0; }
+    .banner-series { font-size: 0.7rem; font-weight: 700; letter-spacing: 3.5px; text-transform: uppercase; color: rgba(167,139,250,0.9); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+    .banner-series::before { content: ''; width: 24px; height: 2px; background: linear-gradient(90deg, #a78bfa, transparent); }
+    .banner-title-text { font-size: 2.1rem; font-weight: 800; color: #f1f5f9; line-height: 1.25; margin-bottom: 10px; background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .banner-desc { font-size: 0.95rem; color: #94a3b8; margin-bottom: 22px; line-height: 1.6; max-width: 540px; }
+    .banner-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+    .banner-tags span { font-size: 0.7rem; font-weight: 600; padding: 5px 14px; border-radius: 6px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.2); color: #93c5fd; letter-spacing: 0.3px; transition: background 0.2s, border-color 0.2s; }
+    .banner-tags span:hover { background: rgba(59,130,246,0.2); border-color: rgba(59,130,246,0.35); }
+    .banner-brand { position: absolute; bottom: 18px; right: 32px; font-size: 0.65rem; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: rgba(148,163,184,0.35); z-index: 1; }
+    .banner-accent-line { height: 3px; background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #06b6d4 100%); }
+    .banner-node { position: absolute; border-radius: 50%; z-index: 1; }
+    .banner-node::after { content: ''; position: absolute; top: 50%; left: 50%; width: 200%; height: 200%; transform: translate(-50%, -50%); border-radius: 50%; border: 1px solid; opacity: 0.15; animation: pulse-ring 3s ease-out infinite; }
+    @keyframes pulse-ring { 0% { width: 100%; height: 100%; opacity: 0.3; } 100% { width: 300%; height: 300%; opacity: 0; } }
+    .banner-node-1 { width: 8px; height: 8px; background: #3b82f6; top: 20%; right: 15%; }
+    .banner-node-1::after { border-color: #3b82f6; }
+    .banner-node-2 { width: 6px; height: 6px; background: #8b5cf6; top: 65%; right: 8%; }
+    .banner-node-2::after { border-color: #8b5cf6; animation-delay: 1s; }
+    .banner-node-3 { width: 5px; height: 5px; background: #06b6d4; top: 35%; right: 25%; }
+    .banner-node-3::after { border-color: #06b6d4; animation-delay: 2s; }
+    .banner-connector { position: absolute; z-index: 0; opacity: 0.08; }
+    @media (max-width: 768px) { .banner-inner { flex-direction: column; padding: 36px 24px 32px; gap: 24px; text-align: center; } .banner-shield { width: 90px; height: 104px; } .banner-title-text { font-size: 1.5rem; } .banner-desc { font-size: 0.88rem; } .banner-tags { justify-content: center; } .banner-node { display: none; } }
   </style>
 </head>
 <body>
@@ -123,6 +151,50 @@
     </div>
   </div>
 </nav>
+
+<!-- ── LinkedIn Banner ── -->
+<div class="linkedin-banner">
+  <div class="banner-node banner-node-1"></div>
+  <div class="banner-node banner-node-2"></div>
+  <div class="banner-node banner-node-3"></div>
+  <svg class="banner-connector" width="100%" height="100%" style="position:absolute;inset:0">
+    <line x1="85%" y1="20%" x2="75%" y2="35%" stroke="#f59e0b" stroke-width="1" opacity="0.06"/>
+    <line x1="92%" y1="65%" x2="75%" y2="35%" stroke="#d97706" stroke-width="1" opacity="0.05"/>
+  </svg>
+  <div class="banner-inner">
+    <div class="banner-shield">
+      <svg viewBox="0 0 130 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="sg" x1="65" y1="8" x2="65" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="rgba(245,158,11,0.2)"/><stop offset="100%" stop-color="rgba(139,92,246,0.15)"/></linearGradient>
+          <linearGradient id="ss" x1="16" y1="8" x2="114" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient>
+          <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <circle cx="12" cy="32" r="3" fill="#f59e0b" opacity="0.5"/><circle cx="118" cy="28" r="2.5" fill="#8b5cf6" opacity="0.4"/><circle cx="16" cy="115" r="2" fill="#fbbf24" opacity="0.3"/><circle cx="114" cy="108" r="2.5" fill="#a78bfa" opacity="0.4"/>
+        <line x1="12" y1="32" x2="32" y2="42" stroke="#f59e0b" stroke-width="0.5" opacity="0.3"/><line x1="118" y1="28" x2="98" y2="38" stroke="#8b5cf6" stroke-width="0.5" opacity="0.3"/><line x1="16" y1="115" x2="36" y2="100" stroke="#fbbf24" stroke-width="0.5" opacity="0.2"/><line x1="114" y1="108" x2="94" y2="95" stroke="#a78bfa" stroke-width="0.5" opacity="0.2"/>
+        <path d="M65 14L22 36v38c0 30 18 56 43 66 25-10 43-36 43-66V36L65 14z" fill="url(#sg)" stroke="url(#ss)" stroke-width="2" filter="url(#glow)"/>
+        <!-- Magnifying glass inside shield -->
+        <circle cx="60" cy="72" r="14" fill="none" stroke="#fbbf24" stroke-width="2"/>
+        <line x1="70" y1="82" x2="80" y2="92" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/>
+        <text x="60" y="77" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="800" fill="#fbbf24">62</text>
+      </svg>
+    </div>
+    <div class="banner-text">
+      <div class="banner-series">CSRF Protection Series &bull; Part 4 of 6</div>
+      <div class="banner-title-text">Production Readiness Audit</div>
+      <p class="banner-desc">Gap analysis and scoring of the CSRF service &mdash; 15 findings across security, reliability, and operational readiness</p>
+      <div class="banner-tags">
+        <span>Security Audit</span>
+        <span>Gap Analysis</span>
+        <span>Score: 62/100</span>
+        <span>15 Findings</span>
+        <span>Remediation Plan</span>
+      </div>
+    </div>
+  </div>
+  <div class="banner-brand">BookStore Platform</div>
+</div>
+<div class="banner-accent-line"></div>
+<!-- ── /LinkedIn Banner ── -->
 
 <div class="container">
 

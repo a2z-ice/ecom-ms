@@ -49,6 +49,15 @@ docker build \
 kind load docker-image bookstore/ui-service:latest --name bookstore
 ```
 
+**csrf-service (Go 1.25):**
+```bash
+cd csrf-service
+go test -v ./...                  # run tests (19 tests, uses miniredis — no real Redis needed)
+docker build -t bookstore/csrf-service:latest .
+kind load docker-image bookstore/csrf-service:latest --name bookstore
+bash scripts/csrf-service-up.sh   # build, test, deploy in one command
+```
+
 **e2e (Playwright):**
 ```bash
 cd e2e
@@ -71,6 +80,11 @@ mvn test -Dtest=BookControllerTest#testGetBooks
 cd inventory-service
 poetry run pytest tests/test_stock.py
 poetry run pytest tests/test_stock.py::test_get_stock -v
+
+# Go — single package or test function
+cd csrf-service
+go test -v ./internal/handler/
+go test -v -run TestTokenGeneration ./internal/handler/
 
 # Playwright — single spec file or grep by test name
 cd e2e
@@ -163,6 +177,7 @@ See `docs/operations/restart-app.md` for the full explanation and root cause ana
 | UI Service | React 19.2 | `ui/` | `myecom.net:30000` |
 | E-Commerce Service | Spring Boot 4.0.3 | `ecom-service/` | `api.service.net:30000/ecom` |
 | Inventory Service | Python FastAPI | `inventory-service/` | `api.service.net:30000/inven` |
+| CSRF Service | Go 1.25 | `csrf-service/` | `api.service.net:30000/csrf` (ext_authz internal) |
 | Analytics Pipeline | Kafka + Debezium + Flink SQL | `analytics/` | internal |
 
 ### Infrastructure Stack
@@ -248,6 +263,17 @@ Superset → Analytics DB
 - Consumes `order.created` from Kafka via `AIOKafkaConsumer` in `app/kafka/consumer.py`
 - JWT middleware in `app/middleware/auth.py`; publishes `inventory.updated` after deduction
 
+### CSRF Service (Go 1.25)
+
+- Gateway-level CSRF protection via Istio ext_authz (`CUSTOM` AuthorizationPolicy)
+- Endpoints: `GET /csrf/token` (JWT required, generates token), `/healthz`, `/livez`, `/metrics`
+- Redis-backed token store (UUID v4, 30min TTL, timing-safe comparison)
+- JWT: base64 decode only (Istio verifies signatures upstream)
+- Fail-open on Redis errors (JWT remains primary defense)
+- Istio integration: `extensionProvider` in mesh config → `AuthorizationPolicy` CUSTOM action → csrf-service
+- Deploy: `bash scripts/csrf-service-up.sh`; deployed to `infra` namespace (2 replicas, HPA 2-5, PDB minAvailable 1)
+- Manifests: `csrf-service/k8s/csrf-service.yaml`, `infra/istio/csrf-envoy-filter.yaml`, `infra/kgateway/routes/csrf-route.yaml`
+
 ---
 
 ## Domain / Hosts Setup
@@ -275,7 +301,7 @@ These must be maintained across all services:
 - All external gateway traffic served over HTTPS (TLS terminated at Istio Gateway, cert-manager managed)
 - All inter-service traffic encrypted via Istio mTLS
 - JWT validation in every backend service (never trust the UI's claims)
-- CSRF tokens required for state-changing UI requests, stored in Redis
+- CSRF tokens validated at gateway level via csrf-service (Istio ext_authz); tokens stored in Redis with 30min TTL
 - Containers run as non-root
 - Secrets via Kubernetes Secrets only
 - All configs via environment variables (15-Factor: no hardcoded config)
@@ -414,8 +440,19 @@ CMD ["<entrypoint>"]
 - OIDC library: `oidc-client-ts`; `UserManager` configured with PKCE (`response_type: 'code'`)
 - Token storage: `UserManager` configured with `userStore: new WebStorageStateStore({ store: new InMemoryWebStorage() })`
 - API calls: always attach `Authorization: Bearer <access_token>` from in-memory `User` object; never read from storage
-- CSRF: fetch CSRF token from ecom-service on app load, store in React state, send as `X-CSRF-Token` header on mutating requests
+- CSRF: fetch CSRF token from gateway-level csrf-service (`GET /csrf/token`) on app load, store in React state, send as `X-CSRF-Token` header on mutating requests; validated at gateway via Istio ext_authz before reaching backend services
 - Nginx config: serve SPA with `try_files $uri /index.html`; set security headers (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Content-Security-Policy`)
+
+### Go (csrf-service/) Patterns
+
+- Entry: `main.go` — thin wiring (config → store → handler → server + graceful shutdown)
+- Package layout: `internal/config`, `internal/jwt`, `internal/store`, `internal/handler`, `internal/middleware`
+- JWT: base64 decode only (`internal/jwt/extract.go`); Istio verifies signatures upstream
+- Token store: `TokenStore` interface + Redis implementation (`internal/store/redis.go`)
+- Tests: `miniredis` for Redis mocking — no real Redis required
+- Env vars: `CSRF_` prefix to avoid collision with Kubernetes auto-injected service env vars (`REDIS_PORT=tcp://...`)
+- Prometheus metrics: `csrf_requests_total`, `csrf_redis_errors_total`, `csrf_request_duration_seconds`
+- Container: distroless base, non-root (65532), read-only filesystem, seccompProfile RuntimeDefault
 
 ### Istio Security Pattern
 
@@ -514,6 +551,8 @@ All `scripts/` files must be idempotent (safe to run multiple times):
 - `trust-ca.sh` — extract self-signed CA cert from cluster to `certs/bookstore-ca.crt`; `--install` adds to macOS Keychain
 - `backup.sh` — timestamped backup of all 4 CNPG databases + Kafka consumer offsets + Keycloak realm
 - `restore.sh <timestamp>` — restore from backup; `--yes` to skip confirmation
+- `csrf-service-up.sh` — build, test, and deploy csrf-service to kind cluster
+- `cert-dashboard-up.sh` — build and deploy cert-dashboard operator (OLM + CRD + operator + CR)
 
 ---
 
