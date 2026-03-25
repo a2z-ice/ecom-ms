@@ -5,13 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BookStore Platform — Microservices Architecture</title>
   <!-- OpenGraph for LinkedIn / Twitter preview -->
-  <meta property="og:title" content="BookStore Platform — Microservices Architecture" />
-  <meta property="og:description" content="Production-grade microservices e-commerce bookstore on Kubernetes with TLS everywhere, Istio mTLS, Flink 2.2.0 CDC, Keycloak OIDC, Grafana/Loki/Tempo observability, Cert Dashboard Operator, and Superset analytics." />
-  <meta property="og:image" content="diagrams/architecture.png" />
+  <meta property="og:title" content="BookStore Platform — Production-Grade Microservices on Kubernetes" />
+  <meta property="og:description" content="35-session engineering deep dive: React + Spring Boot + FastAPI + Go on Kubernetes with Istio mTLS, Keycloak OIDC, Debezium CDC, Flink SQL analytics, cert-manager TLS, gateway-level CSRF, and 430+ E2E tests. Zero-trust security is foundational, not bolted on." />
+  <meta property="og:image" content="https://a2z-ice.github.io/ecom-ms/diagrams/architecture.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="627" />
   <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://a2z-ice.github.io/ecom-ms/" />
+  <meta property="og:site_name" content="BookStore Platform" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="BookStore Platform — Microservices Architecture" />
-  <meta name="twitter:image" content="diagrams/architecture.png" />
+  <meta name="twitter:title" content="BookStore Platform — Production-Grade Microservices on Kubernetes" />
+  <meta name="twitter:description" content="35-session engineering deep dive: zero-trust security, event-driven CDC pipeline, real-time analytics, 430+ E2E tests, and a custom Kubernetes operator — all on a local kind cluster." />
+  <meta name="twitter:image" content="https://a2z-ice.github.io/ecom-ms/diagrams/architecture.png" />
+  <meta name="description" content="Production-grade microservices e-commerce platform on Kubernetes: React, Spring Boot, FastAPI, Go, Istio Ambient mTLS, Keycloak OIDC, Debezium CDC, Flink SQL, cert-manager, gateway CSRF, Grafana observability, and 430+ Playwright E2E tests." />
   <style>
     :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -76,6 +82,65 @@
     .doc-card:hover { transform: translateY(-2px); border-color: var(--accent); }
     .doc-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; color: #f1f5f9; }
     .doc-card p { font-size: 0.85rem; color: var(--muted); margin: 0; }
+    /* ── LinkedIn Hero Banner ── */
+    .hero-banner { position: relative; width: 100%; background: linear-gradient(135deg, #0c1222 0%, #111c3d 25%, #1a1a4e 50%, #1e1b4b 70%, #0f172a 100%); overflow: hidden; padding: 0; }
+    .hero-banner::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle at 10% 40%, rgba(59,130,246,0.1) 0%, transparent 45%), radial-gradient(circle at 90% 20%, rgba(139,92,246,0.1) 0%, transparent 40%), radial-gradient(circle at 50% 90%, rgba(16,185,129,0.06) 0%, transparent 35%), radial-gradient(circle at 70% 60%, rgba(245,158,11,0.04) 0%, transparent 30%); pointer-events: none; }
+    .hero-banner::after { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px); background-size: 52px 52px; pointer-events: none; }
+    .hero-inner { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 56px 48px 48px; }
+    .hero-top { display: flex; align-items: flex-start; gap: 48px; margin-bottom: 36px; }
+    .hero-logo-area { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .hero-logo-area svg { filter: drop-shadow(0 0 28px rgba(59,130,246,0.25)); }
+    .hero-text { flex: 1; min-width: 0; }
+    .hero-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; color: rgba(167,139,250,0.85); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+    .hero-label::before { content: ''; width: 28px; height: 2px; background: linear-gradient(90deg, #a78bfa, transparent); }
+    .hero-h { font-size: 2.4rem; font-weight: 800; line-height: 1.2; margin-bottom: 10px; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 40%, #cbd5e1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero-sub { font-size: 1rem; color: #94a3b8; line-height: 1.6; max-width: 580px; margin-bottom: 20px; }
+    .hero-stats { display: flex; gap: 28px; flex-wrap: wrap; margin-bottom: 0; }
+    .hero-stat { text-align: center; }
+    .hero-stat-num { font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1.2; }
+    .hero-stat-label { font-size: 0.65rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+    /* ── Component icon strip ── */
+    .hero-icons { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 0; padding: 24px 0 0; }
+    .hero-icon { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 14px; background: rgba(30,41,59,0.7); border: 1px solid rgba(51,65,85,0.6); border-radius: 10px; min-width: 76px; transition: border-color 0.2s, background 0.2s, transform 0.2s; }
+    .hero-icon:hover { border-color: rgba(59,130,246,0.4); background: rgba(59,130,246,0.08); transform: translateY(-2px); }
+    .hero-icon svg { width: 28px; height: 28px; }
+    .hero-icon span { font-size: 0.6rem; font-weight: 600; color: #94a3b8; text-align: center; letter-spacing: 0.3px; white-space: nowrap; }
+    /* ── Summary section ── */
+    .hero-summary { margin-top: 32px; padding: 24px 28px; background: rgba(30,41,59,0.5); border: 1px solid rgba(51,65,85,0.5); border-radius: 12px; }
+    .hero-summary h3 { font-size: 0.95rem; font-weight: 700; color: #e2e8f0; margin-bottom: 14px; padding: 0; border: none; }
+    .hero-summary p { font-size: 0.85rem; color: #94a3b8; line-height: 1.8; margin: 0; }
+    .hero-summary strong { color: #cbd5e1; font-weight: 600; }
+    .hero-summary .hl-blue { color: #60a5fa; }
+    .hero-summary .hl-green { color: #34d399; }
+    .hero-summary .hl-purple { color: #a78bfa; }
+    .hero-summary .hl-amber { color: #fbbf24; }
+    .hero-accent-line { height: 3px; background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 30%, #10b981 60%, #f59e0b 85%, #ef4444 100%); }
+    /* ── Floating nodes ── */
+    .hero-node { position: absolute; border-radius: 50%; z-index: 1; }
+    .hero-node::after { content: ''; position: absolute; top: 50%; left: 50%; width: 200%; height: 200%; transform: translate(-50%,-50%); border-radius: 50%; border: 1px solid; opacity: 0.15; animation: hero-pulse 3.5s ease-out infinite; }
+    @keyframes hero-pulse { 0% { width: 100%; height: 100%; opacity: 0.3; } 100% { width: 350%; height: 350%; opacity: 0; } }
+    .hero-node-1 { width: 10px; height: 10px; background: #3b82f6; top: 12%; right: 10%; }
+    .hero-node-1::after { border-color: #3b82f6; }
+    .hero-node-2 { width: 7px; height: 7px; background: #8b5cf6; top: 70%; right: 5%; }
+    .hero-node-2::after { border-color: #8b5cf6; animation-delay: 1.2s; }
+    .hero-node-3 { width: 6px; height: 6px; background: #10b981; top: 25%; right: 22%; }
+    .hero-node-3::after { border-color: #10b981; animation-delay: 2.4s; }
+    .hero-node-4 { width: 5px; height: 5px; background: #f59e0b; bottom: 20%; left: 3%; }
+    .hero-node-4::after { border-color: #f59e0b; animation-delay: 0.8s; }
+    .hero-node-5 { width: 8px; height: 8px; background: #06b6d4; bottom: 35%; right: 15%; }
+    .hero-node-5::after { border-color: #06b6d4; animation-delay: 1.8s; }
+    .hero-brand { position: absolute; bottom: 16px; right: 32px; font-size: 0.6rem; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: rgba(100,116,139,0.35); z-index: 1; }
+    @media (max-width: 768px) {
+      .hero-top { flex-direction: column; align-items: center; gap: 24px; text-align: center; }
+      .hero-h { font-size: 1.7rem; }
+      .hero-sub { font-size: 0.9rem; }
+      .hero-stats { justify-content: center; }
+      .hero-icons { gap: 8px; }
+      .hero-icon { min-width: 64px; padding: 8px 10px; }
+      .hero-node { display: none; }
+      .hero-inner { padding: 36px 20px 32px; }
+      .hero-label { justify-content: center; }
+    }
   </style>
 <script src="nav.js" defer></script>
 </head>
@@ -176,10 +241,178 @@ document.addEventListener('keydown', function(e) {
   }
 });
 </script>
-<div class="container">
 
-  <h1>BookStore Platform</h1>
-  <p>Production-grade microservices e-commerce bookstore on Kubernetes</p>
+<!-- ═══════════════════════════════════════════════════════════════
+     LinkedIn Hero Banner — BookStore Platform
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="hero-banner">
+  <!-- Floating network nodes -->
+  <div class="hero-node hero-node-1"></div>
+  <div class="hero-node hero-node-2"></div>
+  <div class="hero-node hero-node-3"></div>
+  <div class="hero-node hero-node-4"></div>
+  <div class="hero-node hero-node-5"></div>
+  <!-- Connector lines -->
+  <svg style="position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none">
+    <line x1="90%" y1="12%" x2="78%" y2="25%" stroke="#3b82f6" stroke-width="1" opacity="0.05"/>
+    <line x1="95%" y1="70%" x2="85%" y2="35%" stroke="#8b5cf6" stroke-width="1" opacity="0.04"/>
+    <line x1="3%" y1="80%" x2="15%" y2="50%" stroke="#f59e0b" stroke-width="1" opacity="0.04"/>
+  </svg>
+  <div class="hero-inner">
+    <!-- Top row: logo + text -->
+    <div class="hero-top">
+      <div class="hero-logo-area">
+        <!-- Hexagonal shield with microservice nodes -->
+        <svg viewBox="0 0 140 160" width="130" height="150" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="hg" x1="70" y1="6" x2="70" y2="154" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="rgba(59,130,246,0.22)"/><stop offset="50%" stop-color="rgba(139,92,246,0.15)"/><stop offset="100%" stop-color="rgba(16,185,129,0.1)"/></linearGradient>
+            <linearGradient id="hs" x1="20" y1="6" x2="120" y2="154" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#60a5fa"/><stop offset="50%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#34d399"/></linearGradient>
+            <filter id="hglow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          </defs>
+          <!-- Outer shield -->
+          <path d="M70 10L18 34v44c0 32 22 60 52 72 30-12 52-40 52-72V34L70 10z" fill="url(#hg)" stroke="url(#hs)" stroke-width="2" filter="url(#hglow)"/>
+          <!-- Inner microservice nodes -->
+          <circle cx="70" cy="58" r="10" fill="rgba(59,130,246,0.2)" stroke="#60a5fa" stroke-width="1.5"/>
+          <circle cx="48" cy="82" r="8" fill="rgba(139,92,246,0.2)" stroke="#a78bfa" stroke-width="1.5"/>
+          <circle cx="92" cy="82" r="8" fill="rgba(16,185,129,0.2)" stroke="#34d399" stroke-width="1.5"/>
+          <circle cx="58" cy="106" r="7" fill="rgba(245,158,11,0.15)" stroke="#fbbf24" stroke-width="1.2"/>
+          <circle cx="82" cy="106" r="7" fill="rgba(239,68,68,0.15)" stroke="#f87171" stroke-width="1.2"/>
+          <!-- Connection lines (mesh) -->
+          <line x1="70" y1="58" x2="48" y2="82" stroke="#60a5fa" stroke-width="0.8" opacity="0.4"/>
+          <line x1="70" y1="58" x2="92" y2="82" stroke="#34d399" stroke-width="0.8" opacity="0.4"/>
+          <line x1="48" y1="82" x2="92" y2="82" stroke="#a78bfa" stroke-width="0.6" opacity="0.25"/>
+          <line x1="48" y1="82" x2="58" y2="106" stroke="#fbbf24" stroke-width="0.6" opacity="0.25"/>
+          <line x1="92" y1="82" x2="82" y2="106" stroke="#f87171" stroke-width="0.6" opacity="0.25"/>
+          <line x1="58" y1="106" x2="82" y2="106" stroke="#94a3b8" stroke-width="0.5" opacity="0.2"/>
+          <!-- Node labels -->
+          <text x="70" y="61" text-anchor="middle" font-family="Inter,sans-serif" font-size="7" font-weight="700" fill="#60a5fa">GW</text>
+          <text x="48" y="85" text-anchor="middle" font-family="Inter,sans-serif" font-size="6" font-weight="600" fill="#a78bfa">API</text>
+          <text x="92" y="85" text-anchor="middle" font-family="Inter,sans-serif" font-size="6" font-weight="600" fill="#34d399">INV</text>
+          <text x="58" y="109" text-anchor="middle" font-family="Inter,sans-serif" font-size="5.5" font-weight="600" fill="#fbbf24">DB</text>
+          <text x="82" y="109" text-anchor="middle" font-family="Inter,sans-serif" font-size="5.5" font-weight="600" fill="#f87171">CDC</text>
+          <!-- Lock icon at top of shield -->
+          <rect x="62" y="28" width="16" height="13" rx="2.5" fill="#0f172a" stroke="#60a5fa" stroke-width="1.2"/>
+          <path d="M66 28v-4a4 4 0 018 0v4" fill="none" stroke="#60a5fa" stroke-width="1.2" stroke-linecap="round"/>
+          <circle cx="70" cy="34" r="1.8" fill="#60a5fa"/>
+        </svg>
+      </div>
+      <div class="hero-text">
+        <div class="hero-label">Production-Grade Microservices on Kubernetes</div>
+        <div class="hero-h">BookStore Platform</div>
+        <p class="hero-sub">A fully operational e-commerce platform built with zero-trust security, event-driven architecture, and real-time analytics &mdash; deployed on a local Kubernetes cluster with production-aligned patterns</p>
+        <div class="hero-stats">
+          <div class="hero-stat"><div class="hero-stat-num">35</div><div class="hero-stat-label">Sessions</div></div>
+          <div class="hero-stat"><div class="hero-stat-num">430+</div><div class="hero-stat-label">E2E Tests</div></div>
+          <div class="hero-stat"><div class="hero-stat-num">20+</div><div class="hero-stat-label">Services</div></div>
+          <div class="hero-stat"><div class="hero-stat-num">4</div><div class="hero-stat-label">Databases</div></div>
+          <div class="hero-stat"><div class="hero-stat-num">16</div><div class="hero-stat-label">Charts</div></div>
+          <div class="hero-stat"><div class="hero-stat-num">6</div><div class="hero-stat-label">CSRF Docs</div></div>
+        </div>
+      </div>
+    </div>
+    <!-- Component icons strip -->
+    <div class="hero-icons">
+      <!-- React -->
+      <div class="hero-icon">
+        <svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="3" fill="#61dafb"/><ellipse cx="14" cy="14" rx="12" ry="4.5" fill="none" stroke="#61dafb" stroke-width="1" transform="rotate(0 14 14)"/><ellipse cx="14" cy="14" rx="12" ry="4.5" fill="none" stroke="#61dafb" stroke-width="1" transform="rotate(60 14 14)"/><ellipse cx="14" cy="14" rx="12" ry="4.5" fill="none" stroke="#61dafb" stroke-width="1" transform="rotate(120 14 14)"/></svg>
+        <span>React 19</span>
+      </div>
+      <!-- Spring Boot -->
+      <div class="hero-icon">
+        <svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="none" stroke="#6db33f" stroke-width="1.5"/><path d="M8 18c2-5 6-10 12-12M9 19a2 2 0 104 0 2 2 0 00-4 0" fill="#6db33f"/></svg>
+        <span>Spring Boot</span>
+      </div>
+      <!-- FastAPI / Python -->
+      <div class="hero-icon">
+        <svg viewBox="0 0 28 28"><path d="M14 3v11h-4v11l10-14H14V3z" fill="#009688" opacity="0.9"/></svg>
+        <span>FastAPI</span>
+      </div>
+      <!-- Go -->
+      <div class="hero-icon">
+        <svg viewBox="0 0 28 28"><text x="14" y="19" text-anchor="middle" font-family="Inter,sans-serif" font-size="13" font-weight="800" fill="#00ADD8">Go</text></svg>
+        <span>Go 1.25</span>
+      </div>
+      <!-- Kubernetes -->
+      <div class="hero-icon">
+        <svg viewBox="0 0 28 28"><path d="M14 3L3 9v10l11 6 11-6V9L14 3z" fill="none" stroke="#326CE5" stroke-width="1.5"/><circle cx="14" cy="14" r="3" fill="#326CE5" opacity="0.3"/><circle cx="14" cy="14" r="1.5" fill="#326CE5"/></svg>
+        <span>Kubernetes</span>
+      </div>
+      <!-- Istio -->
+      <div class="hero-icon">
+        <svg viewBox="0 0 28 28"><path d="M8 4h4v20H8z" fill="#466BB0" opacity="0.8"/><path d="M14 4l8 4v12l-8 4V4z" fill="#466BB0" opacity="0.5"/></svg>
+        <span>Istio mTLS</span>
+      </div>
+      <!-- Kafka -->
+      <div class="hero-icon">
+        <svg viewBox="0 0 28 28"><circle cx="14" cy="8" r="3.5" fill="none" stroke="#e2e8f0" stroke-width="1.3"/><circle cx="8" cy="18" r="3" fill="none" stroke="#e2e8f0" stroke-width="1.3"/><circle cx="20" cy="18" r="3" fill="none" stroke="#e2e8f0" stroke-width="1.3"/><line x1="14" y1="11.5" x2="8" y2="15" stroke="#e2e8f0" stroke-width="1"/><line x1="14" y1="11.5" x2="20" y2="15" stroke="#e2e8f0" stroke-width="1"/></svg>
+        <span>Kafka</span>
+      </div>
+      <!-- PostgreSQL -->
+      <div class="hero-icon">
+        <svg viewBox="0 0 28 28"><ellipse cx="14" cy="9" rx="8" ry="4" fill="none" stroke="#336791" stroke-width="1.3"/><path d="M6 9v10c0 2.2 3.6 4 8 4s8-1.8 8-4V9" fill="none" stroke="#336791" stroke-width="1.3"/><ellipse cx="14" cy="15" rx="8" ry="3" fill="none" stroke="#336791" stroke-width="0.8" opacity="0.4"/></svg>
+        <span>PostgreSQL</span>
+      </div>
+      <!-- Keycloak -->
+      <div class="hero-icon">
+        <svg viewBox="0 0 28 28"><rect x="7" y="10" width="14" height="11" rx="2" fill="none" stroke="#4d4d4d" stroke-width="1.3"/><path d="M11 10V7a3 3 0 016 0v3" fill="none" stroke="#e2e8f0" stroke-width="1.3"/><circle cx="14" cy="16" r="2" fill="#f59e0b"/></svg>
+        <span>Keycloak</span>
+      </div>
+      <!-- Flink -->
+      <div class="hero-icon">
+        <svg viewBox="0 0 28 28"><path d="M5 10h18l-4 4H9l-4-4z" fill="#E6526F" opacity="0.8"/><path d="M5 16h18l-4 4H9l-4-4z" fill="#E6526F" opacity="0.5"/></svg>
+        <span>Flink</span>
+      </div>
+      <!-- Debezium -->
+      <div class="hero-icon">
+        <svg viewBox="0 0 28 28"><path d="M7 14l7-10v8h7l-7 10v-8H7z" fill="#ef4444" opacity="0.7"/></svg>
+        <span>Debezium</span>
+      </div>
+      <!-- Grafana -->
+      <div class="hero-icon">
+        <svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="10" fill="none" stroke="#F46800" stroke-width="1.3"/><path d="M8 17l3-5 3 3 3-7 3 4" fill="none" stroke="#F46800" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Grafana</span>
+      </div>
+      <!-- Prometheus -->
+      <div class="hero-icon">
+        <svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="10" fill="none" stroke="#E6522C" stroke-width="1.2"/><path d="M14 6v8l5 3" fill="none" stroke="#E6522C" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span>Prometheus</span>
+      </div>
+      <!-- Redis -->
+      <div class="hero-icon">
+        <svg viewBox="0 0 28 28"><path d="M14 6l10 5v6l-10 5L4 17v-6l10-5z" fill="#DC382D" opacity="0.2" stroke="#DC382D" stroke-width="1.2"/><ellipse cx="14" cy="11" rx="10" ry="5" fill="none" stroke="#DC382D" stroke-width="0.8" opacity="0.5"/></svg>
+        <span>Redis</span>
+      </div>
+      <!-- cert-manager -->
+      <div class="hero-icon">
+        <svg viewBox="0 0 28 28"><rect x="6" y="8" width="16" height="12" rx="2" fill="none" stroke="#326CE5" stroke-width="1.2"/><path d="M10 14h8M10 17h5" stroke="#326CE5" stroke-width="1" stroke-linecap="round"/><circle cx="20" cy="10" r="4" fill="#10b981" opacity="0.3" stroke="#10b981" stroke-width="1"/><path d="M18.5 10l1 1 2-2" fill="none" stroke="#10b981" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>cert-manager</span>
+      </div>
+      <!-- Superset -->
+      <div class="hero-icon">
+        <svg viewBox="0 0 28 28"><rect x="5" y="14" width="4" height="8" rx="1" fill="#4fc3f7" opacity="0.7"/><rect x="12" y="10" width="4" height="12" rx="1" fill="#4fc3f7" opacity="0.85"/><rect x="19" y="6" width="4" height="16" rx="1" fill="#4fc3f7"/></svg>
+        <span>Superset</span>
+      </div>
+    </div>
+    <!-- Project summary -->
+    <div class="hero-summary">
+      <h3>What makes this platform stand out?</h3>
+      <p>
+        This isn't another tutorial CRUD app. <strong>BookStore Platform</strong> is a <span class="hl-blue">production-aligned microservices architecture</span> built iteratively over 35 engineering sessions, each with strict acceptance criteria.<br><br>
+        <span class="hl-green">Zero-trust security is not bolted on &mdash; it's foundational.</span> Every request traverses Istio Ambient mTLS, every JWT is validated independently at each service, every container runs non-root with read-only filesystems, and CSRF protection operates at the gateway via a dedicated Go microservice using Istio ext_authz.<br><br>
+        The <span class="hl-purple">event-driven data pipeline</span> captures real-time changes from 4 PostgreSQL databases through Debezium CDC into Kafka, processed by Flink SQL into a star schema powering 3 Superset dashboards with 16 analytical charts.<br><br>
+        <span class="hl-amber">Full observability</span> is baked in: Prometheus metrics, Grafana dashboards, Loki log aggregation, Tempo distributed tracing, and Kiali service mesh topology &mdash; all connected through an OpenTelemetry Collector pipeline.<br><br>
+        With <strong>430+ Playwright E2E tests</strong>, automated backup/restore, HPA auto-scaling, PDB disruption budgets, cert-manager TLS rotation, and a custom Go Kubernetes operator for certificate monitoring &mdash; this platform demonstrates that <span class="hl-blue">production-grade patterns can live on a local kind cluster</span>.
+      </p>
+    </div>
+  </div>
+  <div class="hero-brand">BookStore Platform &bull; Microservices Architecture</div>
+</div>
+<div class="hero-accent-line"></div>
+<!-- ═══════════════════════════════════════════════════════════════
+     /LinkedIn Hero Banner
+     ═══════════════════════════════════════════════════════════════ -->
+
+<div class="container">
 
   <div class="badges">
     <span class="badge green">430+ E2E Tests Passing</span>
@@ -297,6 +530,10 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
 
   <h2 id="docs">Documentation</h2>
   <div class="doc-cards">
+    <a href="quick-start.html" class="doc-card" style="border-color: #10b981; border-width: 2px; background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(59,130,246,0.06));">
+      <h3>Quick Start Guide</h3>
+      <p>Get the full platform running on macOS or Linux in under 30 minutes. Prerequisites, one-command bootstrap, verification, port map, credentials, and troubleshooting &mdash; all in one page.</p>
+    </a>
     <a href="bookstore-platform-manual.html" class="doc-card" style="border-color: #f59e0b; border-width: 2px;">
       <h3>Technical Reference Manual v1.0</h3>
       <p>Complete 13-chapter professional manual — platform overview, user guide, admin panel, analytics, monitoring, security architecture, API reference, operations, and troubleshooting. All in one document.</p>

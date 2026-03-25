@@ -14,7 +14,8 @@
     {
       title: 'Home',
       links: [
-        { label: 'Platform Overview', href: 'index.html' }
+        { label: 'Platform Overview', href: 'index.html' },
+        { label: 'Quick Start Guide', href: 'quick-start.html', highlight: true }
       ]
     },
     {
