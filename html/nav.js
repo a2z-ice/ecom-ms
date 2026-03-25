@@ -40,7 +40,7 @@
       title: 'CSRF Protection Series',
       links: [
         { label: '\u2460 Gateway CSRF Service', href: 'gateway-csrf-service.html' },
-        { label: '\u2461 Redis Token Store', href: 'csrf-redis-implementation.html' },
+        { label: '\u2461 Redis Token Store (Spring Boot)', href: 'csrf-redis-implementation.html' },
         { label: '\u2462 ext_authz vs Wasm', href: 'csrf-extauthz-vs-wasm.html' },
         { label: '\u2463 Production Audit', href: 'csrf-production-readiness.html' },
         { label: '\u2464 Production Enhancement', href: 'csrf-production-enhancement.html' },
