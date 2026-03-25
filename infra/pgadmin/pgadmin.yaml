@@ -1,25 +1,92 @@
 ---
-# Secret — PgAdmin credentials (REPLACE before applying)
-# kubectl create secret generic pgadmin-secret \
-#   --namespace infra \
-#   --from-literal=PGADMIN_DEFAULT_EMAIL=admin@bookstore.local \
-#   --from-literal=PGADMIN_DEFAULT_PASSWORD=<strong-password>
+# PgAdmin is deployed in the admin-tools namespace (NOT in the Istio Ambient mesh).
+# Istio Ambient ztunnel does not support cross-namespace L4 PostgreSQL connections.
+# PgAdmin connects to databases via NodePort services (31432-31435) which bypass ztunnel.
+# All other service-to-service mTLS remains STRICT.
+
+# Namespace — NOT ambient-labeled (no istio.io/dataplane-mode)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: admin-tools
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+
+---
+# Secret — PgAdmin credentials
 apiVersion: v1
 kind: Secret
 metadata:
   name: pgadmin-secret
-  namespace: infra
+  namespace: admin-tools
 type: Opaque
 data:
   PGADMIN_DEFAULT_EMAIL: YWRtaW5AYm9va3N0b3JlLmRldg==   # admin@bookstore.dev
   PGADMIN_DEFAULT_PASSWORD: Q0hBTkdFX01F                  # CHANGE_ME
 
 ---
+# Pre-configured server definitions — all 4 PostgreSQL databases
+# PgAdmin connects via ztunnel mTLS (admin-tools namespace is in the ambient mesh).
+# AuthorizationPolicy + NetworkPolicy on each DB namespace must allow admin-tools.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgadmin-servers
+  namespace: admin-tools
+data:
+  servers.json: |
+    {
+      "Servers": {
+        "1": {
+          "Name": "ecom-db (E-Commerce)",
+          "Group": "BookStore",
+          "Host": "ecom-db-rw.ecom.svc.cluster.local",
+          "Port": 5432,
+          "MaintenanceDB": "ecomdb",
+          "Username": "ecomuser",
+          "SSLMode": "prefer",
+          "Comment": "E-Commerce Service database (Liquibase managed)"
+        },
+        "2": {
+          "Name": "inventory-db (Inventory)",
+          "Group": "BookStore",
+          "Host": "inventory-db-rw.inventory.svc.cluster.local",
+          "Port": 5432,
+          "MaintenanceDB": "inventorydb",
+          "Username": "inventoryuser",
+          "SSLMode": "prefer",
+          "Comment": "Inventory Service database (Alembic managed)"
+        },
+        "3": {
+          "Name": "analytics-db (Analytics/Flink)",
+          "Group": "BookStore",
+          "Host": "analytics-db-rw.analytics.svc.cluster.local",
+          "Port": 5432,
+          "MaintenanceDB": "analyticsdb",
+          "Username": "analyticsuser",
+          "SSLMode": "prefer",
+          "Comment": "Analytics database — star schema, CDC pipeline destination"
+        },
+        "4": {
+          "Name": "keycloak-db (Identity)",
+          "Group": "BookStore",
+          "Host": "keycloak-db-rw.identity.svc.cluster.local",
+          "Port": 5432,
+          "MaintenanceDB": "keycloakdb",
+          "Username": "keycloakuser",
+          "SSLMode": "prefer",
+          "Comment": "Keycloak identity database"
+        }
+      }
+    }
+
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: pgadmin-pvc
-  namespace: infra
+  namespace: admin-tools
 spec:
   accessModes: [ReadWriteOnce]
   resources:
@@ -31,7 +98,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pgadmin
-  namespace: infra
+  namespace: admin-tools
 spec:
   replicas: 1
   selector:
@@ -44,19 +111,29 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
-        runAsUser: 5050    # pgadmin official image UID
+        runAsUser: 5050
         fsGroup: 5050
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: pgadmin
           image: dpage/pgadmin4:9.1
           ports:
             - containerPort: 80
+          env:
+            - name: PGADMIN_SERVER_JSON_FILE
+              value: /pgadmin4/servers.json
           envFrom:
             - secretRef:
                 name: pgadmin-secret
           volumeMounts:
             - name: data
               mountPath: /var/lib/pgadmin
+            - name: servers-config
+              mountPath: /pgadmin4/servers.json
+              subPath: servers.json
+              readOnly: true
+          securityContext:
           resources:
             requests:
               cpu: 50m
@@ -74,6 +151,9 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: pgadmin-pvc
+        - name: servers-config
+          configMap:
+            name: pgadmin-servers
 
 ---
 # NodePort service — accessible at localhost:31111 from host machine
@@ -81,7 +161,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: pgadmin
-  namespace: infra
+  namespace: admin-tools
 spec:
   selector:
     app: pgadmin
@@ -90,3 +170,4 @@ spec:
       targetPort: 80
       nodePort: 31111
   type: NodePort
+

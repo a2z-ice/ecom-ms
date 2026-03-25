@@ -13,7 +13,7 @@ Step-by-step walkthrough of every interface, dashboard, and API endpoint.
 | E-Commerce API | https://api.service.net:30000/ecom | JWT token | REST API |
 | Inventory API | https://api.service.net:30000/inven | JWT token | Stock API |
 | Keycloak Admin | http://localhost:32400/admin | admin / CHANGE_ME | Identity |
-| PgAdmin | http://localhost:31111 | admin@bookstore.local / CHANGE_ME | Database |
+| PgAdmin | http://localhost:31111 | admin@bookstore.dev / CHANGE_ME | Database |
 | Superset | http://localhost:32000 | admin / CHANGE_ME | Analytics |
 | Grafana | http://localhost:32500 | admin / admin | Monitoring |
 | Kiali | http://localhost:32100/kiali | (none) | Service Mesh |
@@ -493,7 +493,7 @@ To manually trigger renewal of the gateway certificate:
 ## 7. PgAdmin (Database Administration)
 
 **URL:** http://localhost:31111
-**Login:** admin@bookstore.local / CHANGE_ME
+**Login:** admin@bookstore.dev / CHANGE_ME
 
 ![PgAdmin Login](../e2e/screenshots/pgadmin-01-login.png)
 

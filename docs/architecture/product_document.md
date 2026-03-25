@@ -45,7 +45,7 @@ The platform runs on a local 3-node **kind** Kubernetes cluster with **Istio Amb
 | Analytics Pipeline | Apache Flink 1.20 (4 SQL streaming jobs) | `analytics` | `localhost:32200` (Flink UI) |
 | Analytics DB | PostgreSQL (star schema, 10 views) | `analytics` | internal |
 | Analytics Dashboard | Apache Superset (3 dashboards, 16 charts) | `analytics` | `localhost:32000` |
-| Service Mesh | Istio Ambient Mesh 1.28.4 | `istio-system` | — |
+| Service Mesh | Istio Ambient Mesh 1.29.1 | `istio-system` | — |
 | Gateway | Istio Gateway (k8s Gateway API) | `infra` | all :30000 routes |
 | Session / Rate-limit | Redis | `infra` | internal |
 | DB Admin | PgAdmin 4 | `infra` | `localhost:31111` |
@@ -796,7 +796,7 @@ kubectl get pods -A | grep -E "Running|Completed"
 | Keycloak User | `http://idp.keycloak.net:30000/realms/bookstore` | user1 | `CHANGE_ME` |
 | Keycloak Admin | `http://idp.keycloak.net:30000/admin` | admin | `CHANGE_ME` |
 | Superset | `http://localhost:32000` | admin | `CHANGE_ME` |
-| PgAdmin | `http://localhost:31111` | admin@bookstore.local | `CHANGE_ME` |
+| PgAdmin | `http://localhost:31111` | admin@bookstore.dev | `CHANGE_ME`` |
 | Kiali | `http://localhost:32100/kiali` | — | — (anonymous) |
 
 ---

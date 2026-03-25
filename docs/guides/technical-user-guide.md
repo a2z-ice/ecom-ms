@@ -95,7 +95,7 @@ curl -sk https://api.service.net:30000/ecom/books
 
 | Tool | URL | Default Credentials |
 |------|-----|---------------------|
-| **PgAdmin** | `http://localhost:31111` | `admin@bookstore.local` / `CHANGE_ME` |
+| **PgAdmin** | `http://localhost:31111` | `admin@bookstore.dev` / `CHANGE_ME` |
 | **Apache Superset** | `http://localhost:32000` | `admin` / `CHANGE_ME` |
 | **Kiali** | `http://localhost:32100/kiali` | Anonymous (no login) |
 | **Flink Dashboard** | `http://localhost:32200` | No auth |
@@ -163,7 +163,7 @@ curl -sk https://api.service.net:30000/ecom/books
 | Service | Username | Password | Notes |
 |---------|----------|----------|-------|
 | Keycloak Admin | `admin` | `CHANGE_ME` | Master realm admin |
-| PgAdmin | `admin@bookstore.local` | `CHANGE_ME` | `PGADMIN_DEFAULT_EMAIL` |
+| PgAdmin | `admin@bookstore.dev` | `CHANGE_ME` | `PGADMIN_DEFAULT_EMAIL` |
 | Superset | `admin` | `CHANGE_ME` | Default admin account |
 | Grafana | `admin` | `admin` | Default Grafana admin |
 

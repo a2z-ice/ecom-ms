@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connecting to External Databases from Istio Ambient Mesh — BookStore Platform</title>
+  <meta property="og:title" content="External Database Connectivity Guide — Istio Ambient Mesh + AWS Aurora PostgreSQL" />
+  <meta property="og:description" content="Step-by-step guide: ServiceEntry, DestinationRule, AuthorizationPolicy, NetworkPolicy, and application configuration for connecting to AWS Aurora from Istio Ambient mTLS STRICT clusters." />
+  <meta property="og:type" content="article" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 32px; }
+    h2 { font-size: 1.5rem; font-weight: 700; margin: 56px 0 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.15rem; font-weight: 600; margin: 32px 0 12px; color: #cbd5e1; }
+    h4 { font-size: 0.95rem; font-weight: 600; margin: 20px 0 8px; color: #94a3b8; }
+    p { margin-bottom: 16px; color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.85rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.05); }
+
+    /* Code */
+    code { background: var(--card); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: #f59e0b; }
+    pre { background: var(--card); padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.85rem; line-height: 1.6; }
+
+    /* Lists */
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+
+    /* Badges */
+    .badge { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; margin-bottom: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badges { margin-bottom: 28px; }
+
+    /* Top Nav */
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+
+    /* Callouts */
+    .callout { border-radius: 8px; padding: 16px 20px; margin: 16px 0 24px; border-left: 4px solid; }
+    .callout.info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+    .callout.warning { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
+    .callout.success { background: rgba(16,185,129,0.08); border-color: #10b981; }
+    .callout.danger { background: rgba(239,68,68,0.08); border-color: #ef4444; }
+    .callout strong { color: #f1f5f9; }
+    .callout p { margin-bottom: 0; font-size: 0.9rem; }
+    .callout-title { font-weight: 700; margin-bottom: 6px; font-size: 0.9rem; }
+    .callout.danger .callout-title { color: #ef4444; }
+    .callout.warning .callout-title { color: #f59e0b; }
+    .callout.info .callout-title { color: #3b82f6; }
+    .callout.success .callout-title { color: #10b981; }
+
+    /* Step Cards */
+    .step-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px 28px; margin: 20px 0 28px; position: relative; }
+    .step-card .step-number { position: absolute; top: -14px; left: 20px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; font-size: 0.8rem; font-weight: 800; padding: 4px 14px; border-radius: 20px; }
+    .step-card h3 { margin-top: 8px; color: #f1f5f9; font-size: 1.1rem; }
+    .step-card p { font-size: 0.92rem; }
+    .step-card pre { border-color: #475569; }
+
+    /* Architecture Diagram */
+    .arch-diagram { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0 28px; overflow-x: auto; }
+    .arch-diagram pre { background: transparent; border: none; padding: 0; margin: 0; }
+    .arch-diagram pre code { color: #a78bfa; font-size: 0.82rem; }
+
+    /* Comparison Grid */
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0 24px; }
+    @media (max-width: 700px) { .compare-grid { grid-template-columns: 1fr; } }
+    .compare-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .compare-card.internal { border-left: 4px solid #3b82f6; }
+    .compare-card.external { border-left: 4px solid #10b981; }
+    .compare-card h4 { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+    .compare-card.internal h4 { color: #3b82f6; }
+    .compare-card.external h4 { color: #10b981; }
+    .compare-card ul { margin: 0; padding-left: 16px; }
+    .compare-card li { font-size: 0.88rem; color: var(--muted); margin-bottom: 4px; }
+
+    /* Pipeline diagram */
+    .pipeline { display: flex; align-items: center; gap: 0; margin: 20px 0 28px; flex-wrap: wrap; justify-content: center; }
+    .pipeline-node { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; text-align: center; font-size: 0.82rem; font-weight: 600; min-width: 120px; }
+    .pipeline-node.app { border-color: #3b82f6; color: #60a5fa; }
+    .pipeline-node.ztunnel { border-color: #8b5cf6; color: #a78bfa; }
+    .pipeline-node.policy { border-color: #f59e0b; color: #fbbf24; }
+    .pipeline-node.tls { border-color: #10b981; color: #34d399; }
+    .pipeline-node.db { border-color: #06b6d4; color: #22d3ee; }
+    .pipeline-arrow { color: var(--muted); font-size: 1.2rem; padding: 0 4px; }
+
+    /* Checklist */
+    .checklist { list-style: none; margin: 16px 0 24px; padding: 0; }
+    .checklist li { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 12px; font-size: 0.9rem; transition: border-color 0.2s, background 0.2s; cursor: pointer; }
+    .checklist li:hover { border-color: #475569; }
+    .checklist input[type="checkbox"] { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; min-width: 20px; border: 2px solid var(--border); border-radius: 4px; margin-top: 2px; cursor: pointer; position: relative; transition: all 0.2s; }
+    .checklist input[type="checkbox"]:checked { background: linear-gradient(135deg, #059669, #10b981); border-color: #10b981; }
+    .checklist input[type="checkbox"]:checked::after { content: ''; position: absolute; left: 5px; top: 1px; width: 6px; height: 10px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+    .checklist input[type="checkbox"]:checked + span { color: var(--muted); text-decoration: line-through; }
+    .checklist span { flex: 1; }
+
+    /* Layer indicator */
+    .layer-indicator { display: flex; gap: 8px; margin: 16px 0 24px; flex-wrap: wrap; }
+    .layer-tag { display: flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-size: 0.8rem; font-weight: 600; }
+    .layer-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .layer-tag.istio .layer-dot { background: #8b5cf6; }
+    .layer-tag.k8s .layer-dot { background: #3b82f6; }
+    .layer-tag.aws .layer-dot { background: #f59e0b; }
+    .layer-tag.app .layer-dot { background: #10b981; }
+
+    /* Priority list */
+    .priority-list { list-style: none; padding: 0; margin: 16px 0 24px; counter-reset: priority; }
+    .priority-list li { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px 12px 50px; margin-bottom: 8px; font-size: 0.9rem; position: relative; }
+    .priority-list li::before { counter-increment: priority; content: counter(priority); position: absolute; left: 14px; top: 50%; transform: translateY(-50%); background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; }
+    .priority-list li .error-hint { color: var(--muted); font-size: 0.82rem; margin-left: 4px; }
+
+    /* TOC */
+    .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 28px; margin: 24px 0 40px; }
+    .toc h3 { margin: 0 0 12px; color: var(--accent); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .toc ol { margin: 0; padding-left: 20px; }
+    .toc li { margin-bottom: 4px; font-size: 0.88rem; }
+    .toc a { color: var(--muted); }
+    .toc a:hover { color: var(--text); }
+    .toc ol ol { margin: 4px 0 4px 16px; }
+
+    /* Takeaway */
+    .takeaway { background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(59,130,246,0.1)); border: 1px solid rgba(139,92,246,0.3); border-radius: 12px; padding: 24px 28px; margin: 32px 0; }
+    .takeaway p { font-size: 1rem; font-weight: 500; color: #f1f5f9; margin-bottom: 0; }
+    .takeaway strong { color: #a78bfa; }
+
+    /* Footer */
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      h1 { font-size: 1.6rem; }
+      .step-card { padding: 20px 16px; }
+      .topnav-links { gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="pgadmin-connectivity-fix.html">PgAdmin Fix</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>Connecting to External Databases from Istio Ambient Mesh</h1>
+  <p class="subtitle">AWS Aurora PostgreSQL Guide &mdash; ServiceEntry, DestinationRule, AuthorizationPolicy, NetworkPolicy, and application configuration</p>
+
+  <div class="badges">
+    <span class="badge green">AWS Aurora Ready</span>
+    <span class="badge purple">Istio Ambient mTLS</span>
+    <span class="badge orange">Step-by-Step Guide</span>
+    <span class="badge green">Troubleshooting Included</span>
+  </div>
+
+  <div class="layer-indicator">
+    <div class="layer-tag istio"><span class="layer-dot"></span> Istio Layer</div>
+    <div class="layer-tag k8s"><span class="layer-dot"></span> Kubernetes Layer</div>
+    <div class="layer-tag aws"><span class="layer-dot"></span> AWS Layer</div>
+    <div class="layer-tag app"><span class="layer-dot"></span> Application Layer</div>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <h3>Table of Contents</h3>
+    <ol>
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#architecture">Architecture</a></li>
+      <li><a href="#prerequisites">Prerequisites</a></li>
+      <li><a href="#step-by-step">Step-by-Step Guide</a>
+        <ol>
+          <li><a href="#step1">Create the ServiceEntry</a></li>
+          <li><a href="#step2">Create the DestinationRule</a></li>
+          <li><a href="#step3">Create/Update AuthorizationPolicy</a></li>
+          <li><a href="#step4">Create/Update NetworkPolicy</a></li>
+          <li><a href="#step5">Store the RDS CA Certificate</a></li>
+          <li><a href="#step6">Store Database Credentials</a></li>
+          <li><a href="#step7">Mount Certificates and Configure Application</a></li>
+          <li><a href="#step8">Verify Connectivity</a></li>
+        </ol>
+      </li>
+      <li><a href="#troubleshooting">Troubleshooting Guide</a></li>
+      <li><a href="#comparison">Internal vs External Database Connections</a></li>
+      <li><a href="#aurora-config">AWS Aurora-Specific Configuration</a></li>
+      <li><a href="#checklist">Checklist</a></li>
+      <li><a href="#takeaway">Key Takeaway</a></li>
+    </ol>
+  </div>
+
+  <!-- 1. Overview -->
+  <h2 id="overview">1. Overview</h2>
+
+  <p>When your application runs inside an Istio Ambient mesh with STRICT mTLS and you need to connect to an external database (AWS Aurora, Cloud SQL, Azure Database, etc.), you need to configure several layers:</p>
+
+  <ul>
+    <li><strong>ServiceEntry</strong> &mdash; Tell Istio about the external host so ztunnel knows how to route it</li>
+    <li><strong>DestinationRule</strong> &mdash; Configure TLS settings for the external connection</li>
+    <li><strong>AuthorizationPolicy</strong> &mdash; Allow your application's namespace to reach the external service</li>
+    <li><strong>NetworkPolicy</strong> &mdash; Allow egress from your namespace to the external host</li>
+    <li><strong>Application config</strong> &mdash; Connection string, SSL certificates, credentials</li>
+  </ul>
+
+  <p>Each layer can independently block your connection, and the error messages are often misleading. This guide walks through every layer with production-tested YAML manifests.</p>
+
+  <div class="callout warning">
+    <div class="callout-title">Why This Guide Exists</div>
+    <p>This guide is based on real debugging experience connecting PgAdmin to CloudNativePG PostgreSQL databases across Istio Ambient mesh namespaces. The key lessons:</p>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>#</th><th>Hard-Won Lesson</th><th>Impact</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>1</strong></td>
+        <td><strong>AuthorizationPolicy blocks by default.</strong> Any new namespace/service MUST be explicitly allowed. ztunnel enforces at L4 and resets connections from unauthorized sources.</td>
+        <td>Error: <code>Connection reset by peer</code></td>
+      </tr>
+      <tr>
+        <td><strong>2</strong></td>
+        <td><strong>NetworkPolicy is a second layer.</strong> Even if AuthorizationPolicy allows it, Kubernetes NetworkPolicy can still block.</td>
+        <td>Error: Connection timeout</td>
+      </tr>
+      <tr>
+        <td><strong>3</strong></td>
+        <td><strong>Ambient mesh required on BOTH sides</strong> (for in-mesh targets). Source namespace must have <code>istio.io/dataplane-mode=ambient</code>.</td>
+        <td>Non-HBONE traffic rejected by destination ztunnel</td>
+      </tr>
+      <tr>
+        <td><strong>4</strong></td>
+        <td><strong><code>portLevelMtls: PERMISSIVE</code> does NOT work in ambient mode.</strong> Unlike sidecar mode, ztunnel does not support port-level mTLS granularity.</td>
+        <td>Must keep both sides in ambient mesh</td>
+      </tr>
+      <tr>
+        <td><strong>5</strong></td>
+        <td><strong>Cross-namespace L4 PostgreSQL works when policies allow it.</strong> Debezium (infra ns) connects to ecom-db (ecom ns) via ztunnel HBONE.</td>
+        <td>Proof that the path works</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 2. Architecture -->
+  <h2 id="architecture">2. Architecture</h2>
+
+  <h3>Traffic Flow: Application to External Database</h3>
+
+  <div class="pipeline">
+    <div class="pipeline-node app">Application Pod<br><small>ambient mesh</small></div>
+    <div class="pipeline-arrow">&rarr;</div>
+    <div class="pipeline-node ztunnel">ztunnel<br><small>source node</small></div>
+    <div class="pipeline-arrow">&rarr;</div>
+    <div class="pipeline-node policy">AuthzPolicy<br><small>egress check</small></div>
+    <div class="pipeline-arrow">&rarr;</div>
+    <div class="pipeline-node tls">TLS Origination<br><small>DestinationRule</small></div>
+    <div class="pipeline-arrow">&rarr;</div>
+    <div class="pipeline-node db">Aurora PostgreSQL<br><small>external</small></div>
+  </div>
+
+  <div class="arch-diagram">
+    <pre><code>Application Pod (ambient mesh)
+  |
+  v
+ztunnel (source node) --- wraps in HBONE mTLS for mesh, direct TLS for external
+  |
+  |  Checks AuthorizationPolicy
+  |    For MESH destinations: HBONE tunnel to dest ztunnel
+  |    For EXTERNAL destinations: direct TLS to external host
+  |
+  v
+ServiceEntry tells ztunnel:
+  "aurora-db.cluster-xxx.us-east-1.rds.amazonaws.com is an external service"
+
+DestinationRule tells ztunnel:
+  "Use TLS mode SIMPLE (server-side TLS) when connecting to this external host"
+  "Present client certificate for mTLS if Aurora requires it"</code></pre>
+  </div>
+
+  <h3>What Each Istio Resource Does</h3>
+
+  <table>
+    <thead>
+      <tr><th>Resource</th><th>Purpose</th><th>What Happens Without It</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>ServiceEntry</strong></td>
+        <td>Tells ztunnel the external host exists and how to resolve it</td>
+        <td>ztunnel may blackhole the connection or route it incorrectly</td>
+      </tr>
+      <tr>
+        <td><strong>DestinationRule</strong></td>
+        <td>Configures TLS origination (SIMPLE or MUTUAL) for the external connection</td>
+        <td>ztunnel sends plaintext; Aurora rejects if <code>rds.force_ssl=1</code></td>
+      </tr>
+      <tr>
+        <td><strong>AuthorizationPolicy</strong></td>
+        <td>Explicitly allows your app to reach the external host</td>
+        <td><code>Connection reset by peer</code> &mdash; silent TCP reset</td>
+      </tr>
+      <tr>
+        <td><strong>NetworkPolicy</strong></td>
+        <td>Kubernetes-level egress allow rule</td>
+        <td>Connection timeout &mdash; packets never leave the pod network</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 3. Prerequisites -->
+  <h2 id="prerequisites">3. Prerequisites</h2>
+
+  <ul>
+    <li><strong>Istio Ambient Mesh 1.29.1+</strong> with STRICT mTLS enabled cluster-wide</li>
+    <li><strong>AWS Aurora PostgreSQL</strong> cluster with the endpoint hostname</li>
+    <li><strong>SSL certificate bundle</strong> &mdash; AWS RDS CA certificate (<code>global-bundle.pem</code>)</li>
+    <li><strong>Database credentials</strong> &mdash; username/password or IAM authentication token</li>
+    <li><strong>Application namespace</strong> labeled for ambient mesh</li>
+    <li><strong>Network connectivity</strong> between your Kubernetes cluster and Aurora's VPC</li>
+  </ul>
+
+  <pre><code># Verify namespace is in ambient mesh
+kubectl get ns ecom --show-labels | grep "istio.io/dataplane-mode"
+# Must show: istio.io/dataplane-mode=ambient</code></pre>
+
+  <!-- 4. Step-by-Step Guide -->
+  <h2 id="step-by-step">4. Step-by-Step Guide</h2>
+
+  <!-- Step 1 -->
+  <div class="step-card" id="step1">
+    <span class="step-number">Step 1</span>
+    <h3>Create the ServiceEntry</h3>
+    <p>The ServiceEntry tells Istio that the Aurora endpoint is a known external service. Without it, ztunnel has no routing information for the external hostname.</p>
+
+    <pre><code>apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: aurora-postgres
+  namespace: ecom  # Must be in the same namespace as your application
+spec:
+  hosts:
+    - aurora-db.cluster-xxx.us-east-1.rds.amazonaws.com
+  location: MESH_EXTERNAL
+  ports:
+    - number: 5432
+      name: postgres
+      protocol: TCP
+  resolution: DNS</code></pre>
+
+    <h4>Key Fields Explained</h4>
+    <ul>
+      <li><code>location: MESH_EXTERNAL</code> &mdash; Tells ztunnel this host is outside the mesh. ztunnel will NOT attempt HBONE tunneling; instead, it initiates a direct connection.</li>
+      <li><code>resolution: DNS</code> &mdash; Istio resolves the hostname via DNS. Aurora endpoints are DNS-based (they resolve to the current primary instance IP).</li>
+      <li><code>protocol: TCP</code> &mdash; PostgreSQL is a TCP protocol. Do NOT use <code>HTTP</code> or <code>HTTPS</code> here &mdash; that would cause Istio to attempt HTTP parsing on the PostgreSQL wire protocol.</li>
+      <li><code>namespace: ecom</code> &mdash; ServiceEntry is namespace-scoped. If multiple namespaces need access, create a ServiceEntry in each namespace, or use <code>exportTo: ["*"]</code>.</li>
+    </ul>
+
+    <pre><code># Apply
+kubectl apply -f infra/ecom/aurora-service-entry.yaml
+
+# Verify
+kubectl get serviceentry -n ecom</code></pre>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="step-card" id="step2">
+    <span class="step-number">Step 2</span>
+    <h3>Create the DestinationRule (TLS Origination)</h3>
+    <p>The DestinationRule configures how ztunnel establishes the TLS connection to Aurora. Aurora requires SSL by default.</p>
+
+    <h4>Option A: Server-side TLS only (SIMPLE) &mdash; most common</h4>
+    <pre><code>apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: aurora-postgres-tls
+  namespace: ecom
+spec:
+  host: aurora-db.cluster-xxx.us-east-1.rds.amazonaws.com
+  trafficPolicy:
+    tls:
+      mode: SIMPLE
+      caCertificates: /etc/certs/rds-ca-bundle.pem</code></pre>
+
+    <p><code>SIMPLE</code> = TLS where the client verifies the server's certificate (standard HTTPS-like). The client does NOT present a certificate.</p>
+
+    <h4>Option B: Mutual TLS (MUTUAL) &mdash; if Aurora requires client certificates</h4>
+    <pre><code>apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: aurora-postgres-mtls
+  namespace: ecom
+spec:
+  host: aurora-db.cluster-xxx.us-east-1.rds.amazonaws.com
+  trafficPolicy:
+    tls:
+      mode: MUTUAL
+      clientCertificate: /etc/certs/client.pem
+      privateKey: /etc/certs/client-key.pem
+      caCertificates: /etc/certs/rds-ca-bundle.pem</code></pre>
+
+    <p><code>MUTUAL</code> = the client presents its own certificate AND verifies the server's certificate. Required if Aurora is configured with client certificate verification.</p>
+
+    <pre><code>kubectl apply -f infra/ecom/aurora-destination-rule.yaml</code></pre>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="step-card" id="step3">
+    <span class="step-number">Step 3</span>
+    <h3>Create/Update AuthorizationPolicy</h3>
+
+    <div class="callout danger">
+      <div class="callout-title">CRITICAL &mdash; Most Common Failure Point</div>
+      <p>This is the step most likely to be missed. The resulting error (<code>Connection reset by peer</code>) gives NO indication that authorization is the cause. ztunnel silently resets the TCP connection when no ALLOW rule matches.</p>
+    </div>
+
+    <pre><code>apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-aurora-egress
+  namespace: ecom
+spec:
+  action: ALLOW
+  rules:
+    - to:
+        - operation:
+            hosts:
+              - "aurora-db.cluster-xxx.us-east-1.rds.amazonaws.com"
+            ports:
+              - "5432"</code></pre>
+
+    <h4>How AuthorizationPolicy Works in Ambient Mode</h4>
+    <ul>
+      <li>ztunnel enforces AuthorizationPolicy at L4 (TCP level, not HTTP level).</li>
+      <li>When ztunnel receives a connection from a pod to an external host, it checks if any ALLOW rule matches.</li>
+      <li>If no rule matches, ztunnel <strong>resets the TCP connection</strong>. The application sees <code>Connection reset by peer</code>.</li>
+      <li>The error does NOT say "unauthorized" or "policy denied" &mdash; it is a <strong>silent TCP reset</strong>.</li>
+    </ul>
+
+    <div class="callout info">
+      <div class="callout-title">Multiple Policies</div>
+      <p>If you already have an AuthorizationPolicy in the namespace, add the Aurora rule to it rather than creating a new one. Multiple AuthorizationPolicies in the same namespace combine with OR logic for ALLOW rules.</p>
+    </div>
+
+    <pre><code># Apply
+kubectl apply -f infra/ecom/aurora-authz-policy.yaml
+
+# Verify
+kubectl get authorizationpolicy -n ecom</code></pre>
+  </div>
+
+  <!-- Step 4 -->
+  <div class="step-card" id="step4">
+    <span class="step-number">Step 4</span>
+    <h3>Create/Update NetworkPolicy (Egress)</h3>
+    <p>Kubernetes NetworkPolicy provides a second layer of network control, independent of Istio. Even if the AuthorizationPolicy allows the traffic, NetworkPolicy can still block it.</p>
+
+    <pre><code>apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-aurora-egress
+  namespace: ecom
+spec:
+  podSelector:
+    matchLabels:
+      app: ecom-service
+  policyTypes:
+    - Egress
+  egress:
+    # Allow PostgreSQL traffic to Aurora VPC
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/8  # Adjust to your Aurora VPC CIDR
+      ports:
+        - port: 5432
+          protocol: TCP
+    # Allow DNS resolution (required for hostname-based connections)
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP</code></pre>
+
+    <div class="callout warning">
+      <div class="callout-title">Do Not Forget DNS</div>
+      <p>DNS egress (port 53 UDP/TCP) is required because the application resolves the Aurora hostname via DNS. Without this rule, DNS queries are blocked and the connection times out before even reaching Aurora.</p>
+    </div>
+
+    <pre><code># Apply
+kubectl apply -f infra/ecom/aurora-network-policy.yaml
+
+# Verify
+kubectl get networkpolicy -n ecom
+kubectl describe networkpolicy allow-aurora-egress -n ecom</code></pre>
+  </div>
+
+  <!-- Step 5 -->
+  <div class="step-card" id="step5">
+    <span class="step-number">Step 5</span>
+    <h3>Store the RDS CA Certificate</h3>
+    <p>AWS Aurora uses certificates signed by the AWS RDS Certificate Authority. To verify Aurora's server certificate (<code>sslmode=verify-full</code>), your application needs the RDS CA bundle.</p>
+
+    <pre><code># Download the global CA bundle (covers all AWS regions)
+curl -o rds-ca-bundle.pem \
+  https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+
+# Verify the bundle is valid
+openssl x509 -in rds-ca-bundle.pem -text -noout | head -20
+
+# Create the Kubernetes Secret
+kubectl create secret generic aurora-ca-cert \
+  --namespace ecom \
+  --from-file=rds-ca-bundle.pem=rds-ca-bundle.pem
+
+# Verify
+kubectl get secret aurora-ca-cert -n ecom</code></pre>
+  </div>
+
+  <!-- Step 6 -->
+  <div class="step-card" id="step6">
+    <span class="step-number">Step 6</span>
+    <h3>Store Database Credentials</h3>
+    <p>Never hardcode database credentials. Store them as Kubernetes Secrets and reference them via <code>secretKeyRef</code> in the Deployment.</p>
+
+    <pre><code>kubectl create secret generic aurora-db-credentials \
+  --namespace ecom \
+  --from-literal=DB_HOST=aurora-db.cluster-xxx.us-east-1.rds.amazonaws.com \
+  --from-literal=DB_PORT=5432 \
+  --from-literal=DB_NAME=ecomdb \
+  --from-literal=DB_USERNAME=ecomuser \
+  --from-literal=DB_PASSWORD='&lt;strong-password&gt;' \
+  --from-literal=DB_URL='jdbc:postgresql://aurora-db.cluster-xxx.us-east-1.rds.amazonaws.com:5432/ecomdb?sslmode=verify-full&amp;sslrootcert=/certs/rds-ca-bundle.pem'</code></pre>
+
+    <div class="callout info">
+      <div class="callout-title">IAM Database Authentication (Alternative)</div>
+      <p>Instead of static passwords, Aurora supports IAM-based authentication. Generate temporary auth tokens using <code>aws rds generate-db-auth-token</code> (valid for 15 minutes). Use a sidecar or CronJob to refresh tokens periodically.</p>
+    </div>
+  </div>
+
+  <!-- Step 7 -->
+  <div class="step-card" id="step7">
+    <span class="step-number">Step 7</span>
+    <h3>Mount Certificates and Configure Application</h3>
+
+    <h4>Spring Boot (ecom-service)</h4>
+    <pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecom-service
+  namespace: ecom
+spec:
+  template:
+    spec:
+      containers:
+        - name: ecom-service
+          image: bookstore/ecom-service:latest
+          env:
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: aurora-db-credentials
+                  key: DB_URL
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: aurora-db-credentials
+                  key: DB_USERNAME
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: aurora-db-credentials
+                  key: DB_PASSWORD
+          volumeMounts:
+            - name: aurora-ca
+              mountPath: /certs
+              readOnly: true
+      volumes:
+        - name: aurora-ca
+          secret:
+            secretName: aurora-ca-cert</code></pre>
+
+    <p>In <code>application.yml</code>:</p>
+    <pre><code>spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      connection-timeout: 10000
+      maximum-pool-size: 10</code></pre>
+
+    <h4>FastAPI (inventory-service)</h4>
+    <pre><code>env:
+  - name: DATABASE_URL
+    value: "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=verify-full&amp;sslrootcert=/certs/rds-ca-bundle.pem"
+volumeMounts:
+  - name: aurora-ca
+    mountPath: /certs
+    readOnly: true
+volumes:
+  - name: aurora-ca
+    secret:
+      secretName: aurora-ca-cert</code></pre>
+
+    <p>In Python (SQLAlchemy):</p>
+    <pre><code>import os
+DATABASE_URL = os.environ["DATABASE_URL"]
+# The sslmode and sslrootcert are embedded in the URL
+engine = create_async_engine(DATABASE_URL)</code></pre>
+  </div>
+
+  <!-- Step 8 -->
+  <div class="step-card" id="step8">
+    <span class="step-number">Step 8</span>
+    <h3>Verify Connectivity</h3>
+
+    <h4>Quick Test from a Temporary Pod</h4>
+    <pre><code># Run a PostgreSQL client pod in the same namespace
+kubectl run dbtest --rm -it \
+  --namespace ecom \
+  --image=postgres:16-alpine \
+  -- psql "host=aurora-db.cluster-xxx.us-east-1.rds.amazonaws.com \
+           port=5432 dbname=ecomdb user=ecomuser \
+           sslmode=verify-full sslrootcert=/certs/rds-ca-bundle.pem"</code></pre>
+
+    <h4>Test from the Application Pod</h4>
+    <pre><code># Spring Boot health check
+kubectl exec -n ecom deploy/ecom-service -- \
+  sh -c 'curl -sf http://localhost:8080/ecom/actuator/health/db'</code></pre>
+
+    <h4>Check ztunnel Logs</h4>
+    <pre><code># Get ztunnel pods
+kubectl get pods -n istio-system -l app=ztunnel
+
+# Check for connection attempts to the Aurora endpoint
+kubectl logs -n istio-system -l app=ztunnel --tail=50 | \
+  grep "aurora-db.cluster"</code></pre>
+  </div>
+
+  <!-- 5. Troubleshooting -->
+  <h2 id="troubleshooting">5. Troubleshooting Guide</h2>
+
+  <p>Based on real PgAdmin debugging experience connecting across Istio Ambient mesh namespaces:</p>
+
+  <table>
+    <thead>
+      <tr><th>Symptom</th><th>Most Likely Cause</th><th>Fix</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>Connection reset by peer</code></td>
+        <td>AuthorizationPolicy blocks the source namespace</td>
+        <td>Add ALLOW rule for the source to reach external host on port 5432</td>
+      </tr>
+      <tr>
+        <td>Connection timeout (no reset)</td>
+        <td>NetworkPolicy blocks egress, OR source not in ambient mesh</td>
+        <td>Check NetworkPolicy egress rules; verify <code>istio.io/dataplane-mode=ambient</code> label</td>
+      </tr>
+      <tr>
+        <td><code>SSL error: certificate verify failed</code></td>
+        <td>Missing or wrong CA certificate</td>
+        <td>Mount correct RDS CA bundle; verify <code>sslrootcert</code> path</td>
+      </tr>
+      <tr>
+        <td><code>FATAL: password authentication failed</code></td>
+        <td>Wrong credentials in Secret</td>
+        <td>Check Secret values with <code>kubectl get secret -o jsonpath</code></td>
+      </tr>
+      <tr>
+        <td>Works from one namespace, not another</td>
+        <td>Per-namespace AuthorizationPolicy + NetworkPolicy</td>
+        <td>Verify BOTH policies exist in both source and target namespaces</td>
+      </tr>
+      <tr>
+        <td>Works with <code>sslmode=disable</code>, not <code>verify-full</code></td>
+        <td>CA cert not mounted or wrong path</td>
+        <td>Verify volume mount and file exists inside container</td>
+      </tr>
+      <tr>
+        <td><code>could not translate host name</code></td>
+        <td>DNS resolution blocked by NetworkPolicy</td>
+        <td>Add DNS egress rule (port 53 UDP/TCP)</td>
+      </tr>
+      <tr>
+        <td><code>connection refused</code> (not reset)</td>
+        <td>Aurora Security Group blocks inbound</td>
+        <td>Update Aurora SG to allow TCP 5432 from cluster egress IP</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Debugging Priority Order</h3>
+
+  <p>When a database connection fails, follow this order:</p>
+
+  <ol class="priority-list">
+    <li><strong>AuthorizationPolicy</strong> <span class="error-hint">&mdash; causes <code>Connection reset by peer</code></span></li>
+    <li><strong>NetworkPolicy</strong> <span class="error-hint">&mdash; causes timeout</span></li>
+    <li><strong>Namespace mesh label</strong> <span class="error-hint">&mdash; causes rejection or timeout</span></li>
+    <li><strong>ServiceEntry</strong> <span class="error-hint">&mdash; causes routing failure</span></li>
+    <li><strong>DestinationRule</strong> <span class="error-hint">&mdash; causes SSL errors</span></li>
+    <li><strong>CA certificate mount</strong> <span class="error-hint">&mdash; causes certificate verification failure</span></li>
+    <li><strong>Credentials</strong> <span class="error-hint">&mdash; causes authentication failure</span></li>
+    <li><strong>Aurora Security Group</strong> <span class="error-hint">&mdash; causes <code>connection refused</code></span></li>
+  </ol>
+
+  <h3>Diagnostic Commands</h3>
+
+  <pre><code># 1. Check AuthorizationPolicy
+kubectl get authorizationpolicy -n ecom -o yaml
+
+# 2. Check NetworkPolicy
+kubectl get networkpolicy -n ecom -o yaml
+
+# 3. Check namespace mesh label
+kubectl get ns ecom --show-labels | grep dataplane-mode
+
+# 4. Check ServiceEntry
+kubectl get serviceentry -n ecom
+
+# 5. Check DestinationRule
+kubectl get destinationrule -n ecom
+
+# 6. Check ztunnel logs
+kubectl logs -n istio-system -l app=ztunnel --tail=100 | grep -i "denied\|reset\|error"
+
+# 7. Raw connectivity test (eliminates app-level issues)
+kubectl run nettest --rm -it --namespace ecom --image=busybox -- \
+  sh -c 'nc -zv aurora-db.cluster-xxx.us-east-1.rds.amazonaws.com 5432'</code></pre>
+
+  <!-- 6. Comparison -->
+  <h2 id="comparison">6. Internal vs External Database Connections</h2>
+
+  <div class="compare-grid">
+    <div class="compare-card internal">
+      <h4>Internal DB (CNPG in-mesh)</h4>
+      <ul>
+        <li>ztunnel HBONE tunnel to destination ztunnel</li>
+        <li>mTLS handled transparently by ztunnel</li>
+        <li>AuthorizationPolicy on DB namespace (ingress)</li>
+        <li>NetworkPolicy on DB namespace (ingress allow)</li>
+        <li>CNPG auto-generates and rotates SSL certs</li>
+        <li>Kubernetes DNS (ClusterIP / ExternalName)</li>
+        <li>CNPG auto-failover (updates <code>-rw</code> Service)</li>
+      </ul>
+    </div>
+    <div class="compare-card external">
+      <h4>External DB (AWS Aurora)</h4>
+      <ul>
+        <li>ztunnel direct TLS to external endpoint</li>
+        <li>ServiceEntry + DestinationRule for TLS origination</li>
+        <li>AuthorizationPolicy on app namespace (egress)</li>
+        <li>NetworkPolicy on app namespace (egress allow)</li>
+        <li>AWS RDS CA bundle must be downloaded and mounted</li>
+        <li>ServiceEntry (DNS resolution by Istio)</li>
+        <li>Aurora auto-failover (cluster endpoint DNS updates)</li>
+      </ul>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Aspect</th><th>Internal DB (CNPG)</th><th>External DB (Aurora)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Network path</strong></td>
+        <td>ztunnel HBONE &rarr; pod</td>
+        <td>ztunnel &rarr; direct TLS &rarr; Aurora endpoint</td>
+      </tr>
+      <tr>
+        <td><strong>mTLS handling</strong></td>
+        <td>ztunnel transparent (HBONE)</td>
+        <td>ServiceEntry + DestinationRule</td>
+      </tr>
+      <tr>
+        <td><strong>AuthorizationPolicy</strong></td>
+        <td>On DB namespace (ingress)</td>
+        <td>On app namespace (egress)</td>
+      </tr>
+      <tr>
+        <td><strong>NetworkPolicy</strong></td>
+        <td>On DB namespace (ingress allow)</td>
+        <td>On app namespace (egress allow)</td>
+      </tr>
+      <tr>
+        <td><strong>SSL certificates</strong></td>
+        <td>CNPG auto-generates</td>
+        <td>AWS RDS CA bundle (manual mount)</td>
+      </tr>
+      <tr>
+        <td><strong>Service discovery</strong></td>
+        <td>Kubernetes DNS</td>
+        <td>ServiceEntry (DNS)</td>
+      </tr>
+      <tr>
+        <td><strong>Failover</strong></td>
+        <td>CNPG auto-failover</td>
+        <td>Aurora auto-failover (DNS)</td>
+      </tr>
+      <tr>
+        <td><strong>Credentials</strong></td>
+        <td>CNPG auto-generated Secret</td>
+        <td>Manual Secret or IAM auth</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 7. Aurora-Specific -->
+  <h2 id="aurora-config">7. AWS Aurora-Specific Configuration</h2>
+
+  <h3>Cluster Endpoint vs Reader Endpoint</h3>
+
+  <table>
+    <thead>
+      <tr><th>Endpoint Type</th><th>Use Case</th><th>Example</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Cluster endpoint</strong> (read-write)</td>
+        <td>All write operations, primary reads</td>
+        <td><code>aurora-db.cluster-xxx.us-east-1.rds.amazonaws.com</code></td>
+      </tr>
+      <tr>
+        <td><strong>Reader endpoint</strong> (read-only)</td>
+        <td>Read replicas, reporting queries</td>
+        <td><code>aurora-db.cluster-ro-xxx.us-east-1.rds.amazonaws.com</code></td>
+      </tr>
+      <tr>
+        <td><strong>Instance endpoint</strong></td>
+        <td>Direct connection to specific instance</td>
+        <td><code>aurora-instance-1.xxx.us-east-1.rds.amazonaws.com</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>For the BookStore platform: use the <strong>cluster endpoint</strong> for ecom-service and inventory-service (read-write). Use the <strong>reader endpoint</strong> for analytics queries (Superset, reporting). Create separate ServiceEntry and DestinationRule resources for each endpoint.</p>
+
+  <h3>Enforcing SSL on Aurora</h3>
+
+  <pre><code># Set rds.force_ssl = 1 in Aurora parameter group
+aws rds modify-db-cluster-parameter-group \
+  --db-cluster-parameter-group-name bookstore-aurora-params \
+  --parameters "ParameterName=rds.force_ssl,ParameterValue=1,ApplyMethod=pending-reboot"</code></pre>
+
+  <h3>VPC and Security Group Configuration</h3>
+
+  <ul>
+    <li><strong>VPC Peering</strong> &mdash; If the cluster runs in a different VPC, set up VPC peering and update route tables</li>
+    <li><strong>Transit Gateway</strong> &mdash; For multi-VPC architectures, use AWS Transit Gateway</li>
+    <li><strong>Security Groups</strong> &mdash; Aurora SG must allow inbound TCP on port 5432 from the cluster's egress IP or CIDR</li>
+  </ul>
+
+  <pre><code># Allow inbound from cluster's VPC CIDR
+aws ec2 authorize-security-group-ingress \
+  --group-id sg-0123456789abcdef0 \
+  --protocol tcp \
+  --port 5432 \
+  --cidr 10.0.0.0/16</code></pre>
+
+  <h3>IAM Database Authentication</h3>
+
+  <p>Instead of static passwords, Aurora supports IAM-based authentication. Tokens are temporary (15 minutes) and must be refreshed via a sidecar or CronJob.</p>
+
+  <pre><code># In Aurora, create the IAM-mapped user
+CREATE USER ecomuser WITH LOGIN;
+GRANT rds_iam TO ecomuser;
+
+# Generate temporary auth token
+TOKEN=$(aws rds generate-db-auth-token \
+  --hostname aurora-db.cluster-xxx.us-east-1.rds.amazonaws.com \
+  --port 5432 \
+  --username ecomuser \
+  --region us-east-1)
+
+# Use token as password
+PGPASSWORD=$TOKEN psql \
+  "host=aurora-db.cluster-xxx.us-east-1.rds.amazonaws.com \
+   port=5432 dbname=ecomdb user=ecomuser \
+   sslmode=verify-full sslrootcert=rds-ca-bundle.pem"</code></pre>
+
+  <!-- 8. Checklist -->
+  <h2 id="checklist">8. Checklist</h2>
+
+  <p>Use this checklist when adding any new external database connection:</p>
+
+  <ul class="checklist">
+    <li>
+      <input type="checkbox" id="c1"><span><label for="c1"><strong>ServiceEntry</strong> created with correct host, port 5432, protocol TCP, resolution DNS, location MESH_EXTERNAL</label></span>
+    </li>
+    <li>
+      <input type="checkbox" id="c2"><span><label for="c2"><strong>DestinationRule</strong> created with TLS mode SIMPLE (or MUTUAL if client certs required)</label></span>
+    </li>
+    <li>
+      <input type="checkbox" id="c3"><span><label for="c3"><strong>AuthorizationPolicy</strong> allows the connection (check BOTH source and target namespaces)</label></span>
+    </li>
+    <li>
+      <input type="checkbox" id="c4"><span><label for="c4"><strong>NetworkPolicy</strong> allows egress to the external host CIDR on port 5432, plus DNS (port 53)</label></span>
+    </li>
+    <li>
+      <input type="checkbox" id="c5"><span><label for="c5"><strong>CA certificate</strong> stored as Kubernetes Secret and volume-mounted in the application pod</label></span>
+    </li>
+    <li>
+      <input type="checkbox" id="c6"><span><label for="c6"><strong>Database credentials</strong> stored in Kubernetes Secret (never hardcoded in manifests or code)</label></span>
+    </li>
+    <li>
+      <input type="checkbox" id="c7"><span><label for="c7"><strong>Application connection string</strong> includes SSL parameters (<code>sslmode=verify-full</code>, <code>sslrootcert=...</code>)</label></span>
+    </li>
+    <li>
+      <input type="checkbox" id="c8"><span><label for="c8"><strong>Source namespace</strong> is in the ambient mesh (<code>istio.io/dataplane-mode=ambient</code> label)</label></span>
+    </li>
+    <li>
+      <input type="checkbox" id="c9"><span><label for="c9"><strong>Connectivity verified</strong> from inside the pod using psql or a test client</label></span>
+    </li>
+    <li>
+      <input type="checkbox" id="c10"><span><label for="c10"><strong>Aurora Security Group</strong> allows inbound from the cluster's egress IP on port 5432</label></span>
+    </li>
+    <li>
+      <input type="checkbox" id="c11"><span><label for="c11"><strong>E2E tests</strong> updated to cover the external database connection path</label></span>
+    </li>
+  </ul>
+
+  <!-- 9. Key Takeaway -->
+  <h2 id="takeaway">9. Key Takeaway</h2>
+
+  <div class="takeaway">
+    <p><strong>When you see <code>Connection reset by peer</code> connecting to ANY database (internal or external) from within the Istio Ambient mesh, check AuthorizationPolicy FIRST.</strong> This is the number one cause and the hardest to diagnose because the error message does not mention "authorization" or "policy" &mdash; ztunnel silently resets the TCP connection. Only after ruling out AuthorizationPolicy should you check NetworkPolicy, namespace mesh membership, ServiceEntry, and DestinationRule.</p>
+  </div>
+
+  <footer>
+    <p>BookStore Platform &mdash; External Database Connectivity Guide</p>
+    <p>Based on real debugging experience with Istio Ambient Mesh and CloudNativePG PostgreSQL</p>
+    <p><a href="index.html">Home</a> &middot; <a href="pgadmin-connectivity-fix.html">PgAdmin Fix</a> &middot; <a href="architecture.html">Architecture</a> &middot; <a href="bookstore-platform-manual.html">Full Manual</a></p>
+  </footer>
+
+</div>
+</body>
+</html>

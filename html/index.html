@@ -137,6 +137,9 @@
   <div class="sidebar-section">
     <div class="sidebar-section-title">Operations</div>
     <a href="inline-python-scripts.html" class="sidebar-link">Inline Python Scripts Reference</a>
+    <a href="pgadmin-connectivity-fix.html" class="sidebar-link">PgAdmin Connectivity Fix</a>
+    <a href="pgadmin-security-review.html" class="sidebar-link">PgAdmin Security Review</a>
+    <a href="external-database-mtls-guide.html" class="sidebar-link">External DB (Aurora) Guide</a>
   </div>
 
   <div class="sidebar-divider"></div>
@@ -191,7 +194,7 @@ document.addEventListener('keydown', function(e) {
   <table>
     <tr><th>Layer</th><th>Components</th><th>Technology</th></tr>
     <tr><td><strong>Client</strong></td><td>Single-page application, OIDC login</td><td>React 19.2 + Vite, PKCE (S256)</td></tr>
-    <tr><td><strong>Ingress / Security</strong></td><td>Gateway routing, TLS termination, mTLS mesh, JWT validation</td><td>Istio Ambient 1.28.4, K8s Gateway API, cert-manager 1.17.2</td></tr>
+    <tr><td><strong>Ingress / Security</strong></td><td>Gateway routing, TLS termination, mTLS mesh, JWT validation</td><td>Istio Ambient 1.29.1, K8s Gateway API, cert-manager 1.17.2</td></tr>
     <tr><td><strong>Application Services</strong></td><td>E-Commerce API, Inventory API, Admin API</td><td>Spring Boot 4.0.3, FastAPI</td></tr>
     <tr><td><strong>Identity</strong></td><td>OIDC provider, RBAC, realm management</td><td>Keycloak 26.5.4</td></tr>
     <tr><td><strong>Data &amp; Messaging</strong></td><td>4 isolated databases, event streaming, CDC</td><td>PostgreSQL, Kafka KRaft, Debezium Server 3.4</td></tr>
@@ -275,7 +278,7 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
     <tr><td>Backend (Java)</td><td>Spring Boot</td><td>4.0.3</td></tr>
     <tr><td>Backend (Python)</td><td>FastAPI</td><td>latest</td></tr>
     <tr><td>Identity</td><td>Keycloak</td><td>26.5.4</td></tr>
-    <tr><td>Service Mesh</td><td>Istio Ambient</td><td>1.28.4</td></tr>
+    <tr><td>Service Mesh</td><td>Istio Ambient</td><td>1.29.1</td></tr>
     <tr><td>Gateway</td><td>Kubernetes Gateway API</td><td>istio</td></tr>
     <tr><td>Databases</td><td>PostgreSQL</td><td>4 instances</td></tr>
     <tr><td>Messaging</td><td>Apache Kafka</td><td>KRaft mode</td></tr>
@@ -356,6 +359,18 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
     <a href="inline-python-scripts.html" class="doc-card">
       <h3>Inline Python Scripts Reference</h3>
       <p>18 Python snippets across 8 shell scripts. Side-by-side analysis of each: what it does, what it produces, and why Python instead of bash. 5 reusable patterns for JSON/YAML/token manipulation.</p>
+    </a>
+    <a href="pgadmin-connectivity-fix.html" class="doc-card" style="border-color: #10b981; border-width: 2px;">
+      <h3>PgAdmin Connectivity Fix</h3>
+      <p>Root cause analysis: AuthorizationPolicy + NetworkPolicy blocked admin-tools namespace. 5 wrong theories investigated, 1 breakthrough via Debezium comparison, systematic fix for all 4 databases.</p>
+    </a>
+    <a href="pgadmin-security-review.html" class="doc-card" style="border-color: #f59e0b;">
+      <h3>PgAdmin Security Review</h3>
+      <p>Impact assessment of adding admin-tools to database access policies. Threat model, double encryption (ztunnel mTLS + PostgreSQL TLS 1.3), SCRAM-SHA-256 auth, 5 production recommendations.</p>
+    </a>
+    <a href="external-database-mtls-guide.html" class="doc-card" style="border-color: #8b5cf6; border-width: 2px;">
+      <h3>External Database Guide (AWS Aurora)</h3>
+      <p>Step-by-step: ServiceEntry, DestinationRule, AuthorizationPolicy, NetworkPolicy for connecting to AWS Aurora PostgreSQL from Istio Ambient mTLS. Troubleshooting table and checklist.</p>
     </a>
     <a href="https://github.com/a2z-ice/ecom-ms" class="doc-card" target="_blank" rel="noopener">
       <h3>GitHub Repository</h3>

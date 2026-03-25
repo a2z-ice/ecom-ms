@@ -168,7 +168,7 @@ See `docs/operations/restart-app.md` for the full explanation and root cause ana
 ### Infrastructure Stack
 
 - **Kubernetes**: kind (local), NodePort exposure only — no `kubectl port-forward`
-- **Service Mesh**: Istio Ambient Mesh 1.28.4 (mTLS between all services, JWT validation via `RequestAuthentication` + `AuthorizationPolicy`)
+- **Service Mesh**: Istio Ambient Mesh 1.29.1 (mTLS between all services, JWT validation via `RequestAuthentication` + `AuthorizationPolicy`)
 - **Gateway**: Kubernetes Gateway API (`gatewayClassName: istio`) — Istio's built-in Gateway implementation; all ingress routing via HTTPRoutes; HTTPS on port 30000 with TLS termination
 - **TLS / cert-manager**: cert-manager v1.17.2 manages self-signed CA and gateway certificates (30d rotation, 7d renewBefore). HTTP→HTTPS redirect on port 30080. See `docs/guides/tls-setup.md`
 - **Identity**: Keycloak 26.5.4 at `idp.keycloak.net:30000`

@@ -15,7 +15,7 @@ A production-grade microservices e-commerce bookstore deployed to Kubernetes, de
 | Layer | Components | Technology |
 |-------|-----------|------------|
 | **Client** | Single-page application, OIDC login | React 19.2 + Vite, PKCE (S256) |
-| **Ingress / Security** | Gateway routing, TLS termination, mTLS mesh, JWT validation | Istio Ambient 1.28.4, K8s Gateway API, cert-manager 1.17.2 |
+| **Ingress / Security** | Gateway routing, TLS termination, mTLS mesh, JWT validation | Istio Ambient 1.29.1, K8s Gateway API, cert-manager 1.17.2 |
 | **Application Services** | E-Commerce API, Inventory API, Admin API | Spring Boot 4.0.3, FastAPI |
 | **Identity** | OIDC provider, RBAC, realm management | Keycloak 26.5.4 |
 | **Data & Messaging** | 4 isolated databases, event streaming, CDC | PostgreSQL, Kafka KRaft, Debezium Server 3.4 |
@@ -119,7 +119,7 @@ Source DBs → Debezium Server 3.4 → Kafka → Flink 2.2.0 SQL → analytics-d
 | Backend (Java) | Spring Boot | 4.0.3 |
 | Backend (Python) | FastAPI | latest |
 | Identity | Keycloak | 26.5.4 |
-| Service Mesh | Istio Ambient | 1.28.4 |
+| Service Mesh | Istio Ambient | 1.29.1 |
 | Gateway | Kubernetes Gateway API | istio |
 | Databases | PostgreSQL | 4 instances |
 | Messaging | Apache Kafka | KRaft mode |

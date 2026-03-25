@@ -263,7 +263,13 @@ bootstrap_fresh() {
     --dry-run=client -o yaml | kubectl apply -f -
   kubectl apply -f "${REPO_ROOT}/infra/debezium/debezium-server-ecom.yaml"
   kubectl apply -f "${REPO_ROOT}/infra/debezium/debezium-server-inventory.yaml"
+  # PgAdmin — deployed in admin-tools namespace (ambient mesh, connects to DBs via ztunnel)
+  # Fix potential NodePort conflict: gateway status-port may grab 31111 on fresh cluster
+  kubectl patch svc bookstore-gateway-istio -n infra --type='json' \
+    -p='[{"op":"replace","path":"/spec/ports/0/nodePort","value":31841}]' 2>/dev/null || true
   kubectl apply -f "${REPO_ROOT}/infra/pgadmin/pgadmin.yaml"
+  # Label admin-tools namespace for ambient mesh (PgAdmin needs ztunnel for DB access)
+  kubectl label ns admin-tools istio.io/dataplane-mode=ambient --overwrite 2>/dev/null || true
   # Apply Keycloak manifests now so it starts pulling images while we wait for Debezium
   kubectl apply -f "${REPO_ROOT}/infra/keycloak/keycloak.yaml"
   kubectl apply -f "${REPO_ROOT}/infra/keycloak/keycloak-nodeport.yaml"
@@ -492,6 +498,24 @@ json.dump(pol, sys.stdout)
   section "Applying Kubernetes policies (HPA, PDB, NetworkPolicies)"
   kubectl apply -R -f "${REPO_ROOT}/infra/kubernetes/"
 
+  # Grant PgAdmin (admin-tools) access to all 4 DB namespaces
+  # Both AuthorizationPolicy AND NetworkPolicy must allow admin-tools
+  for _db_pair in "ecom:ecom-db-policy:ecom-db-policy" "inventory:inventory-db-policy:inventory-db-policy" "analytics:analytics-db-policy:analytics-db-ingress" "identity:keycloak-db-policy:keycloak-db-ingress"; do
+    _db_ns="${_db_pair%%:*}"; _rest="${_db_pair#*:}"
+    _authz="${_rest%%:*}"; _netp="${_rest#*:}"
+    # AuthorizationPolicy
+    _AP=$(kubectl get authorizationpolicy "$_authz" -n "$_db_ns" -o json 2>/dev/null)
+    if [[ -n "$_AP" ]] && ! echo "$_AP" | grep -q "admin-tools"; then
+      echo "$_AP" | python3 -c "import sys,json;p=json.load(sys.stdin);p['spec']['rules'].append({'from':[{'source':{'namespaces':['admin-tools']}}]});json.dump(p,sys.stdout)" | kubectl apply -f - 2>/dev/null
+    fi
+    # NetworkPolicy
+    _NP=$(kubectl get networkpolicy "$_netp" -n "$_db_ns" -o json 2>/dev/null)
+    if [[ -n "$_NP" ]] && ! echo "$_NP" | grep -q "admin-tools"; then
+      echo "$_NP" | python3 -c "import sys,json;p=json.load(sys.stdin);p['spec']['ingress'].append({'from':[{'namespaceSelector':{'matchLabels':{'kubernetes.io/metadata.name':'admin-tools'}}}]});json.dump(p,sys.stdout)" | kubectl apply -f - 2>/dev/null
+    fi
+  done
+  info "PgAdmin DB access policies applied."
+
   # ── 12. Superset ─────────────────────────────────────────────────────────────
   section "Deploying Apache Superset"
   kubectl apply -f "${REPO_ROOT}/infra/superset/superset.yaml"
@@ -605,7 +629,7 @@ recovery() {
   kubectl rollout restart deploy/ui-service -n ecom
   kubectl rollout restart deploy/debezium-server-ecom -n infra
   kubectl rollout restart deploy/debezium-server-inventory -n infra
-  kubectl rollout restart deploy/pgadmin -n infra
+  kubectl rollout restart deploy/pgadmin -n admin-tools 2>/dev/null || true
   kubectl rollout restart deploy/csrf-service -n infra 2>/dev/null || true
   kubectl rollout restart deploy/flink-jobmanager -n analytics
   kubectl rollout restart deploy/flink-taskmanager -n analytics

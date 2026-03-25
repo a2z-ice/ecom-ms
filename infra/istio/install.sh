@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # infra/istio/install.sh
-# Installs Istio Ambient Mesh 1.28.4 using Helm.
+# Installs Istio Ambient Mesh 1.29.1 using Helm.
 # Idempotent: safe to re-run; skips steps that are already done.
 set -euo pipefail
 
-ISTIO_VERSION="1.28.4"
+ISTIO_VERSION="1.29.1"
 ISTIO_NAMESPACE="istio-system"
 
 echo "==> Installing Istio Ambient Mesh ${ISTIO_VERSION}"
