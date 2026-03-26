@@ -23,7 +23,11 @@
         { label: 'Visual: AWS Terraform', href: 'terraform-visual-aws.html' },
         { label: 'Visual: Azure Terraform', href: 'terraform-visual-azure.html' },
         { label: 'Learn EKS (A to Z)', href: 'knowledge-eks.html', highlight: true },
-        { label: 'Learn AKS (A to Z)', href: 'knowledge-aks.html', highlight: true }
+        { label: 'Learn AKS (A to Z)', href: 'knowledge-aks.html', highlight: true },
+        { label: 'Hardening: AWS EKS', href: 'production-hardening-aws.html' },
+        { label: 'Hardening: Azure AKS', href: 'production-hardening-azure.html' },
+        { label: 'Before/After: AWS', href: 'hardening-visual-aws.html' },
+        { label: 'Before/After: Azure', href: 'hardening-visual-azure.html' }
       ]
     },
     {

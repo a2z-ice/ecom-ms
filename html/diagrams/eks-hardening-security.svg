@@ -1,0 +1,300 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" font-family="Inter, -apple-system, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="900" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0f172a"/><stop offset="100%" stop-color="#1a2332"/>
+    </linearGradient>
+    <filter id="sh"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-opacity="0.3"/></filter>
+    <marker id="arG" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#10b981"/></marker>
+    <marker id="arR" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ef4444"/></marker>
+    <marker id="arB" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#3b82f6"/></marker>
+    <marker id="arO" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ff9900"/></marker>
+    <marker id="arW" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#94a3b8"/></marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="900" fill="url(#bg)" rx="12"/>
+
+  <!-- ============================================================ -->
+  <!-- TITLE                                                         -->
+  <!-- ============================================================ -->
+  <text x="600" y="30" text-anchor="middle" font-size="20" font-weight="800" fill="#f1f5f9">AWS EKS &#x2014; Security Group &amp; NACL Architecture</text>
+  <text x="600" y="50" text-anchor="middle" font-size="11" fill="#64748b">Defense in Depth &#x2022; Least Privilege &#x2022; VPC Flow Logs &#x2022; Zero Trust Network</text>
+
+  <!-- ============================================================ -->
+  <!-- ROW 1: Internet + WAF + ALB                                   -->
+  <!-- ============================================================ -->
+  <rect x="370" y="64" width="100" height="32" rx="8" fill="#1e293b" stroke="#94a3b8" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="420" y="84" text-anchor="middle" font-size="11" font-weight="700" fill="#e2e8f0">Internet</text>
+
+  <line x1="470" y1="80" x2="510" y2="80" stroke="#10b981" stroke-width="1.5" marker-end="url(#arG)"/>
+
+  <rect x="515" y="64" width="120" height="32" rx="8" fill="#1e293b" stroke="#a78bfa" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="575" y="78" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa">AWS WAF v2</text>
+  <text x="575" y="90" text-anchor="middle" font-size="8" fill="#64748b">Rate limit + SQL/XSS</text>
+
+  <line x1="635" y1="80" x2="675" y2="80" stroke="#10b981" stroke-width="1.5" marker-end="url(#arG)"/>
+
+  <rect x="680" y="64" width="160" height="32" rx="8" fill="#1e293b" stroke="#ff9900" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="760" y="78" text-anchor="middle" font-size="11" font-weight="700" fill="#ff9900">ALB</text>
+  <text x="760" y="90" text-anchor="middle" font-size="8" fill="#64748b">HTTPS :443 &#x2022; ACM TLS</text>
+
+  <!-- ============================================================ -->
+  <!-- ROW 2: ALB Security Group                                     -->
+  <!-- ============================================================ -->
+  <rect x="50" y="108" width="1100" height="68" rx="8" fill="rgba(16,185,129,0.06)" stroke="#10b981" stroke-width="2" filter="url(#sh)"/>
+  <rect x="58" y="112" width="190" height="18" rx="4" fill="#10b981"/>
+  <text x="153" y="125" text-anchor="middle" font-size="10" font-weight="800" fill="#0f172a">ALB Security Group (sg-alb)</text>
+
+  <rect x="70" y="136" width="220" height="32" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="0.8"/>
+  <text x="180" y="149" text-anchor="middle" font-size="9" font-weight="700" fill="#10b981">INBOUND</text>
+  <text x="180" y="162" text-anchor="middle" font-size="9" fill="#94a3b8">TCP 443, 80 from 0.0.0.0/0</text>
+
+  <rect x="310" y="136" width="300" height="32" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="0.8"/>
+  <text x="460" y="149" text-anchor="middle" font-size="9" font-weight="700" fill="#10b981">OUTBOUND</text>
+  <text x="460" y="162" text-anchor="middle" font-size="9" fill="#94a3b8">TCP 30000&#x2013;32767 to Workers SG ONLY</text>
+
+  <rect x="630" y="136" width="260" height="32" rx="6" fill="#0f172a" stroke="#ef4444" stroke-width="0.8"/>
+  <text x="760" y="149" text-anchor="middle" font-size="9" font-weight="700" fill="#ef4444">DENIED</text>
+  <text x="760" y="162" text-anchor="middle" font-size="9" fill="#94a3b8">All non-443/80 inbound &#x2022; SSH blocked</text>
+
+  <!-- Flow log icon -->
+  <rect x="920" y="136" width="210" height="32" rx="6" fill="#0f172a" stroke="#22d3ee" stroke-width="0.8"/>
+  <text x="1025" y="149" text-anchor="middle" font-size="9" font-weight="700" fill="#22d3ee">VPC Flow Logs</text>
+  <text x="1025" y="162" text-anchor="middle" font-size="9" fill="#64748b">Capturing ALL rejected traffic</text>
+
+  <line x1="600" y1="176" x2="600" y2="192" stroke="#10b981" stroke-width="1.5" marker-end="url(#arG)"/>
+
+  <!-- ============================================================ -->
+  <!-- ROW 3: Public Subnet NACL                                     -->
+  <!-- ============================================================ -->
+  <rect x="50" y="194" width="1100" height="50" rx="8" fill="rgba(239,68,68,0.05)" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <rect x="58" y="198" width="190" height="18" rx="4" fill="#ef4444"/>
+  <text x="153" y="211" text-anchor="middle" font-size="10" font-weight="800" fill="#0f172a">Public Subnet NACL</text>
+
+  <rect x="270" y="204" width="250" height="30" rx="5" fill="#0f172a" stroke="#ef4444" stroke-width="0.8"/>
+  <text x="395" y="216" text-anchor="middle" font-size="9" font-weight="600" fill="#10b981">ALLOW: TCP 443/80 IN from 0.0.0.0/0</text>
+  <text x="395" y="228" text-anchor="middle" font-size="9" fill="#94a3b8">Ephemeral 1024&#x2013;65535 OUT</text>
+
+  <rect x="540" y="204" width="240" height="30" rx="5" fill="#0f172a" stroke="#ef4444" stroke-width="0.8"/>
+  <text x="660" y="216" text-anchor="middle" font-size="9" font-weight="600" fill="#ef4444">DENY: All other inbound traffic</text>
+  <text x="660" y="228" text-anchor="middle" font-size="9" fill="#94a3b8">No SSH, no ICMP, no other ports</text>
+
+  <rect x="800" y="204" width="200" height="30" rx="5" fill="#0f172a" stroke="#fbbf24" stroke-width="0.8"/>
+  <text x="900" y="220" text-anchor="middle" font-size="9" font-weight="600" fill="#fbbf24">Stateless &#x2014; rules both directions</text>
+
+  <line x1="600" y1="244" x2="600" y2="260" stroke="#10b981" stroke-width="1.5" marker-end="url(#arG)"/>
+
+  <!-- ============================================================ -->
+  <!-- ROW 4: EKS Worker Nodes Security Group                        -->
+  <!-- ============================================================ -->
+  <rect x="50" y="262" width="1100" height="210" rx="8" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="2" filter="url(#sh)"/>
+  <rect x="58" y="266" width="270" height="18" rx="4" fill="#3b82f6"/>
+  <text x="193" y="279" text-anchor="middle" font-size="10" font-weight="800" fill="#0f172a">EKS Worker Nodes Security Group (sg-workers)</text>
+
+  <!-- Worker Pods Inside -->
+  <rect x="380" y="290" width="430" height="36" rx="6" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+  <text x="415" y="312" font-size="10" font-weight="600" fill="#60a5fa">ecom</text>
+  <text x="475" y="312" font-size="10" font-weight="600" fill="#34d399">inventory</text>
+  <text x="540" y="312" font-size="10" font-weight="600" fill="#a78bfa">UI</text>
+  <text x="578" y="312" font-size="10" font-weight="600" fill="#fbbf24">Keycloak</text>
+  <text x="645" y="312" font-size="10" font-weight="600" fill="#fb923c">Debezium</text>
+  <text x="715" y="312" font-size="10" font-weight="600" fill="#22d3ee">Flink</text>
+  <text x="770" y="312" font-size="10" font-weight="600" fill="#f87171">CSRF</text>
+
+  <!-- Inbound Rules -->
+  <text x="70" y="298" font-size="10" font-weight="700" fill="#10b981">INBOUND RULES</text>
+
+  <rect x="70" y="306" width="290" height="22" rx="4" fill="#0f172a" stroke="#10b981" stroke-width="0.8"/>
+  <text x="80" y="321" font-size="9" fill="#10b981">&#x2713;</text>
+  <text x="95" y="321" font-size="9" fill="#94a3b8">FROM sg-alb: TCP 30000&#x2013;32767 (NodePorts)</text>
+
+  <rect x="70" y="332" width="290" height="22" rx="4" fill="#0f172a" stroke="#10b981" stroke-width="0.8"/>
+  <text x="80" y="347" font-size="9" fill="#10b981">&#x2713;</text>
+  <text x="95" y="347" font-size="9" fill="#94a3b8">FROM sg-cp: TCP 443, 10250 (kubelet, API)</text>
+
+  <rect x="70" y="358" width="290" height="22" rx="4" fill="#0f172a" stroke="#10b981" stroke-width="0.8"/>
+  <text x="80" y="373" font-size="9" fill="#10b981">&#x2713;</text>
+  <text x="95" y="373" font-size="9" fill="#94a3b8">FROM self: All (pod-to-pod, ztunnel mTLS)</text>
+
+  <!-- Outbound Rules -->
+  <text x="830" y="298" font-size="10" font-weight="700" fill="#ff9900">OUTBOUND RULES</text>
+
+  <rect x="830" y="306" width="300" height="22" rx="4" fill="#0f172a" stroke="#ff9900" stroke-width="0.8"/>
+  <text x="840" y="321" font-size="9" fill="#ff9900">&#x2192;</text>
+  <text x="855" y="321" font-size="9" fill="#94a3b8">TO sg-aurora: TCP 5432 (PostgreSQL)</text>
+
+  <rect x="830" y="332" width="300" height="22" rx="4" fill="#0f172a" stroke="#ff9900" stroke-width="0.8"/>
+  <text x="840" y="347" font-size="9" fill="#ff9900">&#x2192;</text>
+  <text x="855" y="347" font-size="9" fill="#94a3b8">TO sg-msk: TCP 9092, 9094 (Kafka plain/TLS)</text>
+
+  <rect x="830" y="358" width="300" height="22" rx="4" fill="#0f172a" stroke="#ff9900" stroke-width="0.8"/>
+  <text x="840" y="373" font-size="9" fill="#ff9900">&#x2192;</text>
+  <text x="855" y="373" font-size="9" fill="#94a3b8">TO sg-redis: TCP 6379 (ElastiCache)</text>
+
+  <rect x="830" y="384" width="300" height="22" rx="4" fill="#0f172a" stroke="#ff9900" stroke-width="0.8"/>
+  <text x="840" y="399" font-size="9" fill="#ff9900">&#x2192;</text>
+  <text x="855" y="399" font-size="9" fill="#94a3b8">TO NAT GW: TCP 443 (ECR image pulls)</text>
+
+  <rect x="830" y="410" width="300" height="22" rx="4" fill="#0f172a" stroke="#ff9900" stroke-width="0.8"/>
+  <text x="840" y="425" font-size="9" fill="#ff9900">&#x2192;</text>
+  <text x="855" y="425" font-size="9" fill="#94a3b8">TO VPC Endpoints: TCP 443 (S3, STS, CW)</text>
+
+  <!-- Istio bar inside workers -->
+  <rect x="70" y="440" width="1060" height="22" rx="5" fill="rgba(70,107,176,0.12)" stroke="#466BB0" stroke-width="1"/>
+  <text x="600" y="455" text-anchor="middle" font-size="9" font-weight="600" fill="#466BB0">Istio Ambient Mesh &#x2014; mTLS STRICT between ALL pods &#x2022; L4 AuthorizationPolicy &#x2022; ztunnel sidecar-less</text>
+
+  <line x1="600" y1="472" x2="600" y2="488" stroke="#10b981" stroke-width="1.5" marker-end="url(#arG)"/>
+
+  <!-- ============================================================ -->
+  <!-- ROW 5: Private Subnet NACL                                    -->
+  <!-- ============================================================ -->
+  <rect x="50" y="490" width="1100" height="42" rx="8" fill="rgba(239,68,68,0.05)" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <rect x="58" y="494" width="180" height="18" rx="4" fill="#ef4444"/>
+  <text x="148" y="507" text-anchor="middle" font-size="10" font-weight="800" fill="#0f172a">Private Subnet NACL</text>
+
+  <rect x="260" y="498" width="280" height="26" rx="5" fill="#0f172a" stroke="#10b981" stroke-width="0.8"/>
+  <text x="400" y="515" text-anchor="middle" font-size="9" font-weight="600" fill="#10b981">ALLOW: VPC CIDR 10.0.0.0/16 only (all ports)</text>
+
+  <rect x="560" y="498" width="260" height="26" rx="5" fill="#0f172a" stroke="#ef4444" stroke-width="0.8"/>
+  <text x="690" y="515" text-anchor="middle" font-size="9" font-weight="600" fill="#ef4444">DENY: All direct internet traffic</text>
+
+  <rect x="840" y="498" width="200" height="26" rx="5" fill="#0f172a" stroke="#fbbf24" stroke-width="0.8"/>
+  <text x="940" y="515" text-anchor="middle" font-size="9" font-weight="600" fill="#fbbf24">Egress: NAT GW only (outbound)</text>
+
+  <line x1="600" y1="532" x2="600" y2="548" stroke="#10b981" stroke-width="1.5" marker-end="url(#arG)"/>
+
+  <!-- ============================================================ -->
+  <!-- ROW 6: Service Security Groups (3 side by side)               -->
+  <!-- ============================================================ -->
+  <!-- Aurora SG -->
+  <rect x="50" y="550" width="340" height="100" rx="8" fill="rgba(51,103,145,0.08)" stroke="#336791" stroke-width="2" filter="url(#sh)"/>
+  <rect x="58" y="554" width="170" height="18" rx="4" fill="#336791"/>
+  <text x="143" y="567" text-anchor="middle" font-size="10" font-weight="800" fill="#0f172a">Aurora SG (sg-aurora)</text>
+
+  <rect x="70" y="578" width="300" height="22" rx="4" fill="#0f172a" stroke="#10b981" stroke-width="0.8"/>
+  <text x="80" y="593" font-size="9" fill="#10b981">IN:</text>
+  <text x="100" y="593" font-size="9" fill="#94a3b8">TCP 5432 from sg-workers ONLY</text>
+
+  <rect x="70" y="604" width="300" height="22" rx="4" fill="#0f172a" stroke="#ef4444" stroke-width="0.8"/>
+  <text x="80" y="619" font-size="9" fill="#ef4444">&#x2718;</text>
+  <text x="100" y="619" font-size="9" fill="#94a3b8">NO internet &#x2022; NO public access &#x2022; KMS encrypted</text>
+
+  <rect x="70" y="630" width="300" height="14" rx="3" fill="#0f172a" stroke="#336791" stroke-width="0.5"/>
+  <text x="220" y="641" text-anchor="middle" font-size="8" fill="#336791">4 DBs: ecom, inventory, analytics, keycloak</text>
+
+  <!-- MSK SG -->
+  <rect x="410" y="550" width="340" height="100" rx="8" fill="rgba(245,158,11,0.06)" stroke="#f59e0b" stroke-width="2" filter="url(#sh)"/>
+  <rect x="418" y="554" width="155" height="18" rx="4" fill="#f59e0b"/>
+  <text x="495" y="567" text-anchor="middle" font-size="10" font-weight="800" fill="#0f172a">MSK SG (sg-msk)</text>
+
+  <rect x="430" y="578" width="300" height="22" rx="4" fill="#0f172a" stroke="#10b981" stroke-width="0.8"/>
+  <text x="440" y="593" font-size="9" fill="#10b981">IN:</text>
+  <text x="460" y="593" font-size="9" fill="#94a3b8">TCP 9092/9094 from sg-workers ONLY</text>
+
+  <rect x="430" y="604" width="300" height="22" rx="4" fill="#0f172a" stroke="#fbbf24" stroke-width="0.8"/>
+  <text x="440" y="619" font-size="9" fill="#fbbf24">IN:</text>
+  <text x="460" y="619" font-size="9" fill="#94a3b8">Self (inter-broker replication on 9094)</text>
+
+  <rect x="430" y="630" width="300" height="14" rx="3" fill="#0f172a" stroke="#f59e0b" stroke-width="0.5"/>
+  <text x="580" y="641" text-anchor="middle" font-size="8" fill="#f59e0b">3 brokers &#x2022; TLS in-transit &#x2022; KMS at-rest</text>
+
+  <!-- Redis SG -->
+  <rect x="770" y="550" width="380" height="100" rx="8" fill="rgba(220,56,45,0.06)" stroke="#DC382D" stroke-width="2" filter="url(#sh)"/>
+  <rect x="778" y="554" width="170" height="18" rx="4" fill="#DC382D"/>
+  <text x="863" y="567" text-anchor="middle" font-size="10" font-weight="800" fill="#0f172a">Redis SG (sg-redis)</text>
+
+  <rect x="790" y="578" width="340" height="22" rx="4" fill="#0f172a" stroke="#10b981" stroke-width="0.8"/>
+  <text x="800" y="593" font-size="9" fill="#10b981">IN:</text>
+  <text x="820" y="593" font-size="9" fill="#94a3b8">TCP 6379 from sg-workers ONLY</text>
+
+  <rect x="790" y="604" width="340" height="22" rx="4" fill="#0f172a" stroke="#ef4444" stroke-width="0.8"/>
+  <text x="800" y="619" font-size="9" fill="#ef4444">&#x2718;</text>
+  <text x="820" y="619" font-size="9" fill="#94a3b8">NO internet &#x2022; Auth token required &#x2022; TLS 1.2</text>
+
+  <rect x="790" y="630" width="340" height="14" rx="3" fill="#0f172a" stroke="#DC382D" stroke-width="0.5"/>
+  <text x="960" y="641" text-anchor="middle" font-size="8" fill="#DC382D">CSRF tokens + rate-limit buckets + sessions</text>
+
+  <line x1="600" y1="650" x2="600" y2="666" stroke="#10b981" stroke-width="1.5" marker-end="url(#arG)"/>
+
+  <!-- ============================================================ -->
+  <!-- ROW 7: Database Subnet NACL                                   -->
+  <!-- ============================================================ -->
+  <rect x="50" y="668" width="1100" height="42" rx="8" fill="rgba(239,68,68,0.05)" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <rect x="58" y="672" width="190" height="18" rx="4" fill="#ef4444"/>
+  <text x="153" y="685" text-anchor="middle" font-size="10" font-weight="800" fill="#0f172a">Database Subnet NACL</text>
+
+  <rect x="270" y="676" width="290" height="26" rx="5" fill="#0f172a" stroke="#10b981" stroke-width="0.8"/>
+  <text x="415" y="693" text-anchor="middle" font-size="9" font-weight="600" fill="#10b981">ALLOW: TCP 5432 from 10.0.10&#x2013;30.0/24 (private)</text>
+
+  <rect x="580" y="676" width="220" height="26" rx="5" fill="#0f172a" stroke="#ef4444" stroke-width="0.8"/>
+  <text x="690" y="693" text-anchor="middle" font-size="9" font-weight="600" fill="#ef4444">DENY: All internet &#x2022; All public</text>
+
+  <rect x="820" y="676" width="220" height="26" rx="5" fill="#0f172a" stroke="#fbbf24" stroke-width="0.8"/>
+  <text x="930" y="693" text-anchor="middle" font-size="9" font-weight="600" fill="#fbbf24">Ephemeral responses to private</text>
+
+  <line x1="600" y1="710" x2="600" y2="726" stroke="#10b981" stroke-width="1.5" marker-end="url(#arG)"/>
+
+  <!-- ============================================================ -->
+  <!-- ROW 8: VPC Endpoints                                          -->
+  <!-- ============================================================ -->
+  <rect x="50" y="728" width="1100" height="68" rx="8" fill="rgba(34,211,238,0.05)" stroke="#22d3ee" stroke-width="1.5" filter="url(#sh)"/>
+  <rect x="58" y="732" width="230" height="18" rx="4" fill="#22d3ee"/>
+  <text x="173" y="745" text-anchor="middle" font-size="10" font-weight="800" fill="#0f172a">VPC Endpoints (Private Link)</text>
+  <text x="305" y="745" font-size="9" fill="#22d3ee" font-weight="600">No internet traversal for AWS API calls</text>
+
+  <rect x="70" y="758" width="140" height="28" rx="5" fill="#0f172a" stroke="#22d3ee" stroke-width="1"/>
+  <text x="140" y="771" text-anchor="middle" font-size="10" font-weight="600" fill="#22d3ee">S3 (Gateway)</text>
+  <text x="140" y="782" text-anchor="middle" font-size="8" fill="#64748b">SG: 443 from workers</text>
+
+  <rect x="230" y="758" width="140" height="28" rx="5" fill="#0f172a" stroke="#22d3ee" stroke-width="1"/>
+  <text x="300" y="771" text-anchor="middle" font-size="10" font-weight="600" fill="#22d3ee">ECR (Interface)</text>
+  <text x="300" y="782" text-anchor="middle" font-size="8" fill="#64748b">SG: 443 from workers</text>
+
+  <rect x="390" y="758" width="140" height="28" rx="5" fill="#0f172a" stroke="#22d3ee" stroke-width="1"/>
+  <text x="460" y="771" text-anchor="middle" font-size="10" font-weight="600" fill="#22d3ee">STS (Interface)</text>
+  <text x="460" y="782" text-anchor="middle" font-size="8" fill="#64748b">SG: 443 from workers</text>
+
+  <rect x="550" y="758" width="175" height="28" rx="5" fill="#0f172a" stroke="#22d3ee" stroke-width="1"/>
+  <text x="637" y="771" text-anchor="middle" font-size="10" font-weight="600" fill="#22d3ee">CloudWatch (Interface)</text>
+  <text x="637" y="782" text-anchor="middle" font-size="8" fill="#64748b">SG: 443 from workers</text>
+
+  <rect x="745" y="758" width="190" height="28" rx="5" fill="#0f172a" stroke="#22d3ee" stroke-width="1"/>
+  <text x="840" y="771" text-anchor="middle" font-size="10" font-weight="600" fill="#22d3ee">Secrets Manager (Interface)</text>
+  <text x="840" y="782" text-anchor="middle" font-size="8" fill="#64748b">SG: 443 from workers</text>
+
+  <rect x="955" y="758" width="175" height="28" rx="5" fill="#0f172a" stroke="#22d3ee" stroke-width="1"/>
+  <text x="1042" y="771" text-anchor="middle" font-size="10" font-weight="600" fill="#22d3ee">KMS (Interface)</text>
+  <text x="1042" y="782" text-anchor="middle" font-size="8" fill="#64748b">SG: 443 from workers</text>
+
+  <!-- ============================================================ -->
+  <!-- LEGEND                                                        -->
+  <!-- ============================================================ -->
+  <rect x="50" y="808" width="1100" height="80" rx="8" fill="rgba(96,165,250,0.04)" stroke="#475569" stroke-width="0.8" stroke-dasharray="4,3"/>
+  <text x="70" y="828" font-size="11" font-weight="700" fill="#94a3b8">Legend</text>
+
+  <!-- Green arrow = Allowed -->
+  <line x1="70" y1="846" x2="100" y2="846" stroke="#10b981" stroke-width="2" marker-end="url(#arG)"/>
+  <text x="108" y="850" font-size="9" fill="#10b981" font-weight="600">Allowed Traffic</text>
+
+  <!-- Red X = Denied -->
+  <text x="220" y="850" font-size="12" fill="#ef4444" font-weight="700">&#x2718;</text>
+  <text x="236" y="850" font-size="9" fill="#ef4444" font-weight="600">Denied / Blocked</text>
+
+  <!-- Dashed line = NACL -->
+  <line x1="350" y1="846" x2="400" y2="846" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="408" y="850" font-size="9" fill="#ef4444" font-weight="600">NACL Boundary (stateless)</text>
+
+  <!-- Solid line = SG -->
+  <line x1="570" y1="846" x2="620" y2="846" stroke="#3b82f6" stroke-width="2"/>
+  <text x="628" y="850" font-size="9" fill="#3b82f6" font-weight="600">Security Group Boundary (stateful)</text>
+
+  <!-- Flow logs -->
+  <rect x="820" y="838" width="16" height="16" rx="3" fill="#22d3ee"/>
+  <text x="844" y="850" font-size="9" fill="#22d3ee" font-weight="600">VPC Flow Logs (all ENIs)</text>
+
+  <!-- Layered defense note -->
+  <text x="70" y="876" font-size="9" fill="#64748b">Traffic passes through: Internet &#x2192; WAF &#x2192; ALB SG &#x2192; Public NACL &#x2192; Worker SG &#x2192; Private NACL &#x2192; Service SG &#x2192; DB NACL &#x2192; Pod NetworkPolicy &#x2192; Istio mTLS</text>
+
+  <!-- Footer -->
+  <text x="600" y="896" text-anchor="middle" font-size="9" fill="#334155">BookStore Platform &#x2022; AWS EKS Security Group &amp; NACL Architecture &#x2022; Defense in Depth</text>
+</svg>

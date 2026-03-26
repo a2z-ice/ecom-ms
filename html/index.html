@@ -566,6 +566,22 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
       <h3>Learn AKS: A to Z Knowledge Guide</h3>
       <p>32-section deep dive: VNet, Subnets, NSGs, Private Endpoints, AKS Control Plane, Node Pools, Azure CNI, Workload Identity, PostgreSQL Flexible, Event Hubs, Redis, App Gateway, Key Vault, Managed Identity. Plus AWS-vs-Azure comparison table.</p>
     </a>
+    <a href="production-hardening-aws.html" class="doc-card" style="border-color: #ef4444; border-width: 2px; background: linear-gradient(135deg, rgba(239,68,68,0.1), rgba(220,38,38,0.04));">
+      <h3>Production Hardening: AWS EKS</h3>
+      <p>Fine-grained Security Groups for every component (ALB, EKS, Aurora, MSK, Redis), NACLs, VPC Flow Logs, VPC Endpoints, encryption. Plus cost optimization: Spot instances (60-90% savings), Graviton ARM, right-sizing, Savings Plans. 60+ item checklist.</p>
+    </a>
+    <a href="production-hardening-azure.html" class="doc-card" style="border-color: #ef4444; border-width: 2px; background: linear-gradient(135deg, rgba(239,68,68,0.1), rgba(220,38,38,0.04));">
+      <h3>Production Hardening: Azure AKS</h3>
+      <p>Fine-grained NSG rules for every subnet, Private Endpoints for all PaaS (public access disabled), Azure Policy enforcement, disk encryption (CMK). Cost optimization: Spot pools, AMD VMs, Burstable for dev, stop/start automation, Reserved Instances. 60+ item checklist.</p>
+    </a>
+    <a href="hardening-visual-aws.html" class="doc-card" style="border-color: #f59e0b; border-width: 2px; background: linear-gradient(135deg, rgba(245,158,11,0.08), rgba(239,68,68,0.04));">
+      <h3>Before/After: AWS Hardening Visual</h3>
+      <p>15 side-by-side comparisons with inline SVG diagrams: insecure SG egress vs locked-down, no NACLs vs 3-tier defense, On-Demand vs Spot+Graviton. Each shows BEFORE code/diagram (red) vs AFTER code/diagram (green) with attack prevented or cost saved.</p>
+    </a>
+    <a href="hardening-visual-azure.html" class="doc-card" style="border-color: #06b6d4; border-width: 2px; background: linear-gradient(135deg, rgba(6,182,212,0.08), rgba(0,120,212,0.04));">
+      <h3>Before/After: Azure Hardening Visual</h3>
+      <p>15 side-by-side comparisons: default NSG vs explicit deny-all, public endpoints vs Private Endpoints, Intel On-Demand vs AMD Spot, Premium Redis vs Standard, no Policy vs 5 Gatekeeper policies. Visual proof of every security and cost improvement.</p>
+    </a>
     <a href="bookstore-platform-manual.html" class="doc-card" style="border-color: #f59e0b; border-width: 2px;">
       <h3>Technical Reference Manual v1.0</h3>
       <p>Complete 13-chapter professional manual — platform overview, user guide, admin panel, analytics, monitoring, security architecture, API reference, operations, and troubleshooting. All in one document.</p>

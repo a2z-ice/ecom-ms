@@ -1,0 +1,2640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Production Hardening &amp; Cost Optimization — BookStore on Azure AKS</title>
+  <meta property="og:title" content="BookStore Platform — Production Hardening & Cost Optimization on Azure AKS" />
+  <meta property="og:description" content="Comprehensive guide covering NSG rules, Private Endpoints, Azure Policy, disk encryption, TLS everywhere, Key Vault integration, Spot instances, right-sizing, reserved instances, and a full production checklist with Terraform code." />
+  <meta property="og:type" content="article" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; --cyan: #06b6d4; --purple: #8b5cf6; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 960px; margin: 0 auto; padding: 40px 24px 60px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p.subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 52px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 28px 0 10px; color: #cbd5e1; }
+    h4 { font-size: 0.95rem; font-weight: 600; margin: 20px 0 8px; color: #94a3b8; }
+    p { margin-bottom: 16px; color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.82rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.04); }
+    code { background: var(--card); padding: 2px 7px; border-radius: 4px; font-size: 0.86em; color: #fbbf24; }
+    pre { background: var(--card); padding: 18px 20px; border-radius: 10px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); position: relative; }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.84rem; line-height: 1.65; }
+    pre .comment { color: #64748b; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* Step Cards */
+    .step { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px 28px; margin: 20px 0; position: relative; overflow: hidden; }
+    .step::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; border-radius: 4px 0 0 4px; }
+    .step.blue::before { background: linear-gradient(180deg, #3b82f6, #60a5fa); }
+    .step.green::before { background: linear-gradient(180deg, #059669, #34d399); }
+    .step.purple::before { background: linear-gradient(180deg, #7c3aed, #a78bfa); }
+    .step.amber::before { background: linear-gradient(180deg, #d97706, #fbbf24); }
+    .step.red::before { background: linear-gradient(180deg, #dc2626, #f87171); }
+    .step.cyan::before { background: linear-gradient(180deg, #0891b2, #22d3ee); }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: white; font-weight: 800; font-size: 0.88rem; margin-right: 12px; flex-shrink: 0; }
+    .step h3 { display: flex; align-items: center; margin: 0 0 12px; color: #f1f5f9; }
+    .step p { margin-bottom: 10px; }
+    .step pre { margin: 10px 0 8px; }
+
+    /* Callouts */
+    .callout { padding: 16px 20px; border-radius: 10px; margin: 16px 0; font-size: 0.88rem; line-height: 1.6; border-left: 4px solid; }
+    .callout.info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+    .callout.warn { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
+    .callout.tip { background: rgba(16,185,129,0.08); border-color: #10b981; }
+    .callout.danger { background: rgba(239,68,68,0.08); border-color: #ef4444; }
+    .callout strong { color: #f1f5f9; }
+    .callout code { font-size: 0.84em; }
+
+    /* TOC */
+    .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 24px 0 40px; }
+    .toc h3 { font-size: 0.9rem; font-weight: 700; color: #f1f5f9; margin: 0 0 12px; }
+    .toc ol { margin: 0; padding-left: 20px; }
+    .toc li { margin-bottom: 4px; }
+    .toc a { font-size: 0.85rem; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+    .toc a:hover { color: var(--accent); }
+    .toc .toc-part { font-size: 0.78rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 6px; list-style: none; margin-left: -20px; }
+    .toc .toc-part:first-child { margin-top: 0; }
+
+    /* Topnav */
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 960px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+
+    /* NSG Rule Cards */
+    .nsg-rule { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin: 10px 0; display: grid; grid-template-columns: 48px 1fr; gap: 14px; align-items: start; }
+    .nsg-rule.allow { border-left: 4px solid var(--green); }
+    .nsg-rule.deny { border-left: 4px solid var(--red); }
+    .nsg-rule .rule-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; color: white; margin-top: 2px; }
+    .nsg-rule.allow .rule-icon { background: linear-gradient(135deg, #059669, #10b981); }
+    .nsg-rule.deny .rule-icon { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .nsg-rule .rule-name { font-weight: 700; font-size: 0.9rem; color: #f1f5f9; }
+    .nsg-rule .rule-detail { font-size: 0.8rem; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+    .nsg-rule .rule-detail code { font-size: 0.76rem; }
+    .nsg-rule .rule-why { font-size: 0.8rem; color: #94a3b8; margin-top: 6px; font-style: italic; }
+
+    /* Cost table highlights */
+    .savings { color: var(--green); font-weight: 700; }
+    .cost-high { color: var(--red); font-weight: 600; }
+    .cost-low { color: var(--green); font-weight: 600; }
+
+    /* Checklist */
+    .checklist { list-style: none; margin: 12px 0 20px; padding: 0; }
+    .checklist li { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(51,65,85,0.3); font-size: 0.86rem; }
+    .checklist li:last-child { border-bottom: none; }
+    .check-box { width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: 0.65rem; }
+    .check-box.security { border-color: var(--red); color: var(--red); }
+    .check-box.cost { border-color: var(--green); color: var(--green); }
+    .check-box.ops { border-color: var(--cyan); color: var(--cyan); }
+    .check-cat { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 20px 0 8px; }
+    .check-cat.security { color: var(--red); }
+    .check-cat.cost { color: var(--green); }
+    .check-cat.ops { color: var(--cyan); }
+
+    /* Subnet diagram */
+    .subnet-diagram { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; }
+    .subnet-box { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+    .subnet-box .subnet-name { font-weight: 700; font-size: 0.9rem; color: #f1f5f9; }
+    .subnet-box .subnet-cidr { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+    .subnet-box .subnet-nsg { font-size: 0.75rem; color: var(--accent); margin-top: 6px; font-weight: 600; }
+    .subnet-box.highlight { border-color: var(--accent); background: rgba(59,130,246,0.06); }
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>Production Hardening &amp; Cost Optimization</h1>
+  <p class="subtitle">Complete security lockdown and cost-efficient deployment of the BookStore Platform on Azure AKS</p>
+
+  <div class="badges">
+    <span class="badge red">Security</span>
+    <span class="badge green">Cost Optimization</span>
+    <span class="badge purple">Terraform</span>
+    <span class="badge cyan">Azure AKS</span>
+    <span class="badge orange">Production-Grade</span>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li class="toc-part">Part 1: Security -- Network Isolation</li>
+      <li><a href="#nsg-overview">NSG Architecture Overview</a></li>
+      <li><a href="#aks-nsg">AKS Subnet NSG</a></li>
+      <li><a href="#db-nsg">Database Subnet NSG</a></li>
+      <li><a href="#appgw-nsg">App Gateway Subnet NSG</a></li>
+      <li><a href="#redis-nsg">Redis Subnet NSG</a></li>
+      <li><a href="#private-endpoints">Private Endpoints for All PaaS Services</a></li>
+      <li><a href="#disable-public">Disable Public Access on All Services</a></li>
+      <li><a href="#azure-firewall">Azure Firewall / UDR (Optional)</a></li>
+      <li><a href="#azure-policy">Azure Policy for AKS</a></li>
+      <li class="toc-part">Part 2: Security -- Encryption &amp; Identity</li>
+      <li><a href="#disk-encryption">Disk Encryption</a></li>
+      <li><a href="#tls-everywhere">TLS Everywhere</a></li>
+      <li><a href="#key-vault">Key Vault Integration</a></li>
+      <li><a href="#defender">Microsoft Defender for Cloud</a></li>
+      <li class="toc-part">Part 3: Cost Optimization</li>
+      <li><a href="#cost-overview">Cost Optimization Overview</a></li>
+      <li><a href="#spot-nodes">AKS: Spot Node Pools</a></li>
+      <li><a href="#vm-sizing">AKS: Right-Sizing VM SKUs</a></li>
+      <li><a href="#pg-sizing">PostgreSQL: Burstable vs General Purpose</a></li>
+      <li><a href="#redis-sizing">Redis: SKU Right-Sizing</a></li>
+      <li><a href="#eventhubs-sizing">Event Hubs: Throughput Optimization</a></li>
+      <li><a href="#stop-start">Stop/Start for Dev Environments</a></li>
+      <li><a href="#reserved">Reserved Instances</a></li>
+      <li><a href="#cost-comparison">Dev vs Prod Cost Comparison</a></li>
+      <li><a href="#cost-monitoring">Cost Monitoring &amp; Alerts</a></li>
+      <li class="toc-part">Part 4: Production Checklist</li>
+      <li><a href="#checklist">Production Readiness Checklist</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PART 1: SECURITY — NETWORK ISOLATION                             -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <h2 id="nsg-overview">1. NSG Architecture Overview</h2>
+
+  <p>Network Security Groups (NSGs) are Azure's stateful Layer-4 firewalls. They filter traffic based on 5-tuple rules (source IP, source port, destination IP, destination port, protocol) and are applied to either subnets or individual NICs.</p>
+
+  <h3>Security Architecture Diagram</h3>
+  <img src="diagrams/aks-hardening-security.svg" alt="Azure AKS NSG and Private Endpoint Architecture" style="width:100%;border-radius:12px;border:1px solid #334155;margin:16px 0 28px;" />
+
+  <h3>Key Concepts</h3>
+  <ul>
+    <li><strong>Priority-based evaluation:</strong> Rules are evaluated lowest-number-first. Priority 100 is checked before 200. First matching rule wins.</li>
+    <li><strong>Stateful:</strong> If outbound traffic is allowed, the return inbound traffic is automatically permitted (no explicit return rule needed).</li>
+    <li><strong>Default rules</strong> (cannot be deleted, priority 65000+):
+      <ul>
+        <li><code>AllowVNetInBound</code> (65000) &mdash; allows all traffic within the VNet</li>
+        <li><code>AllowAzureLoadBalancerInBound</code> (65001) &mdash; allows Azure health probes</li>
+        <li><code>DenyAllInBound</code> (65500) &mdash; denies everything else</li>
+      </ul>
+    </li>
+    <li><strong>Subnet-level vs NIC-level:</strong> We apply NSGs at the subnet level for consistent enforcement. NIC-level NSGs add complexity without benefit in most AKS scenarios.</li>
+  </ul>
+
+  <div class="callout warn">
+    <strong>Important:</strong> The default <code>AllowVNetInBound</code> rule (priority 65000) allows all intra-VNet traffic. Our explicit deny rules at lower priorities override this default, enforcing micro-segmentation between subnets.
+  </div>
+
+  <h3>Subnet Layout &amp; NSG Assignment</h3>
+
+  <div class="subnet-diagram">
+    <div class="subnet-box highlight">
+      <div class="subnet-name">AKS Subnet</div>
+      <div class="subnet-cidr">10.0.1.0/22 (1022 IPs)</div>
+      <div class="subnet-nsg">bookstore-aks-nsg</div>
+    </div>
+    <div class="subnet-box">
+      <div class="subnet-name">Database Subnet</div>
+      <div class="subnet-cidr">10.0.8.0/24 (254 IPs)</div>
+      <div class="subnet-nsg">bookstore-db-nsg</div>
+    </div>
+    <div class="subnet-box">
+      <div class="subnet-name">App Gateway Subnet</div>
+      <div class="subnet-cidr">10.0.30.0/24 (254 IPs)</div>
+      <div class="subnet-nsg">bookstore-appgw-nsg</div>
+    </div>
+    <div class="subnet-box">
+      <div class="subnet-name">Redis Subnet</div>
+      <div class="subnet-cidr">10.0.40.0/24 (254 IPs)</div>
+      <div class="subnet-nsg">bookstore-redis-nsg</div>
+    </div>
+  </div>
+
+  <p>Each subnet gets its own dedicated NSG with an explicit <code>DenyAllInbound</code> rule at priority 4000. Only traffic matching higher-priority allow rules passes through.</p>
+
+  <h3>Base Terraform: VNet &amp; Subnet Association</h3>
+  <pre><code><span class="comment"># ── Associate NSGs with subnets ──</span>
+
+resource "azurerm_subnet_network_security_group_association" "aks" {
+  subnet_id                 = azurerm_subnet.aks.id
+  network_security_group_id = azurerm_network_security_group.aks.id
+}
+
+resource "azurerm_subnet_network_security_group_association" "db" {
+  subnet_id                 = azurerm_subnet.db.id
+  network_security_group_id = azurerm_network_security_group.db.id
+}
+
+resource "azurerm_subnet_network_security_group_association" "appgw" {
+  subnet_id                 = azurerm_subnet.appgw.id
+  network_security_group_id = azurerm_network_security_group.appgw.id
+}
+
+resource "azurerm_subnet_network_security_group_association" "redis" {
+  subnet_id                 = azurerm_subnet.redis.id
+  network_security_group_id = azurerm_network_security_group.redis.id
+}</code></pre>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="aks-nsg">2. AKS Subnet NSG</h2>
+
+  <p>The AKS subnet hosts all Kubernetes worker nodes. It receives traffic from the App Gateway (user requests), communicates with the database subnet (PostgreSQL), Redis subnet, and the AKS control plane (Azure-managed). All other inbound traffic is denied.</p>
+
+  <pre><code>resource "azurerm_network_security_group" "aks" {
+  name                = "bookstore-aks-nsg"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.common_tags
+
+  <span class="comment"># ── INBOUND RULES ──</span>
+
+  <span class="comment"># Allow App Gateway → AKS on HTTP/HTTPS/NodePorts</span>
+  <span class="comment"># App Gateway health probes + user traffic reach AKS pods via these ports.</span>
+  <span class="comment"># Without this: users cannot reach the application at all.</span>
+  security_rule {
+    name                       = "AllowAppGatewayInbound"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["80", "443", "30000-32767"]
+    source_address_prefix      = "10.0.30.0/24"
+    destination_address_prefix = "10.0.1.0/22"
+  }
+
+  <span class="comment"># Allow AKS control plane → worker nodes (API server callbacks)</span>
+  <span class="comment"># The AKS control plane (managed by Azure) needs to reach kubelets on</span>
+  <span class="comment"># port 443 and 10250 for pod exec, logs, metrics, and webhook calls.</span>
+  <span class="comment"># Without this: kubectl exec/logs fail, admission webhooks break.</span>
+  security_rule {
+    name                       = "AllowAKSControlPlane"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["443", "10250"]
+    source_address_prefix      = "AzureCloud"
+    destination_address_prefix = "10.0.1.0/22"
+  }
+
+  <span class="comment"># Allow intra-AKS communication (pod-to-pod, node-to-node)</span>
+  <span class="comment"># Kubernetes pods use overlay networking within the AKS subnet.</span>
+  <span class="comment"># Istio sidecar proxies, CoreDNS, and kube-proxy all need this.</span>
+  <span class="comment"># Without this: all pod-to-pod and service-to-service calls fail.</span>
+  security_rule {
+    name                       = "AllowAKSIntraSubnet"
+    priority                   = 120
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.0.1.0/22"
+    destination_address_prefix = "10.0.1.0/22"
+  }
+
+  <span class="comment"># Allow Azure Load Balancer health probes</span>
+  <span class="comment"># Azure internal load balancers (used by AKS services of type</span>
+  <span class="comment"># LoadBalancer) send probes from this well-known service tag.</span>
+  <span class="comment"># Without this: AKS internal LB marks all backends unhealthy.</span>
+  security_rule {
+    name                       = "AllowAzureLBProbes"
+    priority                   = 130
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "AzureLoadBalancer"
+    destination_address_prefix = "10.0.1.0/22"
+  }
+
+  <span class="comment"># DENY all other inbound traffic</span>
+  <span class="comment"># This overrides the default AllowVNetInBound (priority 65000),</span>
+  <span class="comment"># blocking any traffic from subnets not explicitly permitted above</span>
+  <span class="comment"># (e.g., Redis subnet cannot initiate connections to AKS).</span>
+  security_rule {
+    name                       = "DenyAllInbound"
+    priority                   = 4000
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  <span class="comment"># ── OUTBOUND RULES ──</span>
+
+  <span class="comment"># Allow AKS → Database subnet (PostgreSQL)</span>
+  <span class="comment"># All four PostgreSQL Flexible Servers (ecom, inventory, analytics,</span>
+  <span class="comment"># keycloak) reside in the DB subnet on port 5432.</span>
+  security_rule {
+    name                       = "AllowAKSToPostgres"
+    priority                   = 100
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5432"
+    source_address_prefix      = "10.0.1.0/22"
+    destination_address_prefix = "10.0.8.0/24"
+  }
+
+  <span class="comment"># Allow AKS → Redis subnet (TLS port 6380)</span>
+  <span class="comment"># Azure Cache for Redis Premium uses port 6380 for TLS connections.</span>
+  <span class="comment"># Used by: CSRF token store, session cache, rate limiting buckets.</span>
+  security_rule {
+    name                       = "AllowAKSToRedis"
+    priority                   = 110
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "6380"
+    source_address_prefix      = "10.0.1.0/22"
+    destination_address_prefix = "10.0.40.0/24"
+  }
+
+  <span class="comment"># Allow AKS → Internet (container image pulls, Azure APIs, OIDC)</span>
+  <span class="comment"># Required for: ACR image pulls, Azure AD token exchange, Keycloak</span>
+  <span class="comment"># JWKS endpoint, OTel collector export, NTP, DNS.</span>
+  <span class="comment"># Consider replacing with Azure Firewall for FQDN filtering.</span>
+  security_rule {
+    name                       = "AllowAKSToInternet"
+    priority                   = 200
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["443", "80"]
+    source_address_prefix      = "10.0.1.0/22"
+    destination_address_prefix = "Internet"
+  }
+
+  <span class="comment"># Allow AKS → AKS (intra-subnet, same as inbound rule)</span>
+  security_rule {
+    name                       = "AllowAKSIntraSubnetOutbound"
+    priority                   = 210
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.0.1.0/22"
+    destination_address_prefix = "10.0.1.0/22"
+  }
+
+  <span class="comment"># Allow DNS resolution (Azure DNS at 168.63.129.16)</span>
+  security_rule {
+    name                       = "AllowDNS"
+    priority                   = 220
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "53"
+    source_address_prefix      = "10.0.1.0/22"
+    destination_address_prefix = "168.63.129.16/32"
+  }
+
+  <span class="comment"># DENY all other outbound traffic</span>
+  <span class="comment"># Prevents AKS from reaching unexpected destinations (e.g., crypto</span>
+  <span class="comment"># mining pools, C2 servers if a pod is compromised).</span>
+  security_rule {
+    name                       = "DenyAllOutbound"
+    priority                   = 4000
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}</code></pre>
+
+  <h3>Rule-by-Rule Explanation</h3>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">100</div>
+    <div>
+      <div class="rule-name">AllowAppGatewayInbound</div>
+      <div class="rule-detail">
+        <code>TCP 80, 443, 30000-32767</code> from <code>10.0.30.0/24</code> (App GW subnet)
+      </div>
+      <div class="rule-why">App Gateway sends user HTTP/HTTPS traffic and health probes to AKS NodePorts. Without this rule, the application is unreachable from the internet.</div>
+    </div>
+  </div>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">110</div>
+    <div>
+      <div class="rule-name">AllowAKSControlPlane</div>
+      <div class="rule-detail">
+        <code>TCP 443, 10250</code> from <code>AzureCloud</code> service tag
+      </div>
+      <div class="rule-why">AKS control plane (Azure-managed) communicates with kubelets on 10250 for exec/logs and 443 for webhook callbacks. Blocking this breaks kubectl, admission webhooks, and HPA.</div>
+    </div>
+  </div>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">120</div>
+    <div>
+      <div class="rule-name">AllowAKSIntraSubnet</div>
+      <div class="rule-detail">
+        <code>ALL protocols, ALL ports</code> within <code>10.0.1.0/22</code>
+      </div>
+      <div class="rule-why">Kubernetes requires unrestricted pod-to-pod communication within the cluster. Istio mTLS handles encryption and authorization at Layer 7 inside the cluster.</div>
+    </div>
+  </div>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">130</div>
+    <div>
+      <div class="rule-name">AllowAzureLBProbes</div>
+      <div class="rule-detail">
+        <code>TCP all ports</code> from <code>AzureLoadBalancer</code> service tag
+      </div>
+      <div class="rule-why">Azure's internal load balancer sends synthetic health probes from 168.63.129.16. Without this, all backends are marked unhealthy.</div>
+    </div>
+  </div>
+
+  <div class="nsg-rule deny">
+    <div class="rule-icon">4K</div>
+    <div>
+      <div class="rule-name">DenyAllInbound</div>
+      <div class="rule-detail">
+        <code>ALL protocols, ALL ports</code> from <code>*</code>
+      </div>
+      <div class="rule-why">Overrides the default AllowVNetInBound at priority 65000. Ensures that ONLY traffic from explicitly allowed sources (App GW, control plane, intra-AKS) can reach worker nodes.</div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="db-nsg">3. Database Subnet NSG</h2>
+
+  <p>The database subnet is the crown jewel &mdash; it contains all four PostgreSQL Flexible Server instances (ecom, inventory, analytics, keycloak). This NSG enforces the smallest possible blast radius: <strong>only the AKS subnet can reach port 5432, and nothing else.</strong></p>
+
+  <div class="callout danger">
+    <strong>Critical:</strong> Databases must NEVER be accessible from the internet, the App Gateway subnet, or the Redis subnet. A compromised App Gateway should not give direct database access.
+  </div>
+
+  <pre><code>resource "azurerm_network_security_group" "db" {
+  name                = "bookstore-db-nsg"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.common_tags
+
+  <span class="comment"># ── INBOUND RULES ──</span>
+
+  <span class="comment"># Allow AKS → PostgreSQL on port 5432 ONLY</span>
+  <span class="comment"># Application pods (ecom-service, inventory-service, keycloak,</span>
+  <span class="comment"># analytics-flink) connect to their respective databases here.</span>
+  <span class="comment"># This is the ONLY inbound rule — maximum isolation.</span>
+  security_rule {
+    name                       = "AllowAKSToPostgres"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5432"
+    source_address_prefix      = "10.0.1.0/22"
+    destination_address_prefix = "10.0.8.0/24"
+  }
+
+  <span class="comment"># DENY from App Gateway subnet</span>
+  <span class="comment"># Explicit deny at higher priority than VNet default.</span>
+  <span class="comment"># Prevents: If App GW is compromised (e.g., WAF bypass),</span>
+  <span class="comment"># attacker cannot pivot directly to the database.</span>
+  security_rule {
+    name                       = "DenyAppGatewayToDb"
+    priority                   = 200
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.0.30.0/24"
+    destination_address_prefix = "10.0.8.0/24"
+  }
+
+  <span class="comment"># DENY from Redis subnet</span>
+  <span class="comment"># Redis has no business talking to PostgreSQL.</span>
+  security_rule {
+    name                       = "DenyRedisToDb"
+    priority                   = 210
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.0.40.0/24"
+    destination_address_prefix = "10.0.8.0/24"
+  }
+
+  <span class="comment"># DENY from Internet</span>
+  <span class="comment"># Defense in depth: even if public_network_access is misconfigured,</span>
+  <span class="comment"># the NSG blocks internet-originating traffic at Layer 4.</span>
+  security_rule {
+    name                       = "DenyInternetToDb"
+    priority                   = 300
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "Internet"
+    destination_address_prefix = "10.0.8.0/24"
+  }
+
+  <span class="comment"># DENY all other inbound</span>
+  security_rule {
+    name                       = "DenyAllInbound"
+    priority                   = 4000
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  <span class="comment"># ── OUTBOUND RULES ──</span>
+
+  <span class="comment"># Allow DB → AKS (response traffic, replication)</span>
+  <span class="comment"># PostgreSQL needs to respond to AKS queries.</span>
+  <span class="comment"># NSGs are stateful so return traffic is auto-allowed,</span>
+  <span class="comment"># but this explicit rule covers any DB-initiated connections</span>
+  <span class="comment"># (e.g., pg_notify, logical replication to Debezium).</span>
+  security_rule {
+    name                       = "AllowDbToAKS"
+    priority                   = 100
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.0.8.0/24"
+    destination_address_prefix = "10.0.1.0/22"
+  }
+
+  <span class="comment"># Allow DB → Azure services (backups, metrics, HA replication)</span>
+  <span class="comment"># PostgreSQL Flexible Server needs to reach Azure Storage for</span>
+  <span class="comment"># automated backups and Azure Monitor for diagnostics.</span>
+  security_rule {
+    name                       = "AllowDbToAzureServices"
+    priority                   = 110
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "10.0.8.0/24"
+    destination_address_prefix = "AzureCloud"
+  }
+
+  <span class="comment"># DENY all other outbound</span>
+  security_rule {
+    name                       = "DenyAllOutbound"
+    priority                   = 4000
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}</code></pre>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">100</div>
+    <div>
+      <div class="rule-name">AllowAKSToPostgres</div>
+      <div class="rule-detail"><code>TCP 5432</code> from <code>10.0.1.0/22</code> (AKS subnet only)</div>
+      <div class="rule-why">The single inbound path. Only Kubernetes pods can connect. Debezium CDC connectors, application services, and Flink jobs all run inside AKS.</div>
+    </div>
+  </div>
+
+  <div class="nsg-rule deny">
+    <div class="rule-icon">200</div>
+    <div>
+      <div class="rule-name">DenyAppGatewayToDb</div>
+      <div class="rule-detail"><code>ALL</code> from <code>10.0.30.0/24</code> (App GW subnet)</div>
+      <div class="rule-why">Prevents lateral movement. If an attacker exploits a WAF vulnerability in App Gateway, they cannot pivot to the database tier.</div>
+    </div>
+  </div>
+
+  <div class="nsg-rule deny">
+    <div class="rule-icon">4K</div>
+    <div>
+      <div class="rule-name">DenyAllInbound</div>
+      <div class="rule-detail"><code>ALL</code> from <code>*</code></div>
+      <div class="rule-why">Catch-all. No traffic from any source not explicitly allowed above can reach the database subnet.</div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="appgw-nsg">4. App Gateway Subnet NSG</h2>
+
+  <p>The App Gateway subnet hosts the Azure Application Gateway v2. It is the only component directly exposed to the internet. This NSG allows user traffic on 443/80 and the <strong>mandatory</strong> GatewayManager health probe range.</p>
+
+  <div class="callout danger">
+    <strong>Mandatory:</strong> Ports <code>65200-65535</code> from the <code>GatewayManager</code> service tag MUST be allowed. Without this rule, Azure cannot provision or update the App Gateway, and it enters a "Failed" state.
+  </div>
+
+  <pre><code>resource "azurerm_network_security_group" "appgw" {
+  name                = "bookstore-appgw-nsg"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.common_tags
+
+  <span class="comment"># ── INBOUND RULES ──</span>
+
+  <span class="comment"># Allow HTTPS from internet (user traffic)</span>
+  <span class="comment"># This is the front door. TLS terminates at App Gateway,</span>
+  <span class="comment"># which performs WAF inspection before forwarding to AKS.</span>
+  security_rule {
+    name                       = "AllowHTTPSFromInternet"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "Internet"
+    destination_address_prefix = "10.0.30.0/24"
+  }
+
+  <span class="comment"># Allow HTTP from internet (redirect to HTTPS)</span>
+  <span class="comment"># App Gateway listens on 80 solely to issue a 301 redirect</span>
+  <span class="comment"># to the HTTPS URL. No application traffic flows over HTTP.</span>
+  security_rule {
+    name                       = "AllowHTTPFromInternet"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "80"
+    source_address_prefix      = "Internet"
+    destination_address_prefix = "10.0.30.0/24"
+  }
+
+  <span class="comment"># MANDATORY: Azure GatewayManager health probes</span>
+  <span class="comment"># Azure's infrastructure management plane uses these ports to</span>
+  <span class="comment"># communicate with the App Gateway control plane. If blocked,</span>
+  <span class="comment"># the App Gateway enters a "Failed" provisioning state and</span>
+  <span class="comment"># cannot be created, updated, or scaled.</span>
+  security_rule {
+    name                       = "AllowGatewayManager"
+    priority                   = 120
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "65200-65535"
+    source_address_prefix      = "GatewayManager"
+    destination_address_prefix = "10.0.30.0/24"
+  }
+
+  <span class="comment"># Allow Azure Load Balancer health probes</span>
+  security_rule {
+    name                       = "AllowAzureLBProbes"
+    priority                   = 130
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "AzureLoadBalancer"
+    destination_address_prefix = "10.0.30.0/24"
+  }
+
+  <span class="comment"># DENY all other inbound</span>
+  security_rule {
+    name                       = "DenyAllInbound"
+    priority                   = 4000
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  <span class="comment"># ── OUTBOUND RULES ──</span>
+
+  <span class="comment"># Allow App GW → AKS (forward user traffic to backend pods)</span>
+  <span class="comment"># App Gateway routes requests to AKS NodePorts (30000-32767)</span>
+  <span class="comment"># and standard HTTP/HTTPS ports for health probes.</span>
+  security_rule {
+    name                       = "AllowAppGwToAKS"
+    priority                   = 100
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["80", "443", "30000-32767"]
+    source_address_prefix      = "10.0.30.0/24"
+    destination_address_prefix = "10.0.1.0/22"
+  }
+
+  <span class="comment"># Allow App GW → Azure (OCSP, CRL checks, Azure Monitor)</span>
+  security_rule {
+    name                       = "AllowAppGwToAzure"
+    priority                   = 110
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "10.0.30.0/24"
+    destination_address_prefix = "AzureCloud"
+  }
+
+  <span class="comment"># DENY App GW → Database subnet (no direct DB access)</span>
+  security_rule {
+    name                       = "DenyAppGwToDb"
+    priority                   = 200
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.0.30.0/24"
+    destination_address_prefix = "10.0.8.0/24"
+  }
+
+  <span class="comment"># DENY all other outbound</span>
+  security_rule {
+    name                       = "DenyAllOutbound"
+    priority                   = 4000
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}</code></pre>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">120</div>
+    <div>
+      <div class="rule-name">AllowGatewayManager</div>
+      <div class="rule-detail"><code>TCP 65200-65535</code> from <code>GatewayManager</code> service tag</div>
+      <div class="rule-why">This is the #1 cause of App Gateway deployment failures. Azure uses these ports for control-plane communication. Omitting this rule causes the App Gateway to enter a permanent "Failed" state.</div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="redis-nsg">5. Redis Subnet NSG</h2>
+
+  <p>The Redis subnet hosts Azure Cache for Redis (Premium tier with VNet injection or Standard with Private Endpoint). Only the AKS subnet needs to reach Redis, and only on TLS port 6380.</p>
+
+  <div class="callout info">
+    <strong>Note:</strong> Azure Cache for Redis Premium uses port <code>6380</code> for TLS connections, NOT the standard Redis port 6379. Always use 6380 in your connection strings with <code>ssl=true</code>.
+  </div>
+
+  <pre><code>resource "azurerm_network_security_group" "redis" {
+  name                = "bookstore-redis-nsg"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.common_tags
+
+  <span class="comment"># ── INBOUND RULES ──</span>
+
+  <span class="comment"># Allow AKS → Redis on TLS port 6380</span>
+  <span class="comment"># Used by: CSRF token store, rate limiting (Bucket4j),</span>
+  <span class="comment"># session/refresh token cache.</span>
+  <span class="comment"># Port 6380 = Redis over TLS. Never use 6379 (plaintext).</span>
+  security_rule {
+    name                       = "AllowAKSToRedis"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "6380"
+    source_address_prefix      = "10.0.1.0/22"
+    destination_address_prefix = "10.0.40.0/24"
+  }
+
+  <span class="comment"># Allow Redis cluster internal communication (if using Premium)</span>
+  <span class="comment"># Premium-tier Redis with clustering uses ports 13000-13999</span>
+  <span class="comment"># and 15000-15999 for intra-cluster replication.</span>
+  security_rule {
+    name                       = "AllowRedisClusterInternal"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["6380", "8443", "10221-10231", "13000-13999", "15000-15999"]
+    source_address_prefix      = "10.0.40.0/24"
+    destination_address_prefix = "10.0.40.0/24"
+  }
+
+  <span class="comment"># Allow Azure Load Balancer probes</span>
+  security_rule {
+    name                       = "AllowAzureLBProbes"
+    priority                   = 120
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "AzureLoadBalancer"
+    destination_address_prefix = "10.0.40.0/24"
+  }
+
+  <span class="comment"># DENY from Internet</span>
+  security_rule {
+    name                       = "DenyInternetToRedis"
+    priority                   = 300
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "Internet"
+    destination_address_prefix = "10.0.40.0/24"
+  }
+
+  <span class="comment"># DENY all other inbound</span>
+  security_rule {
+    name                       = "DenyAllInbound"
+    priority                   = 4000
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  <span class="comment"># ── OUTBOUND RULES ──</span>
+
+  <span class="comment"># Allow Redis → Azure (diagnostics, replication, backups)</span>
+  security_rule {
+    name                       = "AllowRedisToAzure"
+    priority                   = 100
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "10.0.40.0/24"
+    destination_address_prefix = "AzureCloud"
+  }
+
+  <span class="comment"># Allow Redis intra-subnet (cluster replication)</span>
+  security_rule {
+    name                       = "AllowRedisIntraSubnet"
+    priority                   = 110
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.0.40.0/24"
+    destination_address_prefix = "10.0.40.0/24"
+  }
+
+  <span class="comment"># Allow DNS</span>
+  security_rule {
+    name                       = "AllowDNS"
+    priority                   = 120
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "53"
+    source_address_prefix      = "10.0.40.0/24"
+    destination_address_prefix = "168.63.129.16/32"
+  }
+
+  <span class="comment"># DENY all other outbound</span>
+  security_rule {
+    name                       = "DenyAllOutbound"
+    priority                   = 4000
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}</code></pre>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="private-endpoints">6. Private Endpoints for All PaaS Services</h2>
+
+  <p>Private Endpoints project an Azure PaaS service into your VNet via a private IP address. This means traffic between AKS and the PaaS service stays entirely within the Azure backbone &mdash; it never traverses the public internet. Combined with disabling public access, this creates a fully private data plane.</p>
+
+  <div class="callout info">
+    <strong>How Private Endpoints work:</strong> Azure creates a NIC in your VNet with a private IP. A Private DNS Zone (e.g., <code>privatelink.postgres.database.azure.com</code>) maps the service's FQDN to this private IP, so applications resolve the same hostname but get a private IP instead of a public one.
+  </div>
+
+  <h3>6.1 PostgreSQL Flexible Server (VNet-Delegated)</h3>
+  <p>PostgreSQL Flexible Server uses <strong>VNet integration via subnet delegation</strong> rather than Private Endpoints. The server is deployed directly into the database subnet.</p>
+
+  <pre><code><span class="comment"># PostgreSQL uses delegated subnet — not a Private Endpoint.</span>
+<span class="comment"># The subnet must have the "Microsoft.DBforPostgreSQL/flexibleServers"</span>
+<span class="comment"># delegation. The server receives a private IP directly in the subnet.</span>
+
+resource "azurerm_subnet" "db" {
+  name                 = "bookstore-db-subnet"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = ["10.0.8.0/24"]
+
+  delegation {
+    name = "postgresql-delegation"
+    service_delegation {
+      name    = "Microsoft.DBforPostgreSQL/flexibleServers"
+      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
+    }
+  }
+}
+
+<span class="comment"># Private DNS zone for PostgreSQL</span>
+resource "azurerm_private_dns_zone" "postgres" {
+  name                = "bookstore.postgres.database.azure.com"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "postgres" {
+  name                  = "postgres-vnet-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.postgres.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
+<span class="comment"># Flexible Server — deployed into the delegated subnet</span>
+resource "azurerm_postgresql_flexible_server" "ecom" {
+  name                          = "bookstore-ecom-db"
+  resource_group_name           = azurerm_resource_group.main.name
+  location                      = var.location
+  version                       = "16"
+  delegated_subnet_id           = azurerm_subnet.db.id
+  private_dns_zone_id           = azurerm_private_dns_zone.postgres.id
+  public_network_access_enabled = false   <span class="comment"># No public IP</span>
+  zone                          = "1"
+
+  administrator_login    = "ecom"
+  administrator_password = var.ecom_db_password
+
+  storage_mb = 32768
+  sku_name   = "GP_Standard_D2s_v3"
+
+  tags = local.common_tags
+}
+
+<span class="comment"># Repeat for: inventory-db, analytics-db, keycloak-db</span></code></pre>
+
+  <h3>6.2 Azure Cache for Redis — Private Endpoint</h3>
+
+  <pre><code><span class="comment"># ── Private DNS Zone for Redis ──</span>
+resource "azurerm_private_dns_zone" "redis" {
+  name                = "privatelink.redis.cache.windows.net"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "redis" {
+  name                  = "redis-vnet-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.redis.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
+<span class="comment"># ── Redis Private Endpoint ──</span>
+resource "azurerm_private_endpoint" "redis" {
+  name                = "bookstore-redis-pe"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.redis.id
+
+  private_service_connection {
+    name                           = "redis-psc"
+    private_connection_resource_id = azurerm_redis_cache.main.id
+    subresource_names              = ["redisCache"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "redis-dns"
+    private_dns_zone_ids = [azurerm_private_dns_zone.redis.id]
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># Redis with public access DISABLED</span>
+resource "azurerm_redis_cache" "main" {
+  name                          = "bookstore-redis"
+  location                      = var.location
+  resource_group_name           = azurerm_resource_group.main.name
+  capacity                      = 1
+  family                        = "P"
+  sku_name                      = "Premium"
+  minimum_tls_version           = "1.2"
+  public_network_access_enabled = false  <span class="comment"># CRITICAL: no public IP</span>
+  redis_version                 = "6"
+
+  redis_configuration {
+    maxmemory_policy = "allkeys-lru"
+  }
+
+  tags = local.common_tags
+}</code></pre>
+
+  <div class="callout tip">
+    <strong>Why disable public access?</strong> Even with a Private Endpoint, Azure PaaS services may still accept connections from the public internet unless <code>public_network_access_enabled = false</code> is explicitly set. This is defense in depth &mdash; the NSG blocks it at Layer 4, the service setting blocks it at Layer 7.
+  </div>
+
+  <h3>6.3 Event Hubs (Kafka Protocol) — Private Endpoint</h3>
+
+  <pre><code><span class="comment"># ── Private DNS Zone for Event Hubs ──</span>
+resource "azurerm_private_dns_zone" "eventhubs" {
+  name                = "privatelink.servicebus.windows.net"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "eventhubs" {
+  name                  = "eventhubs-vnet-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.eventhubs.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
+<span class="comment"># ── Event Hubs Private Endpoint ──</span>
+resource "azurerm_private_endpoint" "eventhubs" {
+  name                = "bookstore-eventhubs-pe"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.aks.id  <span class="comment"># PE in AKS subnet</span>
+
+  private_service_connection {
+    name                           = "eventhubs-psc"
+    private_connection_resource_id = azurerm_eventhub_namespace.main.id
+    subresource_names              = ["namespace"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "eventhubs-dns"
+    private_dns_zone_ids = [azurerm_private_dns_zone.eventhubs.id]
+  }
+
+  tags = local.common_tags
+}
+
+resource "azurerm_eventhub_namespace" "main" {
+  name                          = "bookstore-events"
+  location                      = var.location
+  resource_group_name           = azurerm_resource_group.main.name
+  sku                           = "Standard"
+  capacity                      = 1
+  auto_inflate_enabled          = true
+  maximum_throughput_units       = 5
+  public_network_access_enabled = false  <span class="comment"># No public access</span>
+
+  tags = local.common_tags
+}</code></pre>
+
+  <h3>6.4 Key Vault — Private Endpoint</h3>
+
+  <pre><code><span class="comment"># ── Private DNS Zone for Key Vault ──</span>
+resource "azurerm_private_dns_zone" "keyvault" {
+  name                = "privatelink.vaultcore.azure.net"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "keyvault" {
+  name                  = "keyvault-vnet-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.keyvault.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
+<span class="comment"># ── Key Vault Private Endpoint ──</span>
+resource "azurerm_private_endpoint" "keyvault" {
+  name                = "bookstore-kv-pe"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.aks.id
+
+  private_service_connection {
+    name                           = "keyvault-psc"
+    private_connection_resource_id = azurerm_key_vault.main.id
+    subresource_names              = ["vault"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "keyvault-dns"
+    private_dns_zone_ids = [azurerm_private_dns_zone.keyvault.id]
+  }
+
+  tags = local.common_tags
+}</code></pre>
+
+  <h3>6.5 Azure Container Registry — Private Endpoint</h3>
+
+  <div class="callout warn">
+    <strong>Premium SKU Required:</strong> Private Endpoints for ACR are only available on the Premium tier ($50/month). Standard tier does not support private networking.
+  </div>
+
+  <pre><code><span class="comment"># ── Private DNS Zone for ACR ──</span>
+resource "azurerm_private_dns_zone" "acr" {
+  name                = "privatelink.azurecr.io"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "acr" {
+  name                  = "acr-vnet-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.acr.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
+<span class="comment"># ── ACR Private Endpoint ──</span>
+resource "azurerm_private_endpoint" "acr" {
+  name                = "bookstore-acr-pe"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.aks.id
+
+  private_service_connection {
+    name                           = "acr-psc"
+    private_connection_resource_id = azurerm_container_registry.main.id
+    subresource_names              = ["registry"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "acr-dns"
+    private_dns_zone_ids = [azurerm_private_dns_zone.acr.id]
+  }
+
+  tags = local.common_tags
+}
+
+resource "azurerm_container_registry" "main" {
+  name                          = "bookstorecr"
+  resource_group_name           = azurerm_resource_group.main.name
+  location                      = var.location
+  sku                           = "Premium"  <span class="comment"># Required for Private Endpoint</span>
+  admin_enabled                 = false      <span class="comment"># Use managed identity</span>
+  public_network_access_enabled = false      <span class="comment"># No public access</span>
+
+  tags = local.common_tags
+}</code></pre>
+
+  <h3>6.6 Blob Storage (Terraform State) — Private Endpoint</h3>
+
+  <pre><code><span class="comment"># ── Private DNS Zone for Blob Storage ──</span>
+resource "azurerm_private_dns_zone" "blob" {
+  name                = "privatelink.blob.core.windows.net"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "blob" {
+  name                  = "blob-vnet-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.blob.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
+<span class="comment"># ── Storage Private Endpoint ──</span>
+resource "azurerm_private_endpoint" "storage" {
+  name                = "bookstore-storage-pe"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.aks.id
+
+  private_service_connection {
+    name                           = "storage-psc"
+    private_connection_resource_id = azurerm_storage_account.tfstate.id
+    subresource_names              = ["blob"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "storage-dns"
+    private_dns_zone_ids = [azurerm_private_dns_zone.blob.id]
+  }
+
+  tags = local.common_tags
+}
+
+resource "azurerm_storage_account" "tfstate" {
+  name                          = "bookstoretfstate"
+  resource_group_name           = azurerm_resource_group.main.name
+  location                      = var.location
+  account_tier                  = "Standard"
+  account_replication_type      = "GRS"
+  public_network_access_enabled = false  <span class="comment"># Terraform runs via VPN/self-hosted agent</span>
+  min_tls_version               = "TLS1_2"
+
+  tags = local.common_tags
+}</code></pre>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="disable-public">7. Disable Public Access on All Services</h2>
+
+  <p>Every Azure PaaS service must have its public endpoint explicitly disabled. This is a separate control from NSGs and Private Endpoints &mdash; defense in depth.</p>
+
+  <pre><code><span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># PUBLIC ACCESS LOCKDOWN — Every PaaS service</span>
+<span class="comment"># ═══════════════════════════════════════════════</span>
+
+<span class="comment"># PostgreSQL Flexible Server</span>
+resource "azurerm_postgresql_flexible_server" "ecom" {
+  <span class="comment"># ... other config ...</span>
+  public_network_access_enabled = false
+}
+
+<span class="comment"># Azure Cache for Redis</span>
+resource "azurerm_redis_cache" "main" {
+  <span class="comment"># ... other config ...</span>
+  public_network_access_enabled = false
+}
+
+<span class="comment"># Key Vault — uses network_acls block</span>
+resource "azurerm_key_vault" "main" {
+  name                       = "bookstore-kv"
+  location                   = var.location
+  resource_group_name        = azurerm_resource_group.main.name
+  tenant_id                  = data.azurerm_client_config.current.tenant_id
+  sku_name                   = "standard"
+  purge_protection_enabled   = true
+  soft_delete_retention_days = 90
+  enable_rbac_authorization  = true
+
+  public_network_access_enabled = false
+
+  network_acls {
+    default_action = "Deny"
+    bypass         = "AzureServices"  <span class="comment"># Allow trusted Azure services</span>
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># Azure Container Registry (Premium)</span>
+resource "azurerm_container_registry" "main" {
+  <span class="comment"># ... other config ...</span>
+  public_network_access_enabled = false
+}
+
+<span class="comment"># Event Hubs Namespace</span>
+resource "azurerm_eventhub_namespace" "main" {
+  <span class="comment"># ... other config ...</span>
+  public_network_access_enabled = false
+}
+
+<span class="comment"># Storage Account (Terraform State)</span>
+resource "azurerm_storage_account" "tfstate" {
+  <span class="comment"># ... other config ...</span>
+  public_network_access_enabled = false
+}</code></pre>
+
+  <div class="callout danger">
+    <strong>Warning:</strong> If you disable public access on the Storage Account used for Terraform state, you must run Terraform from within the VNet (via a self-hosted CI/CD agent or VPN). Otherwise, <code>terraform plan</code> itself will fail to read state.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="azure-firewall">8. Azure Firewall / UDR (Optional)</h2>
+
+  <p>For maximum egress control, deploy Azure Firewall in a dedicated subnet and route all AKS outbound traffic through it. This enables FQDN-based filtering &mdash; you can allowlist specific domains (e.g., <code>mcr.microsoft.com</code>) instead of entire IP ranges.</p>
+
+  <div class="callout warn">
+    <strong>Cost:</strong> Azure Firewall Standard costs approximately <strong>$912/month</strong> ($1.25/hr + data processing). Only justified for regulated industries (PCI-DSS, HIPAA, SOC 2) or environments with strict egress requirements.
+  </div>
+
+  <pre><code><span class="comment"># ── Azure Firewall (optional — for regulated environments) ──</span>
+
+resource "azurerm_subnet" "firewall" {
+  name                 = "AzureFirewallSubnet"  <span class="comment"># MUST be this exact name</span>
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = ["10.0.50.0/24"]
+}
+
+resource "azurerm_public_ip" "firewall" {
+  name                = "bookstore-fw-pip"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  tags                = local.common_tags
+}
+
+resource "azurerm_firewall" "main" {
+  name                = "bookstore-fw"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  sku_name            = "AZFW_VNet"
+  sku_tier            = "Standard"
+
+  ip_configuration {
+    name                 = "fw-ipconfig"
+    subnet_id            = azurerm_subnet.firewall.id
+    public_ip_address_id = azurerm_public_ip.firewall.id
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># ── Application Rules: FQDN filtering ──</span>
+resource "azurerm_firewall_application_rule_collection" "aks_egress" {
+  name                = "aks-egress-rules"
+  azure_firewall_name = azurerm_firewall.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  priority            = 100
+  action              = "Allow"
+
+  <span class="comment"># Allow AKS to pull images from ACR and MCR</span>
+  rule {
+    name             = "container-registries"
+    source_addresses = ["10.0.1.0/22"]
+    fqdn_tags        = []
+    target_fqdns = [
+      "bookstorecr.azurecr.io",
+      "mcr.microsoft.com",
+      "*.data.mcr.microsoft.com",
+    ]
+    protocol {
+      port = "443"
+      type = "Https"
+    }
+  }
+
+  <span class="comment"># Allow AKS management traffic</span>
+  rule {
+    name             = "aks-management"
+    source_addresses = ["10.0.1.0/22"]
+    fqdn_tags        = ["AzureKubernetesService"]
+    protocol {
+      port = "443"
+      type = "Https"
+    }
+  }
+
+  <span class="comment"># Allow Ubuntu/Alpine package updates (for init containers)</span>
+  rule {
+    name             = "os-updates"
+    source_addresses = ["10.0.1.0/22"]
+    target_fqdns = [
+      "archive.ubuntu.com",
+      "security.ubuntu.com",
+      "dl-cdn.alpinelinux.org",
+    ]
+    protocol {
+      port = "443"
+      type = "Https"
+    }
+    protocol {
+      port = "80"
+      type = "Http"
+    }
+  }
+}
+
+<span class="comment"># ── UDR: Force AKS traffic through the firewall ──</span>
+resource "azurerm_route_table" "aks" {
+  name                = "bookstore-aks-rt"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+
+  route {
+    name                   = "default-via-firewall"
+    address_prefix         = "0.0.0.0/0"
+    next_hop_type          = "VirtualAppliance"
+    next_hop_in_ip_address = azurerm_firewall.main.ip_configuration[0].private_ip_address
+  }
+
+  tags = local.common_tags
+}
+
+resource "azurerm_subnet_route_table_association" "aks" {
+  subnet_id      = azurerm_subnet.aks.id
+  route_table_id = azurerm_route_table.aks.id
+}</code></pre>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="azure-policy">9. Azure Policy for AKS</h2>
+
+  <p>Azure Policy extends governance into your AKS cluster at runtime. It uses Gatekeeper (OPA) under the hood to enforce constraints on Kubernetes resources as they are created.</p>
+
+  <pre><code><span class="comment"># ── Enable Azure Policy addon on AKS ──</span>
+resource "azurerm_kubernetes_cluster" "main" {
+  <span class="comment"># ... other config ...</span>
+
+  azure_policy_enabled = true
+}
+
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># Policy 1: No privileged containers</span>
+<span class="comment"># Built-in policy ID: 95edb821-ddaf-4404-9732-666045e056b4</span>
+<span class="comment"># Prevents containers from running with privileged: true,</span>
+<span class="comment"># which gives full host access (root escape).</span>
+<span class="comment"># ═══════════════════════════════════════════════</span>
+resource "azurerm_resource_group_policy_assignment" "no_privileged" {
+  name                 = "no-privileged-containers"
+  resource_group_id    = azurerm_resource_group.main.id
+  policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/95edb821-ddaf-4404-9732-666045e056b4"
+
+  parameters = jsonencode({
+    effect = { value = "Deny" }
+    excludedNamespaces = {
+      value = ["kube-system", "gatekeeper-system", "azure-arc"]
+    }
+  })
+}
+
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># Policy 2: Only allow images from our ACR</span>
+<span class="comment"># Built-in policy ID: febd0533-8e55-448f-b837-bd0e06f16469</span>
+<span class="comment"># Prevents pulling images from Docker Hub, ghcr.io, etc.</span>
+<span class="comment"># Only bookstorecr.azurecr.io images are allowed.</span>
+<span class="comment"># ═══════════════════════════════════════════════</span>
+resource "azurerm_resource_group_policy_assignment" "acr_only" {
+  name                 = "acr-images-only"
+  resource_group_id    = azurerm_resource_group.main.id
+  policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/febd0533-8e55-448f-b837-bd0e06f16469"
+
+  parameters = jsonencode({
+    effect = { value = "Deny" }
+    allowedContainerImagesRegex = {
+      value = "^bookstorecr\\.azurecr\\.io/.+$"
+    }
+    excludedNamespaces = {
+      value = ["kube-system", "gatekeeper-system", "azure-arc"]
+    }
+  })
+}
+
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># Policy 3: No privilege escalation</span>
+<span class="comment"># Built-in policy ID: 1c6e92c9-99f0-4e55-9cf2-0c234dc48f99</span>
+<span class="comment"># Blocks allowPrivilegeEscalation: true in security contexts.</span>
+<span class="comment"># Prevents setuid binaries from gaining root.</span>
+<span class="comment"># ═══════════════════════════════════════════════</span>
+resource "azurerm_resource_group_policy_assignment" "no_priv_escalation" {
+  name                 = "no-privilege-escalation"
+  resource_group_id    = azurerm_resource_group.main.id
+  policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/1c6e92c9-99f0-4e55-9cf2-0c234dc48f99"
+
+  parameters = jsonencode({
+    effect = { value = "Deny" }
+    excludedNamespaces = {
+      value = ["kube-system", "gatekeeper-system", "azure-arc"]
+    }
+  })
+}
+
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># Policy 4: Containers must run as non-root</span>
+<span class="comment"># Built-in policy ID: f06ddb64-5fa3-4b77-b166-acb36f7f6042</span>
+<span class="comment"># Enforces runAsNonRoot: true in pod security contexts.</span>
+<span class="comment"># ═══════════════════════════════════════════════</span>
+resource "azurerm_resource_group_policy_assignment" "run_as_nonroot" {
+  name                 = "run-as-nonroot"
+  resource_group_id    = azurerm_resource_group.main.id
+  policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/f06ddb64-5fa3-4b77-b166-acb36f7f6042"
+
+  parameters = jsonencode({
+    effect = { value = "Deny" }
+    excludedNamespaces = {
+      value = ["kube-system", "gatekeeper-system", "azure-arc", "cert-manager"]
+    }
+  })
+}
+
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># Policy 5: Read-only root filesystem</span>
+<span class="comment"># Built-in policy ID: df49d893-a74c-421d-bc95-c663042e5b80</span>
+<span class="comment"># Enforces readOnlyRootFilesystem: true.</span>
+<span class="comment"># Prevents attackers from writing malicious binaries to disk.</span>
+<span class="comment"># ═══════════════════════════════════════════════</span>
+resource "azurerm_resource_group_policy_assignment" "readonly_rootfs" {
+  name                 = "readonly-root-filesystem"
+  resource_group_id    = azurerm_resource_group.main.id
+  policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/df49d893-a74c-421d-bc95-c663042e5b80"
+
+  parameters = jsonencode({
+    effect = { value = "Deny" }
+    excludedNamespaces = {
+      value = ["kube-system", "gatekeeper-system", "azure-arc"]
+    }
+  })
+}</code></pre>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PART 2: SECURITY — ENCRYPTION & IDENTITY                         -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <h2 id="disk-encryption">10. Disk Encryption</h2>
+
+  <p>All data at rest must be encrypted with customer-managed keys (CMK) stored in Key Vault. This gives you full control over key rotation and revocation.</p>
+
+  <h3>10.1 AKS OS Disk Encryption with CMK</h3>
+
+  <pre><code><span class="comment"># ── Encryption key for AKS disks ──</span>
+resource "azurerm_key_vault_key" "aks_disk" {
+  name         = "aks-disk-encryption-key"
+  key_vault_id = azurerm_key_vault.main.id
+  key_type     = "RSA"
+  key_size     = 2048
+
+  key_opts = ["decrypt", "encrypt", "sign", "unwrapKey", "verify", "wrapKey"]
+
+  rotation_policy {
+    automatic {
+      time_before_expiry = "P30D"
+    }
+    expire_after         = "P365D"
+    notify_before_expiry = "P30D"
+  }
+}
+
+<span class="comment"># ── Disk Encryption Set (links Key Vault key to managed disks) ──</span>
+resource "azurerm_disk_encryption_set" "aks" {
+  name                = "bookstore-aks-des"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  key_vault_key_id    = azurerm_key_vault_key.aks_disk.id
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># ── Grant the DES identity access to Key Vault ──</span>
+resource "azurerm_role_assignment" "des_kv_crypto" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Crypto Service Encryption User"
+  principal_id         = azurerm_disk_encryption_set.aks.identity[0].principal_id
+}
+
+<span class="comment"># ── AKS cluster with CMK-encrypted OS disks ──</span>
+resource "azurerm_kubernetes_cluster" "main" {
+  <span class="comment"># ... other config ...</span>
+
+  default_node_pool {
+    name                = "system"
+    vm_size             = "Standard_D2s_v3"
+    os_disk_size_gb     = 128
+    os_disk_type        = "Managed"
+
+    <span class="comment"># Encrypt OS disk with our Key Vault key</span>
+  }
+
+  disk_encryption_set_id = azurerm_disk_encryption_set.aks.id
+}</code></pre>
+
+  <h3>10.2 PostgreSQL CMK Encryption</h3>
+
+  <pre><code><span class="comment"># ── Encryption key for PostgreSQL ──</span>
+resource "azurerm_key_vault_key" "postgres" {
+  name         = "postgres-encryption-key"
+  key_vault_id = azurerm_key_vault.main.id
+  key_type     = "RSA"
+  key_size     = 2048
+  key_opts     = ["unwrapKey", "wrapKey"]
+}
+
+<span class="comment"># ── User-assigned identity for PostgreSQL to access Key Vault ──</span>
+resource "azurerm_user_assigned_identity" "postgres_cmk" {
+  name                = "bookstore-pg-cmk-identity"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_role_assignment" "pg_kv_crypto" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Crypto Service Encryption User"
+  principal_id         = azurerm_user_assigned_identity.postgres_cmk.principal_id
+}
+
+<span class="comment"># ── PostgreSQL with CMK ──</span>
+resource "azurerm_postgresql_flexible_server" "ecom" {
+  <span class="comment"># ... other config ...</span>
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.postgres_cmk.id]
+  }
+
+  customer_managed_key {
+    key_vault_key_id                  = azurerm_key_vault_key.postgres.id
+    primary_user_assigned_identity_id = azurerm_user_assigned_identity.postgres_cmk.id
+  }
+}</code></pre>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="tls-everywhere">11. TLS Everywhere</h2>
+
+  <p>Every network hop in the platform must be encrypted. There should be zero plaintext traffic at any layer.</p>
+
+  <table>
+    <thead>
+      <tr><th>Hop</th><th>Protocol</th><th>Mechanism</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Internet &rarr; App Gateway</td><td>HTTPS (TLS 1.2+)</td><td>App Gateway TLS termination, Key Vault certificate</td></tr>
+      <tr><td>App Gateway &rarr; AKS Ingress</td><td>HTTPS</td><td>Backend HTTPS with health probes on 443</td></tr>
+      <tr><td>AKS pod &rarr; AKS pod</td><td>mTLS</td><td>Istio Ambient Mesh (ztunnel), automatic cert rotation</td></tr>
+      <tr><td>AKS &rarr; PostgreSQL</td><td>TLS 1.2</td><td><code>ssl_mode = require</code> on server, enforced by Flexible Server</td></tr>
+      <tr><td>AKS &rarr; Redis</td><td>TLS 1.2</td><td>Port 6380, <code>minimum_tls_version = "1.2"</code></td></tr>
+      <tr><td>AKS &rarr; Event Hubs</td><td>SASL_SSL</td><td>Kafka protocol over TLS, SASL authentication with connection string</td></tr>
+      <tr><td>AKS &rarr; Key Vault</td><td>HTTPS</td><td>Azure SDK uses TLS by default</td></tr>
+      <tr><td>AKS &rarr; ACR</td><td>HTTPS</td><td>Docker registry protocol over TLS</td></tr>
+    </tbody>
+  </table>
+
+  <pre><code><span class="comment"># ── PostgreSQL: Enforce SSL ──</span>
+resource "azurerm_postgresql_flexible_server" "ecom" {
+  <span class="comment"># ... other config ...</span>
+
+  <span class="comment"># SSL is enforced by default on Flexible Server.</span>
+  <span class="comment"># Explicitly set to reinforce the requirement.</span>
+}
+
+resource "azurerm_postgresql_flexible_server_configuration" "require_ssl" {
+  name      = "require_secure_transport"
+  server_id = azurerm_postgresql_flexible_server.ecom.id
+  value     = "on"
+}
+
+resource "azurerm_postgresql_flexible_server_configuration" "tls_version" {
+  name      = "ssl_min_protocol_version"
+  server_id = azurerm_postgresql_flexible_server.ecom.id
+  value     = "TLSv1.2"
+}
+
+<span class="comment"># ── App Gateway: TLS Policy ──</span>
+resource "azurerm_application_gateway" "main" {
+  <span class="comment"># ... other config ...</span>
+
+  ssl_policy {
+    policy_type          = "Predefined"
+    policy_name          = "AppGwSslPolicy20220101"  <span class="comment"># TLS 1.2 minimum</span>
+  }
+
+  ssl_certificate {
+    name                = "bookstore-tls"
+    key_vault_secret_id = azurerm_key_vault_certificate.appgw.secret_id
+  }
+}
+
+<span class="comment"># ── Redis: TLS 1.2 minimum ──</span>
+resource "azurerm_redis_cache" "main" {
+  <span class="comment"># ... other config ...</span>
+  minimum_tls_version = "1.2"
+  enable_non_ssl_port = false  <span class="comment"># Disable port 6379 (plaintext)</span>
+}</code></pre>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="key-vault">12. Key Vault Integration</h2>
+
+  <p>Azure Key Vault stores all secrets, certificates, and encryption keys. We use RBAC mode (not legacy access policies) for fine-grained control, and integrate with AKS via Workload Identity + External Secrets Operator.</p>
+
+  <pre><code><span class="comment"># ── Key Vault with RBAC, soft delete, purge protection ──</span>
+resource "azurerm_key_vault" "main" {
+  name                       = "bookstore-kv"
+  location                   = var.location
+  resource_group_name        = azurerm_resource_group.main.name
+  tenant_id                  = data.azurerm_client_config.current.tenant_id
+  sku_name                   = "standard"
+  enable_rbac_authorization  = true   <span class="comment"># RBAC, not access policies</span>
+  purge_protection_enabled   = true   <span class="comment"># Cannot permanently delete secrets</span>
+  soft_delete_retention_days = 90     <span class="comment"># 90-day recovery window</span>
+
+  public_network_access_enabled = false
+
+  network_acls {
+    default_action = "Deny"
+    bypass         = "AzureServices"
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># ── Workload Identity for AKS pods to access Key Vault ──</span>
+resource "azurerm_user_assigned_identity" "aks_workload" {
+  name                = "bookstore-aks-workload-id"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+<span class="comment"># Federated credential: links the K8s service account to the Azure identity</span>
+resource "azurerm_federated_identity_credential" "aks_eso" {
+  name                = "aks-eso-federated"
+  resource_group_name = azurerm_resource_group.main.name
+  parent_id           = azurerm_user_assigned_identity.aks_workload.id
+  audience            = ["api://AzureADTokenExchange"]
+  issuer              = azurerm_kubernetes_cluster.main.oidc_issuer_url
+  subject             = "system:serviceaccount:external-secrets:external-secrets-sa"
+}
+
+<span class="comment"># ── Grant "Key Vault Secrets User" to the workload identity ──</span>
+resource "azurerm_role_assignment" "eso_kv_secrets" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_user_assigned_identity.aks_workload.principal_id
+}
+
+<span class="comment"># ── Store application secrets in Key Vault ──</span>
+resource "azurerm_key_vault_secret" "ecom_db_password" {
+  name         = "ecom-db-password"
+  value        = var.ecom_db_password
+  key_vault_id = azurerm_key_vault.main.id
+
+  expiration_date = timeadd(timestamp(), "8760h")  <span class="comment"># 1 year</span>
+  content_type    = "password"
+}
+
+resource "azurerm_key_vault_secret" "inventory_db_password" {
+  name         = "inventory-db-password"
+  value        = var.inventory_db_password
+  key_vault_id = azurerm_key_vault.main.id
+
+  expiration_date = timeadd(timestamp(), "8760h")
+  content_type    = "password"
+}
+
+resource "azurerm_key_vault_secret" "redis_password" {
+  name         = "redis-primary-key"
+  value        = azurerm_redis_cache.main.primary_access_key
+  key_vault_id = azurerm_key_vault.main.id
+
+  content_type = "access-key"
+}
+
+resource "azurerm_key_vault_secret" "eventhubs_conn_string" {
+  name         = "eventhubs-connection-string"
+  value        = azurerm_eventhub_namespace.main.default_primary_connection_string
+  key_vault_id = azurerm_key_vault.main.id
+
+  content_type = "connection-string"
+}</code></pre>
+
+  <div class="callout tip">
+    <strong>Secret Rotation Strategy:</strong> Set <code>expiration_date</code> on all secrets. Use Azure Key Vault's built-in rotation policies (or Azure Function triggers) to rotate passwords before expiry. External Secrets Operator polls Key Vault every 60 seconds by default, so rotated secrets propagate to K8s Secrets automatically.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="defender">13. Microsoft Defender for Cloud (Optional)</h2>
+
+  <p>Microsoft Defender adds runtime threat detection. It scans container images for CVEs, monitors Key Vault access patterns, and alerts on anomalous Kubernetes API calls.</p>
+
+  <pre><code><span class="comment"># ── Enable Defender for Containers ──</span>
+<span class="comment"># Scans ACR images for vulnerabilities on push + scheduled rescan.</span>
+<span class="comment"># Monitors AKS runtime for anomalous behavior (crypto mining,</span>
+<span class="comment"># reverse shells, suspicious kubectl commands).</span>
+<span class="comment"># Cost: ~$7/vCPU/month on AKS nodes.</span>
+resource "azurerm_security_center_subscription_pricing" "containers" {
+  tier          = "Standard"
+  resource_type = "Containers"
+}
+
+<span class="comment"># ── Enable Defender for Key Vault ──</span>
+<span class="comment"># Alerts on: unusual access patterns, access from Tor exit nodes,</span>
+<span class="comment"># suspicious application access, mass secret enumeration.</span>
+<span class="comment"># Cost: $0.02 per 10,000 transactions.</span>
+resource "azurerm_security_center_subscription_pricing" "keyvault" {
+  tier          = "Standard"
+  resource_type = "KeyVaults"
+}
+
+<span class="comment"># ── Enable Defender for Storage ──</span>
+<span class="comment"># Scans for malware uploads to blob storage.</span>
+resource "azurerm_security_center_subscription_pricing" "storage" {
+  tier          = "Standard"
+  resource_type = "StorageAccounts"
+}
+
+<span class="comment"># ── Enable vulnerability assessment on ACR ──</span>
+<span class="comment"># Integrates with Qualys to scan Docker images.</span>
+resource "azurerm_security_center_subscription_pricing" "registries" {
+  tier          = "Standard"
+  resource_type = "ContainerRegistry"
+}</code></pre>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PART 3: COST OPTIMIZATION                                         -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <h2 id="cost-overview">14. Cost Optimization Overview</h2>
+
+  <p>An unoptimized Azure deployment of this platform easily reaches <strong class="cost-high">$4,500+/month</strong>. With the strategies below, production can run at <strong class="cost-low">$1,200-1,800/month</strong> &mdash; a 60% reduction.</p>
+
+  <h3>Cost Optimization: Before vs After</h3>
+  <img src="diagrams/aks-hardening-cost.svg" alt="Azure AKS Cost Optimization Before vs After" style="width:100%;border-radius:12px;border:1px solid #334155;margin:16px 0 28px;" />
+
+  <table>
+    <thead>
+      <tr><th>Strategy</th><th>Savings</th><th>Applies To</th><th>Risk</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Spot Node Pools</td><td class="savings">60-90%</td><td>Stateless app pods</td><td>Eviction (mitigated by replicas)</td></tr>
+      <tr><td>AMD VM SKUs (as_v5)</td><td class="savings">15-20%</td><td>All AKS nodes</td><td>None (same performance)</td></tr>
+      <tr><td>Burstable VMs (dev)</td><td class="savings">55-60%</td><td>Dev/staging nodes</td><td>CPU throttling under load</td></tr>
+      <tr><td>Burstable PostgreSQL (dev)</td><td class="savings">90%</td><td>Dev databases</td><td>CPU throttling</td></tr>
+      <tr><td>Redis Basic (dev)</td><td class="savings">50-93%</td><td>Dev/staging cache</td><td>No replication, no SLA</td></tr>
+      <tr><td>Stop/Start (dev)</td><td class="savings">60%</td><td>All dev resources</td><td>5-min cold start</td></tr>
+      <tr><td>1-Year Reserved</td><td class="savings">30-40%</td><td>Production VMs + DBs</td><td>Commitment (non-refundable)</td></tr>
+      <tr><td>3-Year Reserved</td><td class="savings">50-60%</td><td>Production VMs + DBs</td><td>Longer commitment</td></tr>
+    </tbody>
+  </table>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="spot-nodes">15. AKS: Spot Node Pools</h2>
+
+  <p>Azure Spot VMs use spare datacenter capacity at 60-90% discount. They can be evicted with 30 seconds notice when Azure needs the capacity back. This is perfect for stateless workloads that can be rescheduled instantly.</p>
+
+  <pre><code><span class="comment"># ── System Node Pool (on-demand — never use Spot for system) ──</span>
+<span class="comment"># Runs: CoreDNS, kube-proxy, Istio control plane, cert-manager.</span>
+<span class="comment"># These are cluster-critical and must never be evicted.</span>
+resource "azurerm_kubernetes_cluster" "main" {
+  name                = "bookstore-aks"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  dns_prefix          = "bookstore"
+
+  default_node_pool {
+    name                = "system"
+    vm_size             = "Standard_D2s_v3"    <span class="comment"># 2 vCPU, 8 GB</span>
+    node_count          = 2
+    zones               = ["1", "2", "3"]
+    os_disk_size_gb     = 128
+    os_disk_type        = "Managed"
+    max_pods            = 50
+
+    node_labels = {
+      "role" = "system"
+    }
+  }
+
+  <span class="comment"># ... identity, network_profile, etc. ...</span>
+}
+
+<span class="comment"># ── Application Spot Node Pool ──</span>
+<span class="comment"># Runs: ecom-service, inventory-service, UI, Keycloak, Kafka,</span>
+<span class="comment"># Debezium, Flink, observability tools.</span>
+<span class="comment"># Spot saves 60-90% on compute. Eviction is handled by K8s</span>
+<span class="comment"># rescheduling pods to remaining nodes (or on-demand fallback).</span>
+resource "azurerm_kubernetes_cluster_node_pool" "app_spot" {
+  name                  = "appspot"
+  kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
+  vm_size               = "Standard_D4as_v5"  <span class="comment"># AMD = 20% cheaper</span>
+  priority              = "Spot"
+  eviction_policy       = "Delete"
+  spot_max_price        = -1  <span class="comment"># Pay current market price (no cap)</span>
+  zones                 = ["1", "2", "3"]
+  min_count             = 2
+  max_count             = 8
+  enable_auto_scaling   = true
+  os_disk_size_gb       = 128
+  os_disk_type          = "Managed"
+  max_pods              = 80
+
+  node_labels = {
+    "kubernetes.azure.com/scalesetpriority" = "spot"
+    "role" = "app"
+  }
+
+  <span class="comment"># Taint ensures only pods that tolerate Spot are scheduled here</span>
+  node_taints = ["kubernetes.azure.com/scalesetpriority=spot:NoSchedule"]
+
+  tags = local.common_tags
+}
+
+<span class="comment"># ── On-demand fallback pool (scales to 0 when not needed) ──</span>
+<span class="comment"># If Spot capacity is exhausted, the autoscaler brings up</span>
+<span class="comment"># on-demand nodes as a safety net.</span>
+resource "azurerm_kubernetes_cluster_node_pool" "app_ondemand" {
+  name                  = "appondemand"
+  kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
+  vm_size               = "Standard_D4as_v5"
+  priority              = "Regular"
+  zones                 = ["1", "2", "3"]
+  min_count             = 0    <span class="comment"># Scales to zero when Spot is available</span>
+  max_count             = 4
+  enable_auto_scaling   = true
+  os_disk_size_gb       = 128
+  max_pods              = 80
+
+  node_labels = {
+    "role" = "app"
+  }
+
+  tags = local.common_tags
+}</code></pre>
+
+  <div class="callout info">
+    <strong>Pod tolerations for Spot:</strong> Add this toleration to all stateless Deployment manifests to allow scheduling on Spot nodes:
+  </div>
+
+  <pre><code><span class="comment"># Add to your Kubernetes Deployment spec:</span>
+spec:
+  template:
+    spec:
+      tolerations:
+        - key: "kubernetes.azure.com/scalesetpriority"
+          operator: "Equal"
+          value: "spot"
+          effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: "kubernetes.azure.com/scalesetpriority"
+                    operator: "In"
+                    values: ["spot"]</code></pre>
+
+  <div class="callout danger">
+    <strong>Do NOT use Spot for:</strong> System node pool, databases (PostgreSQL pods), stateful workloads (Kafka with persistent storage), or any singleton pods without replicas.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="vm-sizing">16. AKS: Right-Sizing VM SKUs</h2>
+
+  <table>
+    <thead>
+      <tr><th>SKU</th><th>vCPU</th><th>RAM</th><th>Pay-as-you-go</th><th>1yr Reserved</th><th>Use Case</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>Standard_B2s</code></td><td>2</td><td>4 GB</td><td class="cost-low">$30/mo</td><td>$19/mo</td><td>Dev/staging only</td></tr>
+      <tr><td><code>Standard_B2ms</code></td><td>2</td><td>8 GB</td><td class="cost-low">$60/mo</td><td>$38/mo</td><td>Dev with more headroom</td></tr>
+      <tr><td><code>Standard_D2s_v3</code></td><td>2</td><td>8 GB</td><td>$70/mo</td><td>$44/mo</td><td>System pool (prod)</td></tr>
+      <tr><td><code>Standard_D2as_v5</code></td><td>2</td><td>8 GB</td><td class="cost-low">$57/mo</td><td>$36/mo</td><td>App pool (AMD, 20% cheaper)</td></tr>
+      <tr><td><code>Standard_D4as_v5</code></td><td>4</td><td>16 GB</td><td>$114/mo</td><td>$72/mo</td><td>Spot app pool (prod)</td></tr>
+      <tr><td><code>Standard_D8as_v5</code></td><td>8</td><td>32 GB</td><td class="cost-high">$228/mo</td><td>$144/mo</td><td>Overkill for this platform</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip">
+    <strong>Recommendation:</strong> Use <code>Standard_D2as_v5</code> (AMD) over <code>Standard_D2s_v3</code> (Intel) for app workloads. Same performance, 20% lower price. Intel-specific optimizations are irrelevant for JVM/Python/Node.js workloads.
+  </div>
+
+  <div class="callout warn">
+    <strong>Burstable (B-series) warning:</strong> B-series VMs accumulate CPU credits when idle and spend them under load. If credits are exhausted, CPU is throttled to the base speed (e.g., 20% of a core on B2s). <strong>Never use B-series for production workloads</strong> &mdash; a sudden traffic spike will throttle all pods on the node.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="pg-sizing">17. PostgreSQL: Burstable vs General Purpose</h2>
+
+  <table>
+    <thead>
+      <tr><th>Tier</th><th>SKU</th><th>vCPU</th><th>RAM</th><th>Cost/mo</th><th>Use Case</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Burstable</td><td><code>B_Standard_B1ms</code></td><td>1</td><td>2 GB</td><td class="cost-low">$13</td><td>Dev/test (single developer)</td></tr>
+      <tr><td>Burstable</td><td><code>B_Standard_B2s</code></td><td>2</td><td>4 GB</td><td class="cost-low">$26</td><td>Staging</td></tr>
+      <tr><td>General Purpose</td><td><code>GP_Standard_D2s_v3</code></td><td>2</td><td>8 GB</td><td>$136</td><td>Production</td></tr>
+      <tr><td>General Purpose</td><td><code>GP_Standard_D4s_v3</code></td><td>4</td><td>16 GB</td><td class="cost-high">$272</td><td>High-traffic production</td></tr>
+      <tr><td>Memory Optimized</td><td><code>MO_Standard_E2s_v3</code></td><td>2</td><td>16 GB</td><td class="cost-high">$170</td><td>Analytics DB (large queries)</td></tr>
+    </tbody>
+  </table>
+
+  <pre><code><span class="comment"># ── Dev environment: Burstable B1ms ($13/mo per DB) ──</span>
+resource "azurerm_postgresql_flexible_server" "ecom_dev" {
+  name                          = "bookstore-ecom-db-dev"
+  resource_group_name           = azurerm_resource_group.main.name
+  location                      = var.location
+  version                       = "16"
+  sku_name                      = "B_Standard_B1ms"   <span class="comment"># $13/mo</span>
+  storage_mb                    = 32768               <span class="comment"># 32 GB</span>
+  delegated_subnet_id           = azurerm_subnet.db.id
+  private_dns_zone_id           = azurerm_private_dns_zone.postgres.id
+  public_network_access_enabled = false
+  zone                          = "1"
+
+  administrator_login    = "ecom"
+  administrator_password = var.ecom_db_password
+
+  tags = merge(local.common_tags, { environment = "dev" })
+}
+
+<span class="comment"># ── Production: General Purpose D2s ($136/mo per DB) ──</span>
+resource "azurerm_postgresql_flexible_server" "ecom_prod" {
+  name                          = "bookstore-ecom-db"
+  resource_group_name           = azurerm_resource_group.main.name
+  location                      = var.location
+  version                       = "16"
+  sku_name                      = "GP_Standard_D2s_v3"  <span class="comment"># $136/mo</span>
+  storage_mb                    = 65536                 <span class="comment"># 64 GB</span>
+  delegated_subnet_id           = azurerm_subnet.db.id
+  private_dns_zone_id           = azurerm_private_dns_zone.postgres.id
+  public_network_access_enabled = false
+  zone                          = "1"
+
+  high_availability {
+    mode                      = "ZoneRedundant"
+    standby_availability_zone = "2"
+  }
+
+  backup_retention_days        = 35
+  geo_redundant_backup_enabled = true
+
+  administrator_login    = "ecom"
+  administrator_password = var.ecom_db_password
+
+  tags = merge(local.common_tags, { environment = "production" })
+}</code></pre>
+
+  <div class="callout danger">
+    <strong>Never use Burstable for production databases.</strong> A single complex SQL query or Debezium CDC snapshot can exhaust CPU credits, causing all queries to run at 10-20% speed until credits regenerate. This cascades: Keycloak auth slows, API latency spikes, health checks fail, pods restart.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="redis-sizing">18. Redis: SKU Right-Sizing</h2>
+
+  <table>
+    <thead>
+      <tr><th>Tier</th><th>Size</th><th>Memory</th><th>Cost/mo</th><th>Features</th><th>Use Case</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Basic</td><td>C0</td><td>250 MB</td><td class="cost-low">$16</td><td>No replication, no SLA</td><td>Dev only</td></tr>
+      <tr><td>Standard</td><td>C0</td><td>250 MB</td><td class="cost-low">$32</td><td>Replicated, 99.9% SLA</td><td>Staging</td></tr>
+      <tr><td>Standard</td><td>C1</td><td>1 GB</td><td>$56</td><td>Replicated, 99.9% SLA</td><td>Small production</td></tr>
+      <tr><td>Premium</td><td>P1</td><td>6 GB</td><td class="cost-high">$224</td><td>Zone-redundant, VNet, clustering</td><td>Large production</td></tr>
+    </tbody>
+  </table>
+
+  <p>The BookStore platform uses Redis for three purposes: CSRF token storage, rate-limiting buckets (Bucket4j), and session cache. Total memory usage is typically under 100 MB. A Standard C0 is sufficient for most production scenarios.</p>
+
+  <pre><code><span class="comment"># ── Dev: Basic C0 ($16/mo) ──</span>
+resource "azurerm_redis_cache" "dev" {
+  name                          = "bookstore-redis-dev"
+  location                      = var.location
+  resource_group_name           = azurerm_resource_group.main.name
+  capacity                      = 0
+  family                        = "C"
+  sku_name                      = "Basic"
+  minimum_tls_version           = "1.2"
+  enable_non_ssl_port           = false
+  public_network_access_enabled = false
+
+  tags = merge(local.common_tags, { environment = "dev" })
+}
+
+<span class="comment"># ── Production: Standard C1 ($56/mo) ──</span>
+<span class="comment"># Replicated for HA, 1 GB is plenty for CSRF + rate limiting.</span>
+resource "azurerm_redis_cache" "prod" {
+  name                          = "bookstore-redis"
+  location                      = var.location
+  resource_group_name           = azurerm_resource_group.main.name
+  capacity                      = 1
+  family                        = "C"
+  sku_name                      = "Standard"   <span class="comment"># Replicated, $56/mo</span>
+  minimum_tls_version           = "1.2"
+  enable_non_ssl_port           = false
+  public_network_access_enabled = false
+
+  redis_configuration {
+    maxmemory_policy = "allkeys-lru"
+  }
+
+  tags = merge(local.common_tags, { environment = "production" })
+}</code></pre>
+
+  <div class="callout tip">
+    <strong>Save $168/month:</strong> Unless you need VNet injection or zone redundancy, Standard C1 ($56) gives you replication and SLA at a fraction of Premium P1 ($224). Use Private Endpoints for network isolation instead of VNet injection.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="eventhubs-sizing">19. Event Hubs: Throughput Optimization</h2>
+
+  <table>
+    <thead>
+      <tr><th>Tier</th><th>Base Cost</th><th>Throughput</th><th>Kafka Protocol</th><th>Use Case</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Basic</td><td class="cost-low">$11/mo</td><td>1 TU (1 MB/s in, 2 MB/s out)</td><td>No</td><td>Dev (non-Kafka)</td></tr>
+      <tr><td>Standard</td><td>$22/mo</td><td>1-20 TU (auto-inflate)</td><td>Yes</td><td>Production</td></tr>
+      <tr><td>Premium</td><td class="cost-high">$863/mo</td><td>1 PU (dedicated)</td><td>Yes</td><td>High-throughput/regulated</td></tr>
+      <tr><td>Dedicated</td><td class="cost-high">$6,000+/mo</td><td>1 CU (isolated)</td><td>Yes</td><td>Enterprise-only</td></tr>
+    </tbody>
+  </table>
+
+  <pre><code><span class="comment"># ── Standard tier with auto-inflate ──</span>
+<span class="comment"># Start at 1 TU ($22/mo), auto-inflate up to 5 TUs under load.</span>
+<span class="comment"># BookStore has 2 topics (order.created, inventory.updated) with</span>
+<span class="comment"># low throughput — 1 TU handles thousands of events/second.</span>
+resource "azurerm_eventhub_namespace" "main" {
+  name                          = "bookstore-events"
+  location                      = var.location
+  resource_group_name           = azurerm_resource_group.main.name
+  sku                           = "Standard"
+  capacity                      = 1                <span class="comment"># Start at 1 TU</span>
+  auto_inflate_enabled          = true             <span class="comment"># Scale up automatically</span>
+  maximum_throughput_units       = 5                <span class="comment"># Cap at 5 TUs</span>
+  public_network_access_enabled = false
+
+  tags = local.common_tags
+}
+
+<span class="comment"># ── Retention: 1 day (default) to minimize storage costs ──</span>
+<span class="comment"># Debezium + Flink process events in real-time; no need for</span>
+<span class="comment"># long retention. Increase to 7 days if you need replay.</span>
+resource "azurerm_eventhub" "order_created" {
+  name                = "order.created"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 4        <span class="comment"># Parallelism for consumers</span>
+  message_retention   = 1        <span class="comment"># 1 day retention ($0 extra)</span>
+}
+
+resource "azurerm_eventhub" "inventory_updated" {
+  name                = "inventory.updated"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 4
+  message_retention   = 1
+}</code></pre>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="stop-start">20. Stop/Start for Dev Environments</h2>
+
+  <p>Dev and staging environments do not need to run 24/7. Stopping AKS and PostgreSQL during off-hours saves ~60% on compute costs.</p>
+
+  <pre><code><span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># Stop/Start scripts for dev environments</span>
+<span class="comment"># Run via cron, Azure Logic Apps, or CI/CD pipeline</span>
+<span class="comment"># ═══════════════════════════════════════════════</span>
+
+<span class="comment"># ── Stop everything (run at 7 PM) ──</span>
+<span class="comment">#!/bin/bash</span>
+az aks stop \
+  --resource-group bookstore-dev-rg \
+  --name bookstore-aks-dev
+
+az postgres flexible-server stop \
+  --resource-group bookstore-dev-rg \
+  --name bookstore-ecom-db-dev
+
+az postgres flexible-server stop \
+  --resource-group bookstore-dev-rg \
+  --name bookstore-inventory-db-dev
+
+az postgres flexible-server stop \
+  --resource-group bookstore-dev-rg \
+  --name bookstore-analytics-db-dev
+
+az postgres flexible-server stop \
+  --resource-group bookstore-dev-rg \
+  --name bookstore-keycloak-db-dev
+
+echo "All dev resources stopped."
+
+<span class="comment"># ── Start everything (run at 8 AM) ──</span>
+<span class="comment">#!/bin/bash</span>
+<span class="comment"># Start DBs first (apps depend on them)</span>
+az postgres flexible-server start \
+  --resource-group bookstore-dev-rg \
+  --name bookstore-ecom-db-dev &amp;
+
+az postgres flexible-server start \
+  --resource-group bookstore-dev-rg \
+  --name bookstore-inventory-db-dev &amp;
+
+az postgres flexible-server start \
+  --resource-group bookstore-dev-rg \
+  --name bookstore-analytics-db-dev &amp;
+
+az postgres flexible-server start \
+  --resource-group bookstore-dev-rg \
+  --name bookstore-keycloak-db-dev &amp;
+
+wait  <span class="comment"># Wait for all DBs to start</span>
+echo "Databases started. Starting AKS..."
+
+az aks start \
+  --resource-group bookstore-dev-rg \
+  --name bookstore-aks-dev
+
+echo "All dev resources started."</code></pre>
+
+  <h3>Automation with Azure Logic Apps (Terraform)</h3>
+
+  <pre><code><span class="comment"># ── Logic App for scheduled stop (7 PM weekdays) ──</span>
+resource "azurerm_logic_app_workflow" "dev_stop" {
+  name                = "bookstore-dev-stop"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.common_tags
+}
+
+resource "azurerm_logic_app_trigger_recurrence" "stop_trigger" {
+  name         = "weekday-stop"
+  logic_app_id = azurerm_logic_app_workflow.dev_stop.id
+  frequency    = "Week"
+  interval     = 1
+  time_zone    = "Eastern Standard Time"
+  start_time   = "2024-01-01T19:00:00Z"
+
+  schedule {
+    on_these_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+  }
+}
+
+<span class="comment"># ── Logic App for scheduled start (8 AM weekdays) ──</span>
+resource "azurerm_logic_app_workflow" "dev_start" {
+  name                = "bookstore-dev-start"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.common_tags
+}
+
+resource "azurerm_logic_app_trigger_recurrence" "start_trigger" {
+  name         = "weekday-start"
+  logic_app_id = azurerm_logic_app_workflow.dev_start.id
+  frequency    = "Week"
+  interval     = 1
+  time_zone    = "Eastern Standard Time"
+  start_time   = "2024-01-01T08:00:00Z"
+
+  schedule {
+    on_these_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+  }
+}</code></pre>
+
+  <div class="callout info">
+    <strong>Savings calculation:</strong> Running 10 hours/day instead of 24 saves 58%. For a dev AKS cluster with 2x D2as_v5 nodes + 4x PostgreSQL B1ms: ~$180/mo saved.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="reserved">21. Reserved Instances</h2>
+
+  <p>For production workloads that run 24/7, Reserved Instances (RIs) provide guaranteed capacity at a significant discount over pay-as-you-go pricing.</p>
+
+  <table>
+    <thead>
+      <tr><th>Resource</th><th>Pay-as-you-go</th><th>1-Year RI</th><th>3-Year RI</th><th>1yr Savings</th><th>3yr Savings</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>AKS System (2x D2s_v3)</td>
+        <td>$140/mo</td>
+        <td class="cost-low">$88/mo</td>
+        <td class="cost-low">$56/mo</td>
+        <td class="savings">37%</td>
+        <td class="savings">60%</td>
+      </tr>
+      <tr>
+        <td>AKS App (2x D4as_v5 on-demand)</td>
+        <td>$228/mo</td>
+        <td class="cost-low">$144/mo</td>
+        <td class="cost-low">$92/mo</td>
+        <td class="savings">37%</td>
+        <td class="savings">60%</td>
+      </tr>
+      <tr>
+        <td>PostgreSQL (4x GP D2s_v3)</td>
+        <td>$544/mo</td>
+        <td class="cost-low">$380/mo</td>
+        <td class="cost-low">$272/mo</td>
+        <td class="savings">30%</td>
+        <td class="savings">50%</td>
+      </tr>
+      <tr>
+        <td>Redis (Standard C1)</td>
+        <td>$56/mo</td>
+        <td class="cost-low">$39/mo</td>
+        <td class="cost-low">$28/mo</td>
+        <td class="savings">30%</td>
+        <td class="savings">50%</td>
+      </tr>
+      <tr>
+        <td style="font-weight:700">TOTAL Production</td>
+        <td class="cost-high" style="font-weight:700">$968/mo</td>
+        <td class="cost-low" style="font-weight:700">$651/mo</td>
+        <td class="cost-low" style="font-weight:700">$448/mo</td>
+        <td class="savings" style="font-weight:700">33%</td>
+        <td class="savings" style="font-weight:700">54%</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip">
+    <strong>Recommendation:</strong> Start with 1-year RIs for production PostgreSQL (most predictable workload). For AKS Spot nodes, RIs do not apply &mdash; only reserve on-demand system and fallback pools.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="cost-comparison">22. Dev vs Prod Cost Comparison</h2>
+
+  <table>
+    <thead>
+      <tr><th>Component</th><th>Dev (Optimized)</th><th>Prod (HA, 1yr RI)</th><th>Prod (Unoptimized)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>AKS Nodes</td>
+        <td class="cost-low">$60/mo <small>(2x B2s, stop/start)</small></td>
+        <td class="cost-low">$232/mo <small>(2x D2s sys + 2x D4as Spot)</small></td>
+        <td class="cost-high">$912/mo <small>(4x D8s_v3)</small></td>
+      </tr>
+      <tr>
+        <td>PostgreSQL (4 DBs)</td>
+        <td class="cost-low">$52/mo <small>(4x B1ms)</small></td>
+        <td>$380/mo <small>(4x GP D2s, 1yr RI)</small></td>
+        <td class="cost-high">$1,088/mo <small>(4x GP D4s)</small></td>
+      </tr>
+      <tr>
+        <td>Redis</td>
+        <td class="cost-low">$16/mo <small>(Basic C0)</small></td>
+        <td class="cost-low">$39/mo <small>(Standard C1, 1yr RI)</small></td>
+        <td class="cost-high">$224/mo <small>(Premium P1)</small></td>
+      </tr>
+      <tr>
+        <td>Event Hubs</td>
+        <td class="cost-low">$11/mo <small>(Basic, no Kafka)</small></td>
+        <td>$22/mo <small>(Standard, 1 TU)</small></td>
+        <td class="cost-high">$863/mo <small>(Premium)</small></td>
+      </tr>
+      <tr>
+        <td>ACR</td>
+        <td class="cost-low">$5/mo <small>(Basic)</small></td>
+        <td>$50/mo <small>(Premium, Private EP)</small></td>
+        <td>$50/mo <small>(Premium)</small></td>
+      </tr>
+      <tr>
+        <td>Key Vault</td>
+        <td class="cost-low">$1/mo</td>
+        <td class="cost-low">$1/mo</td>
+        <td>$1/mo</td>
+      </tr>
+      <tr>
+        <td>App Gateway v2</td>
+        <td class="cost-low">$0/mo <small>(skip in dev)</small></td>
+        <td>$175/mo <small>(WAF_v2)</small></td>
+        <td>$175/mo <small>(WAF_v2)</small></td>
+      </tr>
+      <tr>
+        <td>Azure Firewall</td>
+        <td class="cost-low">$0/mo <small>(skip)</small></td>
+        <td class="cost-low">$0/mo <small>(skip unless regulated)</small></td>
+        <td class="cost-high">$912/mo</td>
+      </tr>
+      <tr>
+        <td>Defender</td>
+        <td class="cost-low">$0/mo</td>
+        <td>$40/mo</td>
+        <td>$40/mo</td>
+      </tr>
+      <tr style="font-weight: 700; font-size: 1rem;">
+        <td>TOTAL</td>
+        <td class="cost-low">~$145/mo</td>
+        <td>~$939/mo</td>
+        <td class="cost-high">~$4,265/mo</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip">
+    <strong>Bottom line:</strong> Dev at <strong class="cost-low">$145/mo</strong> vs. over-provisioned at <strong class="cost-high">$4,265/mo</strong> is a <strong class="savings">96% reduction</strong>. Optimized production at <strong class="cost-low">$939/mo</strong> vs. unoptimized is <strong class="savings">78% savings</strong>.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="cost-monitoring">23. Cost Monitoring &amp; Alerts</h2>
+
+  <pre><code><span class="comment"># ── Common tags for cost allocation ──</span>
+locals {
+  common_tags = {
+    project     = "bookstore"
+    environment = var.environment     <span class="comment"># "dev", "staging", "production"</span>
+    team        = "platform"
+    managed-by  = "terraform"
+    cost-center = var.cost_center     <span class="comment"># Finance tracking code</span>
+  }
+}
+
+<span class="comment"># ── Budget alert: warn at 80%, critical at 100% ──</span>
+resource "azurerm_consumption_budget_resource_group" "main" {
+  name              = "bookstore-monthly-budget"
+  resource_group_id = azurerm_resource_group.main.id
+  amount            = var.environment == "production" ? 1500 : 300
+  time_grain        = "Monthly"
+
+  time_period {
+    start_date = "2024-01-01T00:00:00Z"
+  }
+
+  notification {
+    enabled   = true
+    threshold = 80
+    operator  = "GreaterThanOrEqualTo"
+
+    contact_emails = var.alert_emails
+  }
+
+  notification {
+    enabled        = true
+    threshold      = 100
+    operator       = "GreaterThanOrEqualTo"
+    threshold_type = "Actual"
+
+    contact_emails = var.alert_emails
+  }
+
+  notification {
+    enabled        = true
+    threshold      = 120
+    operator       = "GreaterThanOrEqualTo"
+    threshold_type = "Actual"
+
+    contact_emails = var.alert_emails
+  }
+}
+
+<span class="comment"># ── Azure Advisor auto-recommendations ──</span>
+<span class="comment"># Azure Advisor automatically analyzes resource usage and provides</span>
+<span class="comment"># right-sizing recommendations. No Terraform needed — it's built-in.</span>
+<span class="comment"># Check: Azure Portal → Advisor → Cost Recommendations</span>
+<span class="comment"># Or via CLI: az advisor recommendation list --category Cost</span></code></pre>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PART 4: PRODUCTION CHECKLIST                                      -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <h2 id="checklist">24. Production Readiness Checklist</h2>
+
+  <p>Review every item before going to production. Items are grouped by category with priority indicators.</p>
+
+  <p class="check-cat security">Network Security</p>
+  <ul class="checklist">
+    <li><div class="check-box security">!</div>NSG applied to EVERY subnet with explicit DenyAllInbound at priority 4000</li>
+    <li><div class="check-box security">!</div>AKS NSG: inbound only from App Gateway, control plane, and intra-subnet</li>
+    <li><div class="check-box security">!</div>Database NSG: inbound only from AKS subnet on port 5432</li>
+    <li><div class="check-box security">!</div>App Gateway NSG: GatewayManager ports 65200-65535 allowed (mandatory)</li>
+    <li><div class="check-box security">!</div>Redis NSG: inbound only from AKS subnet on port 6380 (TLS)</li>
+    <li><div class="check-box security">!</div>Private Endpoints created for: Redis, Event Hubs, Key Vault, ACR, Storage</li>
+    <li><div class="check-box security">!</div>PostgreSQL Flexible Server deployed in delegated subnet (VNet-integrated)</li>
+    <li><div class="check-box security">!</div>Private DNS zones linked to VNet for all Private Endpoint services</li>
+    <li><div class="check-box security">!</div>Public network access disabled on ALL PaaS services</li>
+    <li><div class="check-box security">!</div>VNet Flow Logs enabled for all NSGs (for audit/forensics)</li>
+    <li><div class="check-box security">!</div>NSG Flow Logs stored in a separate, locked storage account</li>
+  </ul>
+
+  <p class="check-cat security">Encryption &amp; TLS</p>
+  <ul class="checklist">
+    <li><div class="check-box security">!</div>TLS 1.2+ enforced on App Gateway (SSL policy AppGwSslPolicy20220101)</li>
+    <li><div class="check-box security">!</div>Istio mTLS STRICT mode on all application namespaces</li>
+    <li><div class="check-box security">!</div>PostgreSQL SSL enforced (require_secure_transport = on)</li>
+    <li><div class="check-box security">!</div>Redis non-SSL port disabled (enable_non_ssl_port = false)</li>
+    <li><div class="check-box security">!</div>Redis minimum TLS version set to 1.2</li>
+    <li><div class="check-box security">!</div>Event Hubs connections use SASL_SSL</li>
+    <li><div class="check-box security">!</div>AKS OS disks encrypted with customer-managed key (CMK)</li>
+    <li><div class="check-box security">!</div>PostgreSQL encrypted with CMK via Key Vault</li>
+    <li><div class="check-box security">!</div>Storage account minimum TLS version set to 1.2</li>
+  </ul>
+
+  <p class="check-cat security">Identity &amp; Access</p>
+  <ul class="checklist">
+    <li><div class="check-box security">!</div>Key Vault using RBAC mode (not legacy access policies)</li>
+    <li><div class="check-box security">!</div>Key Vault soft delete enabled (retention 90 days)</li>
+    <li><div class="check-box security">!</div>Key Vault purge protection enabled</li>
+    <li><div class="check-box security">!</div>AKS uses Workload Identity (not pod-managed identity)</li>
+    <li><div class="check-box security">!</div>External Secrets Operator deployed with federated credential</li>
+    <li><div class="check-box security">!</div>ACR admin account disabled (admin_enabled = false)</li>
+    <li><div class="check-box security">!</div>AKS RBAC enabled with Azure AD integration</li>
+    <li><div class="check-box security">!</div>Kubernetes secrets synced from Key Vault (no hardcoded secrets in manifests)</li>
+    <li><div class="check-box security">!</div>JWT validation in every backend service (Keycloak JWKS)</li>
+    <li><div class="check-box security">!</div>CSRF token validation on all state-changing requests</li>
+  </ul>
+
+  <p class="check-cat security">Runtime Security (Azure Policy)</p>
+  <ul class="checklist">
+    <li><div class="check-box security">!</div>Azure Policy addon enabled on AKS cluster</li>
+    <li><div class="check-box security">!</div>Policy: No privileged containers (Deny mode)</li>
+    <li><div class="check-box security">!</div>Policy: Images only from approved ACR (Deny mode)</li>
+    <li><div class="check-box security">!</div>Policy: No privilege escalation (Deny mode)</li>
+    <li><div class="check-box security">!</div>Policy: Containers run as non-root (Deny mode)</li>
+    <li><div class="check-box security">!</div>Policy: Read-only root filesystem (Deny mode)</li>
+    <li><div class="check-box security">!</div>Containers drop ALL capabilities</li>
+    <li><div class="check-box security">!</div>Resource requests and limits set on all containers</li>
+  </ul>
+
+  <p class="check-cat security">Threat Detection (Optional)</p>
+  <ul class="checklist">
+    <li><div class="check-box security">!</div>Microsoft Defender for Containers enabled</li>
+    <li><div class="check-box security">!</div>Microsoft Defender for Key Vault enabled</li>
+    <li><div class="check-box security">!</div>ACR vulnerability scanning active</li>
+    <li><div class="check-box security">!</div>Defender alerts routed to PagerDuty/Slack</li>
+  </ul>
+
+  <p class="check-cat cost">Cost Optimization</p>
+  <ul class="checklist">
+    <li><div class="check-box cost">$</div>Spot node pool configured for stateless workloads</li>
+    <li><div class="check-box cost">$</div>On-demand fallback pool with min_count = 0</li>
+    <li><div class="check-box cost">$</div>AMD VM SKUs used where possible (D*as_v5)</li>
+    <li><div class="check-box cost">$</div>Burstable VMs used for dev/staging only</li>
+    <li><div class="check-box cost">$</div>PostgreSQL: Burstable for dev, General Purpose for prod</li>
+    <li><div class="check-box cost">$</div>Redis: Basic/Standard (not Premium unless required)</li>
+    <li><div class="check-box cost">$</div>Event Hubs: Standard with auto-inflate (not Premium)</li>
+    <li><div class="check-box cost">$</div>Dev environments: stop/start automation configured</li>
+    <li><div class="check-box cost">$</div>Reserved Instances purchased for production PostgreSQL</li>
+    <li><div class="check-box cost">$</div>Reserved Instances evaluated for production AKS system pool</li>
+    <li><div class="check-box cost">$</div>ACR: Basic for dev, Premium only if Private EP needed</li>
+    <li><div class="check-box cost">$</div>Event retention minimized (1 day unless replay needed)</li>
+  </ul>
+
+  <p class="check-cat ops">Operational Readiness</p>
+  <ul class="checklist">
+    <li><div class="check-box ops">*</div>All resources tagged (project, environment, team, cost-center)</li>
+    <li><div class="check-box ops">*</div>Budget alerts configured (80%, 100%, 120% thresholds)</li>
+    <li><div class="check-box ops">*</div>Azure Advisor cost recommendations reviewed monthly</li>
+    <li><div class="check-box ops">*</div>Backup retention configured (PostgreSQL: 35 days, geo-redundant)</li>
+    <li><div class="check-box ops">*</div>AKS auto-scaling configured (min/max node counts)</li>
+    <li><div class="check-box ops">*</div>PostgreSQL HA: zone-redundant standby for production</li>
+    <li><div class="check-box ops">*</div>Monitoring: Prometheus + Grafana dashboards deployed</li>
+    <li><div class="check-box ops">*</div>Logging: OTel Collector &rarr; Loki pipeline operational</li>
+    <li><div class="check-box ops">*</div>Tracing: Kiali + Tempo for distributed tracing</li>
+    <li><div class="check-box ops">*</div>Runbook: documented recovery procedure for common failures</li>
+    <li><div class="check-box ops">*</div>DR: database backup restore tested successfully</li>
+    <li><div class="check-box ops">*</div>Key rotation: Key Vault auto-rotation policy set (365 days)</li>
+    <li><div class="check-box ops">*</div>Certificate rotation: cert-manager renewBefore 7 days</li>
+    <li><div class="check-box ops">*</div>E2E tests: Playwright suite passing in CI/CD pipeline</li>
+    <li><div class="check-box ops">*</div>Terraform state: stored in locked, geo-redundant storage account</li>
+    <li><div class="check-box ops">*</div>Terraform state lock: Azure Blob lease enabled</li>
+  </ul>
+
+  <footer>
+    <p>BookStore Platform &mdash; Production Hardening &amp; Cost Optimization Guide</p>
+    <p><a href="index.html">Home</a> &middot; <a href="architecture.html">Architecture</a> &middot; <a href="azure-migration.html">Azure Migration</a></p>
+  </footer>
+
+</div>
+</body>
+</html>

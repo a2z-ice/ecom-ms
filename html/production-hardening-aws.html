@@ -1,0 +1,2690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Production Hardening &amp; Cost Optimization — BookStore on AWS EKS</title>
+  <meta property="og:title" content="BookStore Platform — Production Hardening & Cost Optimization on AWS EKS" />
+  <meta property="og:description" content="Comprehensive guide covering Security Groups, NACLs, VPC Endpoints, KMS encryption, Aurora Serverless v2, Spot/Graviton instances, Savings Plans, and a full production checklist with Terraform code." />
+  <meta property="og:type" content="article" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; --cyan: #06b6d4; --purple: #8b5cf6; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 960px; margin: 0 auto; padding: 40px 24px 60px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p.subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 52px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 28px 0 10px; color: #cbd5e1; }
+    h4 { font-size: 0.95rem; font-weight: 600; margin: 20px 0 8px; color: #94a3b8; }
+    p { margin-bottom: 16px; color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.82rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.04); }
+    code { background: var(--card); padding: 2px 7px; border-radius: 4px; font-size: 0.86em; color: #fbbf24; }
+    pre { background: var(--card); padding: 18px 20px; border-radius: 10px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); position: relative; }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.84rem; line-height: 1.65; }
+    pre .comment { color: #64748b; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* Step Cards */
+    .step { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px 28px; margin: 20px 0; position: relative; overflow: hidden; }
+    .step::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; border-radius: 4px 0 0 4px; }
+    .step.blue::before { background: linear-gradient(180deg, #3b82f6, #60a5fa); }
+    .step.green::before { background: linear-gradient(180deg, #059669, #34d399); }
+    .step.purple::before { background: linear-gradient(180deg, #7c3aed, #a78bfa); }
+    .step.amber::before { background: linear-gradient(180deg, #d97706, #fbbf24); }
+    .step.red::before { background: linear-gradient(180deg, #dc2626, #f87171); }
+    .step.cyan::before { background: linear-gradient(180deg, #0891b2, #22d3ee); }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: white; font-weight: 800; font-size: 0.88rem; margin-right: 12px; flex-shrink: 0; }
+    .step h3 { display: flex; align-items: center; margin: 0 0 12px; color: #f1f5f9; }
+    .step p { margin-bottom: 10px; }
+    .step pre { margin: 10px 0 8px; }
+
+    /* Callouts */
+    .callout { padding: 16px 20px; border-radius: 10px; margin: 16px 0; font-size: 0.88rem; line-height: 1.6; border-left: 4px solid; }
+    .callout.info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+    .callout.warn { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
+    .callout.tip { background: rgba(16,185,129,0.08); border-color: #10b981; }
+    .callout.danger { background: rgba(239,68,68,0.08); border-color: #ef4444; }
+    .callout strong { color: #f1f5f9; }
+    .callout code { font-size: 0.84em; }
+
+    /* TOC */
+    .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 24px 0 40px; }
+    .toc h3 { font-size: 0.9rem; font-weight: 700; color: #f1f5f9; margin: 0 0 12px; }
+    .toc ol { margin: 0; padding-left: 20px; }
+    .toc li { margin-bottom: 4px; }
+    .toc a { font-size: 0.85rem; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+    .toc a:hover { color: var(--accent); }
+    .toc .toc-part { font-size: 0.78rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 6px; list-style: none; margin-left: -20px; }
+    .toc .toc-part:first-child { margin-top: 0; }
+
+    /* Topnav */
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 960px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+
+    /* SG Rule Cards */
+    .nsg-rule { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin: 10px 0; display: grid; grid-template-columns: 48px 1fr; gap: 14px; align-items: start; }
+    .nsg-rule.allow { border-left: 4px solid var(--green); }
+    .nsg-rule.deny { border-left: 4px solid var(--red); }
+    .nsg-rule .rule-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; color: white; margin-top: 2px; }
+    .nsg-rule.allow .rule-icon { background: linear-gradient(135deg, #059669, #10b981); }
+    .nsg-rule.deny .rule-icon { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .nsg-rule .rule-name { font-weight: 700; font-size: 0.9rem; color: #f1f5f9; }
+    .nsg-rule .rule-detail { font-size: 0.8rem; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+    .nsg-rule .rule-detail code { font-size: 0.76rem; }
+    .nsg-rule .rule-why { font-size: 0.8rem; color: #94a3b8; margin-top: 6px; font-style: italic; }
+
+    /* Cost table highlights */
+    .savings { color: var(--green); font-weight: 700; }
+    .cost-high { color: var(--red); font-weight: 600; }
+    .cost-low { color: var(--green); font-weight: 600; }
+
+    /* Checklist */
+    .checklist { list-style: none; margin: 12px 0 20px; padding: 0; }
+    .checklist li { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(51,65,85,0.3); font-size: 0.86rem; }
+    .checklist li:last-child { border-bottom: none; }
+    .check-box { width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: 0.65rem; }
+    .check-box.security { border-color: var(--red); color: var(--red); }
+    .check-box.cost { border-color: var(--green); color: var(--green); }
+    .check-box.ops { border-color: var(--cyan); color: var(--cyan); }
+    .check-cat { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 20px 0 8px; }
+    .check-cat.security { color: var(--red); }
+    .check-cat.cost { color: var(--green); }
+    .check-cat.ops { color: var(--cyan); }
+
+    /* Subnet diagram */
+    .subnet-diagram { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; }
+    .subnet-box { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+    .subnet-box .subnet-name { font-weight: 700; font-size: 0.9rem; color: #f1f5f9; }
+    .subnet-box .subnet-cidr { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+    .subnet-box .subnet-nsg { font-size: 0.75rem; color: var(--accent); margin-top: 6px; font-weight: 600; }
+    .subnet-box.highlight { border-color: var(--accent); background: rgba(59,130,246,0.06); }
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>Production Hardening &amp; Cost Optimization</h1>
+  <p class="subtitle">Complete security lockdown and cost-efficient deployment of the BookStore Platform on AWS EKS</p>
+
+  <div class="badges">
+    <span class="badge red">Security</span>
+    <span class="badge green">Cost Optimization</span>
+    <span class="badge purple">Terraform</span>
+    <span class="badge cyan">AWS EKS</span>
+    <span class="badge orange">Production-Grade</span>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li class="toc-part">Part 1: Security -- Network Isolation</li>
+      <li><a href="#sg-overview">Security Group Architecture Overview</a></li>
+      <li><a href="#alb-sg">ALB Security Group</a></li>
+      <li><a href="#eks-cluster-sg">EKS Cluster Security Group</a></li>
+      <li><a href="#worker-sg">EKS Worker Nodes Security Group</a></li>
+      <li><a href="#aurora-sg">Aurora PostgreSQL Security Group</a></li>
+      <li><a href="#msk-sg">MSK Kafka Security Group</a></li>
+      <li><a href="#redis-sg">ElastiCache Redis Security Group</a></li>
+      <li><a href="#vpce-sg">VPC Endpoints Security Group</a></li>
+      <li><a href="#nacls">Network ACLs (NACLs)</a></li>
+      <li><a href="#flow-logs">VPC Flow Logs</a></li>
+      <li><a href="#vpc-endpoints">VPC Endpoints</a></li>
+      <li class="toc-part">Part 2: Security -- Encryption &amp; Access</li>
+      <li><a href="#eks-secrets-kms">EKS Secrets Encryption with KMS</a></li>
+      <li><a href="#aurora-encryption">Aurora Encryption (At Rest + In Transit)</a></li>
+      <li><a href="#s3-encryption">S3 State Encryption &amp; Bucket Policy</a></li>
+      <li><a href="#security-hub">Security Hub &amp; GuardDuty (Optional)</a></li>
+      <li class="toc-part">Part 3: Cost Optimization</li>
+      <li><a href="#cost-overview">Cost Optimization Overview</a></li>
+      <li><a href="#spot-instances">Spot Instances for App Nodes</a></li>
+      <li><a href="#graviton">Graviton ARM Instances</a></li>
+      <li><a href="#right-sizing">Right-Sizing Node Groups</a></li>
+      <li><a href="#aurora-serverless">Aurora Serverless v2</a></li>
+      <li><a href="#elasticache-sizing">ElastiCache Right-Sizing</a></li>
+      <li><a href="#msk-sizing">MSK Sizing</a></li>
+      <li><a href="#nat-cost">NAT Gateway Cost Reduction</a></li>
+      <li><a href="#savings-plans">Reserved Instances &amp; Savings Plans</a></li>
+      <li><a href="#cost-comparison">Dev vs Prod Cost Comparison</a></li>
+      <li><a href="#cost-monitoring">Cost Monitoring &amp; Alerts</a></li>
+      <li class="toc-part">Part 4: Production Checklist</li>
+      <li><a href="#checklist">Production Readiness Checklist</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PART 1: SECURITY — NETWORK ISOLATION                             -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <h2 id="sg-overview">1. Security Group Architecture Overview</h2>
+
+  <p>AWS uses a layered network security model with two complementary mechanisms: <strong>Security Groups</strong> (stateful, instance-level) and <strong>Network ACLs</strong> (stateless, subnet-level). Together they form defense in depth at Layers 3 and 4.</p>
+
+  <h3>Security Architecture Diagram</h3>
+  <img src="diagrams/eks-hardening-security.svg" alt="AWS EKS Security Group and NACL Architecture" style="width:100%;border-radius:12px;border:1px solid #334155;margin:16px 0 28px;" />
+
+  <h3>Key Concepts</h3>
+  <ul>
+    <li><strong>Security Groups (SGs):</strong> Stateful firewalls attached to ENIs (network interfaces). If you allow outbound traffic, the return inbound traffic is automatically permitted &mdash; no explicit return rule needed. SGs are <strong>allow-only</strong>; there is no explicit deny. Unmatched traffic is silently dropped.</li>
+    <li><strong>Network ACLs (NACLs):</strong> Stateless firewalls at the subnet level. Evaluated by numbered rules, lowest first. NACLs support both ALLOW and DENY rules. <strong>Return traffic must be explicitly allowed</strong> (ephemeral port ranges).</li>
+    <li><strong>Default SG behavior:</strong> An empty Security Group denies all inbound, allows all outbound. We tighten outbound rules to enforce least-privilege egress.</li>
+    <li><strong>SG chaining:</strong> AWS SGs can reference other SGs as sources, not just CIDR blocks. This is the preferred pattern &mdash; it decouples network topology from security policy.</li>
+  </ul>
+
+  <div class="callout warn">
+    <strong>Important:</strong> Unlike Azure NSGs, AWS Security Groups have no explicit deny rules. All rules are allow-only. To deny specific traffic, you must use NACLs as the secondary layer. We use both for defense in depth.
+  </div>
+
+  <h3>VPC Layout &amp; Security Group Assignment</h3>
+
+  <div class="subnet-diagram">
+    <div class="subnet-box highlight">
+      <div class="subnet-name">Public Subnets (ALB)</div>
+      <div class="subnet-cidr">10.0.1.0/24, 10.0.2.0/24, 10.0.3.0/24</div>
+      <div class="subnet-nsg">bookstore-alb-sg</div>
+    </div>
+    <div class="subnet-box highlight">
+      <div class="subnet-name">Private Subnets (EKS Workers)</div>
+      <div class="subnet-cidr">10.0.10.0/24, 10.0.11.0/24, 10.0.12.0/24</div>
+      <div class="subnet-nsg">bookstore-worker-sg</div>
+    </div>
+    <div class="subnet-box">
+      <div class="subnet-name">Database Subnets (Aurora)</div>
+      <div class="subnet-cidr">10.0.20.0/24, 10.0.21.0/24, 10.0.22.0/24</div>
+      <div class="subnet-nsg">bookstore-aurora-sg</div>
+    </div>
+    <div class="subnet-box">
+      <div class="subnet-name">Data Subnets (MSK, ElastiCache)</div>
+      <div class="subnet-cidr">10.0.30.0/24, 10.0.31.0/24, 10.0.32.0/24</div>
+      <div class="subnet-nsg">bookstore-msk-sg, bookstore-redis-sg</div>
+    </div>
+  </div>
+
+  <p>Each tier has dedicated subnets across three AZs and its own Security Group. SGs reference each other by ID &mdash; never by CIDR &mdash; so adding nodes does not require rule changes.</p>
+
+  <h3>Base Terraform: VPC &amp; Subnets</h3>
+  <pre><code><span class="comment"># ── VPC ──</span>
+resource "aws_vpc" "main" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-vpc"
+  })
+}
+
+<span class="comment"># ── Public Subnets (ALB) — one per AZ ──</span>
+resource "aws_subnet" "public" {
+  count             = 3
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.${count.index + 1}.0/24"
+  availability_zone = data.aws_availability_zones.available.names[count.index]
+
+  map_public_ip_on_launch = true  <span class="comment"># ALB needs public IPs</span>
+
+  tags = merge(local.common_tags, {
+    Name                                = "bookstore-public-${count.index + 1}"
+    "kubernetes.io/role/elb"            = "1"  <span class="comment"># AWS LB controller tag</span>
+    "kubernetes.io/cluster/bookstore"   = "shared"
+  })
+}
+
+<span class="comment"># ── Private Subnets (EKS Workers) — one per AZ ──</span>
+resource "aws_subnet" "private" {
+  count             = 3
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.${count.index + 10}.0/24"
+  availability_zone = data.aws_availability_zones.available.names[count.index]
+
+  tags = merge(local.common_tags, {
+    Name                                    = "bookstore-private-${count.index + 1}"
+    "kubernetes.io/role/internal-elb"       = "1"
+    "kubernetes.io/cluster/bookstore"       = "shared"
+  })
+}
+
+<span class="comment"># ── Database Subnets (Aurora) — one per AZ ──</span>
+resource "aws_subnet" "database" {
+  count             = 3
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.${count.index + 20}.0/24"
+  availability_zone = data.aws_availability_zones.available.names[count.index]
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-db-${count.index + 1}"
+  })
+}
+
+<span class="comment"># ── Data Subnets (MSK, ElastiCache) — one per AZ ──</span>
+resource "aws_subnet" "data" {
+  count             = 3
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.${count.index + 30}.0/24"
+  availability_zone = data.aws_availability_zones.available.names[count.index]
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-data-${count.index + 1}"
+  })
+}
+
+<span class="comment"># ── DB Subnet Group for Aurora ──</span>
+resource "aws_db_subnet_group" "aurora" {
+  name       = "bookstore-aurora"
+  subnet_ids = aws_subnet.database[*].id
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-aurora-subnet-group"
+  })
+}
+
+<span class="comment"># ── ElastiCache Subnet Group ──</span>
+resource "aws_elasticache_subnet_group" "redis" {
+  name       = "bookstore-redis"
+  subnet_ids = aws_subnet.data[*].id
+}</code></pre>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="alb-sg">2. ALB Security Group</h2>
+
+  <p>The Application Load Balancer is the only component directly exposed to the internet. Its Security Group allows HTTPS (443) and HTTP (80, for redirect) from anywhere, and forwards traffic exclusively to EKS worker nodes on NodePort range 30000&ndash;32767. All other egress is denied.</p>
+
+  <div class="callout danger">
+    <strong>Critical:</strong> The ALB should NEVER be able to reach the database or data subnets directly. If an attacker exploits the ALB (e.g., via HTTP request smuggling), the blast radius must be limited to the EKS worker tier.
+  </div>
+
+  <pre><code>resource "aws_security_group" "alb" {
+  name_prefix = "bookstore-alb-"
+  description = "ALB: internet-facing load balancer"
+  vpc_id      = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-alb-sg"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+<span class="comment"># ── INBOUND: HTTPS from anywhere ──</span>
+<span class="comment"># This is the front door. TLS terminates at the ALB using an ACM</span>
+<span class="comment"># certificate. WAF rules (AWS WAF) are evaluated before the request</span>
+<span class="comment"># reaches the target group.</span>
+<span class="comment"># Prevents: nothing — this is intentionally open to the internet.</span>
+resource "aws_vpc_security_group_ingress_rule" "alb_https" {
+  security_group_id = aws_security_group.alb.id
+  description       = "HTTPS from internet"
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "0.0.0.0/0"  <span class="comment"># Public internet</span>
+}
+
+<span class="comment"># ── INBOUND: HTTP from anywhere (301 redirect to HTTPS) ──</span>
+<span class="comment"># ALB listener on port 80 issues a 301 redirect to HTTPS.</span>
+<span class="comment"># No application traffic flows over HTTP — redirect only.</span>
+<span class="comment"># Prevents: users accidentally using HTTP get forced to HTTPS.</span>
+resource "aws_vpc_security_group_ingress_rule" "alb_http" {
+  security_group_id = aws_security_group.alb.id
+  description       = "HTTP from internet (redirect to HTTPS)"
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
+<span class="comment"># ── OUTBOUND: ALB → EKS workers on NodePort range ONLY ──</span>
+<span class="comment"># ALB forwards to EKS NodePort services (30000-32767).</span>
+<span class="comment"># This is the ONLY allowed egress — prevents lateral movement</span>
+<span class="comment"># if the ALB is compromised. Cannot reach Aurora, MSK, or Redis.</span>
+resource "aws_vpc_security_group_egress_rule" "alb_to_workers" {
+  security_group_id            = aws_security_group.alb.id
+  description                  = "ALB to EKS workers on NodePorts"
+  ip_protocol                  = "tcp"
+  from_port                    = 30000
+  to_port                      = 32767
+  referenced_security_group_id = aws_security_group.workers.id
+}</code></pre>
+
+  <div class="callout info">
+    <strong>No other egress rules.</strong> Unlike the default SG which allows all outbound, we use the new <code>aws_vpc_security_group_egress_rule</code> resources with no <code>0.0.0.0/0</code> catch-all. AWS implicitly denies all traffic not matching an allow rule. The ALB cannot talk to Aurora, MSK, Redis, or the internet on any port other than worker NodePorts.
+  </div>
+
+  <h3>Rule-by-Rule Explanation</h3>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">IN</div>
+    <div>
+      <div class="rule-name">HTTPS from Internet</div>
+      <div class="rule-detail"><code>TCP 443</code> from <code>0.0.0.0/0</code></div>
+      <div class="rule-why">The front door for all user traffic. TLS terminates here with an ACM-managed certificate. Combine with AWS WAF for OWASP Top 10 protection.</div>
+    </div>
+  </div>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">IN</div>
+    <div>
+      <div class="rule-name">HTTP from Internet (Redirect Only)</div>
+      <div class="rule-detail"><code>TCP 80</code> from <code>0.0.0.0/0</code></div>
+      <div class="rule-why">Exists solely to issue 301 redirects to HTTPS. No application traffic flows over this port.</div>
+    </div>
+  </div>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">OUT</div>
+    <div>
+      <div class="rule-name">ALB to EKS Workers (NodePorts)</div>
+      <div class="rule-detail"><code>TCP 30000-32767</code> to <code>bookstore-worker-sg</code></div>
+      <div class="rule-why">Only permitted outbound path. If the ALB is compromised (e.g., HTTP/2 rapid reset attack), the attacker cannot pivot to databases, Kafka, or Redis.</div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="eks-cluster-sg">3. EKS Cluster Security Group</h2>
+
+  <p>The EKS cluster Security Group controls communication between the AWS-managed control plane (API server, etcd, scheduler) and your worker nodes. AWS creates a default cluster SG, but we create an explicit one for full Terraform control.</p>
+
+  <pre><code>resource "aws_security_group" "eks_cluster" {
+  name_prefix = "bookstore-eks-cluster-"
+  description = "EKS control plane communication"
+  vpc_id      = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-eks-cluster-sg"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+<span class="comment"># ── INBOUND: Workers → Control Plane (API server) ──</span>
+<span class="comment"># Worker kubelets, kube-proxy, and application pods communicate</span>
+<span class="comment"># with the Kubernetes API server on port 443.</span>
+<span class="comment"># Without this: kubectl, pod scheduling, and all K8s operations fail.</span>
+<span class="comment"># Prevents: only workers can reach the API server — not the ALB,</span>
+<span class="comment"># not the database subnet, not the internet.</span>
+resource "aws_vpc_security_group_ingress_rule" "cluster_from_workers_443" {
+  security_group_id            = aws_security_group.eks_cluster.id
+  description                  = "Workers to control plane API server"
+  ip_protocol                  = "tcp"
+  from_port                    = 443
+  to_port                      = 443
+  referenced_security_group_id = aws_security_group.workers.id
+}
+
+<span class="comment"># ── OUTBOUND: Control Plane → Workers on port 443 ──</span>
+<span class="comment"># The API server calls admission webhooks (Istio, cert-manager,</span>
+<span class="comment"># OPA Gatekeeper) running on worker nodes via port 443.</span>
+<span class="comment"># Without this: all admission webhooks fail, pod creation breaks.</span>
+resource "aws_vpc_security_group_egress_rule" "cluster_to_workers_443" {
+  security_group_id            = aws_security_group.eks_cluster.id
+  description                  = "Control plane to workers (webhooks)"
+  ip_protocol                  = "tcp"
+  from_port                    = 443
+  to_port                      = 443
+  referenced_security_group_id = aws_security_group.workers.id
+}
+
+<span class="comment"># ── OUTBOUND: Control Plane → Workers on port 10250 ──</span>
+<span class="comment"># The API server connects to kubelet on 10250 for kubectl exec,</span>
+<span class="comment"># kubectl logs, metrics collection, and pod lifecycle management.</span>
+<span class="comment"># Without this: kubectl exec/logs fail, HPA cannot collect metrics.</span>
+resource "aws_vpc_security_group_egress_rule" "cluster_to_workers_10250" {
+  security_group_id            = aws_security_group.eks_cluster.id
+  description                  = "Control plane to kubelets"
+  ip_protocol                  = "tcp"
+  from_port                    = 10250
+  to_port                      = 10250
+  referenced_security_group_id = aws_security_group.workers.id
+}</code></pre>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">IN</div>
+    <div>
+      <div class="rule-name">Workers to Control Plane (443)</div>
+      <div class="rule-detail"><code>TCP 443</code> from <code>bookstore-worker-sg</code></div>
+      <div class="rule-why">All Kubernetes API calls originate from workers (kubelet, kube-proxy, application pods). This is the single path into the control plane.</div>
+    </div>
+  </div>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">OUT</div>
+    <div>
+      <div class="rule-name">Control Plane to Workers (443 + 10250)</div>
+      <div class="rule-detail"><code>TCP 443, 10250</code> to <code>bookstore-worker-sg</code></div>
+      <div class="rule-why">Port 443 for admission webhook callbacks (Istio, cert-manager). Port 10250 for kubelet communication (exec, logs, metrics). Blocking either breaks core K8s functionality.</div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="worker-sg">4. EKS Worker Nodes Security Group</h2>
+
+  <p>The worker node Security Group is the most complex &mdash; workers communicate with every tier. We lock down each path to only the required ports, preventing lateral movement if a pod is compromised.</p>
+
+  <pre><code>resource "aws_security_group" "workers" {
+  name_prefix = "bookstore-workers-"
+  description = "EKS worker nodes"
+  vpc_id      = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-worker-sg"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+<span class="comment"># ════════════════════════════════════════════════</span>
+<span class="comment"># INBOUND RULES</span>
+<span class="comment"># ════════════════════════════════════════════════</span>
+
+<span class="comment"># ── FROM ALB: NodePort range (30000-32767) ──</span>
+<span class="comment"># ALB target groups route user traffic to worker NodePorts.</span>
+<span class="comment"># Without this: users cannot reach any application service.</span>
+<span class="comment"># Prevents: only ALB (not internet directly) can reach NodePorts.</span>
+resource "aws_vpc_security_group_ingress_rule" "workers_from_alb" {
+  security_group_id            = aws_security_group.workers.id
+  description                  = "ALB to workers on NodePorts"
+  ip_protocol                  = "tcp"
+  from_port                    = 30000
+  to_port                      = 32767
+  referenced_security_group_id = aws_security_group.alb.id
+}
+
+<span class="comment"># ── FROM Control Plane: 443 (webhooks) ──</span>
+<span class="comment"># API server calls admission webhooks running on workers.</span>
+<span class="comment"># Istio injection, cert-manager, OPA Gatekeeper all need this.</span>
+<span class="comment"># Without this: pod creation fails on any namespaced webhook.</span>
+resource "aws_vpc_security_group_ingress_rule" "workers_from_cluster_443" {
+  security_group_id            = aws_security_group.workers.id
+  description                  = "Control plane webhooks"
+  ip_protocol                  = "tcp"
+  from_port                    = 443
+  to_port                      = 443
+  referenced_security_group_id = aws_security_group.eks_cluster.id
+}
+
+<span class="comment"># ── FROM Control Plane: 10250 (kubelet) ──</span>
+<span class="comment"># API server → kubelet for exec, logs, metrics, lifecycle hooks.</span>
+<span class="comment"># Without this: kubectl exec/logs, HPA, and VPA all fail.</span>
+resource "aws_vpc_security_group_ingress_rule" "workers_from_cluster_10250" {
+  security_group_id            = aws_security_group.workers.id
+  description                  = "Control plane to kubelet"
+  ip_protocol                  = "tcp"
+  from_port                    = 10250
+  to_port                      = 10250
+  referenced_security_group_id = aws_security_group.eks_cluster.id
+}
+
+<span class="comment"># ── BETWEEN WORKERS: all ports (pod communication) ──</span>
+<span class="comment"># Kubernetes pods, Istio ztunnel (mTLS), CoreDNS, kube-proxy,</span>
+<span class="comment"># and all service mesh traffic flows between workers.</span>
+<span class="comment"># Without this: all pod-to-pod and service-to-service calls fail.</span>
+<span class="comment"># Istio mTLS handles L7 authorization inside the cluster.</span>
+resource "aws_vpc_security_group_ingress_rule" "workers_self" {
+  security_group_id            = aws_security_group.workers.id
+  description                  = "Worker-to-worker (all pod traffic)"
+  ip_protocol                  = "-1"  <span class="comment"># All protocols</span>
+  referenced_security_group_id = aws_security_group.workers.id
+}
+
+<span class="comment"># ════════════════════════════════════════════════</span>
+<span class="comment"># OUTBOUND RULES</span>
+<span class="comment"># ════════════════════════════════════════════════</span>
+
+<span class="comment"># ── TO Aurora: PostgreSQL 5432 ONLY ──</span>
+<span class="comment"># ecom-service, inventory-service, keycloak, flink-sql connect to</span>
+<span class="comment"># their respective Aurora PostgreSQL clusters on port 5432.</span>
+<span class="comment"># Prevents: compromised pod cannot reach Aurora on any other port</span>
+<span class="comment"># (e.g., SSH 22, which could be used for tunnel attacks).</span>
+resource "aws_vpc_security_group_egress_rule" "workers_to_aurora" {
+  security_group_id            = aws_security_group.workers.id
+  description                  = "Workers to Aurora PostgreSQL"
+  ip_protocol                  = "tcp"
+  from_port                    = 5432
+  to_port                      = 5432
+  referenced_security_group_id = aws_security_group.aurora.id
+}
+
+<span class="comment"># ── TO MSK: Kafka 9092 (plaintext) and 9094 (TLS) ──</span>
+<span class="comment"># Debezium CDC producers and Flink/app consumers connect to MSK</span>
+<span class="comment"># brokers on 9092 (PLAINTEXT within VPC) or 9094 (TLS).</span>
+<span class="comment"># Prevents: workers cannot reach MSK on management ports (e.g., JMX 9999).</span>
+resource "aws_vpc_security_group_egress_rule" "workers_to_msk" {
+  security_group_id            = aws_security_group.workers.id
+  description                  = "Workers to MSK Kafka brokers"
+  ip_protocol                  = "tcp"
+  from_port                    = 9092
+  to_port                      = 9094
+  referenced_security_group_id = aws_security_group.msk.id
+}
+
+<span class="comment"># ── TO ElastiCache Redis: 6379 ──</span>
+<span class="comment"># CSRF token store, rate-limiting (Bucket4j), session cache.</span>
+<span class="comment"># Prevents: workers cannot reach Redis on cluster bus port (16379)</span>
+<span class="comment"># or any management interface.</span>
+resource "aws_vpc_security_group_egress_rule" "workers_to_redis" {
+  security_group_id            = aws_security_group.workers.id
+  description                  = "Workers to ElastiCache Redis"
+  ip_protocol                  = "tcp"
+  from_port                    = 6379
+  to_port                      = 6379
+  referenced_security_group_id = aws_security_group.redis.id
+}
+
+<span class="comment"># ── TO Workers (self): all protocols ──</span>
+<span class="comment"># Pod-to-pod, Istio ztunnel, CoreDNS, kube-proxy.</span>
+resource "aws_vpc_security_group_egress_rule" "workers_self_egress" {
+  security_group_id            = aws_security_group.workers.id
+  description                  = "Worker-to-worker egress"
+  ip_protocol                  = "-1"
+  referenced_security_group_id = aws_security_group.workers.id
+}
+
+<span class="comment"># ── TO Control Plane: 443 ──</span>
+<span class="comment"># Workers call the Kubernetes API server for pod scheduling,</span>
+<span class="comment"># service discovery, config maps, secrets, etc.</span>
+resource "aws_vpc_security_group_egress_rule" "workers_to_cluster" {
+  security_group_id            = aws_security_group.workers.id
+  description                  = "Workers to EKS API server"
+  ip_protocol                  = "tcp"
+  from_port                    = 443
+  to_port                      = 443
+  referenced_security_group_id = aws_security_group.eks_cluster.id
+}
+
+<span class="comment"># ── TO NAT Gateway: 443 (image pulls, OIDC, OTel export) ──</span>
+<span class="comment"># Workers in private subnets reach the internet via NAT Gateway</span>
+<span class="comment"># for: ECR image pulls, Keycloak JWKS endpoint, OTel collector.</span>
+<span class="comment"># Consider VPC Endpoints to reduce this dependency and cost.</span>
+<span class="comment"># Prevents: workers can only reach internet on HTTPS — no SSH,</span>
+<span class="comment"># no arbitrary ports that could be used for C2 beaconing.</span>
+resource "aws_vpc_security_group_egress_rule" "workers_to_internet" {
+  security_group_id = aws_security_group.workers.id
+  description       = "Workers to internet via NAT (HTTPS only)"
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
+<span class="comment"># ── TO VPC Endpoints: 443 ──</span>
+<span class="comment"># ECR, STS, CloudWatch, Secrets Manager endpoints in the VPC.</span>
+<span class="comment"># Traffic stays on the AWS backbone — never exits the VPC.</span>
+resource "aws_vpc_security_group_egress_rule" "workers_to_vpce" {
+  security_group_id            = aws_security_group.workers.id
+  description                  = "Workers to VPC Endpoints"
+  ip_protocol                  = "tcp"
+  from_port                    = 443
+  to_port                      = 443
+  referenced_security_group_id = aws_security_group.vpce.id
+}</code></pre>
+
+  <h3>Rule-by-Rule Explanation</h3>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">IN</div>
+    <div>
+      <div class="rule-name">ALB to Workers (NodePorts)</div>
+      <div class="rule-detail"><code>TCP 30000-32767</code> from <code>bookstore-alb-sg</code></div>
+      <div class="rule-why">Only the ALB can reach NodePorts. Direct internet access to workers is impossible because workers are in private subnets with no public IPs.</div>
+    </div>
+  </div>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">IN</div>
+    <div>
+      <div class="rule-name">Control Plane to Workers (443, 10250)</div>
+      <div class="rule-detail"><code>TCP 443, 10250</code> from <code>bookstore-eks-cluster-sg</code></div>
+      <div class="rule-why">443 for webhook callbacks (Istio sidecar injection, cert-manager). 10250 for kubelet API (exec, logs, metrics). Both are essential for cluster operation.</div>
+    </div>
+  </div>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">IN</div>
+    <div>
+      <div class="rule-name">Worker Self-Referencing (All)</div>
+      <div class="rule-detail"><code>ALL protocols</code> from <code>bookstore-worker-sg</code> (self)</div>
+      <div class="rule-why">Kubernetes requires unrestricted pod-to-pod communication. Istio mTLS (ztunnel in Ambient mode) encrypts and authorizes traffic at Layer 7 within the cluster.</div>
+    </div>
+  </div>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">OUT</div>
+    <div>
+      <div class="rule-name">Workers to Aurora (5432 only)</div>
+      <div class="rule-detail"><code>TCP 5432</code> to <code>bookstore-aurora-sg</code></div>
+      <div class="rule-why">The only path from workers to databases. If a pod is compromised, the attacker can reach PostgreSQL on 5432 only &mdash; not SSH, not management ports.</div>
+    </div>
+  </div>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">OUT</div>
+    <div>
+      <div class="rule-name">Workers to MSK (9092-9094)</div>
+      <div class="rule-detail"><code>TCP 9092-9094</code> to <code>bookstore-msk-sg</code></div>
+      <div class="rule-why">Debezium producers and Flink/app consumers need Kafka broker ports. JMX and other management ports are not allowed.</div>
+    </div>
+  </div>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">OUT</div>
+    <div>
+      <div class="rule-name">Workers to Redis (6379)</div>
+      <div class="rule-detail"><code>TCP 6379</code> to <code>bookstore-redis-sg</code></div>
+      <div class="rule-why">CSRF tokens, rate limiting, session cache. Redis cluster bus port (16379) is NOT permitted &mdash; only client-facing traffic.</div>
+    </div>
+  </div>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">OUT</div>
+    <div>
+      <div class="rule-name">Workers to Internet (HTTPS only via NAT)</div>
+      <div class="rule-detail"><code>TCP 443</code> to <code>0.0.0.0/0</code></div>
+      <div class="rule-why">Required for ECR image pulls, OIDC token exchange, OTel export. Only HTTPS is allowed &mdash; no arbitrary ports that could be used for crypto mining or C2 beaconing.</div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="aurora-sg">5. Aurora PostgreSQL Security Group</h2>
+
+  <p>The Aurora Security Group protects all four PostgreSQL clusters (ecom, inventory, analytics, keycloak). It is the most restrictive SG in the architecture: <strong>only EKS workers can reach port 5432, and nothing else</strong>.</p>
+
+  <div class="callout danger">
+    <strong>Critical:</strong> Databases must NEVER be reachable from the ALB, the internet, or any other subnet. A compromised ALB should not give direct database access. Aurora has no public IP and resides in subnets with no internet gateway route.
+  </div>
+
+  <pre><code>resource "aws_security_group" "aurora" {
+  name_prefix = "bookstore-aurora-"
+  description = "Aurora PostgreSQL: workers only, port 5432"
+  vpc_id      = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-aurora-sg"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+<span class="comment"># ── INBOUND: EKS Workers → Aurora on port 5432 ONLY ──</span>
+<span class="comment"># Application pods (ecom-service, inventory-service, keycloak,</span>
+<span class="comment"># analytics-flink) connect to their respective databases here.</span>
+<span class="comment"># Debezium CDC reads the WAL stream over this same port.</span>
+<span class="comment"># This is the ONLY inbound rule — maximum isolation.</span>
+<span class="comment"># Prevents: ALB compromise cannot pivot to database tier.</span>
+<span class="comment"># Prevents: Redis/MSK compromise cannot reach databases.</span>
+resource "aws_vpc_security_group_ingress_rule" "aurora_from_workers" {
+  security_group_id            = aws_security_group.aurora.id
+  description                  = "EKS workers to Aurora PostgreSQL"
+  ip_protocol                  = "tcp"
+  from_port                    = 5432
+  to_port                      = 5432
+  referenced_security_group_id = aws_security_group.workers.id
+}
+
+<span class="comment"># ── No outbound rules needed ──</span>
+<span class="comment"># Aurora is a managed service. AWS handles replication, backups,</span>
+<span class="comment"># and monitoring internally. The SG has no egress rules, so</span>
+<span class="comment"># Aurora-initiated connections to anything are silently dropped.</span>
+<span class="comment"># (AWS managed service traffic bypasses customer SGs internally.)</span></code></pre>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">IN</div>
+    <div>
+      <div class="rule-name">EKS Workers to Aurora (5432)</div>
+      <div class="rule-detail"><code>TCP 5432</code> from <code>bookstore-worker-sg</code></div>
+      <div class="rule-why">The single inbound path. Only Kubernetes pods can connect. Debezium CDC, application services, and Flink SQL jobs all run inside EKS. No internet, no ALB, no other service can reach the database.</div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <strong>SG chaining advantage:</strong> By referencing <code>aws_security_group.workers.id</code> instead of a CIDR block, adding or removing worker nodes (via autoscaling) requires zero rule changes. Any ENI with the worker SG attached is automatically permitted.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="msk-sg">6. MSK Kafka Security Group</h2>
+
+  <p>Amazon MSK (Managed Streaming for Apache Kafka) hosts the event topics (<code>order.created</code>, <code>inventory.updated</code>, Debezium CDC topics). Only EKS workers need broker access, and brokers need to communicate with each other for replication.</p>
+
+  <pre><code>resource "aws_security_group" "msk" {
+  name_prefix = "bookstore-msk-"
+  description = "MSK Kafka: workers + inter-broker"
+  vpc_id      = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-msk-sg"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+<span class="comment"># ── INBOUND: EKS Workers → Kafka broker ports ──</span>
+<span class="comment"># 9092 = PLAINTEXT (within VPC, mTLS not needed at transport layer)</span>
+<span class="comment"># 9094 = TLS (for cross-AZ or if TLS-everywhere is required)</span>
+<span class="comment"># Debezium producers, Flink consumers, and app consumers use these.</span>
+<span class="comment"># Prevents: only EKS workers can produce/consume messages.</span>
+<span class="comment"># A compromised ALB or database cannot access Kafka.</span>
+resource "aws_vpc_security_group_ingress_rule" "msk_from_workers" {
+  security_group_id            = aws_security_group.msk.id
+  description                  = "EKS workers to Kafka brokers"
+  ip_protocol                  = "tcp"
+  from_port                    = 9092
+  to_port                      = 9094
+  referenced_security_group_id = aws_security_group.workers.id
+}
+
+<span class="comment"># ── INBOUND: Inter-broker replication ──</span>
+<span class="comment"># Kafka brokers replicate partitions to each other on ports</span>
+<span class="comment"># 9092-9094. This self-referencing rule allows broker-to-broker</span>
+<span class="comment"># traffic within the MSK cluster.</span>
+<span class="comment"># Without this: partition replication fails, data loss risk.</span>
+resource "aws_vpc_security_group_ingress_rule" "msk_self" {
+  security_group_id            = aws_security_group.msk.id
+  description                  = "Inter-broker replication"
+  ip_protocol                  = "tcp"
+  from_port                    = 9092
+  to_port                      = 9094
+  referenced_security_group_id = aws_security_group.msk.id
+}
+
+<span class="comment"># ── OUTBOUND: Inter-broker replication ──</span>
+resource "aws_vpc_security_group_egress_rule" "msk_self_egress" {
+  security_group_id            = aws_security_group.msk.id
+  description                  = "Inter-broker replication egress"
+  ip_protocol                  = "tcp"
+  from_port                    = 9092
+  to_port                      = 9094
+  referenced_security_group_id = aws_security_group.msk.id
+}</code></pre>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">IN</div>
+    <div>
+      <div class="rule-name">EKS Workers to MSK (9092-9094)</div>
+      <div class="rule-detail"><code>TCP 9092-9094</code> from <code>bookstore-worker-sg</code></div>
+      <div class="rule-why">Debezium CDC producers, Flink SQL consumers, and application Kafka consumers all run inside EKS. No other tier needs Kafka access.</div>
+    </div>
+  </div>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">IN</div>
+    <div>
+      <div class="rule-name">Inter-Broker Replication (self)</div>
+      <div class="rule-detail"><code>TCP 9092-9094</code> from <code>bookstore-msk-sg</code> (self)</div>
+      <div class="rule-why">Kafka brokers replicate partition data across AZs. Without inter-broker communication, ISR (In-Sync Replicas) shrink, risking data loss on broker failure.</div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="redis-sg">7. ElastiCache Redis Security Group</h2>
+
+  <p>ElastiCache Redis serves three purposes: CSRF token storage, rate-limiting buckets (Bucket4j), and session cache. Only EKS workers need access, and only on the Redis client port 6379.</p>
+
+  <div class="callout info">
+    <strong>Note:</strong> AWS ElastiCache uses port <code>6379</code> for both plaintext and TLS connections (unlike Azure which uses 6380 for TLS). TLS is configured at the replication group level with <code>transit_encryption_enabled = true</code>.
+  </div>
+
+  <pre><code>resource "aws_security_group" "redis" {
+  name_prefix = "bookstore-redis-"
+  description = "ElastiCache Redis: workers only, port 6379"
+  vpc_id      = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-redis-sg"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+<span class="comment"># ── INBOUND: EKS Workers → Redis on port 6379 ──</span>
+<span class="comment"># Used by: CSRF token store, rate limiting (Bucket4j),</span>
+<span class="comment"># session/refresh token cache.</span>
+<span class="comment"># Prevents: ALB, Aurora, MSK cannot reach Redis.</span>
+<span class="comment"># A compromised database cannot dump the session cache.</span>
+resource "aws_vpc_security_group_ingress_rule" "redis_from_workers" {
+  security_group_id            = aws_security_group.redis.id
+  description                  = "EKS workers to Redis"
+  ip_protocol                  = "tcp"
+  from_port                    = 6379
+  to_port                      = 6379
+  referenced_security_group_id = aws_security_group.workers.id
+}
+
+<span class="comment"># ── No other inbound rules ──</span>
+<span class="comment"># No internet, no ALB, no database, no MSK can reach Redis.</span>
+<span class="comment"># ElastiCache has no public endpoint — it is VPC-only by design.</span></code></pre>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">IN</div>
+    <div>
+      <div class="rule-name">EKS Workers to Redis (6379)</div>
+      <div class="rule-detail"><code>TCP 6379</code> from <code>bookstore-worker-sg</code></div>
+      <div class="rule-why">Only application pods need Redis. Rate limiter (Bucket4j), CSRF token store, and session cache all run in EKS. No other tier has any reason to connect.</div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="vpce-sg">8. VPC Endpoints Security Group</h2>
+
+  <p>VPC Endpoints allow EKS workers to reach AWS services (ECR, STS, CloudWatch, Secrets Manager) without leaving the VPC. The endpoint ENIs need a Security Group that allows HTTPS from workers.</p>
+
+  <pre><code>resource "aws_security_group" "vpce" {
+  name_prefix = "bookstore-vpce-"
+  description = "VPC Endpoints: HTTPS from workers"
+  vpc_id      = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-vpce-sg"
+  })
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+<span class="comment"># ── INBOUND: EKS Workers → VPC Endpoints on 443 ──</span>
+<span class="comment"># All AWS API calls (ECR, STS, CloudWatch, Secrets Manager)</span>
+<span class="comment"># are HTTPS on port 443. Workers call these endpoints to:</span>
+<span class="comment"># - Pull container images (ECR)</span>
+<span class="comment"># - Assume IAM roles (STS)</span>
+<span class="comment"># - Push metrics/logs (CloudWatch)</span>
+<span class="comment"># - Fetch secrets (Secrets Manager)</span>
+<span class="comment"># Prevents: only workers can use these endpoints — not the ALB</span>
+<span class="comment"># or any other tier. Limits API call surface if ALB is compromised.</span>
+resource "aws_vpc_security_group_ingress_rule" "vpce_from_workers" {
+  security_group_id            = aws_security_group.vpce.id
+  description                  = "EKS workers to VPC endpoints"
+  ip_protocol                  = "tcp"
+  from_port                    = 443
+  to_port                      = 443
+  referenced_security_group_id = aws_security_group.workers.id
+}</code></pre>
+
+  <div class="nsg-rule allow">
+    <div class="rule-icon">IN</div>
+    <div>
+      <div class="rule-name">Workers to VPC Endpoints (443)</div>
+      <div class="rule-detail"><code>TCP 443</code> from <code>bookstore-worker-sg</code></div>
+      <div class="rule-why">ECR image pulls, STS role assumption, CloudWatch metrics, and Secrets Manager all use HTTPS. Traffic stays within the AWS backbone, never traversing the public internet or NAT Gateway.</div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="nacls">9. Network ACLs (NACLs)</h2>
+
+  <p>NACLs are the second layer of defense. Unlike Security Groups, they are <strong>stateless</strong> (return traffic must be explicitly allowed) and support explicit <strong>DENY</strong> rules. We use them to enforce subnet-level isolation that SGs alone cannot guarantee.</p>
+
+  <div class="callout warn">
+    <strong>Stateless means:</strong> If you allow inbound TCP 443, you MUST also allow outbound ephemeral ports (1024-65535) for the response. Forgetting this is the #1 NACL debugging pitfall.
+  </div>
+
+  <pre><code><span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># PUBLIC SUBNET NACL (ALB subnets)</span>
+<span class="comment"># ═══════════════════════════════════════════════</span>
+
+resource "aws_network_acl" "public" {
+  vpc_id     = aws_vpc.main.id
+  subnet_ids = aws_subnet.public[*].id
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-public-nacl"
+  })
+
+  <span class="comment"># ── Rule 100: Allow HTTPS inbound from internet ──</span>
+  <span class="comment"># ALB receives user HTTPS traffic.</span>
+  ingress {
+    rule_no    = 100
+    action     = "allow"
+    protocol   = "tcp"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 443
+    to_port    = 443
+  }
+
+  <span class="comment"># ── Rule 110: Allow HTTP inbound from internet (redirect) ──</span>
+  ingress {
+    rule_no    = 110
+    action     = "allow"
+    protocol   = "tcp"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 80
+    to_port    = 80
+  }
+
+  <span class="comment"># ── Rule 120: Allow ephemeral ports inbound (return traffic) ──</span>
+  <span class="comment"># Responses from EKS workers back to ALB use ephemeral ports.</span>
+  <span class="comment"># Required because NACLs are stateless.</span>
+  ingress {
+    rule_no    = 120
+    action     = "allow"
+    protocol   = "tcp"
+    cidr_block = "10.0.0.0/16"  <span class="comment"># VPC CIDR only</span>
+    from_port  = 1024
+    to_port    = 65535
+  }
+
+  <span class="comment"># ── Rule 32766: DENY all other inbound ──</span>
+  ingress {
+    rule_no    = 32766
+    action     = "deny"
+    protocol   = "-1"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 0
+    to_port    = 0
+  }
+
+  <span class="comment"># ── Rule 100: Allow outbound to VPC (ALB → workers) ──</span>
+  egress {
+    rule_no    = 100
+    action     = "allow"
+    protocol   = "tcp"
+    cidr_block = "10.0.0.0/16"
+    from_port  = 1024
+    to_port    = 65535
+  }
+
+  <span class="comment"># ── Rule 110: Allow ephemeral outbound to internet (responses) ──</span>
+  egress {
+    rule_no    = 110
+    action     = "allow"
+    protocol   = "tcp"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 1024
+    to_port    = 65535
+  }
+
+  <span class="comment"># ── Rule 32766: DENY all other outbound ──</span>
+  egress {
+    rule_no    = 32766
+    action     = "deny"
+    protocol   = "-1"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 0
+    to_port    = 0
+  }
+}
+
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># PRIVATE SUBNET NACL (EKS workers)</span>
+<span class="comment"># ═══════════════════════════════════════════════</span>
+
+resource "aws_network_acl" "private" {
+  vpc_id     = aws_vpc.main.id
+  subnet_ids = aws_subnet.private[*].id
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-private-nacl"
+  })
+
+  <span class="comment"># ── Rule 100: Allow all inbound from VPC CIDR ──</span>
+  <span class="comment"># Workers receive traffic from ALB, control plane, other workers,</span>
+  <span class="comment"># and return traffic from Aurora/MSK/Redis.</span>
+  ingress {
+    rule_no    = 100
+    action     = "allow"
+    protocol   = "-1"
+    cidr_block = "10.0.0.0/16"
+    from_port  = 0
+    to_port    = 0
+  }
+
+  <span class="comment"># ── Rule 110: Allow ephemeral inbound from internet (NAT return) ──</span>
+  <span class="comment"># Return traffic from internet (ECR pulls via NAT) uses ephemeral ports.</span>
+  ingress {
+    rule_no    = 110
+    action     = "allow"
+    protocol   = "tcp"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 1024
+    to_port    = 65535
+  }
+
+  <span class="comment"># ── Rule 32766: DENY all other inbound ──</span>
+  ingress {
+    rule_no    = 32766
+    action     = "deny"
+    protocol   = "-1"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 0
+    to_port    = 0
+  }
+
+  <span class="comment"># ── Rule 100: Allow all outbound to VPC ──</span>
+  egress {
+    rule_no    = 100
+    action     = "allow"
+    protocol   = "-1"
+    cidr_block = "10.0.0.0/16"
+    from_port  = 0
+    to_port    = 0
+  }
+
+  <span class="comment"># ── Rule 110: Allow HTTPS outbound to internet (via NAT) ──</span>
+  egress {
+    rule_no    = 110
+    action     = "allow"
+    protocol   = "tcp"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 443
+    to_port    = 443
+  }
+
+  <span class="comment"># ── Rule 32766: DENY all other outbound ──</span>
+  egress {
+    rule_no    = 32766
+    action     = "deny"
+    protocol   = "-1"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 0
+    to_port    = 0
+  }
+}
+
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># DATABASE SUBNET NACL (Aurora)</span>
+<span class="comment"># ═══════════════════════════════════════════════</span>
+
+resource "aws_network_acl" "database" {
+  vpc_id     = aws_vpc.main.id
+  subnet_ids = aws_subnet.database[*].id
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-database-nacl"
+  })
+
+  <span class="comment"># ── Rule 100: Allow PostgreSQL from private subnets ONLY ──</span>
+  <span class="comment"># Only EKS workers (10.0.10.0/24, 10.0.11.0/24, 10.0.12.0/24)</span>
+  <span class="comment"># can reach port 5432. Using the private subnet CIDR range.</span>
+  ingress {
+    rule_no    = 100
+    action     = "allow"
+    protocol   = "tcp"
+    cidr_block = "10.0.10.0/24"
+    from_port  = 5432
+    to_port    = 5432
+  }
+
+  ingress {
+    rule_no    = 101
+    action     = "allow"
+    protocol   = "tcp"
+    cidr_block = "10.0.11.0/24"
+    from_port  = 5432
+    to_port    = 5432
+  }
+
+  ingress {
+    rule_no    = 102
+    action     = "allow"
+    protocol   = "tcp"
+    cidr_block = "10.0.12.0/24"
+    from_port  = 5432
+    to_port    = 5432
+  }
+
+  <span class="comment"># ── Rule 200: DENY from public subnets ──</span>
+  <span class="comment"># Prevents: compromised ALB cannot reach database tier.</span>
+  ingress {
+    rule_no    = 200
+    action     = "deny"
+    protocol   = "-1"
+    cidr_block = "10.0.1.0/24"
+    from_port  = 0
+    to_port    = 0
+  }
+
+  ingress {
+    rule_no    = 201
+    action     = "deny"
+    protocol   = "-1"
+    cidr_block = "10.0.2.0/24"
+    from_port  = 0
+    to_port    = 0
+  }
+
+  ingress {
+    rule_no    = 202
+    action     = "deny"
+    protocol   = "-1"
+    cidr_block = "10.0.3.0/24"
+    from_port  = 0
+    to_port    = 0
+  }
+
+  <span class="comment"># ── Rule 32766: DENY all other inbound ──</span>
+  ingress {
+    rule_no    = 32766
+    action     = "deny"
+    protocol   = "-1"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 0
+    to_port    = 0
+  }
+
+  <span class="comment"># ── Rule 100: Allow ephemeral outbound to private subnets (responses) ──</span>
+  egress {
+    rule_no    = 100
+    action     = "allow"
+    protocol   = "tcp"
+    cidr_block = "10.0.10.0/24"
+    from_port  = 1024
+    to_port    = 65535
+  }
+
+  egress {
+    rule_no    = 101
+    action     = "allow"
+    protocol   = "tcp"
+    cidr_block = "10.0.11.0/24"
+    from_port  = 1024
+    to_port    = 65535
+  }
+
+  egress {
+    rule_no    = 102
+    action     = "allow"
+    protocol   = "tcp"
+    cidr_block = "10.0.12.0/24"
+    from_port  = 1024
+    to_port    = 65535
+  }
+
+  <span class="comment"># ── Rule 32766: DENY all other outbound ──</span>
+  egress {
+    rule_no    = 32766
+    action     = "deny"
+    protocol   = "-1"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 0
+    to_port    = 0
+  }
+}</code></pre>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="flow-logs">10. VPC Flow Logs</h2>
+
+  <p>VPC Flow Logs capture metadata about all network traffic (accepted and rejected) at the VPC, subnet, or ENI level. We enable REJECT-only logging to CloudWatch Logs for security forensics without excessive log volume.</p>
+
+  <pre><code><span class="comment"># ── IAM Role for VPC Flow Logs ──</span>
+resource "aws_iam_role" "flow_logs" {
+  name = "bookstore-vpc-flow-logs"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "vpc-flow-logs.amazonaws.com"
+      }
+    }]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_iam_role_policy" "flow_logs" {
+  name = "flow-logs-cloudwatch"
+  role = aws_iam_role.flow_logs.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams"
+      ]
+      Resource = "*"
+    }]
+  })
+}
+
+<span class="comment"># ── CloudWatch Log Group with 30-day retention ──</span>
+resource "aws_cloudwatch_log_group" "flow_logs" {
+  name              = "/vpc/bookstore/flow-logs"
+  retention_in_days = 30  <span class="comment"># 30 days for forensics, then auto-expire</span>
+
+  tags = local.common_tags
+}
+
+<span class="comment"># ── VPC Flow Log: REJECT traffic only ──</span>
+<span class="comment"># Captures all REJECTED packets — these are the security-relevant</span>
+<span class="comment"># events (blocked connection attempts, port scans, lateral movement).</span>
+<span class="comment"># ACCEPT traffic is too voluminous for most use cases.</span>
+resource "aws_flow_log" "reject" {
+  vpc_id               = aws_vpc.main.id
+  traffic_type         = "REJECT"
+  iam_role_arn         = aws_iam_role.flow_logs.arn
+  log_destination      = aws_cloudwatch_log_group.flow_logs.arn
+  log_destination_type = "cloud-watch-logs"
+  max_aggregation_interval = 60  <span class="comment"># 1-minute granularity</span>
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-vpc-flow-log-reject"
+  })
+}</code></pre>
+
+  <div class="callout tip">
+    <strong>Cost control:</strong> Logging only REJECT traffic reduces CloudWatch Logs ingestion by 90%+ compared to ALL. At ~$0.50/GB ingested, this keeps flow log costs under $10/month for most workloads.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="vpc-endpoints">11. VPC Endpoints</h2>
+
+  <p>VPC Endpoints allow EKS workers to reach AWS services without traversing the NAT Gateway. This both <strong>improves security</strong> (traffic stays on the AWS backbone) and <strong>reduces cost</strong> (NAT Gateway charges $0.045/GB for data processing).</p>
+
+  <div class="callout info">
+    <strong>Gateway vs Interface Endpoints:</strong> S3 and DynamoDB use <strong>Gateway Endpoints</strong> (free, route-table based). All other services use <strong>Interface Endpoints</strong> ($0.01/hr + $0.01/GB, ENI-based). Each interface endpoint costs ~$7.20/month per AZ.
+  </div>
+
+  <pre><code><span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># S3 Gateway Endpoint (FREE — always create this)</span>
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># ECR stores container images in S3. Without this endpoint,</span>
+<span class="comment"># every image pull goes through NAT Gateway at $0.045/GB.</span>
+<span class="comment"># A single deployment pulling 500MB of images costs $0.02 via NAT</span>
+<span class="comment"># but $0 via Gateway Endpoint.</span>
+
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = aws_route_table.private[*].id
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-s3-endpoint"
+  })
+}
+
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># ECR API Interface Endpoint</span>
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># Used for: docker login, image manifest resolution.</span>
+<span class="comment"># Without this: ECR API calls go through NAT Gateway.</span>
+
+resource "aws_vpc_endpoint" "ecr_api" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.ecr.api"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpce.id]
+  private_dns_enabled = true
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-ecr-api-endpoint"
+  })
+}
+
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># ECR Docker (DKR) Interface Endpoint</span>
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># Used for: docker pull (image layer downloads).</span>
+<span class="comment"># Note: image layers are actually stored in S3 (covered by</span>
+<span class="comment"># the Gateway Endpoint above), but the Docker protocol</span>
+<span class="comment"># handshake goes through the DKR endpoint.</span>
+
+resource "aws_vpc_endpoint" "ecr_dkr" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.ecr.dkr"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpce.id]
+  private_dns_enabled = true
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-ecr-dkr-endpoint"
+  })
+}
+
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># STS Interface Endpoint</span>
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># Used for: IRSA (IAM Roles for Service Accounts).</span>
+<span class="comment"># Every pod that assumes an IAM role calls STS AssumeRoleWithWebIdentity.</span>
+<span class="comment"># Without this: IRSA fails if NAT Gateway is down.</span>
+
+resource "aws_vpc_endpoint" "sts" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.sts"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpce.id]
+  private_dns_enabled = true
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-sts-endpoint"
+  })
+}
+
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># CloudWatch Logs Interface Endpoint</span>
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># Used for: OTel Collector log export, VPC Flow Logs.</span>
+
+resource "aws_vpc_endpoint" "logs" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.logs"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpce.id]
+  private_dns_enabled = true
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-logs-endpoint"
+  })
+}
+
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># Secrets Manager Interface Endpoint</span>
+<span class="comment"># ═══════════════════════════════════════════════</span>
+<span class="comment"># Used for: External Secrets Operator fetching DB passwords,</span>
+<span class="comment"># Redis keys, Kafka credentials from AWS Secrets Manager.</span>
+
+resource "aws_vpc_endpoint" "secretsmanager" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.secretsmanager"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpce.id]
+  private_dns_enabled = true
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-secretsmanager-endpoint"
+  })
+}</code></pre>
+
+  <h3>VPC Endpoint Cost Summary</h3>
+
+  <table>
+    <thead>
+      <tr><th>Endpoint</th><th>Type</th><th>Cost/mo (3 AZs)</th><th>NAT Savings</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>S3</td><td>Gateway</td><td class="cost-low">$0 (free)</td><td>$10-50/mo (image layers)</td></tr>
+      <tr><td>ECR API</td><td>Interface</td><td>$21.60</td><td>$2-5/mo</td></tr>
+      <tr><td>ECR DKR</td><td>Interface</td><td>$21.60</td><td>$2-5/mo</td></tr>
+      <tr><td>STS</td><td>Interface</td><td>$21.60</td><td>$1-3/mo</td></tr>
+      <tr><td>CloudWatch Logs</td><td>Interface</td><td>$21.60</td><td>$5-20/mo</td></tr>
+      <tr><td>Secrets Manager</td><td>Interface</td><td>$21.60</td><td>$1-2/mo</td></tr>
+      <tr style="font-weight: 700;">
+        <td>TOTAL</td><td></td><td>$108/mo</td><td>$21-85/mo</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <strong>Cost trade-off:</strong> Interface endpoints cost ~$108/month (3 AZs). They pay for themselves when NAT data processing exceeds ~2.4 TB/month. The real value is <strong>security</strong>: traffic never leaves the AWS backbone, and you can remove NAT Gateway for workloads that only call AWS APIs.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PART 2: SECURITY — ENCRYPTION & ACCESS                           -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <h2 id="eks-secrets-kms">12. EKS Secrets Encryption with KMS</h2>
+
+  <p>By default, Kubernetes Secrets are stored as base64-encoded plaintext in etcd. EKS supports envelope encryption using a customer-managed KMS key, so even if etcd is compromised, secrets remain encrypted.</p>
+
+  <pre><code><span class="comment"># ── KMS Key for EKS Secrets Encryption ──</span>
+resource "aws_kms_key" "eks_secrets" {
+  description             = "EKS secrets envelope encryption"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true  <span class="comment"># Auto-rotate annually</span>
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowRootAccount"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowEKS"
+        Effect = "Allow"
+        Principal = {
+          Service = "eks.amazonaws.com"
+        }
+        Action = [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey",
+          "kms:CreateGrant"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService"     = "eks.${var.region}.amazonaws.com"
+            "kms:CallerAccount"  = data.aws_caller_identity.current.account_id
+          }
+        }
+      }
+    ]
+  })
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-eks-secrets-key"
+  })
+}
+
+resource "aws_kms_alias" "eks_secrets" {
+  name          = "alias/bookstore-eks-secrets"
+  target_key_id = aws_kms_key.eks_secrets.key_id
+}
+
+<span class="comment"># ── EKS Cluster with Secrets Encryption ──</span>
+resource "aws_eks_cluster" "main" {
+  name     = "bookstore"
+  role_arn = aws_iam_role.eks_cluster.arn
+  version  = "1.31"
+
+  vpc_config {
+    subnet_ids              = aws_subnet.private[*].id
+    security_group_ids      = [aws_security_group.eks_cluster.id]
+    endpoint_private_access = true
+    endpoint_public_access  = true  <span class="comment"># Set false for full private cluster</span>
+  }
+
+  <span class="comment"># Encrypt all Kubernetes Secrets at rest in etcd</span>
+  encryption_config {
+    provider {
+      key_arn = aws_kms_key.eks_secrets.arn
+    }
+    resources = ["secrets"]
+  }
+
+  tags = local.common_tags
+}</code></pre>
+
+  <div class="callout info">
+    <strong>How it works:</strong> EKS generates a data encryption key (DEK) for each Secret, encrypts the Secret with the DEK, then encrypts the DEK with your KMS key (envelope encryption). The KMS key never leaves AWS KMS — only the encrypted DEK is stored alongside the Secret in etcd.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="aurora-encryption">13. Aurora Encryption (At Rest + In Transit)</h2>
+
+  <p>Aurora PostgreSQL supports encryption at rest using a KMS key and encryption in transit using TLS. Both must be explicitly enabled.</p>
+
+  <pre><code><span class="comment"># ── KMS Key for Aurora Encryption ──</span>
+resource "aws_kms_key" "aurora" {
+  description             = "Aurora PostgreSQL encryption at rest"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-aurora-key"
+  })
+}
+
+resource "aws_kms_alias" "aurora" {
+  name          = "alias/bookstore-aurora"
+  target_key_id = aws_kms_key.aurora.key_id
+}
+
+<span class="comment"># ── Aurora Cluster with CMK Encryption ──</span>
+resource "aws_rds_cluster" "ecom" {
+  cluster_identifier = "bookstore-ecom"
+  engine             = "aurora-postgresql"
+  engine_version     = "16.4"
+  database_name      = "ecom"
+  master_username    = "ecom"
+  master_password    = var.ecom_db_password
+
+  db_subnet_group_name   = aws_db_subnet_group.aurora.name
+  vpc_security_group_ids = [aws_security_group.aurora.id]
+
+  <span class="comment"># Encryption at rest with CMK</span>
+  storage_encrypted = true
+  kms_key_id        = aws_kms_key.aurora.arn
+
+  <span class="comment"># Backup retention</span>
+  backup_retention_period = 35
+  preferred_backup_window = "03:00-04:00"
+
+  <span class="comment"># Deletion protection (remove only for teardown)</span>
+  deletion_protection = true
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-ecom-cluster"
+  })
+}
+
+<span class="comment"># ── Enforce SSL/TLS connections ──</span>
+<span class="comment"># rds.force_ssl = 1 rejects any non-TLS connection attempt.</span>
+<span class="comment"># Without this: plaintext connections are accepted within the VPC.</span>
+resource "aws_rds_cluster_parameter_group" "enforce_ssl" {
+  name        = "bookstore-aurora-pg16-ssl"
+  family      = "aurora-postgresql16"
+  description = "Enforce SSL on all connections"
+
+  parameter {
+    name  = "rds.force_ssl"
+    value = "1"
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># Repeat for: inventory, analytics, keycloak clusters</span></code></pre>
+
+  <h3>TLS Everywhere Summary</h3>
+
+  <table>
+    <thead>
+      <tr><th>Hop</th><th>Protocol</th><th>Mechanism</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Internet &rarr; ALB</td><td>HTTPS (TLS 1.2+)</td><td>ACM certificate, ALB TLS termination</td></tr>
+      <tr><td>ALB &rarr; EKS Workers</td><td>HTTP or HTTPS</td><td>Target group health checks on NodePort</td></tr>
+      <tr><td>Pod &rarr; Pod</td><td>mTLS</td><td>Istio Ambient Mesh (ztunnel), auto cert rotation</td></tr>
+      <tr><td>EKS &rarr; Aurora</td><td>TLS 1.2</td><td><code>rds.force_ssl=1</code>, connection string <code>sslmode=require</code></td></tr>
+      <tr><td>EKS &rarr; Redis</td><td>TLS 1.2</td><td><code>transit_encryption_enabled = true</code></td></tr>
+      <tr><td>EKS &rarr; MSK</td><td>TLS</td><td>Port 9094 (TLS listener), SASL/SCRAM or mTLS</td></tr>
+      <tr><td>EKS &rarr; Secrets Manager</td><td>HTTPS</td><td>AWS SDK, VPC Endpoint</td></tr>
+      <tr><td>EKS &rarr; ECR</td><td>HTTPS</td><td>Docker registry protocol over TLS</td></tr>
+    </tbody>
+  </table>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="s3-encryption">14. S3 State Encryption &amp; Bucket Policy</h2>
+
+  <p>Terraform state files contain sensitive data (passwords, ARNs, connection strings). The S3 bucket must enforce encryption and deny any unencrypted uploads.</p>
+
+  <pre><code><span class="comment"># ── KMS Key for S3 State Encryption ──</span>
+resource "aws_kms_key" "tfstate" {
+  description             = "Terraform state encryption"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-tfstate-key"
+  })
+}
+
+<span class="comment"># ── S3 Bucket for Terraform State ──</span>
+resource "aws_s3_bucket" "tfstate" {
+  bucket = "bookstore-terraform-state-${data.aws_caller_identity.current.account_id}"
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-tfstate"
+  })
+}
+
+<span class="comment"># ── Versioning (recover from accidental state corruption) ──</span>
+resource "aws_s3_bucket_versioning" "tfstate" {
+  bucket = aws_s3_bucket.tfstate.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+<span class="comment"># ── Server-Side Encryption with CMK ──</span>
+resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
+  bucket = aws_s3_bucket.tfstate.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.tfstate.arn
+    }
+    bucket_key_enabled = true  <span class="comment"># Reduces KMS API calls (cost savings)</span>
+  }
+}
+
+<span class="comment"># ── Block ALL public access ──</span>
+resource "aws_s3_bucket_public_access_block" "tfstate" {
+  bucket = aws_s3_bucket.tfstate.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+<span class="comment"># ── Bucket Policy: Deny unencrypted uploads ──</span>
+<span class="comment"># Even if a misconfigured CI/CD pipeline tries to upload state</span>
+<span class="comment"># without SSE, the bucket rejects it.</span>
+resource "aws_s3_bucket_policy" "tfstate" {
+  bucket = aws_s3_bucket.tfstate.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "DenyUnencryptedUploads"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.tfstate.arn}/*"
+        Condition = {
+          StringNotEquals = {
+            "s3:x-amz-server-side-encryption" = "aws:kms"
+          }
+        }
+      },
+      {
+        Sid       = "DenyInsecureTransport"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource = [
+          aws_s3_bucket.tfstate.arn,
+          "${aws_s3_bucket.tfstate.arn}/*"
+        ]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
+        }
+      }
+    ]
+  })
+}
+
+<span class="comment"># ── DynamoDB Lock Table ──</span>
+resource "aws_dynamodb_table" "tfstate_lock" {
+  name         = "bookstore-terraform-lock"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "LockID"
+
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+
+  tags = local.common_tags
+}</code></pre>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="security-hub">15. Security Hub &amp; GuardDuty (Optional)</h2>
+
+  <p>AWS Security Hub aggregates findings from multiple security services. GuardDuty provides intelligent threat detection by analyzing VPC Flow Logs, DNS logs, and CloudTrail events for anomalous behavior.</p>
+
+  <pre><code><span class="comment"># ── Enable Security Hub ──</span>
+<span class="comment"># Aggregates findings from GuardDuty, Inspector, IAM Access Analyzer.</span>
+<span class="comment"># Runs automated compliance checks against AWS Foundational Security</span>
+<span class="comment"># Best Practices (FSBP) and CIS AWS Foundations Benchmark.</span>
+<span class="comment"># Cost: ~$0.0010 per finding ingested per check.</span>
+resource "aws_securityhub_account" "main" {}
+
+resource "aws_securityhub_standards_subscription" "fsbp" {
+  depends_on    = [aws_securityhub_account.main]
+  standards_arn = "arn:aws:securityhub:${var.region}::standards/aws-foundational-security-best-practices/v/1.0.0"
+}
+
+resource "aws_securityhub_standards_subscription" "cis" {
+  depends_on    = [aws_securityhub_account.main]
+  standards_arn = "arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.4.0"
+}
+
+<span class="comment"># ── Enable GuardDuty ──</span>
+<span class="comment"># Analyzes: VPC Flow Logs, DNS logs, CloudTrail management events.</span>
+<span class="comment"># Detects: crypto mining, C2 beaconing, unauthorized API calls,</span>
+<span class="comment"># compromised EC2 instances, credential exfiltration.</span>
+<span class="comment"># Cost: $4/mo per million CloudTrail events, $1/GB for flow logs.</span>
+resource "aws_guardduty_detector" "main" {
+  enable = true
+
+  <span class="comment"># EKS Runtime Monitoring (detects suspicious pod activity)</span>
+  datasources {
+    kubernetes {
+      audit_logs {
+        enable = true
+      }
+    }
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># ── Enable EKS Add-on for GuardDuty ──</span>
+<span class="comment"># Deploys a DaemonSet that monitors EKS node-level activity:</span>
+<span class="comment"># process creation, network connections, file access.</span>
+<span class="comment"># Detects: reverse shells, privilege escalation, container escape.</span>
+resource "aws_guardduty_detector_feature" "eks_runtime" {
+  detector_id = aws_guardduty_detector.main.id
+  name        = "EKS_RUNTIME_MONITORING"
+  status      = "ENABLED"
+
+  additional_configuration {
+    name   = "EKS_ADDON_MANAGEMENT"
+    status = "ENABLED"
+  }
+}</code></pre>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PART 3: COST OPTIMIZATION                                         -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <h2 id="cost-overview">16. Cost Optimization Overview</h2>
+
+  <p>An unoptimized AWS deployment of this platform easily reaches <strong class="cost-high">$3,000+/month</strong>. With the strategies below, production can run at <strong class="cost-low">$800-1,200/month</strong> &mdash; a 60-70% reduction.</p>
+
+  <h3>Cost Optimization: Before vs After</h3>
+  <img src="diagrams/eks-hardening-cost.svg" alt="AWS EKS Cost Optimization Before vs After" style="width:100%;border-radius:12px;border:1px solid #334155;margin:16px 0 28px;" />
+
+  <table>
+    <thead>
+      <tr><th>Strategy</th><th>Savings</th><th>Applies To</th><th>Risk</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Spot Instances</td><td class="savings">60-90%</td><td>Stateless app pods</td><td>Eviction (mitigated by replicas + diversification)</td></tr>
+      <tr><td>Graviton ARM (t4g/m7g)</td><td class="savings">20%</td><td>All EKS nodes</td><td>ARM compatibility (JVM/Python/Node fully supported)</td></tr>
+      <tr><td>Right-sized node groups</td><td class="savings">30-50%</td><td>All EKS nodes</td><td>None (match actual usage)</td></tr>
+      <tr><td>Aurora Serverless v2</td><td class="savings">40-70%</td><td>Dev/staging databases</td><td>Cold start (100ms on scale-up)</td></tr>
+      <tr><td>ElastiCache t3.micro (dev)</td><td class="savings">85%</td><td>Dev/staging cache</td><td>Limited memory/throughput</td></tr>
+      <tr><td>MSK Serverless (dev)</td><td class="savings">50-70%</td><td>Dev Kafka</td><td>No consumer groups API</td></tr>
+      <tr><td>Single NAT Gateway (dev)</td><td class="savings">66%</td><td>Dev networking</td><td>Single AZ failure</td></tr>
+      <tr><td>1-Year Savings Plan</td><td class="savings">30%</td><td>Production compute</td><td>Commitment (non-refundable)</td></tr>
+      <tr><td>3-Year Savings Plan</td><td class="savings">50%</td><td>Production compute</td><td>Longer commitment</td></tr>
+    </tbody>
+  </table>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="spot-instances">17. Spot Instances for App Nodes</h2>
+
+  <p>AWS Spot Instances use spare EC2 capacity at 60-90% discount. They can be reclaimed with 2 minutes notice. This is ideal for stateless workloads that can be rescheduled instantly by Kubernetes.</p>
+
+  <pre><code><span class="comment"># ── System Node Group (On-Demand — NEVER use Spot for system) ──</span>
+<span class="comment"># Runs: CoreDNS, kube-proxy, Istio control plane, cert-manager.</span>
+<span class="comment"># These are cluster-critical and must never be evicted.</span>
+resource "aws_eks_node_group" "system" {
+  cluster_name    = aws_eks_cluster.main.name
+  node_group_name = "system"
+  node_role_arn   = aws_iam_role.eks_nodes.arn
+  subnet_ids      = aws_subnet.private[*].id
+
+  capacity_type = "ON_DEMAND"
+  instance_types = ["t4g.medium"]  <span class="comment"># Graviton ARM, 2 vCPU, 4 GB, ~$24/mo</span>
+
+  scaling_config {
+    desired_size = 2
+    min_size     = 2
+    max_size     = 3
+  }
+
+  labels = {
+    role = "system"
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-system-nodes"
+  })
+}
+
+<span class="comment"># ── Application Spot Node Group ──</span>
+<span class="comment"># Runs: ecom-service, inventory-service, UI, Keycloak, Kafka</span>
+<span class="comment"># consumers, Debezium, Flink, observability tools.</span>
+<span class="comment"># Spot saves 60-90%. Multiple instance types prevent capacity</span>
+<span class="comment"># exhaustion in a single instance pool.</span>
+resource "aws_eks_node_group" "app_spot" {
+  cluster_name    = aws_eks_cluster.main.name
+  node_group_name = "app-spot"
+  node_role_arn   = aws_iam_role.eks_nodes.arn
+  subnet_ids      = aws_subnet.private[*].id
+
+  capacity_type = "SPOT"
+  instance_types = [
+    "m7g.large",    <span class="comment"># Graviton3, 2 vCPU, 8 GB</span>
+    "m6g.large",    <span class="comment"># Graviton2, 2 vCPU, 8 GB</span>
+    "c7g.large",    <span class="comment"># Graviton3 compute-optimized, 2 vCPU, 4 GB</span>
+    "r7g.medium",   <span class="comment"># Graviton3 memory-optimized, 1 vCPU, 8 GB</span>
+    "t4g.large",    <span class="comment"># Graviton2 burstable, 2 vCPU, 8 GB</span>
+  ]  <span class="comment"># Multiple types = higher Spot availability</span>
+
+  scaling_config {
+    desired_size = 2
+    min_size     = 2
+    max_size     = 8
+  }
+
+  labels = {
+    role = "app"
+  }
+
+  taint {
+    key    = "spot"
+    value  = "true"
+    effect = "NO_SCHEDULE"  <span class="comment"># Only pods that tolerate Spot land here</span>
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-app-spot-nodes"
+  })
+}
+
+<span class="comment"># ── On-Demand Fallback Node Group (scales to 0) ──</span>
+<span class="comment"># If Spot capacity is exhausted, the cluster autoscaler brings up</span>
+<span class="comment"># on-demand nodes as a safety net.</span>
+resource "aws_eks_node_group" "app_fallback" {
+  cluster_name    = aws_eks_cluster.main.name
+  node_group_name = "app-fallback"
+  node_role_arn   = aws_iam_role.eks_nodes.arn
+  subnet_ids      = aws_subnet.private[*].id
+
+  capacity_type  = "ON_DEMAND"
+  instance_types = ["m7g.large"]
+
+  scaling_config {
+    desired_size = 0   <span class="comment"># Scales to 0 when Spot is available</span>
+    min_size     = 0
+    max_size     = 4
+  }
+
+  labels = {
+    role = "app"
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-app-fallback-nodes"
+  })
+}</code></pre>
+
+  <div class="callout info">
+    <strong>Pod tolerations for Spot:</strong> Add this toleration to all stateless Deployment manifests:
+  </div>
+
+  <pre><code><span class="comment"># Add to your Kubernetes Deployment spec:</span>
+spec:
+  template:
+    spec:
+      tolerations:
+        - key: "spot"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: "role"
+                    operator: "In"
+                    values: ["app"]</code></pre>
+
+  <div class="callout danger">
+    <strong>Do NOT use Spot for:</strong> System node group, stateful workloads (databases, Kafka with persistent storage), or singleton pods without replicas. Spot instances get 2 minutes notice before termination &mdash; stateful data migration cannot complete in time.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="graviton">18. Graviton ARM Instances</h2>
+
+  <p>AWS Graviton processors (ARM-based) deliver the same performance as x86 at <strong>20% lower cost</strong>. Java (JVM), Python, and Node.js all run natively on ARM64 with zero code changes. All BookStore services are compatible.</p>
+
+  <table>
+    <thead>
+      <tr><th>x86 Instance</th><th>Graviton Equivalent</th><th>vCPU</th><th>RAM</th><th>On-Demand Cost</th><th>Savings</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>t3.medium</code></td><td><code>t4g.medium</code></td><td>2</td><td>4 GB</td><td class="cost-low">$24/mo</td><td class="savings">20%</td></tr>
+      <tr><td><code>m5.large</code></td><td><code>m7g.large</code></td><td>2</td><td>8 GB</td><td class="cost-low">$59/mo</td><td class="savings">20%</td></tr>
+      <tr><td><code>m5.xlarge</code></td><td><code>m7g.xlarge</code></td><td>4</td><td>16 GB</td><td class="cost-low">$118/mo</td><td class="savings">20%</td></tr>
+      <tr><td><code>c5.large</code></td><td><code>c7g.large</code></td><td>2</td><td>4 GB</td><td class="cost-low">$50/mo</td><td class="savings">20%</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip">
+    <strong>Multi-arch images:</strong> Build Docker images with <code>docker buildx build --platform linux/amd64,linux/arm64</code> to support both architectures. This lets Kubernetes schedule on either x86 or Graviton nodes seamlessly.
+  </div>
+
+  <pre><code><span class="comment"># ── Multi-arch Docker build for ARM + x86 ──</span>
+docker buildx create --use --name multiarch
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -t ${ECR_REPO}/ecom-service:latest \
+  --push \
+  ./ecom-service</code></pre>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="right-sizing">19. Right-Sizing Node Groups</h2>
+
+  <table>
+    <thead>
+      <tr><th>Instance</th><th>vCPU</th><th>RAM</th><th>On-Demand</th><th>Spot (~70% off)</th><th>Use Case</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>t4g.small</code></td><td>2</td><td>2 GB</td><td class="cost-low">$12/mo</td><td class="cost-low">$4/mo</td><td>Dev only (very tight)</td></tr>
+      <tr><td><code>t4g.medium</code></td><td>2</td><td>4 GB</td><td class="cost-low">$24/mo</td><td class="cost-low">$8/mo</td><td>System pool, dev app pool</td></tr>
+      <tr><td><code>t4g.large</code></td><td>2</td><td>8 GB</td><td class="cost-low">$49/mo</td><td class="cost-low">$15/mo</td><td>Staging app pool</td></tr>
+      <tr><td><code>m7g.large</code></td><td>2</td><td>8 GB</td><td>$59/mo</td><td>$18/mo</td><td>Production app pool (Spot)</td></tr>
+      <tr><td><code>m7g.xlarge</code></td><td>4</td><td>16 GB</td><td>$118/mo</td><td>$35/mo</td><td>High-traffic production</td></tr>
+      <tr><td><code>m5.2xlarge</code></td><td>8</td><td>32 GB</td><td class="cost-high">$280/mo</td><td>$84/mo</td><td>Overkill for this platform</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <strong>Burstable (t4g) warning:</strong> T-series instances accumulate CPU credits when idle and spend them under load. If credits are exhausted, CPU throttles to baseline (20-40%). <strong>Never use t4g for production workloads</strong> &mdash; use m7g (general purpose) instead.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="aurora-serverless">20. Aurora Serverless v2</h2>
+
+  <p>Aurora Serverless v2 scales compute capacity automatically in fine-grained increments (0.5 ACU steps). Set minimum ACU to 0.5 for dev environments &mdash; the database effectively hibernates when idle, costing only storage.</p>
+
+  <pre><code><span class="comment"># ── Dev: Aurora Serverless v2 (min 0.5 ACU = ~$44/mo idle) ──</span>
+resource "aws_rds_cluster" "ecom_dev" {
+  cluster_identifier = "bookstore-ecom-dev"
+  engine             = "aurora-postgresql"
+  engine_mode        = "provisioned"  <span class="comment"># Serverless v2 uses "provisioned" mode</span>
+  engine_version     = "16.4"
+  database_name      = "ecom"
+  master_username    = "ecom"
+  master_password    = var.ecom_db_password
+
+  db_subnet_group_name   = aws_db_subnet_group.aurora.name
+  vpc_security_group_ids = [aws_security_group.aurora.id]
+  storage_encrypted      = true
+
+  serverlessv2_scaling_configuration {
+    min_capacity = 0.5   <span class="comment"># $0.12/ACU-hr × 0.5 × 730 = ~$44/mo minimum</span>
+    max_capacity = 4.0   <span class="comment"># Scales up under load, caps at 4 ACU</span>
+  }
+
+  tags = merge(local.common_tags, {
+    environment = "dev"
+  })
+}
+
+resource "aws_rds_cluster_instance" "ecom_dev" {
+  cluster_identifier = aws_rds_cluster.ecom_dev.id
+  instance_class     = "db.serverless"  <span class="comment"># Serverless v2 instance class</span>
+  engine             = aws_rds_cluster.ecom_dev.engine
+  engine_version     = aws_rds_cluster.ecom_dev.engine_version
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-ecom-dev-instance"
+  })
+}
+
+<span class="comment"># ── Production: Provisioned Aurora (predictable cost) ──</span>
+resource "aws_rds_cluster" "ecom_prod" {
+  cluster_identifier = "bookstore-ecom"
+  engine             = "aurora-postgresql"
+  engine_version     = "16.4"
+  database_name      = "ecom"
+  master_username    = "ecom"
+  master_password    = var.ecom_db_password
+
+  db_subnet_group_name   = aws_db_subnet_group.aurora.name
+  vpc_security_group_ids = [aws_security_group.aurora.id]
+  storage_encrypted      = true
+  kms_key_id             = aws_kms_key.aurora.arn
+
+  backup_retention_period = 35
+  deletion_protection     = true
+
+  tags = merge(local.common_tags, {
+    environment = "production"
+  })
+}
+
+resource "aws_rds_cluster_instance" "ecom_prod" {
+  count              = 2  <span class="comment"># Primary + 1 reader for HA</span>
+  cluster_identifier = aws_rds_cluster.ecom_prod.id
+  instance_class     = "db.r7g.large"  <span class="comment"># Graviton, 2 vCPU, 16 GB</span>
+  engine             = aws_rds_cluster.ecom_prod.engine
+  engine_version     = aws_rds_cluster.ecom_prod.engine_version
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-ecom-prod-${count.index + 1}"
+  })
+}
+
+<span class="comment"># Repeat for: inventory, analytics, keycloak clusters</span></code></pre>
+
+  <div class="callout danger">
+    <strong>Never use Aurora Serverless v2 with min_capacity=0.5 for production.</strong> Scale-up from 0.5 ACU introduces 100-300ms latency on the first query. For production, use provisioned instances or set min_capacity to match your baseline load.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="elasticache-sizing">21. ElastiCache Right-Sizing</h2>
+
+  <table>
+    <thead>
+      <tr><th>Instance</th><th>vCPU</th><th>Memory</th><th>Cost/mo</th><th>Use Case</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>cache.t3.micro</code></td><td>2</td><td>0.5 GB</td><td class="cost-low">$9</td><td>Dev (free-tier eligible)</td></tr>
+      <tr><td><code>cache.t4g.micro</code></td><td>2</td><td>0.5 GB</td><td class="cost-low">$8</td><td>Dev (Graviton)</td></tr>
+      <tr><td><code>cache.t4g.small</code></td><td>2</td><td>1.37 GB</td><td class="cost-low">$24</td><td>Staging</td></tr>
+      <tr><td><code>cache.r7g.large</code></td><td>2</td><td>13.07 GB</td><td class="cost-high">$180</td><td>Production HA</td></tr>
+    </tbody>
+  </table>
+
+  <p>The BookStore uses Redis for CSRF tokens, rate limiting, and session cache. Total memory usage is under 100 MB. A <code>cache.t4g.micro</code> is more than sufficient for dev.</p>
+
+  <pre><code><span class="comment"># ── Dev: Single-node t4g.micro ($8/mo) ──</span>
+resource "aws_elasticache_replication_group" "redis_dev" {
+  replication_group_id = "bookstore-redis-dev"
+  description          = "BookStore Redis (dev)"
+  engine               = "redis"
+  engine_version       = "7.1"
+  node_type            = "cache.t4g.micro"  <span class="comment"># Graviton, $8/mo</span>
+  num_cache_clusters   = 1                  <span class="comment"># No replication for dev</span>
+  port                 = 6379
+
+  subnet_group_name    = aws_elasticache_subnet_group.redis.name
+  security_group_ids   = [aws_security_group.redis.id]
+
+  transit_encryption_enabled = true   <span class="comment"># TLS in transit</span>
+  at_rest_encryption_enabled = true   <span class="comment"># Encrypted at rest</span>
+
+  tags = merge(local.common_tags, {
+    environment = "dev"
+  })
+}
+
+<span class="comment"># ── Production: t4g.small with replication ($48/mo total) ──</span>
+resource "aws_elasticache_replication_group" "redis_prod" {
+  replication_group_id = "bookstore-redis"
+  description          = "BookStore Redis (production)"
+  engine               = "redis"
+  engine_version       = "7.1"
+  node_type            = "cache.t4g.small"  <span class="comment"># $24/mo per node</span>
+  num_cache_clusters   = 2                  <span class="comment"># Primary + 1 replica</span>
+  port                 = 6379
+
+  automatic_failover_enabled = true  <span class="comment"># HA with auto-failover</span>
+  multi_az_enabled           = true  <span class="comment"># Cross-AZ replica</span>
+  subnet_group_name          = aws_elasticache_subnet_group.redis.name
+  security_group_ids         = [aws_security_group.redis.id]
+
+  transit_encryption_enabled = true
+  at_rest_encryption_enabled = true
+
+  tags = merge(local.common_tags, {
+    environment = "production"
+  })
+}</code></pre>
+
+  <div class="callout tip">
+    <strong>Save $132/month:</strong> Unless you need >13 GB of Redis memory, <code>cache.t4g.small</code> ($24/node) with a replica ($48 total) gives you HA with auto-failover at a fraction of <code>cache.r7g.large</code> ($180/node, $360 total).
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="msk-sizing">22. MSK Sizing</h2>
+
+  <table>
+    <thead>
+      <tr><th>Option</th><th>Base Cost</th><th>Per-broker</th><th>Use Case</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>MSK Serverless</td><td class="cost-low">$0 base</td><td>$0.10/hr per cluster + data</td><td>Dev (auto-scales, no brokers to manage)</td></tr>
+      <tr><td>MSK <code>kafka.t3.small</code></td><td>$22/broker/mo</td><td>3 brokers = $66/mo</td><td>Dev/staging (provisioned)</td></tr>
+      <tr><td>MSK <code>kafka.m5.large</code></td><td>$120/broker/mo</td><td>3 brokers = $360/mo</td><td>Production</td></tr>
+      <tr><td>MSK <code>kafka.m7g.large</code></td><td class="cost-low">$100/broker/mo</td><td>3 brokers = $300/mo</td><td>Production (Graviton, 20% cheaper)</td></tr>
+    </tbody>
+  </table>
+
+  <pre><code><span class="comment"># ── Dev: MSK Serverless (pay-per-use) ──</span>
+resource "aws_msk_serverless_cluster" "dev" {
+  cluster_name = "bookstore-kafka-dev"
+
+  vpc_config {
+    subnet_ids         = aws_subnet.data[*].id
+    security_group_ids = [aws_security_group.msk.id]
+  }
+
+  client_authentication {
+    sasl {
+      iam {
+        enabled = true
+      }
+    }
+  }
+
+  tags = merge(local.common_tags, {
+    environment = "dev"
+  })
+}
+
+<span class="comment"># ── Production: MSK Provisioned (Graviton, 3 brokers) ──</span>
+resource "aws_msk_cluster" "prod" {
+  cluster_name           = "bookstore-kafka"
+  kafka_version          = "3.6.0"
+  number_of_broker_nodes = 3
+
+  broker_node_group_info {
+    instance_type   = "kafka.m7g.large"  <span class="comment"># Graviton, $100/broker/mo</span>
+    client_subnets  = aws_subnet.data[*].id
+    security_groups = [aws_security_group.msk.id]
+
+    storage_info {
+      ebs_storage_info {
+        volume_size = 100  <span class="comment"># GB per broker</span>
+      }
+    }
+  }
+
+  encryption_info {
+    encryption_in_transit {
+      client_broker = "TLS"
+      in_cluster    = true
+    }
+    encryption_at_rest_kms_key_arn = aws_kms_key.msk.arn
+  }
+
+  tags = merge(local.common_tags, {
+    environment = "production"
+  })
+}</code></pre>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="nat-cost">23. NAT Gateway Cost Reduction</h2>
+
+  <p>NAT Gateways are one of the most expensive AWS networking components: <strong>$32/mo fixed</strong> + <strong>$0.045/GB</strong> data processing. In a 3-AZ production setup, that is $96/mo before any data transfer.</p>
+
+  <h3>Strategy 1: Single NAT Gateway for Dev</h3>
+
+  <pre><code><span class="comment"># ── Single NAT Gateway (dev) — saves $64/mo ──</span>
+<span class="comment"># Production uses 3 NAT Gateways (one per AZ) for HA.</span>
+<span class="comment"># Dev uses 1 — if that AZ goes down, outbound access breaks</span>
+<span class="comment"># but the cluster stays running (workers are cross-AZ).</span>
+
+resource "aws_eip" "nat" {
+  count  = var.environment == "production" ? 3 : 1
+  domain = "vpc"
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-nat-eip-${count.index + 1}"
+  })
+}
+
+resource "aws_nat_gateway" "main" {
+  count         = var.environment == "production" ? 3 : 1
+  allocation_id = aws_eip.nat[count.index].id
+  subnet_id     = aws_subnet.public[count.index].id
+
+  tags = merge(local.common_tags, {
+    Name = "bookstore-nat-${count.index + 1}"
+  })
+}</code></pre>
+
+  <h3>Strategy 2: VPC Endpoints Reduce Data Charges</h3>
+
+  <p>With VPC Endpoints for ECR, STS, CloudWatch, and Secrets Manager, most AWS API traffic bypasses the NAT Gateway entirely. The remaining NAT traffic is typically just OTel export to external collectors or OIDC token exchange.</p>
+
+  <table>
+    <thead>
+      <tr><th>Configuration</th><th>Monthly Cost</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>3 NAT GWs, no VPC Endpoints</td><td class="cost-high">$96 + data</td><td>All AWS API traffic through NAT</td></tr>
+      <tr><td>3 NAT GWs + VPC Endpoints</td><td>$96 + $108 = $204</td><td>AWS traffic bypasses NAT; data charges drop 80%</td></tr>
+      <tr><td>1 NAT GW + VPC Endpoints (dev)</td><td class="cost-low">$32 + $108 = $140</td><td>Most cost-effective for dev/staging</td></tr>
+      <tr><td>0 NAT GW + VPC Endpoints only</td><td class="cost-low">$108</td><td>Only works if ALL outbound is to AWS services</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <strong>Cannot eliminate NAT entirely:</strong> Keycloak JWKS endpoint, OTel Collector export (if using external Grafana Cloud), and any external webhook integrations require internet access via NAT. You can reduce but not remove the NAT Gateway.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="savings-plans">24. Reserved Instances &amp; Savings Plans</h2>
+
+  <p>For production workloads that run 24/7, AWS Savings Plans and Reserved Instances provide significant discounts. Savings Plans are more flexible (apply across instance families), while RIs give slightly deeper discounts for a specific instance type.</p>
+
+  <table>
+    <thead>
+      <tr><th>Resource</th><th>On-Demand</th><th>1-Year SP</th><th>3-Year SP</th><th>1yr Savings</th><th>3yr Savings</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>EKS System (2x t4g.medium)</td>
+        <td>$49/mo</td>
+        <td class="cost-low">$31/mo</td>
+        <td class="cost-low">$20/mo</td>
+        <td class="savings">37%</td>
+        <td class="savings">59%</td>
+      </tr>
+      <tr>
+        <td>EKS App Fallback (2x m7g.large)</td>
+        <td>$118/mo</td>
+        <td class="cost-low">$75/mo</td>
+        <td class="cost-low">$47/mo</td>
+        <td class="savings">37%</td>
+        <td class="savings">60%</td>
+      </tr>
+      <tr>
+        <td>Aurora (4x db.r7g.large)</td>
+        <td>$788/mo</td>
+        <td class="cost-low">$512/mo</td>
+        <td class="cost-low">$354/mo</td>
+        <td class="savings">35%</td>
+        <td class="savings">55%</td>
+      </tr>
+      <tr>
+        <td>ElastiCache (2x t4g.small)</td>
+        <td>$48/mo</td>
+        <td class="cost-low">$34/mo</td>
+        <td class="cost-low">$24/mo</td>
+        <td class="savings">30%</td>
+        <td class="savings">50%</td>
+      </tr>
+      <tr style="font-weight: 700; font-size: 1rem;">
+        <td>TOTAL Production</td>
+        <td class="cost-high">$1,003/mo</td>
+        <td class="cost-low">$652/mo</td>
+        <td class="cost-low">$445/mo</td>
+        <td class="savings">35%</td>
+        <td class="savings">56%</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip">
+    <strong>Recommendation:</strong> Start with a 1-year Compute Savings Plan for the system node group and Aurora instances (most predictable workloads). Spot instances do not benefit from Savings Plans &mdash; they are already discounted.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="cost-comparison">25. Dev vs Prod Cost Comparison</h2>
+
+  <table>
+    <thead>
+      <tr><th>Component</th><th>Dev (Optimized)</th><th>Prod (HA, 1yr SP)</th><th>Prod (Unoptimized)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>EKS Nodes</td>
+        <td class="cost-low">$32/mo <small>(2x t4g.medium Spot)</small></td>
+        <td class="cost-low">$106/mo <small>(2x t4g.med sys + 2x m7g.lg Spot)</small></td>
+        <td class="cost-high">$560/mo <small>(4x m5.xlarge On-Demand)</small></td>
+      </tr>
+      <tr>
+        <td>Aurora (4 DBs)</td>
+        <td class="cost-low">$176/mo <small>(4x Serverless v2, min 0.5 ACU)</small></td>
+        <td>$512/mo <small>(4x r7g.large, 1yr RI)</small></td>
+        <td class="cost-high">$1,440/mo <small>(4x r5.xlarge)</small></td>
+      </tr>
+      <tr>
+        <td>ElastiCache Redis</td>
+        <td class="cost-low">$8/mo <small>(t4g.micro, single node)</small></td>
+        <td class="cost-low">$34/mo <small>(t4g.small x2, 1yr RI)</small></td>
+        <td class="cost-high">$360/mo <small>(r7g.large x2)</small></td>
+      </tr>
+      <tr>
+        <td>MSK Kafka</td>
+        <td class="cost-low">$0-20/mo <small>(Serverless)</small></td>
+        <td>$300/mo <small>(3x m7g.large)</small></td>
+        <td class="cost-high">$360/mo <small>(3x m5.large)</small></td>
+      </tr>
+      <tr>
+        <td>NAT Gateway</td>
+        <td class="cost-low">$32/mo <small>(single AZ)</small></td>
+        <td>$96/mo <small>(3 AZs)</small></td>
+        <td>$96/mo <small>(3 AZs)</small></td>
+      </tr>
+      <tr>
+        <td>VPC Endpoints</td>
+        <td class="cost-low">$0/mo <small>(skip for dev)</small></td>
+        <td>$108/mo <small>(6 endpoints, 3 AZs)</small></td>
+        <td>$0/mo <small>(all via NAT)</small></td>
+      </tr>
+      <tr>
+        <td>ALB</td>
+        <td class="cost-low">$16/mo</td>
+        <td>$16/mo</td>
+        <td>$16/mo</td>
+      </tr>
+      <tr>
+        <td>ECR</td>
+        <td class="cost-low">$1/mo</td>
+        <td>$1/mo</td>
+        <td>$1/mo</td>
+      </tr>
+      <tr>
+        <td>Secrets Manager</td>
+        <td class="cost-low">$3/mo</td>
+        <td>$3/mo</td>
+        <td>$3/mo</td>
+      </tr>
+      <tr>
+        <td>GuardDuty</td>
+        <td class="cost-low">$0/mo <small>(skip)</small></td>
+        <td>$30/mo</td>
+        <td>$30/mo</td>
+      </tr>
+      <tr style="font-weight: 700; font-size: 1rem;">
+        <td>TOTAL</td>
+        <td class="cost-low">~$288/mo</td>
+        <td>~$1,206/mo</td>
+        <td class="cost-high">~$2,866/mo</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip">
+    <strong>Bottom line:</strong> Dev at <strong class="cost-low">$288/mo</strong> vs. over-provisioned at <strong class="cost-high">$2,866/mo</strong> is a <strong class="savings">90% reduction</strong>. Optimized production at <strong class="cost-low">$1,206/mo</strong> vs. unoptimized is <strong class="savings">58% savings</strong>.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════ -->
+  <h2 id="cost-monitoring">26. Cost Monitoring &amp; Alerts</h2>
+
+  <pre><code><span class="comment"># ── Common tags for cost allocation ──</span>
+locals {
+  common_tags = {
+    project     = "bookstore"
+    environment = var.environment     <span class="comment"># "dev", "staging", "production"</span>
+    team        = "platform"
+    managed-by  = "terraform"
+    cost-center = var.cost_center     <span class="comment"># Finance tracking code</span>
+  }
+}
+
+<span class="comment"># ── CloudWatch Billing Alarm: warn at $1,000 ──</span>
+resource "aws_cloudwatch_metric_alarm" "billing_warn" {
+  alarm_name          = "bookstore-billing-warning"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "EstimatedCharges"
+  namespace           = "AWS/Billing"
+  period              = 86400  <span class="comment"># 24 hours</span>
+  statistic           = "Maximum"
+  threshold           = var.environment == "production" ? 1000 : 300
+  alarm_description   = "Estimated charges exceed warning threshold"
+  alarm_actions       = [aws_sns_topic.billing_alerts.arn]
+
+  dimensions = {
+    Currency = "USD"
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># ── CloudWatch Billing Alarm: critical at $1,500 ──</span>
+resource "aws_cloudwatch_metric_alarm" "billing_critical" {
+  alarm_name          = "bookstore-billing-critical"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 1
+  metric_name         = "EstimatedCharges"
+  namespace           = "AWS/Billing"
+  period              = 86400
+  statistic           = "Maximum"
+  threshold           = var.environment == "production" ? 1500 : 500
+  alarm_description   = "Estimated charges exceed critical threshold"
+  alarm_actions       = [aws_sns_topic.billing_alerts.arn]
+
+  dimensions = {
+    Currency = "USD"
+  }
+
+  tags = local.common_tags
+}
+
+<span class="comment"># ── SNS Topic for billing alerts ──</span>
+resource "aws_sns_topic" "billing_alerts" {
+  name = "bookstore-billing-alerts"
+  tags = local.common_tags
+}
+
+resource "aws_sns_topic_subscription" "billing_email" {
+  topic_arn = aws_sns_topic.billing_alerts.arn
+  protocol  = "email"
+  endpoint  = var.alert_email
+}
+
+<span class="comment"># ── AWS Budgets (more granular than CloudWatch) ──</span>
+resource "aws_budgets_budget" "monthly" {
+  name         = "bookstore-monthly"
+  budget_type  = "COST"
+  limit_amount = var.environment == "production" ? "1500" : "400"
+  limit_unit   = "USD"
+  time_unit    = "MONTHLY"
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 80
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = var.alert_emails
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = var.alert_emails
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 120
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = var.alert_emails
+  }
+
+  cost_filter {
+    name   = "TagKeyValue"
+    values = ["user:project$bookstore"]
+  }
+}
+
+<span class="comment"># ── Cost Explorer tags (enable in AWS Console → Billing) ──</span>
+<span class="comment"># Activate: project, environment, team, cost-center tags</span>
+<span class="comment"># in Cost Explorer to filter and group costs by service.</span>
+<span class="comment"># CLI: aws ce get-cost-and-usage --time-period Start=...,End=...</span>
+<span class="comment">#      --granularity MONTHLY --metrics BlendedCost</span>
+<span class="comment">#      --group-by Type=TAG,Key=environment</span></code></pre>
+
+  <div class="callout info">
+    <strong>AWS Cost Anomaly Detection:</strong> Enable it in the AWS Cost Management console (free). It uses ML to detect unusual spending patterns and sends alerts automatically &mdash; no Terraform needed.
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- PART 4: PRODUCTION CHECKLIST                                      -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <h2 id="checklist">27. Production Readiness Checklist</h2>
+
+  <p>Review every item before going to production. Items are grouped by category with priority indicators.</p>
+
+  <p class="check-cat security">Network Security</p>
+  <ul class="checklist">
+    <li><div class="check-box security">!</div>ALB Security Group: inbound 443/80 only from 0.0.0.0/0, egress only to workers on 30000-32767</li>
+    <li><div class="check-box security">!</div>EKS Cluster SG: workers to control plane on 443, control plane to workers on 443/10250</li>
+    <li><div class="check-box security">!</div>Worker SG: inbound only from ALB (NodePorts), control plane (443/10250), and self (all)</li>
+    <li><div class="check-box security">!</div>Worker SG egress: only Aurora (5432), MSK (9092-9094), Redis (6379), VPCE (443), NAT (443), self</li>
+    <li><div class="check-box security">!</div>Aurora SG: inbound ONLY from worker SG on port 5432 — nothing else</li>
+    <li><div class="check-box security">!</div>MSK SG: inbound from workers (9092-9094) and self (inter-broker) — nothing else</li>
+    <li><div class="check-box security">!</div>Redis SG: inbound from workers on 6379 only — nothing else</li>
+    <li><div class="check-box security">!</div>VPC Endpoint SG: inbound from workers on 443 only</li>
+    <li><div class="check-box security">!</div>NACLs applied to all subnet tiers (public, private, database, data)</li>
+    <li><div class="check-box security">!</div>Database NACL: explicit DENY from public subnets</li>
+    <li><div class="check-box security">!</div>VPC Flow Logs enabled for REJECT traffic (30-day CloudWatch retention)</li>
+    <li><div class="check-box security">!</div>Workers in private subnets only (no public IPs, no IGW route)</li>
+    <li><div class="check-box security">!</div>Aurora in isolated database subnets (no IGW, no NAT route)</li>
+  </ul>
+
+  <p class="check-cat security">Encryption &amp; TLS</p>
+  <ul class="checklist">
+    <li><div class="check-box security">!</div>EKS Secrets encryption enabled with customer-managed KMS key</li>
+    <li><div class="check-box security">!</div>KMS key rotation enabled (annual auto-rotation) for all keys</li>
+    <li><div class="check-box security">!</div>Aurora storage_encrypted = true with customer-managed KMS key</li>
+    <li><div class="check-box security">!</div>Aurora rds.force_ssl = 1 (reject plaintext connections)</li>
+    <li><div class="check-box security">!</div>ElastiCache transit_encryption_enabled = true</li>
+    <li><div class="check-box security">!</div>ElastiCache at_rest_encryption_enabled = true</li>
+    <li><div class="check-box security">!</div>MSK encryption_in_transit client_broker = "TLS"</li>
+    <li><div class="check-box security">!</div>MSK encryption_in_transit in_cluster = true</li>
+    <li><div class="check-box security">!</div>S3 state bucket: SSE-KMS encryption with bucket key enabled</li>
+    <li><div class="check-box security">!</div>S3 bucket policy denies unencrypted uploads and insecure transport</li>
+    <li><div class="check-box security">!</div>S3 public access block: all four settings enabled</li>
+    <li><div class="check-box security">!</div>ALB uses ACM certificate with TLS 1.2+ security policy</li>
+    <li><div class="check-box security">!</div>Istio mTLS STRICT mode on all application namespaces</li>
+  </ul>
+
+  <p class="check-cat security">IAM &amp; Access</p>
+  <ul class="checklist">
+    <li><div class="check-box security">!</div>EKS uses IRSA (IAM Roles for Service Accounts) for pod-level permissions</li>
+    <li><div class="check-box security">!</div>Secrets stored in AWS Secrets Manager (not K8s Secrets directly)</li>
+    <li><div class="check-box security">!</div>External Secrets Operator deployed with IRSA</li>
+    <li><div class="check-box security">!</div>EKS cluster endpoint: private access enabled (public restricted or disabled)</li>
+    <li><div class="check-box security">!</div>No IAM users — all access via SSO/IAM Identity Center + roles</li>
+    <li><div class="check-box security">!</div>KMS key policies follow least privilege (only EKS, Aurora, S3 can use their keys)</li>
+    <li><div class="check-box security">!</div>JWT validation in every backend service (Keycloak JWKS)</li>
+    <li><div class="check-box security">!</div>CSRF token validation on all state-changing requests</li>
+    <li><div class="check-box security">!</div>Containers run as non-root with readOnlyRootFilesystem</li>
+    <li><div class="check-box security">!</div>Containers drop ALL capabilities</li>
+    <li><div class="check-box security">!</div>Resource requests and limits set on all containers</li>
+  </ul>
+
+  <p class="check-cat security">Threat Detection (Optional)</p>
+  <ul class="checklist">
+    <li><div class="check-box security">!</div>GuardDuty enabled with EKS Runtime Monitoring</li>
+    <li><div class="check-box security">!</div>Security Hub enabled with FSBP and CIS standards</li>
+    <li><div class="check-box security">!</div>GuardDuty findings routed to SNS/PagerDuty/Slack</li>
+    <li><div class="check-box security">!</div>ECR image scanning enabled on push</li>
+  </ul>
+
+  <p class="check-cat security">Availability</p>
+  <ul class="checklist">
+    <li><div class="check-box security">!</div>EKS nodes spread across 3 AZs</li>
+    <li><div class="check-box security">!</div>Aurora Multi-AZ with at least 1 read replica</li>
+    <li><div class="check-box security">!</div>ElastiCache Multi-AZ with automatic failover</li>
+    <li><div class="check-box security">!</div>MSK brokers spread across 3 AZs</li>
+    <li><div class="check-box security">!</div>NAT Gateway in each AZ (production)</li>
+    <li><div class="check-box security">!</div>Pod Disruption Budgets set for all stateless services</li>
+  </ul>
+
+  <p class="check-cat cost">Cost Optimization</p>
+  <ul class="checklist">
+    <li><div class="check-box cost">$</div>Spot node group configured for stateless workloads</li>
+    <li><div class="check-box cost">$</div>On-demand fallback pool with desired_size = 0</li>
+    <li><div class="check-box cost">$</div>Graviton ARM instances used where possible (t4g, m7g, r7g)</li>
+    <li><div class="check-box cost">$</div>Multi-arch Docker images built for both amd64 and arm64</li>
+    <li><div class="check-box cost">$</div>Aurora Serverless v2 for dev, provisioned for production</li>
+    <li><div class="check-box cost">$</div>ElastiCache: t4g.micro for dev, t4g.small for production</li>
+    <li><div class="check-box cost">$</div>MSK: Serverless for dev, Graviton provisioned for production</li>
+    <li><div class="check-box cost">$</div>NAT Gateway: single for dev, 3-AZ for production</li>
+    <li><div class="check-box cost">$</div>VPC Endpoints deployed for ECR, STS, CloudWatch, Secrets Manager</li>
+    <li><div class="check-box cost">$</div>S3 Gateway Endpoint created (free, always do this)</li>
+    <li><div class="check-box cost">$</div>Savings Plans evaluated for production compute and Aurora</li>
+    <li><div class="check-box cost">$</div>S3 bucket key enabled (reduces KMS API call costs)</li>
+    <li><div class="check-box cost">$</div>DynamoDB PAY_PER_REQUEST for state lock table</li>
+  </ul>
+
+  <p class="check-cat ops">Monitoring &amp; Observability</p>
+  <ul class="checklist">
+    <li><div class="check-box ops">*</div>All resources tagged (project, environment, team, cost-center)</li>
+    <li><div class="check-box ops">*</div>CloudWatch billing alarms configured (warning + critical thresholds)</li>
+    <li><div class="check-box ops">*</div>AWS Budgets configured with 80%, 100%, 120% notifications</li>
+    <li><div class="check-box ops">*</div>Cost Anomaly Detection enabled</li>
+    <li><div class="check-box ops">*</div>Cost Explorer tags activated for project/environment filtering</li>
+    <li><div class="check-box ops">*</div>Prometheus + Grafana dashboards deployed inside EKS</li>
+    <li><div class="check-box ops">*</div>OTel Collector &rarr; Loki log pipeline operational</li>
+    <li><div class="check-box ops">*</div>Kiali + Tempo for distributed tracing</li>
+  </ul>
+
+  <p class="check-cat ops">Backup &amp; Recovery</p>
+  <ul class="checklist">
+    <li><div class="check-box ops">*</div>Aurora backup retention: 35 days</li>
+    <li><div class="check-box ops">*</div>Aurora deletion protection enabled</li>
+    <li><div class="check-box ops">*</div>S3 state bucket versioning enabled</li>
+    <li><div class="check-box ops">*</div>DynamoDB state lock table operational</li>
+    <li><div class="check-box ops">*</div>DR: database restore tested from snapshot</li>
+    <li><div class="check-box ops">*</div>Runbook: documented recovery procedure for common failures</li>
+    <li><div class="check-box ops">*</div>KMS key deletion window set to 30 days (prevent accidental deletion)</li>
+    <li><div class="check-box ops">*</div>Certificate rotation: cert-manager renewBefore 7 days</li>
+    <li><div class="check-box ops">*</div>E2E tests: Playwright suite passing in CI/CD pipeline</li>
+    <li><div class="check-box ops">*</div>Terraform state: stored in versioned, encrypted, locked S3 bucket</li>
+  </ul>
+
+  <p class="check-cat ops">Compliance</p>
+  <ul class="checklist">
+    <li><div class="check-box ops">*</div>CloudTrail enabled for all API calls (management events)</li>
+    <li><div class="check-box ops">*</div>VPC Flow Logs retained for audit period</li>
+    <li><div class="check-box ops">*</div>Security Hub FSBP compliance score reviewed monthly</li>
+    <li><div class="check-box ops">*</div>No hardcoded secrets in Terraform code or K8s manifests</li>
+    <li><div class="check-box ops">*</div>All secrets reference AWS Secrets Manager via External Secrets Operator</li>
+    <li><div class="check-box ops">*</div>Access logs enabled on ALB</li>
+  </ul>
+
+  <footer>
+    <p>BookStore Platform &mdash; Production Hardening &amp; Cost Optimization Guide (AWS EKS)</p>
+    <p><a href="index.html">Home</a> &middot; <a href="architecture.html">Architecture</a> &middot; <a href="aws-migration.html">AWS Migration</a></p>
+  </footer>
+
+</div>
+</body>
+</html>

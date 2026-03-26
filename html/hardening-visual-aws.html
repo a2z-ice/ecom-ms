@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Visual Before/After Hardening — BookStore on AWS EKS</title>
+  <meta property="og:title" content="BookStore Platform — Visual Before/After Production Hardening" />
+  <meta property="og:description" content="Side-by-side walkthrough of 15 production hardening changes with Terraform code and inline SVG diagrams. Security lockdown and cost optimization for AWS EKS." />
+  <meta property="og:type" content="article" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; --cyan: #06b6d4; --purple: #8b5cf6; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px 60px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p.subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 52px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 28px 0 10px; color: #cbd5e1; }
+    h4 { font-size: 0.95rem; font-weight: 600; margin: 20px 0 8px; color: #94a3b8; }
+    p { margin-bottom: 16px; color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: var(--card); padding: 2px 7px; border-radius: 4px; font-size: 0.86em; color: #fbbf24; }
+    pre { background: #0d1117; padding: 14px 16px; border-radius: 8px; overflow-x: auto; margin: 10px 0 14px; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.8rem; line-height: 1.6; }
+    pre .comment { color: #64748b; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* Callouts */
+    .callout { padding: 16px 20px; border-radius: 10px; margin: 16px 0; font-size: 0.88rem; line-height: 1.6; border-left: 4px solid; }
+    .callout.info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+    .callout.warn { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
+    .callout.tip { background: rgba(16,185,129,0.08); border-color: #10b981; }
+    .callout.danger { background: rgba(239,68,68,0.08); border-color: #ef4444; }
+    .callout strong { color: #f1f5f9; }
+    .callout code { font-size: 0.84em; }
+
+    /* TOC */
+    .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 24px 0 40px; }
+    .toc h3 { font-size: 0.9rem; font-weight: 700; color: #f1f5f9; margin: 0 0 12px; }
+    .toc ol { margin: 0; padding-left: 20px; }
+    .toc li { margin-bottom: 4px; }
+    .toc a { font-size: 0.85rem; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+    .toc a:hover { color: var(--accent); }
+    .toc .toc-part { font-size: 0.78rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 6px; list-style: none; margin-left: -20px; }
+    .toc .toc-part:first-child { margin-top: 0; }
+
+    /* Topnav */
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+
+    /* ── Before/After Layout ── */
+    .before-after {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 24px 0;
+    }
+    .before-card {
+      background: var(--card);
+      border: 2px solid #ef4444;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .before-card .label { color: #ef4444; font-weight: 700; font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+    .after-card {
+      background: var(--card);
+      border: 2px solid #10b981;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .after-card .label { color: #10b981; font-weight: 700; font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+    .change-summary {
+      background: rgba(59,130,246,0.06);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin: 12px 0 32px;
+    }
+    .change-summary strong { color: #f1f5f9; }
+    .change-summary p { margin-bottom: 6px; font-size: 0.88rem; }
+    .change-summary p:last-child { margin-bottom: 0; }
+    @media (max-width: 900px) { .before-after { grid-template-columns: 1fr; } }
+
+    /* Impact callout */
+    .impact { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; margin: 8px 4px 0 0; }
+    .impact.security { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+    .impact.cost { background: rgba(16,185,129,0.12); color: #34d399; border: 1px solid rgba(16,185,129,0.25); }
+
+    /* SVG styling */
+    .diagram-wrap { display: flex; justify-content: center; margin: 12px 0; }
+    .before-card svg, .after-card svg { max-width: 100%; height: auto; }
+    .before-card pre, .after-card pre { margin: 8px 0 4px; }
+    .before-card pre code, .after-card pre code { font-size: 0.76rem; }
+
+    /* Section number */
+    .section-num { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: white; font-weight: 800; font-size: 0.85rem; margin-right: 10px; flex-shrink: 0; vertical-align: middle; }
+
+    .savings { color: var(--green); font-weight: 700; }
+    .cost-high { color: var(--red); font-weight: 600; }
+    .cost-low { color: var(--green); font-weight: 600; }
+
+    /* Summary stats bar */
+    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0 40px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+    .stat-card .stat-num { font-size: 1.8rem; font-weight: 800; }
+    .stat-card .stat-label { font-size: 0.78rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="production-hardening-aws.html">Full Hardening Guide</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>Visual Before/After Hardening</h1>
+  <p class="subtitle">15 production hardening changes shown side by side with Terraform code and inline SVG diagrams</p>
+
+  <div class="badges">
+    <span class="badge red">Security</span>
+    <span class="badge green">Cost Optimization</span>
+    <span class="badge purple">Terraform</span>
+    <span class="badge cyan">AWS EKS</span>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--red);">9</div>
+      <div class="stat-label">Security Changes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--green);">6</div>
+      <div class="stat-label">Cost Optimizations</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--accent);">82%</div>
+      <div class="stat-label">Max Compute Savings</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--purple);">$2,578</div>
+      <div class="stat-label">Monthly Savings (Dev)</div>
+    </div>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li class="toc-part">Security Hardening (1-9)</li>
+      <li><a href="#s1">ALB Security Group: Open vs Restricted Egress</a></li>
+      <li><a href="#s2">Worker Nodes SG: Wide Open vs Per-Service Egress</a></li>
+      <li><a href="#s3">Aurora SG: VPC-Wide Access vs Workers-Only</a></li>
+      <li><a href="#s4">Redis SG: VPC-Wide vs Workers-Only</a></li>
+      <li><a href="#s5">MSK SG: Adding Inter-Broker Replication</a></li>
+      <li><a href="#s6">No NACLs vs 3-Tier NACLs</a></li>
+      <li><a href="#s7">No VPC Flow Logs vs Reject-Only Logging</a></li>
+      <li><a href="#s8">No VPC Endpoints vs 6 Endpoints (PrivateLink)</a></li>
+      <li><a href="#s9">No EKS Secrets Encryption vs KMS Envelope Encryption</a></li>
+      <li class="toc-part">Cost Optimization (10-15)</li>
+      <li><a href="#s10">On-Demand x86 vs Spot + Graviton ARM</a></li>
+      <li><a href="#s11">Aurora Over-Provisioned vs Serverless v2</a></li>
+      <li><a href="#s12">Redis Over-Sized vs Right-Sized</a></li>
+      <li><a href="#s13">MSK Over-Provisioned vs Right-Sized</a></li>
+      <li><a href="#s14">3 NAT Gateways vs 1 NAT + VPC Endpoints</a></li>
+      <li><a href="#s15">No Resource Tags vs Full Cost Attribution</a></li>
+    </ol>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- SECURITY HARDENING                                                     -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+  <h2>Security Hardening</h2>
+
+
+  <!-- ────────────────────────────── 1 ────────────────────────────── -->
+  <h3 id="s1"><span class="section-num">1</span> ALB Security Group: Open vs Restricted Egress</h3>
+
+  <div class="before-after">
+    <div class="before-card">
+      <div class="label">Before -- Insecure</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="160" viewBox="0 0 280 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="90" y="50" width="100" height="50" rx="10" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+          <text x="140" y="80" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="700">ALB</text>
+          <!-- arrows going everywhere -->
+          <line x1="140" y1="100" x2="40" y2="145" stroke="#ef4444" stroke-width="2" marker-end="url(#arrowRed1)"/>
+          <line x1="140" y1="100" x2="140" y2="150" stroke="#ef4444" stroke-width="2" marker-end="url(#arrowRed1)"/>
+          <line x1="140" y1="100" x2="240" y2="145" stroke="#ef4444" stroke-width="2" marker-end="url(#arrowRed1)"/>
+          <line x1="190" y1="75" x2="265" y2="50" stroke="#ef4444" stroke-width="2" marker-end="url(#arrowRed1)"/>
+          <line x1="90" y1="75" x2="15" y2="50" stroke="#ef4444" stroke-width="2" marker-end="url(#arrowRed1)"/>
+          <text x="140" y="20" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="600">Egress: 0.0.0.0/0 (ALL)</text>
+          <text x="15" y="42" fill="#94a3b8" font-size="9">Internet</text>
+          <text x="240" y="42" fill="#94a3b8" font-size="9">Aurora</text>
+          <text x="20" y="155" fill="#94a3b8" font-size="9">Redis</text>
+          <text x="120" y="155" fill="#94a3b8" font-size="9">MSK</text>
+          <text x="220" y="155" fill="#94a3b8" font-size="9">Anything</text>
+          <defs><marker id="arrowRed1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#ef4444"/></marker></defs>
+        </svg>
+      </div>
+      <pre><code><span class="comment"># Default SG: allows ALL outbound</span>
+egress {
+  cidr_blocks = ["0.0.0.0/0"]
+  protocol    = "-1"
+  from_port   = 0
+  to_port     = 0
+}</code></pre>
+    </div>
+    <div class="after-card">
+      <div class="label">After -- Hardened</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="160" viewBox="0 0 280 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="90" y="20" width="100" height="50" rx="10" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+          <text x="140" y="50" text-anchor="middle" fill="#e2e8f0" font-size="13" font-weight="700">ALB</text>
+          <rect x="75" y="100" width="130" height="44" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="126" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="600">Worker SG</text>
+          <line x1="140" y1="70" x2="140" y2="100" stroke="#10b981" stroke-width="2.5" marker-end="url(#arrowGrn1)"/>
+          <text x="200" y="88" fill="#10b981" font-size="9" font-weight="600">30000-32767</text>
+          <!-- blocked arrows -->
+          <line x1="90" y1="45" x2="25" y2="35" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <text x="10" y="28" fill="#ef4444" font-size="9">Blocked</text>
+          <line x1="190" y1="45" x2="255" y2="35" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <text x="240" y="28" fill="#ef4444" font-size="9">Blocked</text>
+          <text x="140" y="158" text-anchor="middle" fill="#10b981" font-size="10" font-weight="600">Only NodePort egress allowed</text>
+          <defs><marker id="arrowGrn1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#10b981"/></marker></defs>
+        </svg>
+      </div>
+      <pre><code><span class="comment"># Restricted: only to Worker SG</span>
+resource "aws_vpc_security_group_egress_rule"
+  "alb_to_workers" {
+  security_group_id            = sg_alb
+  referenced_security_group_id = sg_workers
+  ip_protocol = "tcp"
+  from_port   = 30000
+  to_port     = 32767
+}</code></pre>
+    </div>
+  </div>
+
+  <div class="change-summary">
+    <p><strong>What Changed:</strong> Replaced the default <code>0.0.0.0/0</code> egress (all traffic, all ports, all destinations) with a single rule targeting only the Worker Security Group on the Kubernetes NodePort range.</p>
+    <p><strong>Why:</strong> If the ALB is compromised (e.g., via HTTP request smuggling), the attacker cannot pivot to databases, Redis, Kafka, or exfiltrate data to the internet. The blast radius is limited to the EKS worker tier.</p>
+    <div><span class="impact security">Attack Prevented: Lateral movement from ALB to data tier</span></div>
+  </div>
+
+
+  <!-- ────────────────────────────── 2 ────────────────────────────── -->
+  <h3 id="s2"><span class="section-num">2</span> Worker Nodes SG: Wide Open vs Per-Service Egress</h3>
+
+  <div class="before-after">
+    <div class="before-card">
+      <div class="label">Before -- Over-Permissive</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="150" viewBox="0 0 280 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="80" y="10" width="120" height="44" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+          <text x="140" y="37" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">EKS Workers</text>
+          <line x1="140" y1="54" x2="140" y2="130" stroke="#ef4444" stroke-width="3" marker-end="url(#arrowRed2)"/>
+          <text x="140" y="145" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="700">0.0.0.0/0 : ALL PORTS</text>
+          <text x="140" y="78" text-anchor="middle" fill="#94a3b8" font-size="10">Everything. Everywhere.</text>
+          <defs><marker id="arrowRed2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#ef4444"/></marker></defs>
+        </svg>
+      </div>
+      <pre><code><span class="comment"># Single wide-open egress rule</span>
+egress {
+  cidr_blocks = ["0.0.0.0/0"]
+  protocol    = "-1"
+}</code></pre>
+    </div>
+    <div class="after-card">
+      <div class="label">After -- Least Privilege</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="170" viewBox="0 0 280 170" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="90" y="5" width="100" height="36" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+          <text x="140" y="28" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">EKS Workers</text>
+          <!-- 5 specific arrows -->
+          <line x1="110" y1="41" x2="30" y2="70" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrowGrn2)"/>
+          <text x="5" y="85" fill="#3b82f6" font-size="9" font-weight="600">Aurora</text>
+          <text x="5" y="95" fill="#94a3b8" font-size="8">:5432</text>
+
+          <line x1="120" y1="41" x2="60" y2="115" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrowGrn2)"/>
+          <text x="20" y="130" fill="#3b82f6" font-size="9" font-weight="600">MSK</text>
+          <text x="20" y="140" fill="#94a3b8" font-size="8">:9092-9094</text>
+
+          <line x1="140" y1="41" x2="140" y2="110" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrowGrn2)"/>
+          <text x="120" y="126" fill="#3b82f6" font-size="9" font-weight="600">Redis</text>
+          <text x="120" y="136" fill="#94a3b8" font-size="8">:6379</text>
+
+          <line x1="160" y1="41" x2="220" y2="115" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrowGrn2)"/>
+          <text x="205" y="130" fill="#3b82f6" font-size="9" font-weight="600">NAT</text>
+          <text x="205" y="140" fill="#94a3b8" font-size="8">:443 only</text>
+
+          <line x1="170" y1="41" x2="250" y2="70" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrowGrn2)"/>
+          <text x="232" y="85" fill="#3b82f6" font-size="9" font-weight="600">VPCE</text>
+          <text x="232" y="95" fill="#94a3b8" font-size="8">:443</text>
+
+          <text x="140" y="164" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">5 specific egress rules, each SG-referenced</text>
+          <defs><marker id="arrowGrn2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#10b981"/></marker></defs>
+        </svg>
+      </div>
+      <pre><code><span class="comment"># 5 separate egress rules:</span>
+egress → sg_aurora     :5432
+egress → sg_msk        :9092-9094
+egress → sg_redis      :6379
+egress → 0.0.0.0/0     :443  <span class="comment"># NAT</span>
+egress → sg_vpce       :443</code></pre>
+    </div>
+  </div>
+
+  <div class="change-summary">
+    <p><strong>What Changed:</strong> Replaced one catch-all egress rule with five targeted rules, each referencing a specific Security Group and port range.</p>
+    <p><strong>Why:</strong> A compromised pod can only reach the services it legitimately needs. It cannot connect to arbitrary internet destinations for C2 beaconing, crypto mining, or data exfiltration on non-443 ports.</p>
+    <div><span class="impact security">Attack Prevented: C2 beaconing, lateral movement, data exfiltration</span></div>
+  </div>
+
+
+  <!-- ────────────────────────────── 3 ────────────────────────────── -->
+  <h3 id="s3"><span class="section-num">3</span> Aurora SG: VPC-Wide Access vs Workers-Only</h3>
+
+  <div class="before-after">
+    <div class="before-card">
+      <div class="label">Before -- CIDR-Based</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="130" viewBox="0 0 280 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="90" y="60" width="100" height="50" rx="10" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+          <text x="140" y="82" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">Aurora DB</text>
+          <text x="140" y="98" text-anchor="middle" fill="#94a3b8" font-size="9">:5432</text>
+          <rect x="30" y="5" width="220" height="35" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <text x="140" y="27" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="600">Entire VPC: 10.0.0.0/16</text>
+          <line x1="140" y1="40" x2="140" y2="60" stroke="#ef4444" stroke-width="2" marker-end="url(#arrowRed3)"/>
+          <text x="140" y="125" text-anchor="middle" fill="#94a3b8" font-size="9">ANY resource in VPC can connect</text>
+          <defs><marker id="arrowRed3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#ef4444"/></marker></defs>
+        </svg>
+      </div>
+      <pre><code>ingress {
+  cidr_blocks = ["10.0.0.0/16"]
+  from_port   = 5432
+  to_port     = 5432
+  protocol    = "tcp"
+}</code></pre>
+    </div>
+    <div class="after-card">
+      <div class="label">After -- SG-Referenced</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="130" viewBox="0 0 280 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="90" y="60" width="100" height="50" rx="10" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+          <text x="140" y="82" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">Aurora DB</text>
+          <text x="140" y="98" text-anchor="middle" fill="#94a3b8" font-size="9">:5432</text>
+          <!-- lock icon -->
+          <rect x="120" y="45" width="40" height="14" rx="3" fill="#0f172a" stroke="#10b981" stroke-width="1.5"/>
+          <text x="140" y="55" text-anchor="middle" fill="#10b981" font-size="8" font-weight="700">LOCKED</text>
+          <rect x="75" y="5" width="130" height="30" rx="6" fill="rgba(16,185,129,0.08)" stroke="#10b981" stroke-width="1.5"/>
+          <text x="140" y="24" text-anchor="middle" fill="#10b981" font-size="10" font-weight="600">Worker SG only</text>
+          <line x1="140" y1="35" x2="140" y2="45" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGrn3)"/>
+          <text x="140" y="125" text-anchor="middle" fill="#94a3b8" font-size="9">Only EKS workers can reach DB</text>
+          <defs><marker id="arrowGrn3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#10b981"/></marker></defs>
+        </svg>
+      </div>
+      <pre><code>resource "aws_vpc_security_group_ingress_rule"
+  "aurora_from_workers" {
+  security_group_id            = sg_aurora
+  referenced_security_group_id = sg_workers
+  ip_protocol = "tcp"
+  from_port   = 5432
+  to_port     = 5432
+}</code></pre>
+    </div>
+  </div>
+
+  <div class="change-summary">
+    <p><strong>What Changed:</strong> Replaced CIDR-based <code>10.0.0.0/16</code> ingress with a Security Group reference. Only ENIs attached to the Worker SG can connect.</p>
+    <p><strong>Why:</strong> CIDR-based rules allow ANY resource in the VPC (including a compromised ALB or rogue EC2 instance) to connect to the database. SG-referencing ensures only EKS worker nodes have access, and autoscaling works without rule changes.</p>
+    <div><span class="impact security">Attack Prevented: ALB-to-database pivot, rogue instance access</span></div>
+  </div>
+
+
+  <!-- ────────────────────────────── 4 ────────────────────────────── -->
+  <h3 id="s4"><span class="section-num">4</span> Redis SG: VPC-Wide vs Workers-Only</h3>
+
+  <div class="before-after">
+    <div class="before-card">
+      <div class="label">Before -- VPC-Wide Access</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="110" viewBox="0 0 280 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="90" y="40" width="100" height="45" rx="10" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+          <text x="140" y="60" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">Redis</text>
+          <text x="140" y="75" text-anchor="middle" fill="#94a3b8" font-size="9">CSRF + Rate Limiting + Sessions</text>
+          <rect x="20" y="5" width="240" height="25" rx="5" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="140" y="22" text-anchor="middle" fill="#ef4444" font-size="10">cidr_blocks = ["10.0.0.0/16"] :6379</text>
+          <text x="140" y="100" text-anchor="middle" fill="#94a3b8" font-size="9">Any VPC resource can dump session cache</text>
+          <defs><marker id="arrowRed4" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#ef4444"/></marker></defs>
+        </svg>
+      </div>
+      <pre><code>ingress {
+  cidr_blocks = ["10.0.0.0/16"]
+  from_port   = 6379
+  to_port     = 6379
+  protocol    = "tcp"
+}</code></pre>
+    </div>
+    <div class="after-card">
+      <div class="label">After -- Workers-Only</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="110" viewBox="0 0 280 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="90" y="40" width="100" height="45" rx="10" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+          <text x="140" y="60" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">Redis</text>
+          <text x="140" y="75" text-anchor="middle" fill="#94a3b8" font-size="9">CSRF + Rate Limiting + Sessions</text>
+          <rect x="60" y="5" width="160" height="25" rx="5" fill="rgba(16,185,129,0.08)" stroke="#10b981" stroke-width="1.5"/>
+          <text x="140" y="22" text-anchor="middle" fill="#10b981" font-size="10" font-weight="600">Worker SG :6379 only</text>
+          <line x1="140" y1="30" x2="140" y2="40" stroke="#10b981" stroke-width="2"/>
+          <text x="140" y="100" text-anchor="middle" fill="#94a3b8" font-size="9">Only application pods can access cache</text>
+        </svg>
+      </div>
+      <pre><code>resource "aws_vpc_security_group_ingress_rule"
+  "redis_from_workers" {
+  security_group_id            = sg_redis
+  referenced_security_group_id = sg_workers
+  ip_protocol = "tcp"
+  from_port   = 6379
+  to_port     = 6379
+}</code></pre>
+    </div>
+  </div>
+
+  <div class="change-summary">
+    <p><strong>What Changed:</strong> Same pattern as Aurora -- replaced VPC CIDR ingress with SG-referenced rule. Only Worker SG on port 6379.</p>
+    <p><strong>Why:</strong> Redis stores CSRF tokens, rate-limiting state, and session data. A compromised database or ALB should never be able to dump session tokens or bypass rate limits.</p>
+    <div><span class="impact security">Attack Prevented: Session hijacking via cache dump, rate-limit bypass</span></div>
+  </div>
+
+
+  <!-- ────────────────────────────── 5 ────────────────────────────── -->
+  <h3 id="s5"><span class="section-num">5</span> MSK SG: Adding Inter-Broker Replication</h3>
+
+  <div class="before-after">
+    <div class="before-card">
+      <div class="label">Before -- Missing Inter-Broker</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="130" viewBox="0 0 280 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="30" y="60" width="70" height="40" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="65" y="83" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="600">Broker 1</text>
+          <rect x="110" y="60" width="70" height="40" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="145" y="83" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="600">Broker 2</text>
+          <rect x="190" y="60" width="70" height="40" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="225" y="83" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="600">Broker 3</text>
+          <!-- Workers can reach brokers -->
+          <text x="140" y="20" text-anchor="middle" fill="#10b981" font-size="10">Workers can reach brokers</text>
+          <line x1="140" y1="28" x2="65" y2="58" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrowGrn5a)"/>
+          <line x1="140" y1="28" x2="145" y2="58" stroke="#10b981" stroke-width="1.5"/>
+          <line x1="140" y1="28" x2="225" y2="58" stroke="#10b981" stroke-width="1.5"/>
+          <!-- Blocked inter-broker -->
+          <line x1="100" y1="80" x2="110" y2="80" stroke="#ef4444" stroke-width="2" stroke-dasharray="3,2"/>
+          <line x1="180" y1="80" x2="190" y2="80" stroke="#ef4444" stroke-width="2" stroke-dasharray="3,2"/>
+          <text x="140" y="120" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="600">Replication BLOCKED silently</text>
+          <defs><marker id="arrowGrn5a" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#10b981"/></marker></defs>
+        </svg>
+      </div>
+      <pre><code><span class="comment"># Only worker access, no self-ref</span>
+ingress {
+  security_groups = [sg_workers]
+  from_port = 9092; to_port = 9094
+}
+<span class="comment"># Missing: inter-broker rule!</span></code></pre>
+    </div>
+    <div class="after-card">
+      <div class="label">After -- Complete Rules</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="130" viewBox="0 0 280 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="30" y="55" width="70" height="40" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+          <text x="65" y="78" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="600">Broker 1</text>
+          <rect x="110" y="55" width="70" height="40" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+          <text x="145" y="78" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="600">Broker 2</text>
+          <rect x="190" y="55" width="70" height="40" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+          <text x="225" y="78" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="600">Broker 3</text>
+          <!-- Inter-broker arrows -->
+          <line x1="100" y1="72" x2="110" y2="72" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlu5)"/>
+          <line x1="110" y1="78" x2="100" y2="78" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlu5r)"/>
+          <line x1="180" y1="72" x2="190" y2="72" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlu5)"/>
+          <line x1="190" y1="78" x2="180" y2="78" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlu5r)"/>
+          <text x="140" y="20" text-anchor="middle" fill="#10b981" font-size="10">Workers + self-referencing SG</text>
+          <line x1="140" y1="28" x2="65" y2="53" stroke="#10b981" stroke-width="1.2"/>
+          <line x1="140" y1="28" x2="145" y2="53" stroke="#10b981" stroke-width="1.2"/>
+          <line x1="140" y1="28" x2="225" y2="53" stroke="#10b981" stroke-width="1.2"/>
+          <text x="140" y="115" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="600">Replication: 9092-9094 (self-SG)</text>
+          <defs>
+            <marker id="arrowBlu5" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#3b82f6"/></marker>
+            <marker id="arrowBlu5r" markerWidth="6" markerHeight="5" refX="0" refY="2.5" orient="auto"><path d="M6,0 L0,2.5 L6,5Z" fill="#3b82f6"/></marker>
+          </defs>
+        </svg>
+      </div>
+      <pre><code><span class="comment"># Workers + self-referencing for replication</span>
+ingress → sg_workers :9092-9094
+ingress → sg_msk     :9092-9094  <span class="comment"># self</span>
+egress  → sg_msk     :9092-9094  <span class="comment"># self</span></code></pre>
+    </div>
+  </div>
+
+  <div class="change-summary">
+    <p><strong>What Changed:</strong> Added self-referencing ingress and egress rules on ports 9092-9094 so Kafka brokers can replicate partitions across AZs.</p>
+    <p><strong>Why:</strong> Without inter-broker rules, Kafka replication breaks silently. ISR (In-Sync Replicas) shrink, and a single broker failure risks data loss. This is a correctness fix, not just security.</p>
+    <div><span class="impact security">Attack Prevented: Silent data loss from broken replication</span></div>
+  </div>
+
+
+  <!-- ────────────────────────────── 6 ────────────────────────────── -->
+  <h3 id="s6"><span class="section-num">6</span> No NACLs vs 3-Tier NACLs</h3>
+
+  <div class="before-after">
+    <div class="before-card">
+      <div class="label">Before -- Default NACL</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="130" viewBox="0 0 280 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="20" width="75" height="90" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="57" y="45" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">Public</text>
+          <rect x="105" y="20" width="75" height="90" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="142" y="45" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">Private</text>
+          <rect x="190" y="20" width="75" height="90" rx="6" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="227" y="45" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">Database</text>
+          <!-- All allow arrows -->
+          <line x1="95" y1="65" x2="105" y2="65" stroke="#ef4444" stroke-width="2" marker-end="url(#arrowRed6)"/>
+          <line x1="105" y1="75" x2="95" y2="75" stroke="#ef4444" stroke-width="2"/>
+          <line x1="180" y1="65" x2="190" y2="65" stroke="#ef4444" stroke-width="2" marker-end="url(#arrowRed6)"/>
+          <line x1="190" y1="75" x2="180" y2="75" stroke="#ef4444" stroke-width="2"/>
+          <text x="140" y="15" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="600">Default NACL: ALLOW ALL</text>
+          <text x="140" y="125" text-anchor="middle" fill="#94a3b8" font-size="9">No subnet-level isolation whatsoever</text>
+          <defs><marker id="arrowRed6" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#ef4444"/></marker></defs>
+        </svg>
+      </div>
+      <pre><code><span class="comment"># Using default NACL</span>
+<span class="comment"># Allows ALL traffic in ALL</span>
+<span class="comment"># directions between ALL subnets.</span>
+<span class="comment"># No defense-in-depth.</span></code></pre>
+    </div>
+    <div class="after-card">
+      <div class="label">After -- 3-Tier NACLs</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="130" viewBox="0 0 280 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="15" y="20" width="80" height="80" rx="6" fill="rgba(16,185,129,0.06)" stroke="#10b981" stroke-width="1.5"/>
+          <text x="55" y="42" text-anchor="middle" fill="#10b981" font-size="9" font-weight="700">PUBLIC NACL</text>
+          <text x="55" y="57" text-anchor="middle" fill="#94a3b8" font-size="7">IN: 443,80,ephem</text>
+          <text x="55" y="67" text-anchor="middle" fill="#94a3b8" font-size="7">OUT: VPC+ephem</text>
+          <text x="55" y="80" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">DENY rest</text>
+
+          <rect x="100" y="20" width="80" height="80" rx="6" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="42" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="700">PRIVATE NACL</text>
+          <text x="140" y="57" text-anchor="middle" fill="#94a3b8" font-size="7">IN: VPC+ephem</text>
+          <text x="140" y="67" text-anchor="middle" fill="#94a3b8" font-size="7">OUT: VPC+443</text>
+          <text x="140" y="80" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">DENY rest</text>
+
+          <rect x="185" y="20" width="80" height="80" rx="6" fill="rgba(139,92,246,0.06)" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="225" y="42" text-anchor="middle" fill="#8b5cf6" font-size="9" font-weight="700">DB NACL</text>
+          <text x="225" y="57" text-anchor="middle" fill="#94a3b8" font-size="7">IN: 5432 from</text>
+          <text x="225" y="67" text-anchor="middle" fill="#94a3b8" font-size="7">  private only</text>
+          <text x="225" y="80" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">DENY rest</text>
+
+          <text x="140" y="15" text-anchor="middle" fill="#10b981" font-size="10" font-weight="600">Explicit ALLOW + DENY per tier</text>
+          <text x="140" y="120" text-anchor="middle" fill="#94a3b8" font-size="9">Defense-in-depth: catches SG misconfig</text>
+        </svg>
+      </div>
+      <pre><code><span class="comment"># Public: 443/80 in, VPC out</span>
+<span class="comment"># Private: VPC in, VPC+443 out</span>
+<span class="comment"># Database: 5432 from private only</span>
+<span class="comment"># ALL end with rule 32766: DENY ALL</span></code></pre>
+    </div>
+  </div>
+
+  <div class="change-summary">
+    <p><strong>What Changed:</strong> Created three custom NACLs (public, private, database) replacing the default allow-all NACL. Each tier has explicit allow rules and a final deny-all catch.</p>
+    <p><strong>Why:</strong> Defense-in-depth. If a Security Group is accidentally misconfigured (e.g., someone adds <code>0.0.0.0/0</code> to Aurora SG), the database NACL still blocks non-5432 traffic from non-private subnets.</p>
+    <div><span class="impact security">Attack Prevented: SG misconfiguration bypass, subnet-level lateral movement</span></div>
+  </div>
+
+
+  <!-- ────────────────────────────── 7 ────────────────────────────── -->
+  <h3 id="s7"><span class="section-num">7</span> No VPC Flow Logs vs Reject-Only Logging</h3>
+
+  <div class="before-after">
+    <div class="before-card">
+      <div class="label">Before -- Blind</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="100" viewBox="0 0 280 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="60" y="20" width="160" height="50" rx="10" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+          <text x="140" y="42" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">VPC</text>
+          <text x="140" y="58" text-anchor="middle" fill="#94a3b8" font-size="10">No Flow Logs</text>
+          <text x="140" y="88" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="600">Cannot detect port scans or blocked attacks</text>
+        </svg>
+      </div>
+      <pre><code><span class="comment"># No flow logs configured.</span>
+<span class="comment"># Blind to rejected connections,</span>
+<span class="comment"># port scans, and lateral movement</span>
+<span class="comment"># attempts.</span></code></pre>
+    </div>
+    <div class="after-card">
+      <div class="label">After -- Reject Logging</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="100" viewBox="0 0 280 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="30" y="20" width="120" height="50" rx="10" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+          <text x="90" y="42" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">VPC</text>
+          <text x="90" y="58" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">REJECT logging</text>
+          <line x1="150" y1="45" x2="180" y2="45" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlu7)"/>
+          <rect x="185" y="25" width="80" height="40" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="225" y="42" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="600">CloudWatch</text>
+          <text x="225" y="55" text-anchor="middle" fill="#94a3b8" font-size="8">30-day retain</text>
+          <text x="140" y="88" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">Every blocked connection is recorded</text>
+          <defs><marker id="arrowBlu7" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#3b82f6"/></marker></defs>
+        </svg>
+      </div>
+      <pre><code>resource "aws_flow_log" "reject" {
+  vpc_id          = aws_vpc.main.id
+  traffic_type    = "REJECT"
+  log_destination = aws_cloudwatch_log_group
+                      .flow_logs.arn
+  max_aggregation_interval = 60
+}
+
+resource "aws_cloudwatch_log_group" "flow_logs" {
+  name              = "/vpc/bookstore/flow-logs"
+  retention_in_days = 30
+}</code></pre>
+    </div>
+  </div>
+
+  <div class="change-summary">
+    <p><strong>What Changed:</strong> Enabled VPC Flow Logs with <code>traffic_type = "REJECT"</code>, sending to CloudWatch Logs with 30-day retention.</p>
+    <p><strong>Why:</strong> Without flow logs, you are blind to blocked connection attempts, port scans, and lateral movement. REJECT-only logging captures the security-relevant events at ~90% less cost than logging ALL traffic (~$0.50/GB).</p>
+    <div><span class="impact security">Attack Prevented: Undetected reconnaissance and port scanning</span></div>
+  </div>
+
+
+  <!-- ────────────────────────────── 8 ────────────────────────────── -->
+  <h3 id="s8"><span class="section-num">8</span> No VPC Endpoints vs 6 Endpoints (PrivateLink)</h3>
+
+  <div class="before-after">
+    <div class="before-card">
+      <div class="label">Before -- Via Internet</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="140" viewBox="0 0 280 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="10" width="80" height="36" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="60" y="32" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="600">Workers</text>
+          <line x1="100" y1="28" x2="130" y2="28" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrowRed8)"/>
+          <rect x="135" y="10" width="60" height="36" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="165" y="25" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="600">NAT GW</text>
+          <text x="165" y="38" text-anchor="middle" fill="#94a3b8" font-size="7">$0.045/GB</text>
+          <line x1="195" y1="28" x2="220" y2="28" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrowRed8)"/>
+          <rect x="225" y="5" width="50" height="22" rx="4" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+          <text x="250" y="19" text-anchor="middle" fill="#ef4444" font-size="8">Internet</text>
+          <line x1="250" y1="27" x2="250" y2="55" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrowRed8)"/>
+          <!-- AWS services -->
+          <rect x="40" y="70" width="50" height="22" rx="4" fill="#1e293b" stroke="#94a3b8" stroke-width="1"/>
+          <text x="65" y="84" text-anchor="middle" fill="#94a3b8" font-size="8">S3/ECR</text>
+          <rect x="110" y="70" width="50" height="22" rx="4" fill="#1e293b" stroke="#94a3b8" stroke-width="1"/>
+          <text x="135" y="84" text-anchor="middle" fill="#94a3b8" font-size="8">STS</text>
+          <rect x="180" y="70" width="60" height="22" rx="4" fill="#1e293b" stroke="#94a3b8" stroke-width="1"/>
+          <text x="210" y="84" text-anchor="middle" fill="#94a3b8" font-size="8">CW Logs</text>
+          <line x1="250" y1="60" x2="65" y2="68" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,2"/>
+          <line x1="250" y1="60" x2="135" y2="68" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,2"/>
+          <line x1="250" y1="60" x2="210" y2="68" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,2"/>
+          <text x="140" y="115" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="600">All AWS API calls traverse public internet</text>
+          <text x="140" y="130" text-anchor="middle" fill="#94a3b8" font-size="9">Exposed to interception, NAT data charges</text>
+          <defs><marker id="arrowRed8" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#ef4444"/></marker></defs>
+        </svg>
+      </div>
+      <pre><code><span class="comment"># No VPC Endpoints configured.</span>
+<span class="comment"># All AWS API calls (ECR, STS,</span>
+<span class="comment"># CloudWatch) go through NAT GW</span>
+<span class="comment"># → Internet → AWS service endpoint.</span>
+<span class="comment"># Cost: $0.045/GB processing.</span></code></pre>
+    </div>
+    <div class="after-card">
+      <div class="label">After -- PrivateLink</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="140" viewBox="0 0 280 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="10" width="80" height="36" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+          <text x="60" y="32" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="600">Workers</text>
+          <!-- Direct VPC Endpoint connections -->
+          <rect x="150" y="5" width="110" height="100" rx="8" fill="rgba(16,185,129,0.04)" stroke="#10b981" stroke-width="1.5"/>
+          <text x="205" y="20" text-anchor="middle" fill="#10b981" font-size="8" font-weight="700">VPC ENDPOINTS</text>
+          <text x="205" y="38" fill="#94a3b8" font-size="8">S3 Gateway (FREE)</text>
+          <text x="205" y="52" fill="#94a3b8" font-size="8">ECR API/DKR</text>
+          <text x="205" y="66" fill="#94a3b8" font-size="8">STS</text>
+          <text x="205" y="80" fill="#94a3b8" font-size="8">CloudWatch Logs</text>
+          <text x="205" y="94" fill="#94a3b8" font-size="8">Secrets Manager</text>
+          <line x1="100" y1="28" x2="148" y2="28" stroke="#10b981" stroke-width="2" marker-end="url(#arrowGrn8)"/>
+          <text x="125" y="22" fill="#10b981" font-size="7" font-weight="600">VPC</text>
+          <text x="140" y="125" text-anchor="middle" fill="#10b981" font-size="10" font-weight="600">Traffic stays on AWS backbone</text>
+          <text x="140" y="138" text-anchor="middle" fill="#94a3b8" font-size="9">No internet exposure, S3 Gateway is free</text>
+          <defs><marker id="arrowGrn8" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#10b981"/></marker></defs>
+        </svg>
+      </div>
+      <pre><code><span class="comment"># 6 VPC Endpoints:</span>
+<span class="comment"># S3 Gateway        — FREE</span>
+<span class="comment"># ECR API/DKR       — $21.60/mo each</span>
+<span class="comment"># STS               — $21.60/mo</span>
+<span class="comment"># CloudWatch Logs   — $21.60/mo</span>
+<span class="comment"># Secrets Manager   — $21.60/mo</span>
+resource "aws_vpc_endpoint" "s3" {
+  vpc_endpoint_type = "Gateway"  <span class="comment"># Free!</span>
+  route_table_ids   = private_rts
+}</code></pre>
+    </div>
+  </div>
+
+  <div class="change-summary">
+    <p><strong>What Changed:</strong> Created 6 VPC Endpoints (1 Gateway for S3, 5 Interface for ECR/STS/CloudWatch/Secrets Manager). AWS API traffic stays on the AWS backbone, never traversing the public internet.</p>
+    <p><strong>Why:</strong> Reduces attack surface (no internet exposure for AWS API calls), improves resilience (works even if NAT GW fails), and reduces NAT data processing charges. S3 Gateway Endpoint is free and handles the bulk of ECR image layer transfers.</p>
+    <div>
+      <span class="impact security">Attack Prevented: API call interception via internet</span>
+      <span class="impact cost">Cost Saved: NAT data charges reduced 80%+</span>
+    </div>
+  </div>
+
+
+  <!-- ────────────────────────────── 9 ────────────────────────────── -->
+  <h3 id="s9"><span class="section-num">9</span> No EKS Secrets Encryption vs KMS Envelope Encryption</h3>
+
+  <div class="before-after">
+    <div class="before-card">
+      <div class="label">Before -- Plaintext in etcd</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="110" viewBox="0 0 280 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="60" y="10" width="160" height="40" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+          <text x="140" y="34" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">etcd (EKS control plane)</text>
+          <rect x="70" y="60" width="140" height="30" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="140" y="79" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="600">DB_PASSWORD = base64(CHANGE_ME)</text>
+          <text x="140" y="105" text-anchor="middle" fill="#94a3b8" font-size="9">base64 is encoding, NOT encryption</text>
+        </svg>
+      </div>
+      <pre><code><span class="comment"># Default: no encryption_config</span>
+<span class="comment"># K8s Secrets stored as base64 in etcd.</span>
+<span class="comment"># echo "Q0hBTkdFX01F" | base64 -d</span>
+<span class="comment"># → "CHANGE_ME"</span>
+<span class="comment"># Anyone with etcd access reads all.</span></code></pre>
+    </div>
+    <div class="after-card">
+      <div class="label">After -- KMS Envelope Encryption</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="110" viewBox="0 0 280 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="60" y="10" width="160" height="40" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+          <text x="140" y="34" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">etcd (EKS control plane)</text>
+          <rect x="50" y="58" width="90" height="34" rx="6" fill="rgba(139,92,246,0.1)" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="95" y="72" text-anchor="middle" fill="#8b5cf6" font-size="8" font-weight="600">Encrypted DEK</text>
+          <text x="95" y="84" text-anchor="middle" fill="#94a3b8" font-size="7">wraps secret</text>
+          <rect x="155" y="58" width="80" height="34" rx="6" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-width="1.5"/>
+          <text x="195" y="72" text-anchor="middle" fill="#10b981" font-size="8" font-weight="600">AWS KMS</text>
+          <text x="195" y="84" text-anchor="middle" fill="#94a3b8" font-size="7">decrypts DEK</text>
+          <line x1="140" y1="75" x2="155" y2="75" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrowBlu9)"/>
+          <text x="140" y="105" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">KMS key never leaves AWS KMS service</text>
+          <defs><marker id="arrowBlu9" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#3b82f6"/></marker></defs>
+        </svg>
+      </div>
+      <pre><code>resource "aws_eks_cluster" "main" {
+  encryption_config {
+    provider {
+      key_arn = aws_kms_key.eks_secrets.arn
+    }
+    resources = ["secrets"]
+  }
+}
+
+resource "aws_kms_key" "eks_secrets" {
+  enable_key_rotation = true
+}</code></pre>
+    </div>
+  </div>
+
+  <div class="change-summary">
+    <p><strong>What Changed:</strong> Added KMS envelope encryption to the EKS cluster. Each Secret gets a unique Data Encryption Key (DEK), which is itself encrypted by the KMS master key. Auto-rotation enabled.</p>
+    <p><strong>Why:</strong> Without this, anyone with etcd access (or an etcd backup) can read all Kubernetes Secrets (DB passwords, API keys, Kafka credentials) by simply base64-decoding them. With KMS, secrets are unreadable without the KMS key.</p>
+    <div><span class="impact security">Attack Prevented: Secret exfiltration from etcd backup/compromise</span></div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- COST OPTIMIZATION                                                      -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+  <h2>Cost Optimization</h2>
+
+
+  <!-- ────────────────────────────── 10 ────────────────────────────── -->
+  <h3 id="s10"><span class="section-num">10</span> On-Demand x86 vs Spot + Graviton ARM</h3>
+
+  <div class="before-after">
+    <div class="before-card">
+      <div class="label">Before -- Expensive</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="120" viewBox="0 0 280 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- 5 identical boxes -->
+          <rect x="10" y="25" width="48" height="60" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="34" y="48" text-anchor="middle" fill="#94a3b8" font-size="7">t3.xlarge</text>
+          <text x="34" y="60" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">$117/mo</text>
+          <text x="34" y="74" text-anchor="middle" fill="#94a3b8" font-size="6">On-Demand</text>
+          <rect x="64" y="25" width="48" height="60" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="88" y="48" text-anchor="middle" fill="#94a3b8" font-size="7">t3.xlarge</text>
+          <text x="88" y="60" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">$117/mo</text>
+          <rect x="118" y="25" width="48" height="60" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="142" y="48" text-anchor="middle" fill="#94a3b8" font-size="7">t3.xlarge</text>
+          <text x="142" y="60" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">$117/mo</text>
+          <rect x="172" y="25" width="48" height="60" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="196" y="48" text-anchor="middle" fill="#94a3b8" font-size="7">t3.xlarge</text>
+          <text x="196" y="60" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">$117/mo</text>
+          <rect x="226" y="25" width="48" height="60" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="250" y="48" text-anchor="middle" fill="#94a3b8" font-size="7">t3.xlarge</text>
+          <text x="250" y="60" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">$117/mo</text>
+          <text x="140" y="15" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="700">5x t3.xlarge On-Demand x86</text>
+          <text x="140" y="108" text-anchor="middle" fill="#ef4444" font-size="14" font-weight="800">$585/mo</text>
+        </svg>
+      </div>
+      <pre><code>instance_types = ["t3.xlarge"]
+capacity_type  = "ON_DEMAND"
+desired_size   = 5</code></pre>
+    </div>
+    <div class="after-card">
+      <div class="label">After -- Optimized</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="120" viewBox="0 0 280 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- 2 On-Demand Graviton -->
+          <rect x="20" y="25" width="65" height="55" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+          <text x="52" y="42" text-anchor="middle" fill="#10b981" font-size="8" font-weight="600">t4g.medium</text>
+          <text x="52" y="55" text-anchor="middle" fill="#94a3b8" font-size="7">On-Demand ARM</text>
+          <text x="52" y="68" text-anchor="middle" fill="#10b981" font-size="8" font-weight="700">$28/mo x2</text>
+          <!-- 3 Spot diverse -->
+          <rect x="100" y="25" width="165" height="55" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="182" y="40" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600">Spot Pool (3 nodes, diverse types)</text>
+          <text x="182" y="53" text-anchor="middle" fill="#94a3b8" font-size="7">t3.large | t3a.large | m5.large | m7g.large</text>
+          <text x="182" y="68" text-anchor="middle" fill="#10b981" font-size="8" font-weight="700">~$17/mo x3 = $52/mo</text>
+          <text x="140" y="15" text-anchor="middle" fill="#10b981" font-size="10" font-weight="700">2x On-Demand ARM + 3x Spot Diversified</text>
+          <text x="140" y="108" text-anchor="middle" fill="#10b981" font-size="14" font-weight="800">$108/mo</text>
+        </svg>
+      </div>
+      <pre><code><span class="comment"># System: Graviton On-Demand</span>
+instance_types = ["t4g.medium"]
+capacity_type  = "ON_DEMAND"
+<span class="comment"># App: Spot with diversity</span>
+instance_types = ["t3.large", "t3a.large",
+                  "m5.large", "m7g.large"]
+capacity_type  = "SPOT"</code></pre>
+    </div>
+  </div>
+
+  <div class="change-summary">
+    <p><strong>What Changed:</strong> Split into system (On-Demand Graviton) and app (Spot, diversified instance types) node groups. ARM processors cost 20% less; Spot saves 60-90%.</p>
+    <p><strong>Why:</strong> Stateless application pods can tolerate 2-minute Spot eviction notices because Kubernetes reschedules them instantly. System components (CoreDNS, Istio control plane) stay on stable On-Demand nodes.</p>
+    <div><span class="impact cost">Cost Saved: $585 to $108/mo = 82% reduction ($477/mo saved)</span></div>
+  </div>
+
+
+  <!-- ────────────────────────────── 11 ────────────────────────────── -->
+  <h3 id="s11"><span class="section-num">11</span> Aurora Over-Provisioned vs Serverless v2</h3>
+
+  <div class="before-after">
+    <div class="before-card">
+      <div class="label">Before -- Fixed Capacity</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="110" viewBox="0 0 280 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="80" y="15" width="120" height="65" rx="12" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+          <text x="140" y="38" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">Aurora</text>
+          <text x="140" y="55" text-anchor="middle" fill="#94a3b8" font-size="9">min_capacity = 2 ACU</text>
+          <text x="140" y="70" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">Always paying for 2 ACU</text>
+          <text x="140" y="100" text-anchor="middle" fill="#ef4444" font-size="12" font-weight="700">~$344/mo per cluster (idle)</text>
+        </svg>
+      </div>
+      <pre><code>serverlessv2_scaling_configuration {
+  min_capacity = 2    <span class="comment"># $0.12/ACU-hr x 2</span>
+  max_capacity = 8    <span class="comment"># = $175/mo minimum</span>
+}
+<span class="comment"># x 4 clusters = $700/mo idle</span></code></pre>
+    </div>
+    <div class="after-card">
+      <div class="label">After -- Auto-Scaling</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="110" viewBox="0 0 280 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="50" y="15" width="60" height="55" rx="10" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+          <text x="80" y="35" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">0.5 ACU</text>
+          <text x="80" y="48" text-anchor="middle" fill="#94a3b8" font-size="7">idle</text>
+          <text x="80" y="62" text-anchor="middle" fill="#94a3b8" font-size="7">$44/mo</text>
+          <!-- scaling arrow -->
+          <line x1="115" y1="42" x2="155" y2="42" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowBlu11)"/>
+          <text x="135" y="36" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600">auto</text>
+          <rect x="160" y="10" width="80" height="65" rx="10" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="200" y="32" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="600">up to 8 ACU</text>
+          <text x="200" y="48" text-anchor="middle" fill="#94a3b8" font-size="7">under load</text>
+          <text x="200" y="62" text-anchor="middle" fill="#94a3b8" font-size="7">$700/mo max</text>
+          <text x="140" y="100" text-anchor="middle" fill="#10b981" font-size="12" font-weight="700">~$172/mo per cluster (typical)</text>
+          <defs><marker id="arrowBlu11" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#3b82f6"/></marker></defs>
+        </svg>
+      </div>
+      <pre><code>serverlessv2_scaling_configuration {
+  min_capacity = 0.5  <span class="comment"># $44/mo minimum</span>
+  max_capacity = 8    <span class="comment"># scales up under load</span>
+}
+<span class="comment"># x 4 clusters = $176/mo idle</span></code></pre>
+    </div>
+  </div>
+
+  <div class="change-summary">
+    <p><strong>What Changed:</strong> Reduced Aurora Serverless v2 minimum capacity from 2 ACU to 0.5 ACU. The database scales down to near-zero when idle and scales up automatically under load.</p>
+    <p><strong>Why:</strong> At 2 ACU minimum, you pay $175/cluster/month even when idle. At 0.5 ACU, idle cost drops to $44/cluster. For 4 clusters, that is $524/mo saved during off-hours.</p>
+    <div><span class="impact cost">Cost Saved: ~$344 to ~$172/mo per cluster = 50% reduction</span></div>
+  </div>
+
+
+  <!-- ────────────────────────────── 12 ────────────────────────────── -->
+  <h3 id="s12"><span class="section-num">12</span> Redis Over-Sized vs Right-Sized</h3>
+
+  <div class="before-after">
+    <div class="before-card">
+      <div class="label">Before -- Massively Over-Provisioned</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="100" viewBox="0 0 280 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="60" y="15" width="160" height="50" rx="10" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+          <text x="140" y="35" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">cache.r6g.large</text>
+          <text x="140" y="52" text-anchor="middle" fill="#94a3b8" font-size="9">13 GB RAM for a 100 MB workload</text>
+          <text x="140" y="85" text-anchor="middle" fill="#ef4444" font-size="14" font-weight="800">$200/mo</text>
+        </svg>
+      </div>
+      <pre><code>node_type = "cache.r6g.large"
+<span class="comment"># 13 GB RAM, 2 vCPU</span>
+<span class="comment"># Actual usage: ~100 MB</span>
+<span class="comment"># 99.2% of RAM is wasted</span></code></pre>
+    </div>
+    <div class="after-card">
+      <div class="label">After -- Right-Sized</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="100" viewBox="0 0 280 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="90" y="15" width="100" height="50" rx="10" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+          <text x="140" y="35" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">cache.t4g.micro</text>
+          <text x="140" y="52" text-anchor="middle" fill="#94a3b8" font-size="9">0.5 GB RAM -- more than enough</text>
+          <text x="140" y="85" text-anchor="middle" fill="#10b981" font-size="14" font-weight="800">$8/mo</text>
+        </svg>
+      </div>
+      <pre><code>node_type = "cache.t4g.micro"
+<span class="comment"># 0.5 GB RAM, Graviton, 2 vCPU</span>
+<span class="comment"># 5x headroom for 100 MB usage</span>
+<span class="comment"># Production: t4g.small ($24/mo)</span></code></pre>
+    </div>
+  </div>
+
+  <div class="change-summary">
+    <p><strong>What Changed:</strong> Downgraded from <code>cache.r6g.large</code> (13 GB RAM) to <code>cache.t4g.micro</code> (0.5 GB RAM). The BookStore uses Redis for CSRF tokens, rate limiting, and sessions -- total usage is under 100 MB.</p>
+    <p><strong>Why:</strong> Paying for 13 GB of RAM when you use 100 MB is a 130x over-provision. Even production with replication (<code>t4g.small</code> x2 = $48/mo) is 4x cheaper than the original single node.</p>
+    <div><span class="impact cost">Cost Saved: $200 to $8/mo (dev) = 96% reduction</span></div>
+  </div>
+
+
+  <!-- ────────────────────────────── 13 ────────────────────────────── -->
+  <h3 id="s13"><span class="section-num">13</span> MSK Over-Provisioned vs Right-Sized</h3>
+
+  <div class="before-after">
+    <div class="before-card">
+      <div class="label">Before -- Production Instance for Dev</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="100" viewBox="0 0 280 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="25" y="20" width="72" height="45" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="61" y="38" text-anchor="middle" fill="#94a3b8" font-size="8">kafka.m5.large</text>
+          <text x="61" y="52" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">$216/mo</text>
+          <rect x="105" y="20" width="72" height="45" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="141" y="38" text-anchor="middle" fill="#94a3b8" font-size="8">kafka.m5.large</text>
+          <text x="141" y="52" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">$216/mo</text>
+          <rect x="185" y="20" width="72" height="45" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="221" y="38" text-anchor="middle" fill="#94a3b8" font-size="8">kafka.m5.large</text>
+          <text x="221" y="52" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">$216/mo</text>
+          <text x="140" y="85" text-anchor="middle" fill="#ef4444" font-size="14" font-weight="800">$648/mo</text>
+        </svg>
+      </div>
+      <pre><code>broker_node_group_info {
+  instance_type = "kafka.m5.large"
+}
+number_of_broker_nodes = 3
+<span class="comment"># $216/broker = $648/mo total</span></code></pre>
+    </div>
+    <div class="after-card">
+      <div class="label">After -- Right-Sized / Serverless</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="100" viewBox="0 0 280 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="15" width="115" height="55" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+          <text x="77" y="32" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">Dev: MSK Serverless</text>
+          <text x="77" y="48" text-anchor="middle" fill="#94a3b8" font-size="8">$0 when idle</text>
+          <text x="77" y="62" text-anchor="middle" fill="#10b981" font-size="9" font-weight="700">~$20/mo active</text>
+          <rect x="145" y="15" width="120" height="55" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="205" y="32" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="600">Prod: kafka.t3.small</text>
+          <text x="205" y="48" text-anchor="middle" fill="#94a3b8" font-size="8">3 brokers</text>
+          <text x="205" y="62" text-anchor="middle" fill="#10b981" font-size="9" font-weight="700">$150/mo</text>
+          <text x="140" y="90" text-anchor="middle" fill="#10b981" font-size="12" font-weight="800">$20-150/mo</text>
+        </svg>
+      </div>
+      <pre><code><span class="comment"># Dev: Serverless (pay-per-use)</span>
+resource "aws_msk_serverless_cluster" "dev" {}
+<span class="comment"># Prod: right-sized brokers</span>
+instance_type = "kafka.t3.small"
+<span class="comment"># or kafka.m7g.large (Graviton)</span></code></pre>
+    </div>
+  </div>
+
+  <div class="change-summary">
+    <p><strong>What Changed:</strong> Dev environments use MSK Serverless ($0 when idle). Production uses right-sized <code>kafka.t3.small</code> or Graviton <code>kafka.m7g.large</code> instead of over-provisioned <code>kafka.m5.large</code>.</p>
+    <p><strong>Why:</strong> The BookStore Kafka topics handle modest throughput (order events, CDC). A <code>kafka.m5.large</code> broker can handle 100K messages/sec; actual usage is under 1K/sec.</p>
+    <div><span class="impact cost">Cost Saved: $648 to $150/mo (prod) = 77% reduction</span></div>
+  </div>
+
+
+  <!-- ────────────────────────────── 14 ────────────────────────────── -->
+  <h3 id="s14"><span class="section-num">14</span> 3 NAT Gateways vs 1 NAT + VPC Endpoints</h3>
+
+  <div class="before-after">
+    <div class="before-card">
+      <div class="label">Before -- 3 NAT Gateways</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="110" viewBox="0 0 280 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="15" width="72" height="40" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="56" y="32" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="600">NAT GW 1</text>
+          <text x="56" y="46" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">$45/mo</text>
+          <rect x="105" y="15" width="72" height="40" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="141" y="32" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="600">NAT GW 2</text>
+          <text x="141" y="46" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">$45/mo</text>
+          <rect x="190" y="15" width="72" height="40" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="226" y="32" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="600">NAT GW 3</text>
+          <text x="226" y="46" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">$45/mo</text>
+          <text x="140" y="75" text-anchor="middle" fill="#94a3b8" font-size="9">+ $0.045/GB data processing</text>
+          <text x="140" y="100" text-anchor="middle" fill="#ef4444" font-size="14" font-weight="800">$135/mo + data charges</text>
+        </svg>
+      </div>
+      <pre><code><span class="comment"># 3 NAT GWs (one per AZ)</span>
+resource "aws_nat_gateway" "main" {
+  count = 3
+}
+<span class="comment"># All AWS API traffic via NAT</span>
+<span class="comment"># $32/mo fixed + $0.045/GB data</span></code></pre>
+    </div>
+    <div class="after-card">
+      <div class="label">After -- 1 NAT + Endpoints</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="110" viewBox="0 0 280 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="15" width="80" height="40" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+          <text x="60" y="32" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">1x NAT GW</text>
+          <text x="60" y="46" text-anchor="middle" fill="#94a3b8" font-size="8">$45/mo</text>
+          <text x="115" y="35" text-anchor="middle" fill="#94a3b8" font-size="12">+</text>
+          <rect x="130" y="10" width="135" height="50" rx="8" fill="rgba(16,185,129,0.06)" stroke="#10b981" stroke-width="1.5"/>
+          <text x="197" y="28" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">S3 Gateway (FREE)</text>
+          <text x="197" y="42" text-anchor="middle" fill="#94a3b8" font-size="8">+ ECR, STS, CW, SM endpoints</text>
+          <text x="197" y="55" text-anchor="middle" fill="#94a3b8" font-size="8">Most traffic bypasses NAT</text>
+          <text x="140" y="80" text-anchor="middle" fill="#94a3b8" font-size="9">Data charges reduced 80%+</text>
+          <text x="140" y="100" text-anchor="middle" fill="#10b981" font-size="14" font-weight="800">$45/mo + minimal data</text>
+        </svg>
+      </div>
+      <pre><code><span class="comment"># 1 NAT GW for dev (3 for prod HA)</span>
+resource "aws_nat_gateway" "main" {
+  count = var.env == "prod" ? 3 : 1
+}
+<span class="comment"># S3 Gateway: FREE (bulk of traffic)</span>
+<span class="comment"># Interface endpoints: ~$108/mo</span>
+<span class="comment"># NAT data charges drop 80%+</span></code></pre>
+    </div>
+  </div>
+
+  <div class="change-summary">
+    <p><strong>What Changed:</strong> Dev uses 1 NAT Gateway instead of 3 (saves $90/mo). VPC Endpoints handle S3/ECR/STS/CloudWatch/Secrets Manager traffic without NAT, reducing data charges by 80%+. S3 Gateway Endpoint is free and carries the bulk of ECR image layer traffic.</p>
+    <p><strong>Why:</strong> NAT Gateways are among the most expensive networking components. For dev, single-AZ NAT is acceptable (cluster survives, just loses outbound temporarily). VPC Endpoints improve both security (no internet exposure) and cost.</p>
+    <div><span class="impact cost">Cost Saved: $135 to ~$55/mo (dev) = 59% reduction on NAT</span></div>
+  </div>
+
+
+  <!-- ────────────────────────────── 15 ────────────────────────────── -->
+  <h3 id="s15"><span class="section-num">15</span> No Resource Tags vs Full Cost Attribution</h3>
+
+  <div class="before-after">
+    <div class="before-card">
+      <div class="label">Before -- Untagged</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="100" viewBox="0 0 280 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="30" y="15" width="65" height="35" rx="6" fill="#1e293b" stroke="#94a3b8" stroke-width="1"/>
+          <text x="62" y="36" text-anchor="middle" fill="#94a3b8" font-size="9">EKS</text>
+          <rect x="110" y="15" width="65" height="35" rx="6" fill="#1e293b" stroke="#94a3b8" stroke-width="1"/>
+          <text x="142" y="36" text-anchor="middle" fill="#94a3b8" font-size="9">Aurora</text>
+          <rect x="190" y="15" width="65" height="35" rx="6" fill="#1e293b" stroke="#94a3b8" stroke-width="1"/>
+          <text x="222" y="36" text-anchor="middle" fill="#94a3b8" font-size="9">MSK</text>
+          <text x="140" y="70" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="600">No tags = "Who is spending $3,000/mo?"</text>
+          <text x="140" y="88" text-anchor="middle" fill="#94a3b8" font-size="9">Cost Explorer shows total bill only</text>
+        </svg>
+      </div>
+      <pre><code><span class="comment"># Resources created without tags.</span>
+<span class="comment"># Cost Explorer: one big number.</span>
+<span class="comment"># No way to filter by team,</span>
+<span class="comment"># environment, or service.</span>
+<span class="comment"># No automated cleanup possible.</span></code></pre>
+    </div>
+    <div class="after-card">
+      <div class="label">After -- Full Cost Attribution</div>
+      <div class="diagram-wrap">
+        <svg width="280" height="100" viewBox="0 0 280 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="10" width="75" height="45" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+          <text x="57" y="26" text-anchor="middle" fill="#10b981" font-size="8" font-weight="600">EKS</text>
+          <text x="57" y="38" text-anchor="middle" fill="#94a3b8" font-size="6">project=bookstore</text>
+          <text x="57" y="48" text-anchor="middle" fill="#94a3b8" font-size="6">env=prod team=platform</text>
+          <rect x="103" y="10" width="75" height="45" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="26" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600">Aurora</text>
+          <text x="140" y="38" text-anchor="middle" fill="#94a3b8" font-size="6">project=bookstore</text>
+          <text x="140" y="48" text-anchor="middle" fill="#94a3b8" font-size="6">env=dev team=data</text>
+          <rect x="186" y="10" width="75" height="45" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="223" y="26" text-anchor="middle" fill="#8b5cf6" font-size="8" font-weight="600">MSK</text>
+          <text x="223" y="38" text-anchor="middle" fill="#94a3b8" font-size="6">project=bookstore</text>
+          <text x="223" y="48" text-anchor="middle" fill="#94a3b8" font-size="6">env=prod team=infra</text>
+          <text x="140" y="75" text-anchor="middle" fill="#10b981" font-size="10" font-weight="600">Cost Explorer: filter by any tag</text>
+          <text x="140" y="90" text-anchor="middle" fill="#94a3b8" font-size="9">Team chargebacks, env cleanup, budget alerts</text>
+        </svg>
+      </div>
+      <pre><code>provider "aws" {
+  default_tags {
+    tags = {
+      Project     = "bookstore"
+      Environment = var.environment
+      Team        = "platform"
+      ManagedBy   = "terraform"
+      CostCenter  = var.cost_center
+    }
+  }
+}</code></pre>
+    </div>
+  </div>
+
+  <div class="change-summary">
+    <p><strong>What Changed:</strong> Added <code>default_tags</code> to the AWS provider so every resource gets Project, Environment, Team, ManagedBy, and CostCenter tags automatically. No resource can be created untagged.</p>
+    <p><strong>Why:</strong> Tags enable Cost Explorer filtering (which team, which env is expensive?), automated cleanup of dev resources, budget alerts per cost center, and compliance auditing. Without tags, a $3,000 bill is an opaque number with no accountability.</p>
+    <div><span class="impact cost">Cost Saved: Enables identification and elimination of waste</span></div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- SUMMARY                                                                -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+  <h2>Summary: Total Impact</h2>
+
+  <h3>Security Improvements</h3>
+
+  <table>
+    <thead>
+      <tr><th>#</th><th>Change</th><th>Attack Prevented</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>ALB egress restricted to Worker SG</td><td>ALB compromise lateral movement</td></tr>
+      <tr><td>2</td><td>Worker egress: 5 specific SG rules</td><td>C2 beaconing, data exfiltration</td></tr>
+      <tr><td>3</td><td>Aurora: SG-ref instead of CIDR</td><td>ALB-to-DB pivot</td></tr>
+      <tr><td>4</td><td>Redis: SG-ref instead of CIDR</td><td>Session hijacking via cache dump</td></tr>
+      <tr><td>5</td><td>MSK: inter-broker self-ref SG</td><td>Silent replication failure</td></tr>
+      <tr><td>6</td><td>3-tier NACLs with explicit deny</td><td>SG misconfiguration bypass</td></tr>
+      <tr><td>7</td><td>VPC Flow Logs (REJECT only)</td><td>Undetected reconnaissance</td></tr>
+      <tr><td>8</td><td>6 VPC Endpoints (PrivateLink)</td><td>API call interception via internet</td></tr>
+      <tr><td>9</td><td>KMS envelope encryption for secrets</td><td>Secret exfiltration from etcd</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Cost Reductions</h3>
+
+  <table>
+    <thead>
+      <tr><th>#</th><th>Change</th><th>Before</th><th>After</th><th>Savings</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>10</td><td>Spot + Graviton ARM nodes</td><td class="cost-high">$585/mo</td><td class="cost-low">$108/mo</td><td class="savings">82%</td></tr>
+      <tr><td>11</td><td>Aurora Serverless v2 (0.5 ACU min)</td><td class="cost-high">$344/mo</td><td class="cost-low">$172/mo</td><td class="savings">50%</td></tr>
+      <tr><td>12</td><td>Redis right-sized (t4g.micro)</td><td class="cost-high">$200/mo</td><td class="cost-low">$8/mo</td><td class="savings">96%</td></tr>
+      <tr><td>13</td><td>MSK right-sized / Serverless</td><td class="cost-high">$648/mo</td><td class="cost-low">$150/mo</td><td class="savings">77%</td></tr>
+      <tr><td>14</td><td>1 NAT GW + VPC Endpoints</td><td class="cost-high">$135/mo</td><td class="cost-low">$55/mo</td><td class="savings">59%</td></tr>
+      <tr><td>15</td><td>Resource tags for attribution</td><td>Opaque</td><td>Full visibility</td><td>Enables savings</td></tr>
+      <tr style="font-weight: 700; font-size: 1rem;">
+        <td></td>
+        <td>TOTAL (items 10-14)</td>
+        <td class="cost-high">$1,912/mo</td>
+        <td class="cost-low">$493/mo</td>
+        <td class="savings">74%</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip">
+    <strong>Bottom line:</strong> These 15 changes transform a vulnerable, over-provisioned deployment into a hardened, cost-efficient production environment. Security changes have zero cost impact (SGs, NACLs, KMS are free or pennies). Cost optimizations save <strong class="savings">$1,419/month</strong> ($17,028/year) with no reduction in functionality.
+  </div>
+
+
+  <footer>
+    <p>BookStore Platform &mdash; Production Hardening Visual Guide</p>
+    <p><a href="production-hardening-aws.html">Full Hardening Reference</a> &middot; <a href="architecture.html">Architecture</a> &middot; <a href="index.html">Home</a></p>
+  </footer>
+
+</div><!-- .container -->
+</body>
+</html>
