@@ -1,0 +1,265 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" font-family="Inter, -apple-system, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="900" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0f172a"/><stop offset="100%" stop-color="#1a2332"/>
+    </linearGradient>
+    <filter id="sh"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-opacity="0.3"/></filter>
+    <filter id="shLg"><feDropShadow dx="0" dy="3" stdDeviation="6" flood-opacity="0.35"/></filter>
+    <marker id="ar" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#475569"/></marker>
+    <marker id="arG" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#34d399"/></marker>
+    <marker id="arR" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#f87171"/></marker>
+    <marker id="arAz" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#0078d4"/></marker>
+    <marker id="arW" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#f1f5f9"/></marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="900" fill="url(#bg)" rx="16"/>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- TITLE                                               -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <text x="600" y="34" text-anchor="middle" font-size="21" font-weight="800" fill="#f1f5f9">Azure AKS &#x2014; NSG &amp; Private Endpoint Architecture</text>
+  <text x="600" y="54" text-anchor="middle" font-size="12" fill="#64748b">Network Security Groups &#x2022; Private Endpoints &#x2022; Zero Public Access &#x2022; Azure Policy Enforcement</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 1: Internet + WAF + App Gateway                 -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- Internet -->
+  <rect x="100" y="74" width="140" height="36" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1" filter="url(#sh)"/>
+  <text x="170" y="97" text-anchor="middle" font-size="12" font-weight="600" fill="#f1f5f9">&#x1F30D; Internet</text>
+
+  <!-- Arrow -->
+  <line x1="240" y1="92" x2="310" y2="92" stroke="#34d399" stroke-width="1.5" marker-end="url(#arG)"/>
+  <text x="275" y="86" text-anchor="middle" font-size="8" fill="#34d399">HTTPS</text>
+
+  <!-- WAF v2 -->
+  <rect x="316" y="74" width="160" height="36" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="396" y="97" text-anchor="middle" font-size="12" font-weight="600" fill="#f59e0b">&#x1F6E1; WAF v2</text>
+
+  <!-- Arrow -->
+  <line x1="476" y1="92" x2="546" y2="92" stroke="#34d399" stroke-width="1.5" marker-end="url(#arG)"/>
+  <text x="511" y="86" text-anchor="middle" font-size="8" fill="#34d399">Filtered</text>
+
+  <!-- App Gateway -->
+  <rect x="552" y="74" width="200" height="36" rx="8" fill="#1e293b" stroke="#0078d4" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="652" y="97" text-anchor="middle" font-size="12" font-weight="600" fill="#60a5fa">Application Gateway</text>
+
+  <!-- Arrow down -->
+  <line x1="652" y1="110" x2="652" y2="134" stroke="#475569" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 2: App Gateway Subnet NSG (green border)        -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="40" y="138" width="1120" height="120" rx="10" fill="none" stroke="#34d399" stroke-width="2" opacity="0.8"/>
+  <rect x="48" y="132" width="260" height="18" rx="4" fill="#34d399" opacity="0.9"/>
+  <text x="56" y="145" font-size="10" font-weight="700" fill="#0f172a">APP GATEWAY SUBNET NSG (10.1.0.0/24)</text>
+
+  <!-- App GW Box -->
+  <rect x="60" y="158" width="320" height="88" rx="8" fill="#1e293b" stroke="#34d399" stroke-width="1" filter="url(#sh)"/>
+  <text x="220" y="176" text-anchor="middle" font-size="11" font-weight="700" fill="#34d399">App Gateway Subnet Rules</text>
+  <text x="76" y="194" font-size="10" fill="#86efac">&#x2714; IN: 443/80 from Internet (Any)</text>
+  <text x="76" y="210" font-size="10" fill="#fbbf24">&#x2714; IN: 65200&#x2013;65535 from GatewayManager (MANDATORY)</text>
+  <text x="76" y="226" font-size="10" fill="#86efac">&#x2714; OUT: to AKS Subnet 80/443/NodePorts</text>
+  <text x="76" y="242" font-size="10" fill="#f87171">&#x2718; DENY all other inbound/outbound</text>
+
+  <!-- Explanation box -->
+  <rect x="420" y="158" width="340" height="88" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1" filter="url(#sh)"/>
+  <text x="590" y="176" text-anchor="middle" font-size="11" font-weight="700" fill="#f59e0b">&#x26A0; GatewayManager Ports</text>
+  <text x="436" y="196" font-size="9" fill="#94a3b8">Azure health probes use ports 65200&#x2013;65535.</text>
+  <text x="436" y="212" font-size="9" fill="#94a3b8">Blocking these ports causes App Gateway to</text>
+  <text x="436" y="228" font-size="9" fill="#94a3b8">enter an unhealthy state and stop routing.</text>
+  <text x="436" y="244" font-size="9" fill="#fbbf24" font-weight="600">Source: GatewayManager service tag ONLY</text>
+
+  <!-- Traffic flow indicator -->
+  <rect x="800" y="158" width="340" height="88" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1" filter="url(#sh)"/>
+  <text x="970" y="176" text-anchor="middle" font-size="11" font-weight="700" fill="#f1f5f9">Traffic Flow Summary</text>
+  <text x="816" y="196" font-size="10" fill="#86efac">Internet &#x2192; WAF &#x2192; App GW &#x2192; AKS Pods</text>
+  <text x="816" y="214" font-size="10" fill="#94a3b8">TLS termination at App Gateway</text>
+  <text x="816" y="232" font-size="10" fill="#94a3b8">Re-encrypt to AKS via Istio mTLS</text>
+  <text x="816" y="248" font-size="10" fill="#60a5fa">Backend health probes &#x2192; /healthz</text>
+
+  <!-- Arrow down from App GW NSG to AKS NSG -->
+  <line x1="600" y1="258" x2="600" y2="278" stroke="#34d399" stroke-width="2" marker-end="url(#arG)"/>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 3: AKS Subnet NSG (blue border)                 -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="40" y="282" width="1120" height="180" rx="10" fill="none" stroke="#60a5fa" stroke-width="2" opacity="0.8"/>
+  <rect x="48" y="276" width="230" height="18" rx="4" fill="#60a5fa" opacity="0.9"/>
+  <text x="56" y="289" font-size="10" font-weight="700" fill="#0f172a">AKS SUBNET NSG (10.1.1.0/24)</text>
+
+  <!-- AKS Worker Pods box -->
+  <rect x="60" y="302" width="480" height="148" rx="8" fill="#1e293b" stroke="#60a5fa" stroke-width="1.5" filter="url(#shLg)"/>
+  <rect x="60" y="302" width="480" height="24" rx="8" fill="#0078d4"/>
+  <rect x="60" y="314" width="480" height="12" fill="#0078d4"/>
+  <text x="300" y="319" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff">AKS Worker Nodes (Pods + Istio Ambient)</text>
+
+  <!-- Pod icons inside -->
+  <rect x="78" y="338" width="100" height="26" rx="5" fill="#0e2a4d" stroke="#60a5fa" stroke-width="1"/>
+  <text x="128" y="355" text-anchor="middle" font-size="9" font-weight="600" fill="#60a5fa">ecom-service</text>
+
+  <rect x="190" y="338" width="110" height="26" rx="5" fill="#0e2a4d" stroke="#60a5fa" stroke-width="1"/>
+  <text x="245" y="355" text-anchor="middle" font-size="9" font-weight="600" fill="#60a5fa">inventory-svc</text>
+
+  <rect x="312" y="338" width="80" height="26" rx="5" fill="#0e2a4d" stroke="#60a5fa" stroke-width="1"/>
+  <text x="352" y="355" text-anchor="middle" font-size="9" font-weight="600" fill="#60a5fa">ui-service</text>
+
+  <rect x="404" y="338" width="80" height="26" rx="5" fill="#0e2a4d" stroke="#60a5fa" stroke-width="1"/>
+  <text x="444" y="355" text-anchor="middle" font-size="9" font-weight="600" fill="#60a5fa">Keycloak</text>
+
+  <rect x="78" y="374" width="80" height="26" rx="5" fill="#0e2a4d" stroke="#a78bfa" stroke-width="1"/>
+  <text x="118" y="391" text-anchor="middle" font-size="9" font-weight="600" fill="#a78bfa">Debezium</text>
+
+  <rect x="170" y="374" width="70" height="26" rx="5" fill="#0e2a4d" stroke="#a78bfa" stroke-width="1"/>
+  <text x="205" y="391" text-anchor="middle" font-size="9" font-weight="600" fill="#a78bfa">Flink</text>
+
+  <rect x="252" y="374" width="80" height="26" rx="5" fill="#0e2a4d" stroke="#a78bfa" stroke-width="1"/>
+  <text x="292" y="391" text-anchor="middle" font-size="9" font-weight="600" fill="#a78bfa">Superset</text>
+
+  <rect x="344" y="374" width="80" height="26" rx="5" fill="#0e2a4d" stroke="#f59e0b" stroke-width="1"/>
+  <text x="384" y="391" text-anchor="middle" font-size="9" font-weight="600" fill="#f59e0b">Prometheus</text>
+
+  <rect x="436" y="374" width="70" height="26" rx="5" fill="#0e2a4d" stroke="#f59e0b" stroke-width="1"/>
+  <text x="471" y="391" text-anchor="middle" font-size="9" font-weight="600" fill="#f59e0b">Grafana</text>
+
+  <!-- Istio mTLS note -->
+  <text x="300" y="430" text-anchor="middle" font-size="9" fill="#94a3b8">All inter-pod traffic encrypted via Istio Ambient mTLS (ztunnel HBONE)</text>
+
+  <!-- NSG Rules box -->
+  <rect x="580" y="302" width="560" height="148" rx="8" fill="#1e293b" stroke="#60a5fa" stroke-width="1" filter="url(#sh)"/>
+  <text x="860" y="322" text-anchor="middle" font-size="11" font-weight="700" fill="#60a5fa">AKS Subnet NSG Rules</text>
+
+  <!-- Inbound rules -->
+  <text x="596" y="342" font-size="10" font-weight="600" fill="#86efac">Inbound (Allow):</text>
+  <text x="596" y="358" font-size="10" fill="#86efac">&#x2714; FROM App GW Subnet: 80, 443, 30000&#x2013;32767</text>
+  <text x="596" y="374" font-size="10" fill="#86efac">&#x2714; FROM AzureCloud: 443 (control plane API)</text>
+  <text x="596" y="390" font-size="10" fill="#f87171">&#x2718; DENY all other inbound</text>
+
+  <!-- Outbound rules -->
+  <text x="596" y="412" font-size="10" font-weight="600" fill="#86efac">Outbound (Allow):</text>
+  <text x="596" y="428" font-size="10" fill="#86efac">&#x2714; TO DB Subnet: 5432 (PostgreSQL)</text>
+  <text x="890" y="428" font-size="10" fill="#86efac">&#x2714; TO Redis PE: 6380 (TLS)</text>
+  <text x="596" y="444" font-size="10" fill="#86efac">&#x2714; TO Event Hubs PE: 443</text>
+  <text x="890" y="444" font-size="10" fill="#86efac">&#x2714; TO Key Vault PE: 443</text>
+
+  <!-- Arrows down from AKS to Row 4 -->
+  <line x1="200" y1="462" x2="200" y2="488" stroke="#34d399" stroke-width="1.5" marker-end="url(#arG)"/>
+  <line x1="600" y1="462" x2="600" y2="488" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arAz)"/>
+  <line x1="1000" y1="462" x2="1000" y2="488" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arAz)"/>
+
+  <!-- Labels on arrows -->
+  <text x="200" y="480" text-anchor="middle" font-size="8" fill="#34d399">:5432</text>
+  <text x="600" y="480" text-anchor="middle" font-size="8" fill="#60a5fa">:6380 TLS</text>
+  <text x="1000" y="480" text-anchor="middle" font-size="8" fill="#60a5fa">:443</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 4: DB Subnet + Private Endpoints                -->
+  <!-- ═══════════════════════════════════════════════════ -->
+
+  <!-- Database Subnet NSG -->
+  <rect x="40" y="492" width="360" height="100" rx="10" fill="none" stroke="#f59e0b" stroke-width="2" opacity="0.8"/>
+  <rect x="48" y="486" width="200" height="18" rx="4" fill="#f59e0b" opacity="0.9"/>
+  <text x="56" y="499" font-size="10" font-weight="700" fill="#0f172a">DATABASE SUBNET NSG (10.1.2.0/24)</text>
+
+  <rect x="60" y="510" width="320" height="70" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1" filter="url(#sh)"/>
+  <text x="220" y="530" text-anchor="middle" font-size="11" font-weight="700" fill="#f59e0b">Azure Database for PostgreSQL</text>
+  <text x="76" y="548" font-size="10" fill="#86efac">&#x2714; IN: 5432 from AKS Subnet ONLY</text>
+  <text x="76" y="564" font-size="10" fill="#f87171">&#x2718; DENY all other inbound (including Internet)</text>
+
+  <!-- Redis Private Endpoint -->
+  <rect x="420" y="492" width="360" height="100" rx="8" fill="#1e293b" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="6,3" filter="url(#sh)"/>
+  <text x="600" y="514" text-anchor="middle" font-size="11" font-weight="700" fill="#60a5fa">Redis Cache Private Endpoint</text>
+  <text x="436" y="534" font-size="10" fill="#86efac">&#x2714; IN: 6380 from AKS Subnet (TLS enforced)</text>
+  <text x="436" y="552" font-size="10" fill="#94a3b8">Private DNS Zone: privatelink.redis.cache.windows.net</text>
+  <text x="436" y="570" font-size="10" fill="#f87171">&#x2718; Public network access: DISABLED</text>
+
+  <!-- Event Hubs Private Endpoint -->
+  <rect x="800" y="492" width="360" height="100" rx="8" fill="#1e293b" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="6,3" filter="url(#sh)"/>
+  <text x="980" y="514" text-anchor="middle" font-size="11" font-weight="700" fill="#60a5fa">Event Hubs Private Endpoint</text>
+  <text x="816" y="534" font-size="10" fill="#86efac">&#x2714; IN: 443 from AKS Subnet (AMQP/TLS)</text>
+  <text x="816" y="552" font-size="10" fill="#94a3b8">Private DNS Zone: privatelink.servicebus.windows.net</text>
+  <text x="816" y="570" font-size="10" fill="#f87171">&#x2718; Public network access: DISABLED</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 5: Additional Private Endpoints                  -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="40" y="612" width="1120" height="98" rx="10" fill="none" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.6"/>
+  <rect x="48" y="606" width="220" height="18" rx="4" fill="#1e3a5f" opacity="0.9"/>
+  <text x="56" y="619" font-size="10" font-weight="700" fill="#60a5fa">ADDITIONAL PRIVATE ENDPOINTS</text>
+
+  <!-- Key Vault PE -->
+  <rect x="60" y="632" width="340" height="66" rx="8" fill="#1e293b" stroke="#a78bfa" stroke-width="1" filter="url(#sh)"/>
+  <text x="230" y="652" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa">&#x1F511; Key Vault Private Endpoint</text>
+  <text x="76" y="670" font-size="10" fill="#94a3b8">privatelink.vaultcore.azure.net</text>
+  <text x="76" y="686" font-size="10" fill="#f87171">&#x2718; Public Access: DISABLED</text>
+  <rect x="280" y="676" width="100" height="16" rx="3" fill="#7f1d1d" stroke="#f87171" stroke-width="1"/>
+  <text x="330" y="688" text-anchor="middle" font-size="9" font-weight="600" fill="#f87171">NO PUBLIC</text>
+
+  <!-- ACR PE -->
+  <rect x="420" y="632" width="340" height="66" rx="8" fill="#1e293b" stroke="#a78bfa" stroke-width="1" filter="url(#sh)"/>
+  <text x="590" y="652" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa">&#x1F4E6; ACR Private Endpoint</text>
+  <text x="436" y="670" font-size="10" fill="#94a3b8">privatelink.azurecr.io</text>
+  <text x="436" y="686" font-size="10" fill="#f87171">&#x2718; Public Access: DISABLED</text>
+  <rect x="640" y="676" width="100" height="16" rx="3" fill="#7f1d1d" stroke="#f87171" stroke-width="1"/>
+  <text x="690" y="688" text-anchor="middle" font-size="9" font-weight="600" fill="#f87171">NO PUBLIC</text>
+
+  <!-- Blob Storage PE -->
+  <rect x="780" y="632" width="360" height="66" rx="8" fill="#1e293b" stroke="#a78bfa" stroke-width="1" filter="url(#sh)"/>
+  <text x="960" y="652" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa">&#x1F4BE; Blob Storage Private Endpoint</text>
+  <text x="796" y="670" font-size="10" fill="#94a3b8">privatelink.blob.core.windows.net</text>
+  <text x="796" y="686" font-size="10" fill="#f87171">&#x2718; Public Access: DISABLED</text>
+  <rect x="1020" y="676" width="100" height="16" rx="3" fill="#7f1d1d" stroke="#f87171" stroke-width="1"/>
+  <text x="1070" y="688" text-anchor="middle" font-size="9" font-weight="600" fill="#f87171">NO PUBLIC</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 6: Azure Policy Badges                          -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="40" y="728" width="1120" height="80" rx="10" fill="#1e293b" stroke="#a78bfa" stroke-width="1.5" filter="url(#shLg)"/>
+  <text x="600" y="750" text-anchor="middle" font-size="13" font-weight="700" fill="#a78bfa">Azure Policy Enforcement (Deny Mode)</text>
+
+  <!-- Policy badges -->
+  <rect x="68" y="760" width="220" height="32" rx="6" fill="#0e2a4d" stroke="#a78bfa" stroke-width="1"/>
+  <text x="178" y="781" text-anchor="middle" font-size="10" font-weight="600" fill="#c4b5fd">&#x1F6AB; No Privileged Containers</text>
+
+  <rect x="308" y="760" width="200" height="32" rx="6" fill="#0e2a4d" stroke="#a78bfa" stroke-width="1"/>
+  <text x="408" y="781" text-anchor="middle" font-size="10" font-weight="600" fill="#c4b5fd">&#x1F4E6; ACR Images Only</text>
+
+  <rect x="528" y="760" width="220" height="32" rx="6" fill="#0e2a4d" stroke="#a78bfa" stroke-width="1"/>
+  <text x="638" y="781" text-anchor="middle" font-size="10" font-weight="600" fill="#c4b5fd">&#x1F6AB; No Privilege Escalation</text>
+
+  <rect x="768" y="760" width="370" height="32" rx="6" fill="#0e2a4d" stroke="#a78bfa" stroke-width="1"/>
+  <text x="953" y="781" text-anchor="middle" font-size="10" font-weight="600" fill="#c4b5fd">&#x1F512; Non-Root + Read-Only rootfs</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- LEGEND                                              -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="40" y="824" width="1120" height="60" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+  <text x="60" y="846" font-size="11" font-weight="700" fill="#94a3b8">Legend:</text>
+
+  <!-- Green = Allowed -->
+  <rect x="130" y="834" width="14" height="14" rx="3" fill="#34d399"/>
+  <text x="150" y="846" font-size="10" fill="#86efac">Allowed Traffic</text>
+
+  <!-- Red X = Denied -->
+  <rect x="280" y="834" width="14" height="14" rx="3" fill="#f87171"/>
+  <text x="300" y="846" font-size="10" fill="#fca5a5">Denied / Public Access Disabled</text>
+
+  <!-- Blue dashed = Private Endpoint -->
+  <line x1="500" y1="841" x2="540" y2="841" stroke="#60a5fa" stroke-width="2" stroke-dasharray="5,3"/>
+  <text x="548" y="846" font-size="10" fill="#93c5fd">Private Endpoint</text>
+
+  <!-- Orange = NSG boundary -->
+  <rect x="700" y="834" width="14" height="14" rx="3" fill="none" stroke="#f59e0b" stroke-width="2"/>
+  <text x="720" y="846" font-size="10" fill="#fbbf24">NSG Boundary</text>
+
+  <!-- Purple = Azure Policy -->
+  <rect x="850" y="834" width="14" height="14" rx="3" fill="none" stroke="#a78bfa" stroke-width="2"/>
+  <text x="870" y="846" font-size="10" fill="#c4b5fd">Azure Policy</text>
+
+  <!-- Blue solid = AKS Subnet -->
+  <rect x="990" y="834" width="14" height="14" rx="3" fill="none" stroke="#60a5fa" stroke-width="2"/>
+  <text x="1010" y="846" font-size="10" fill="#93c5fd">AKS Subnet</text>
+
+  <!-- Footer -->
+  <text x="600" y="876" text-anchor="middle" font-size="9" fill="#475569">All resources deployed via Terraform &#x2022; NSGs auto-created by AKS with custom rules appended &#x2022; Private DNS zones linked to VNet</text>
+</svg>
