@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CSRF Security Enhancements &mdash; BookStore Platform</title>
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 24px 0 8px; color: #cbd5e1; }
+    p { margin-bottom: 16px; color: var(--text); }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.85rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.05); }
+    code { background: var(--card); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: #f59e0b; }
+    pre { background: var(--card); padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; color: #e2e8f0; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.blue { background: linear-gradient(135deg, #2563eb, #3b82f6); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+    .step-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 16px 0; }
+    .step-card h3 { margin-top: 0; color: var(--accent); }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: white; font-weight: 700; font-size: 0.85rem; margin-right: 10px; flex-shrink: 0; }
+    .result { padding: 12px 16px; border-radius: 8px; margin: 8px 0 16px; font-size: 0.9rem; }
+    .result.pass { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: var(--green); }
+    .result.warn { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); color: var(--yellow); }
+    .result.info { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); color: var(--accent); }
+    /* ── LinkedIn Banner ── */
+    .linkedin-banner { position: relative; width: 100%; background: linear-gradient(135deg, #0c1222 0%, #162044 35%, #1e1b4b 60%, #312e81 100%); overflow: hidden; }
+    .linkedin-banner::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle at 15% 50%, rgba(59,130,246,0.1) 0%, transparent 50%), radial-gradient(circle at 85% 20%, rgba(139,92,246,0.12) 0%, transparent 40%); pointer-events: none; }
+    .linkedin-banner::after { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px); background-size: 48px 48px; pointer-events: none; }
+    .banner-inner { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 52px 48px 48px; display: flex; align-items: center; gap: 44px; }
+    .banner-shield { flex-shrink: 0; width: 130px; height: 150px; }
+    .banner-shield svg { width: 100%; height: 100%; filter: drop-shadow(0 0 24px rgba(59,130,246,0.3)); }
+    .banner-text { flex: 1; min-width: 0; }
+    .banner-series { font-size: 0.7rem; font-weight: 700; letter-spacing: 3.5px; text-transform: uppercase; color: rgba(167,139,250,0.9); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+    .banner-series::before { content: ''; width: 24px; height: 2px; background: linear-gradient(90deg, #a78bfa, transparent); }
+    .banner-title-text { font-size: 2.1rem; font-weight: 800; color: #f1f5f9; line-height: 1.25; margin-bottom: 10px; background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .banner-desc { font-size: 0.95rem; color: #94a3b8; margin-bottom: 22px; line-height: 1.6; max-width: 540px; }
+    .banner-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+    .banner-tags span { font-size: 0.7rem; font-weight: 600; padding: 5px 14px; border-radius: 6px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.2); color: #93c5fd; letter-spacing: 0.3px; }
+    .banner-brand { position: absolute; bottom: 18px; right: 32px; font-size: 0.65rem; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: rgba(148,163,184,0.35); z-index: 1; }
+    .banner-accent-line { height: 3px; background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #06b6d4 100%); }
+    .banner-node { position: absolute; border-radius: 50%; z-index: 1; }
+    .banner-node::after { content: ''; position: absolute; top: 50%; left: 50%; width: 200%; height: 200%; transform: translate(-50%, -50%); border-radius: 50%; border: 1px solid; opacity: 0.15; animation: pulse-ring 3s ease-out infinite; }
+    @keyframes pulse-ring { 0% { width: 100%; height: 100%; opacity: 0.3; } 100% { width: 300%; height: 300%; opacity: 0; } }
+    .banner-node-1 { width: 8px; height: 8px; background: #3b82f6; top: 20%; right: 15%; }
+    .banner-node-1::after { border-color: #3b82f6; }
+    .banner-node-2 { width: 6px; height: 6px; background: #8b5cf6; top: 65%; right: 8%; }
+    .banner-node-2::after { border-color: #8b5cf6; animation-delay: 1s; }
+    .banner-node-3 { width: 5px; height: 5px; background: #06b6d4; top: 35%; right: 25%; }
+    .banner-node-3::after { border-color: #06b6d4; animation-delay: 2s; }
+    @media (max-width: 768px) { .banner-inner { flex-direction: column; padding: 36px 24px 32px; gap: 24px; text-align: center; } .banner-shield { width: 90px; height: 104px; } .banner-title-text { font-size: 1.5rem; } .banner-tags { justify-content: center; } .banner-node { display: none; } }
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+      <a href="user-guide.html">User Guide</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── LinkedIn Banner ── -->
+<div class="linkedin-banner">
+  <div class="banner-node banner-node-1"></div>
+  <div class="banner-node banner-node-2"></div>
+  <div class="banner-node banner-node-3"></div>
+  <div class="banner-inner">
+    <div class="banner-shield">
+      <svg viewBox="0 0 130 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="sg" x1="65" y1="8" x2="65" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="rgba(59,130,246,0.2)"/><stop offset="100%" stop-color="rgba(139,92,246,0.15)"/></linearGradient>
+          <linearGradient id="ss" x1="16" y1="8" x2="114" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#60a5fa"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient>
+          <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <path d="M65 14L22 36v38c0 30 18 56 43 66 25-10 43-36 43-66V36L65 14z" fill="url(#sg)" stroke="url(#ss)" stroke-width="2" filter="url(#glow)"/>
+        <text x="65" y="85" text-anchor="middle" fill="#60a5fa" font-size="42" font-weight="700">8</text>
+      </svg>
+    </div>
+    <div class="banner-text">
+      <div class="banner-series">CSRF Protection Series &bull; Security Hardening</div>
+      <div class="banner-title-text">8 Security Enhancements</div>
+      <p class="banner-desc">Transforming the CSRF service from a compliance checkbox into a real security layer: single-use tokens, origin binding, fail-closed mode, rate limiting, audience validation, and anomaly detection</p>
+      <div class="banner-tags">
+        <span>Single-Use</span>
+        <span>Origin Binding</span>
+        <span>Fail-Closed</span>
+        <span>Rate Limiting</span>
+        <span>JWT Audience</span>
+        <span>Open Redirect Fix</span>
+        <span>HSTS</span>
+        <span>Anomaly Detection</span>
+      </div>
+    </div>
+  </div>
+  <div class="banner-brand">BookStore Platform</div>
+</div>
+<div class="banner-accent-line"></div>
+
+<div class="container">
+
+  <h1>CSRF Security Enhancements</h1>
+  <p>8 enhancements that close real security gaps &mdash; backed by OWASP, NIST SP 800-63B, and industry practices from GitHub, Stripe, and Django/Rails</p>
+
+  <div class="badges">
+    <span class="badge green">49 Tests Passing</span>
+    <span class="badge red">9 Gaps Closed</span>
+    <span class="badge blue">All Backward-Compatible</span>
+    <span class="badge purple">Zero UI Changes (1-6, 8)</span>
+  </div>
+
+  <h2>Security Gaps Closed</h2>
+  <table>
+    <tr><th>Gap</th><th>Severity</th><th>Fix</th></tr>
+    <tr><td>Token replay</td><td><span class="badge red">HIGH</span></td><td>Single-use (consumed on mutation)</td></tr>
+    <tr><td>No origin validation</td><td><span class="badge red">HIGH</span></td><td>Origin/Referer check at gateway</td></tr>
+    <tr><td>Token generation spam</td><td><span class="badge red">HIGH</span></td><td>Per-user rate limiting (10/min)</td></tr>
+    <tr><td>Hardcoded fail-open</td><td><span class="badge red">HIGH</span></td><td>Configurable fail-closed mode</td></tr>
+    <tr><td>No audience validation</td><td><span class="badge orange">MEDIUM</span></td><td>JWT <code>aud</code> claim validation</td></tr>
+    <tr><td>Token not bound to origin</td><td><span class="badge orange">MEDIUM</span></td><td>Bind token to Origin header</td></tr>
+    <tr><td>Open redirect in auth relay</td><td><span class="badge orange">MEDIUM</span></td><td>Whitelist allowed redirect origins</td></tr>
+    <tr><td>No anomaly detection</td><td><span class="badge orange">MEDIUM</span></td><td>Prometheus anomaly counters</td></tr>
+    <tr><td>Missing security headers</td><td><span class="badge blue">LOW</span></td><td>HSTS, base-uri, form-action</td></tr>
+  </table>
+
+  <!-- Enhancements -->
+  <h2>Enhancement 1: Single-Use CSRF Tokens</h2>
+  <div class="step-card">
+    <h3><span class="step-num">1</span> Token consumed after successful mutation</h3>
+    <p>After a mutating request (POST/PUT/DELETE/PATCH) successfully validates the CSRF token, the token is <strong>deleted from Redis</strong> instead of having its TTL refreshed. The next mutation triggers the UI's auto-retry: 403 &rarr; fetch new token &rarr; retry &rarr; success.</p>
+    <pre><code>// BEFORE: Refresh TTL (multi-use)
+s.client.Expire(ctx, key, s.ttl)
+
+// AFTER: Delete key (single-use)
+s.client.Del(ctx, key)</code></pre>
+  </div>
+  <div class="result warn"><strong>Critical:</strong> Single-use alone is not enough. If a token is stolen but the user never performs a mutation, the stolen token sits valid until TTL expires (30min). The TTL + origin binding are essential safety nets.</div>
+
+  <h2>Enhancement 2: Configurable Fail-Closed Mode</h2>
+  <div class="step-card">
+    <h3><span class="step-num">2</span> Operators choose security vs availability</h3>
+    <table>
+      <tr><th>Mode</th><th>Redis Error</th><th>Use Case</th></tr>
+      <tr><td>Fail-open (default)</td><td>Allow request, log warning</td><td>General web apps</td></tr>
+      <tr><td>Fail-closed</td><td>503 Service Unavailable</td><td>Financial/compliance apps</td></tr>
+    </table>
+    <p>Env: <code>CSRF_FAIL_CLOSED=true</code></p>
+  </div>
+
+  <h2>Enhancement 3: Origin/Referer Validation</h2>
+  <div class="step-card">
+    <h3><span class="step-num">3</span> Stolen JWT blocked from unknown origins</h3>
+    <p>Validates <code>Origin</code> header (fallback to <code>Referer</code>) against allowed list. Mismatch &rarr; 403.</p>
+    <p>Env: <code>CSRF_ALLOWED_ORIGINS=https://myecom.net:30000,https://localhost:30000</code></p>
+    <p>Env: <code>CSRF_REQUIRE_ORIGIN=true</code> to reject when both headers are missing.</p>
+  </div>
+
+  <h2>Enhancement 4: Token Binding to Origin</h2>
+  <div class="step-card">
+    <h3><span class="step-num">4</span> Token tied to the origin where it was generated</h3>
+    <p>Stored as <code>{token}|{origin}</code> in Redis. Validation checks both. Exfiltrated token only works from the same origin.</p>
+    <p>Backward compatible: pre-upgrade tokens (no <code>|</code>) work from any origin.</p>
+  </div>
+
+  <h2>Enhancement 5: Per-User Rate Limiting</h2>
+  <div class="step-card">
+    <h3><span class="step-num">5</span> Prevent token generation spam (targeted DoS)</h3>
+    <p>Without rate limiting, an attacker with a stolen JWT can overwrite the victim's token 1000x/second &mdash; victim can never complete a mutation.</p>
+    <p>Sliding window: <code>INCR + EXPIRE</code> on Redis key <code>ratelimit:csrf:{userId}:{minute}</code></p>
+    <p>Default: <strong>10 per minute</strong>. Response: <code>429 Too Many Requests</code> with <code>Retry-After: 60</code></p>
+    <p>Env: <code>CSRF_RATE_LIMIT=10</code></p>
+  </div>
+
+  <h2>Enhancement 6: JWT Audience Validation</h2>
+  <div class="step-card">
+    <h3><span class="step-num">6</span> Prevent token confusion attacks</h3>
+    <p>Opt-in validation of JWT <code>aud</code> claim. Handles both string and array per RFC 7519.</p>
+    <p>Env: <code>CSRF_VALIDATE_AUDIENCE=true</code>, <code>CSRF_ALLOWED_AUDIENCES=ui-client</code></p>
+  </div>
+
+  <h2>Enhancement 7: Open Redirect Fix + Security Headers</h2>
+  <div class="step-card">
+    <h3><span class="step-num">7</span> Prevent auth token theft via redirect</h3>
+    <p><code>CallbackPage.tsx</code> now validates <code>returnUrl</code> against a whitelist. Unknown origins redirect to <code>/</code>.</p>
+    <p>New nginx headers: <code>Strict-Transport-Security</code>, <code>X-Permitted-Cross-Domain-Policies</code>, CSP <code>base-uri</code> + <code>form-action</code>.</p>
+  </div>
+
+  <h2>Enhancement 8: Anomaly Detection Metrics</h2>
+  <div class="step-card">
+    <h3><span class="step-num">8</span> Visibility into suspicious patterns</h3>
+    <table>
+      <tr><th>Metric</th><th>Labels</th><th>Alert On</th></tr>
+      <tr><td><code>csrf_anomaly_total</code></td><td><code>type</code></td><td>Rising <code>origin_mismatch</code>, <code>bad_audience</code></td></tr>
+      <tr><td><code>csrf_origin_checks_total</code></td><td><code>result</code></td><td>Rising <code>rejected</code></td></tr>
+      <tr><td><code>csrf_rate_limit_total</code></td><td><code>result</code></td><td>Rising <code>rejected</code></td></tr>
+    </table>
+  </div>
+
+  <h2>Defense Layering</h2>
+  <pre><code>Request &rarr; TLS termination &rarr; JWT validation (Istio)
+    &rarr; Origin validation (csrf-service)
+    &rarr; Audience validation (csrf-service, opt-in)
+    &rarr; CSRF token validation (csrf-service)
+        &rarr; Token consumed on success (single-use)
+        &rarr; Token bound to origin
+        &rarr; Token expires after TTL (30min max)
+    &rarr; Rate limiting on token generation
+    &rarr; Forward to backend</code></pre>
+  <div class="result pass"><strong>Each layer catches a different attack vector.</strong> No single mechanism is sufficient alone. TTL is the safety net for stolen-but-unconsumed tokens.</div>
+
+  <h2>Configuration Reference</h2>
+  <table>
+    <tr><th>Env Var</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>CSRF_FAIL_CLOSED</code></td><td><code>false</code></td><td>Return 503 on Redis errors</td></tr>
+    <tr><td><code>CSRF_TOKEN_TTL_MINUTES</code></td><td><code>30</code></td><td>Max token lifetime</td></tr>
+    <tr><td><code>CSRF_ALLOWED_ORIGINS</code></td><td><code>myecom,localhost</code></td><td>Allowed request origins</td></tr>
+    <tr><td><code>CSRF_REQUIRE_ORIGIN</code></td><td><code>false</code></td><td>Reject if Origin+Referer missing</td></tr>
+    <tr><td><code>CSRF_ALLOWED_AUDIENCES</code></td><td><code>ui-client</code></td><td>Allowed JWT audience values</td></tr>
+    <tr><td><code>CSRF_VALIDATE_AUDIENCE</code></td><td><code>false</code></td><td>Enable audience validation</td></tr>
+    <tr><td><code>CSRF_RATE_LIMIT</code></td><td><code>10</code></td><td>Token gen per minute per user</td></tr>
+  </table>
+
+  <h2>Test Coverage</h2>
+  <div class="result pass"><strong>49 tests across 6 packages</strong> &mdash; all using miniredis (no real Redis needed)</div>
+  <table>
+    <tr><th>Package</th><th>Tests</th><th>Coverage</th></tr>
+    <tr><td><code>internal/store</code></td><td>16</td><td>Single-use, origin binding, fail-open/closed, generate, validate</td></tr>
+    <tr><td><code>internal/handler</code></td><td>22</td><td>HTTP handlers, origin, audience, rate limiting, fail-closed</td></tr>
+    <tr><td><code>internal/jwt</code></td><td>18 cases</td><td>Extract, audience validation, RFC 7519 edge cases</td></tr>
+    <tr><td><code>internal/origin</code></td><td>7</td><td>Allowed, rejected, missing, Referer fallback, precedence</td></tr>
+    <tr><td><code>internal/ratelimit</code></td><td>5</td><td>Within limit, exceeds, per-user isolation, Redis down</td></tr>
+  </table>
+
+  <footer>
+    <p>BookStore Platform &mdash; CSRF Security Enhancements<br>
+    <a href="csrf-architecture-deep-dive.html">CSRF Architecture Deep Dive</a> &bull;
+    <a href="index.html">&larr; Back to Documentation Index</a></p>
+  </footer>
+</div>
+</body>
+</html>

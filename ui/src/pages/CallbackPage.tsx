@@ -47,11 +47,22 @@ export default function CallbackPage() {
           clearGuestCart()
         }
 
-        // Cross-origin return (e.g. http://myecom.net:30000/): relay the auth token via
+        // Cross-origin return (e.g. https://myecom.net:30000/): relay the auth token via
         // URL hash so the destination origin can restore the session. The hash is not
         // sent to servers and is cleared immediately by AuthContext on arrival.
         const isAbsolute = returnUrl.startsWith('http://') || returnUrl.startsWith('https://')
-        if (isAbsolute) {
+        const isAllowedRedirect = (url: string): boolean => {
+          const ALLOWED_ORIGINS = new Set([
+            'https://localhost:30000',
+            'https://myecom.net:30000',
+          ])
+          try {
+            return ALLOWED_ORIGINS.has(new URL(url).origin)
+          } catch {
+            return false
+          }
+        }
+        if (isAbsolute && isAllowedRedirect(returnUrl)) {
           const relay = encodeURIComponent(user.toStorageString())
           window.location.href = `${returnUrl}#auth=${relay}`
         } else if (pending.length > 0 && returnUrl === '/') {

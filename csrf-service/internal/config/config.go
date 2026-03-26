@@ -4,26 +4,51 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
 // Config holds all service configuration.
 type Config struct {
-	Port          string
-	RedisAddr     string
-	RedisPassword string
-	TokenTTL      time.Duration
+	Port             string
+	RedisAddr        string
+	RedisPassword    string
+	TokenTTL         time.Duration
+	FailClosed       bool
+	AllowedOrigins   []string
+	RequireOrigin    bool
+	AllowedAudiences []string
+	ValidateAudience bool
+	RateLimitPerMin  int
 }
 
 // Load reads configuration from environment variables with sensible defaults.
 func Load() Config {
 	host := envOrDefault("CSRF_REDIS_HOST", "redis.infra.svc.cluster.local")
 	port := envOrDefault("CSRF_REDIS_PORT", "6379")
+
+	ttlMin, _ := strconv.Atoi(envOrDefault("CSRF_TOKEN_TTL_MINUTES", "30"))
+	if ttlMin <= 0 {
+		ttlMin = 30
+	}
+
+	rateLimit, _ := strconv.Atoi(envOrDefault("CSRF_RATE_LIMIT", "60"))
+	if rateLimit <= 0 {
+		rateLimit = 10
+	}
+
 	return Config{
-		Port:          envOrDefault("PORT", "8080"),
-		RedisAddr:     fmt.Sprintf("%s:%s", host, port),
-		RedisPassword: envOrDefault("CSRF_REDIS_PASSWORD", ""),
-		TokenTTL:      30 * time.Minute,
+		Port:             envOrDefault("PORT", "8080"),
+		RedisAddr:        fmt.Sprintf("%s:%s", host, port),
+		RedisPassword:    envOrDefault("CSRF_REDIS_PASSWORD", ""),
+		TokenTTL:         time.Duration(ttlMin) * time.Minute,
+		FailClosed:       envOrDefault("CSRF_FAIL_CLOSED", "false") == "true",
+		AllowedOrigins:   parseCSV(envOrDefault("CSRF_ALLOWED_ORIGINS", "https://myecom.net:30000,https://localhost:30000,https://idp.keycloak.net:30000")),
+		RequireOrigin:    envOrDefault("CSRF_REQUIRE_ORIGIN", "false") == "true",
+		AllowedAudiences: parseCSV(envOrDefault("CSRF_ALLOWED_AUDIENCES", "ui-client")),
+		ValidateAudience: envOrDefault("CSRF_VALIDATE_AUDIENCE", "false") == "true",
+		RateLimitPerMin:  rateLimit,
 	}
 }
 
@@ -32,4 +57,16 @@ func envOrDefault(key, defaultVal string) string {
 		return v
 	}
 	return defaultVal
+}
+
+func parseCSV(s string) []string {
+	parts := strings.Split(s, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
 }

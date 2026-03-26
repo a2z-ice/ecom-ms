@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CSRF Architecture Deep Dive — BookStore Platform</title>
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 24px 0 8px; color: #cbd5e1; }
+    h4 { font-size: 0.95rem; font-weight: 600; margin: 16px 0 8px; color: #94a3b8; }
+    p { margin-bottom: 16px; color: var(--text); }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.85rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.05); }
+    code { background: var(--card); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: #f59e0b; }
+    pre { background: var(--card); padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; color: #e2e8f0; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.blue { background: linear-gradient(135deg, #2563eb, #3b82f6); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+    .flow-diagram { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; font-family: monospace; font-size: 0.85rem; line-height: 1.8; white-space: pre; overflow-x: auto; }
+    .flow-diagram .arrow { color: var(--accent); }
+    .flow-diagram .label { color: var(--green); font-weight: 600; }
+    .flow-diagram .fail { color: var(--red); font-weight: 600; }
+    .step-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 16px 0; }
+    .step-card h3 { margin-top: 0; color: var(--accent); }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: white; font-weight: 700; font-size: 0.85rem; margin-right: 10px; flex-shrink: 0; }
+    .result { padding: 12px 16px; border-radius: 8px; margin: 8px 0 16px; font-size: 0.9rem; }
+    .result.pass { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: var(--green); }
+    .result.fail { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: var(--red); }
+    .result.warn { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); color: var(--yellow); }
+    .result.info { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); color: var(--accent); }
+    .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px 28px; margin: 0 0 40px; }
+    .toc h3 { margin: 0 0 12px; color: var(--accent); font-size: 1rem; }
+    .toc ol { margin: 0 0 0 20px; }
+    .toc li { margin-bottom: 4px; }
+    .toc a { color: var(--muted); text-decoration: none; font-size: 0.88rem; transition: color 0.15s; }
+    .toc a:hover { color: var(--accent); }
+    .verdict-box { background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(59,130,246,0.08)); border: 1px solid rgba(16,185,129,0.25); border-radius: 12px; padding: 24px 28px; margin: 24px 0; }
+    .verdict-box h3 { color: var(--green); margin-top: 0; }
+    .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+    .comparison-grid > div { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; }
+    .comparison-grid .label-tag { font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-bottom: 12px; display: inline-block; }
+    .comparison-grid .this-project .label-tag { background: rgba(59,130,246,0.2); color: var(--accent); }
+    .comparison-grid .standard .label-tag { background: rgba(139,92,246,0.2); color: #a78bfa; }
+    @media (max-width: 700px) { .comparison-grid { grid-template-columns: 1fr; } }
+    /* ── LinkedIn Banner ── */
+    .linkedin-banner { position: relative; width: 100%; background: linear-gradient(135deg, #0c1222 0%, #162044 35%, #1e1b4b 60%, #312e81 100%); overflow: hidden; }
+    .linkedin-banner::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle at 15% 50%, rgba(59,130,246,0.1) 0%, transparent 50%), radial-gradient(circle at 85% 20%, rgba(139,92,246,0.12) 0%, transparent 40%), radial-gradient(circle at 50% 90%, rgba(16,185,129,0.06) 0%, transparent 40%); pointer-events: none; }
+    .linkedin-banner::after { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px); background-size: 48px 48px; pointer-events: none; }
+    .banner-inner { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 52px 48px 48px; display: flex; align-items: center; gap: 44px; }
+    .banner-shield { flex-shrink: 0; width: 130px; height: 150px; }
+    .banner-shield svg { width: 100%; height: 100%; filter: drop-shadow(0 0 24px rgba(59,130,246,0.3)); }
+    .banner-text { flex: 1; min-width: 0; }
+    .banner-series { font-size: 0.7rem; font-weight: 700; letter-spacing: 3.5px; text-transform: uppercase; color: rgba(167,139,250,0.9); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+    .banner-series::before { content: ''; width: 24px; height: 2px; background: linear-gradient(90deg, #a78bfa, transparent); }
+    .banner-title-text { font-size: 2.1rem; font-weight: 800; color: #f1f5f9; line-height: 1.25; margin-bottom: 10px; background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .banner-desc { font-size: 0.95rem; color: #94a3b8; margin-bottom: 22px; line-height: 1.6; max-width: 540px; }
+    .banner-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+    .banner-tags span { font-size: 0.7rem; font-weight: 600; padding: 5px 14px; border-radius: 6px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.2); color: #93c5fd; letter-spacing: 0.3px; transition: background 0.2s, border-color 0.2s; }
+    .banner-tags span:hover { background: rgba(59,130,246,0.2); border-color: rgba(59,130,246,0.35); }
+    .banner-brand { position: absolute; bottom: 18px; right: 32px; font-size: 0.65rem; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: rgba(148,163,184,0.35); z-index: 1; }
+    .banner-accent-line { height: 3px; background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #06b6d4 100%); }
+    .banner-node { position: absolute; border-radius: 50%; z-index: 1; }
+    .banner-node::after { content: ''; position: absolute; top: 50%; left: 50%; width: 200%; height: 200%; transform: translate(-50%, -50%); border-radius: 50%; border: 1px solid; opacity: 0.15; animation: pulse-ring 3s ease-out infinite; }
+    @keyframes pulse-ring { 0% { width: 100%; height: 100%; opacity: 0.3; } 100% { width: 300%; height: 300%; opacity: 0; } }
+    .banner-node-1 { width: 8px; height: 8px; background: #3b82f6; top: 20%; right: 15%; }
+    .banner-node-1::after { border-color: #3b82f6; }
+    .banner-node-2 { width: 6px; height: 6px; background: #8b5cf6; top: 65%; right: 8%; }
+    .banner-node-2::after { border-color: #8b5cf6; animation-delay: 1s; }
+    .banner-node-3 { width: 5px; height: 5px; background: #06b6d4; top: 35%; right: 25%; }
+    .banner-node-3::after { border-color: #06b6d4; animation-delay: 2s; }
+    .banner-connector { position: absolute; z-index: 0; opacity: 0.08; }
+    @media (max-width: 768px) { .banner-inner { flex-direction: column; padding: 36px 24px 32px; gap: 24px; text-align: center; } .banner-shield { width: 90px; height: 104px; } .banner-title-text { font-size: 1.5rem; } .banner-desc { font-size: 0.88rem; } .banner-tags { justify-content: center; } .banner-node { display: none; } }
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+      <a href="user-guide.html">User Guide</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── LinkedIn Banner ── -->
+<div class="linkedin-banner">
+  <div class="banner-node banner-node-1"></div>
+  <div class="banner-node banner-node-2"></div>
+  <div class="banner-node banner-node-3"></div>
+  <svg class="banner-connector" width="100%" height="100%" style="position:absolute;inset:0">
+    <line x1="85%" y1="20%" x2="75%" y2="35%" stroke="#3b82f6" stroke-width="1" opacity="0.06"/>
+    <line x1="92%" y1="65%" x2="75%" y2="35%" stroke="#8b5cf6" stroke-width="1" opacity="0.05"/>
+  </svg>
+  <div class="banner-inner">
+    <div class="banner-shield">
+      <svg viewBox="0 0 130 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="sg" x1="65" y1="8" x2="65" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="rgba(59,130,246,0.2)"/><stop offset="100%" stop-color="rgba(139,92,246,0.15)"/></linearGradient>
+          <linearGradient id="ss" x1="16" y1="8" x2="114" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#60a5fa"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient>
+          <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <circle cx="12" cy="32" r="3" fill="#3b82f6" opacity="0.5"/><circle cx="118" cy="28" r="2.5" fill="#8b5cf6" opacity="0.4"/><circle cx="16" cy="115" r="2" fill="#60a5fa" opacity="0.3"/><circle cx="114" cy="108" r="2.5" fill="#a78bfa" opacity="0.4"/>
+        <line x1="12" y1="32" x2="32" y2="42" stroke="#3b82f6" stroke-width="0.5" opacity="0.3"/><line x1="118" y1="28" x2="98" y2="38" stroke="#8b5cf6" stroke-width="0.5" opacity="0.3"/><line x1="16" y1="115" x2="36" y2="100" stroke="#60a5fa" stroke-width="0.5" opacity="0.2"/><line x1="114" y1="108" x2="94" y2="95" stroke="#a78bfa" stroke-width="0.5" opacity="0.2"/>
+        <path d="M65 14L22 36v38c0 30 18 56 43 66 25-10 43-36 43-66V36L65 14z" fill="url(#sg)" stroke="url(#ss)" stroke-width="2" filter="url(#glow)"/>
+        <!-- Magnifying glass icon -->
+        <circle cx="58" cy="72" r="16" fill="none" stroke="#60a5fa" stroke-width="2"/>
+        <line x1="70" y1="84" x2="82" y2="96" stroke="#60a5fa" stroke-width="3" stroke-linecap="round"/>
+        <path d="M52 68 l4 4 l8 -8" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="banner-text">
+      <div class="banner-series">CSRF Protection Series &bull; Architecture Deep Dive</div>
+      <div class="banner-title-text">CSRF Architecture Deep Dive</div>
+      <p class="banner-desc">Comprehensive analysis of gateway-level CSRF protection: why it exists in a JWT-only architecture, how tokens flow end-to-end, and how the implementation compares to industry standards</p>
+      <div class="banner-tags">
+        <span>Defense-in-Depth</span>
+        <span>Istio ext_authz</span>
+        <span>UUID v4</span>
+        <span>Timing-Safe</span>
+        <span>Fail-Open</span>
+        <span>Sliding TTL</span>
+        <span>OWASP Compliant</span>
+      </div>
+    </div>
+  </div>
+  <div class="banner-brand">BookStore Platform</div>
+</div>
+<div class="banner-accent-line"></div>
+<!-- ── /LinkedIn Banner ── -->
+
+<div class="container">
+
+  <h1>CSRF Architecture Deep Dive</h1>
+  <p>Is CSRF a real threat with Bearer tokens? How does the gateway-level CSRF service work end-to-end? How does it compare to standard implementations?</p>
+
+  <div class="badges">
+    <span class="badge green">Defense-in-Depth</span>
+    <span class="badge purple">Istio ext_authz</span>
+    <span class="badge blue">UUID v4 &mdash; 122-bit Entropy</span>
+    <span class="badge orange">30min Sliding TTL</span>
+    <span class="badge red">Fail-Open on Redis Errors</span>
+    <span class="badge cyan">OWASP Compliant</span>
+  </div>
+
+  <!-- ── Table of Contents ── -->
+  <div class="toc">
+    <h3>Table of Contents</h3>
+    <ol>
+      <li><a href="#threat-analysis">Is CSRF a Real Threat in This Architecture?</a></li>
+      <li><a href="#why-csrf">Why This Project Implements CSRF Despite Bearer Tokens</a></li>
+      <li><a href="#end-to-end">How CSRF Works &mdash; End-to-End</a></li>
+      <li><a href="#lifecycle">Token Lifecycle</a></li>
+      <li><a href="#generation">Token Generation</a></li>
+      <li><a href="#storage">Token Storage in Redis</a></li>
+      <li><a href="#validation">Token Validation</a></li>
+      <li><a href="#expiration">Token Expiration and Refresh</a></li>
+      <li><a href="#ext-authz">Istio ext_authz Integration</a></li>
+      <li><a href="#ui-integration">UI Integration &mdash; React Client</a></li>
+      <li><a href="#fail-open">Fail-Open Design</a></li>
+      <li><a href="#comparison">Comparison with Standard Implementations</a></li>
+      <li><a href="#security-analysis">Security Properties Analysis</a></li>
+      <li><a href="#k8s-config">Kubernetes Production Configuration</a></li>
+      <li><a href="#observability">Observability and Metrics</a></li>
+      <li><a href="#tests">Test Coverage</a></li>
+      <li><a href="#limitations">Known Limitations and Trade-offs</a></li>
+      <li><a href="#flow-diagrams">Request Flow Diagrams</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="threat-analysis">1. Is CSRF a Real Threat in This Architecture?</h2>
+
+  <div class="verdict-box">
+    <h3>Verdict: No &mdash; Traditional CSRF Is Not a Meaningful Threat</h3>
+    <p>Authentication uses <code>Authorization: Bearer &lt;JWT&gt;</code> headers with tokens stored exclusively in JavaScript memory. Browsers do not automatically attach custom headers to cross-origin requests, so the fundamental precondition for CSRF is broken by design.</p>
+  </div>
+
+  <h3>Why Traditional CSRF Exists</h3>
+  <p>CSRF exploits a fundamental browser behavior: <strong>cookies are automatically attached to every request to a domain</strong>, regardless of which site initiated the request. A malicious page at <code>evil.com</code> can submit a form to <code>api.service.net</code>, and the browser sends the victim's session cookie. The server sees a valid cookie and executes the action.</p>
+
+  <p>The three conditions required for a CSRF attack:</p>
+  <ol>
+    <li><strong>Automatic credential attachment</strong> &mdash; the browser sends credentials (cookies) without JavaScript involvement</li>
+    <li><strong>Cross-origin request capability</strong> &mdash; the attacker's page can trigger requests to the target</li>
+    <li><strong>Predictable request structure</strong> &mdash; the attacker knows what parameters to send</li>
+  </ol>
+
+  <h3>Why This Architecture Is Immune</h3>
+  <p><strong>Condition #1 is broken by design:</strong></p>
+  <ul>
+    <li>JWTs are stored in JavaScript memory (<code>InMemoryWebStorage</code> via <code>oidc-client-ts</code>), never in cookies or <code>localStorage</code></li>
+    <li>Every API request requires explicit JavaScript code to read the token and attach the <code>Authorization</code> header</li>
+    <li>A malicious page at <code>evil.com</code> cannot access the in-memory variables of <code>myecom.net</code> (Same-Origin Policy)</li>
+    <li>Even if the attacker submits a form or uses <code>&lt;img src="..."&gt;</code> to trigger a request, no <code>Authorization</code> header is attached</li>
+  </ul>
+
+  <div class="flow-diagram">evil.com <span class="arrow">&rarr;</span> POST api.service.net/ecom/cart
+  <span class="fail">&cross; No cookies to send (not using cookie auth)</span>
+  <span class="fail">&cross; No Authorization header (can't access myecom.net's JS memory)</span>
+  <span class="arrow">&rarr;</span> Server returns <span class="fail">401 Unauthorized</span>
+  <span class="arrow">&rarr;</span> <span class="fail">Attack fails completely</span></div>
+
+  <p>The OWASP CSRF Prevention Cheat Sheet explicitly confirms: <em>"If your application uses REST APIs with JWT in the Authorization header (not cookies), CSRF is not a concern because the browser does not automatically send the header."</em></p>
+
+  <h3>What Could Re-Introduce CSRF Risk</h3>
+  <table>
+    <tr><th>Scenario</th><th>Risk Level</th><th>Currently Present?</th></tr>
+    <tr><td>Cookies added for authentication (session ID or JWT in cookie)</td><td><span class="badge red">High</span></td><td>No</td></tr>
+    <tr><td>Token storage moved to <code>localStorage</code> (enables XSS-to-CSRF chains)</td><td><span class="badge orange">Medium</span></td><td>No</td></tr>
+    <tr><td>Proxy silently converts headers to cookies</td><td><span class="badge orange">Medium</span></td><td>No</td></tr>
+    <tr><td>Third-party OAuth library introduces cookie-based state</td><td><span class="badge orange">Medium</span></td><td>No</td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="why-csrf">2. Why This Project Implements CSRF Despite Bearer Tokens</h2>
+
+  <div class="step-card">
+    <h3><span class="step-num">1</span> Defense Against Future Regressions</h3>
+    <p>A future developer might add cookie-based session management, integrate a third-party OAuth library that uses cookies, or add a "remember me" feature. The gateway-level CSRF enforcement acts as a safety net that catches these regressions before they become exploitable.</p>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">2</span> Request Origin Verification</h3>
+    <p>The CSRF token serves as proof that the request originated from the application's own UI. If a JWT is leaked (e.g., via a logs aggregator or referer header), the attacker also needs a valid CSRF token bound to that JWT's <code>sub</code> claim. A CSRF token tied to user identity adds a second factor.</p>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">3</span> Compliance and Audit Requirements</h3>
+    <p>Security audits and compliance frameworks (SOC 2, PCI-DSS, ISO 27001) often require CSRF protection as a checkbox item regardless of the authentication mechanism. Having a documented, tested, and deployed CSRF layer satisfies these requirements without debate.</p>
+  </div>
+
+  <div class="step-card">
+    <h3><span class="step-num">4</span> Gateway-Level Enforcement Is Language-Agnostic</h3>
+    <p>Because CSRF validation happens at the Istio gateway (via ext_authz), every backend service &mdash; Java, Python, Go, or any future addition &mdash; is automatically protected without implementing CSRF logic in each service.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="end-to-end">3. How CSRF Works &mdash; End-to-End</h2>
+
+  <h3>Architecture Overview</h3>
+  <div class="flow-diagram"><span class="label">Browser (React)</span>                <span class="label">Istio Gateway (Envoy)</span>           <span class="label">Backend Service</span>
+   In-memory:                       ext_authz (CUSTOM)
+   - JWT                              csrf-service (Go)
+   - CSRF token                         Redis (csrf:&lt;sub&gt;)</div>
+
+  <h3>The Pattern: Synchronizer Token (Stateful CSRF)</h3>
+  <p>This implementation follows the <strong>Synchronizer Token Pattern</strong>, adapted for a microservices context:</p>
+  <ol>
+    <li>Server generates a token and stores it in Redis, keyed by user identity (<code>sub</code> claim)</li>
+    <li>Server returns the token to the client via JSON response</li>
+    <li>Client sends the token in a custom header (<code>X-CSRF-Token</code>) on mutating requests</li>
+    <li>Gateway intercepts the request via Istio ext_authz and validates the token before forwarding</li>
+  </ol>
+
+  <div class="result info">This is <strong>NOT</strong> the Double Submit Cookie pattern (which stores tokens in both a cookie and a header). There are no cookies involved at any point in this architecture.</div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="lifecycle">4. Token Lifecycle</h2>
+
+  <div class="flow-diagram"><span class="label">Browser</span>   GET /csrf/token   <span class="label">csrf-service</span>   SET csrf:&lt;sub&gt;   <span class="label">Redis</span>
+   <span class="arrow">&rarr;</span>                          <span class="arrow">&rarr;</span>                    TTL 1800s
+   <span class="arrow">&larr;</span>  { token: uuid }       <span class="arrow">&larr;</span>
+
+   POST /ecom/cart
+   Authorization: Bearer &lt;jwt&gt;
+   X-CSRF-Token: &lt;uuid&gt;
+   <span class="arrow">&rarr;</span>
+<span class="label">Gateway</span> <span class="arrow">&rarr;</span> ext_authz <span class="arrow">&rarr;</span> <span class="label">csrf-service</span> <span class="arrow">&rarr;</span> GET csrf:&lt;sub&gt; <span class="arrow">&rarr;</span> <span class="label">Redis</span>
+                         <span class="arrow">&larr;</span> 200 OK / 403
+   <span class="arrow">&darr;</span> (if 200)
+<span class="label">Backend Service</span></div>
+
+  <h3>Lifecycle States</h3>
+  <table>
+    <tr><th>State</th><th>Trigger</th><th>Redis Key</th><th>TTL</th></tr>
+    <tr><td><strong>Not Created</strong></td><td>User not authenticated</td><td>&mdash;</td><td>&mdash;</td></tr>
+    <tr><td><strong>Generated</strong></td><td><code>GET /csrf/token</code> with valid JWT</td><td><code>csrf:&lt;sub&gt;</code> = <code>&lt;uuid&gt;</code></td><td>30 minutes</td></tr>
+    <tr><td><strong>Validated + Refreshed</strong></td><td>Successful ext_authz check</td><td><code>csrf:&lt;sub&gt;</code> (same value)</td><td>30 minutes (reset)</td></tr>
+    <tr><td><strong>Expired</strong></td><td>30 minutes without validation</td><td>Key deleted by Redis</td><td>&mdash;</td></tr>
+    <tr><td><strong>Regenerated</strong></td><td>Another <code>GET /csrf/token</code></td><td><code>csrf:&lt;sub&gt;</code> = <code>&lt;new-uuid&gt;</code></td><td>30 minutes</td></tr>
+  </table>
+
+  <h3>Key Behaviors</h3>
+  <ul>
+    <li><strong>One token per user</strong>: Calling <code>GET /csrf/token</code> again overwrites the previous token. The old token immediately becomes invalid.</li>
+    <li><strong>Multi-use tokens</strong>: A token can be used for unlimited mutating requests until it expires or is replaced.</li>
+    <li><strong>Sliding expiration</strong>: Each successful validation resets the 30-minute TTL. An active user's token never expires.</li>
+    <li><strong>No grace period</strong>: Once the Redis key expires (TTL reaches 0), the token is gone. The next mutating request fails with 403.</li>
+  </ul>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="generation">5. Token Generation</h2>
+
+  <h3>Algorithm: UUID v4 (RFC 4122)</h3>
+  <pre><code>// csrf-service/internal/store/redis.go:50-57
+func (s *RedisStore) Generate(ctx context.Context, userID string) (string, error) {
+    token := uuid.New().String()  // UUID v4: 122 bits of random entropy
+    if err := s.client.Set(ctx, keyPrefix+userID, token, s.ttl).Err(); err != nil {
+        slog.Warn("Failed to store CSRF token in Redis", "user", userID, "error", err)
+        return token, err  // Return token anyway (fail-open)
+    }
+    return token, nil
+}</code></pre>
+
+  <h3>Token Format</h3>
+  <pre><code>550e8400-e29b-41d4-a716-446655440000
+&boxur;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxul;
+  36 characters, 32 hex digits + 4 hyphens
+  122 bits of cryptographic randomness
+  Version 4 (random), variant 1 (RFC 4122)</code></pre>
+
+  <h3>Entropy Analysis</h3>
+  <table>
+    <tr><th>Property</th><th>Value</th></tr>
+    <tr><td>Random source</td><td>Go's <code>crypto/rand</code> (via <code>github.com/google/uuid</code>)</td></tr>
+    <tr><td>Entropy</td><td>122 bits (6 bits fixed: 4 version + 2 variant)</td></tr>
+    <tr><td>Collision probability</td><td>2<sup>-61</sup> for birthday collision among 2<sup>61</sup> tokens</td></tr>
+    <tr><td>Brute-force resistance</td><td>1 in 5.3 &times; 10<sup>36</sup> chance per guess attempt</td></tr>
+  </table>
+
+  <h3>Why UUID v4 Instead of HMAC-Based Tokens?</h3>
+  <ul>
+    <li><strong>Stateful validation anyway</strong>: Tokens are stored in Redis, so cryptographic binding to user identity is redundant &mdash; Redis lookup already establishes the binding</li>
+    <li><strong>Simpler implementation</strong>: No secret key management, no rotation of signing keys</li>
+    <li><strong>No information leakage</strong>: UUID v4 reveals nothing about user, server, or timestamp</li>
+  </ul>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="storage">6. Token Storage in Redis</h2>
+
+  <h3>Key Format</h3>
+  <pre><code>KEY:   csrf:9d82bcb3-6e96-462c-bdb9-e677080e8920
+VALUE: 550e8400-e29b-41d4-a716-446655440000
+TTL:   1800 seconds (30 minutes)
+TYPE:  string</code></pre>
+
+  <p>Only the token string is stored as the Redis value. No metadata (timestamp, IP, user agent) is persisted. The key prefix <code>csrf:</code> prevents namespace collisions with other Redis consumers (rate limiting, sessions).</p>
+
+  <h3>Redis Connection Configuration</h3>
+  <pre><code>// csrf-service/internal/store/redis.go:36-47
+redis.NewClient(&redis.Options{
+    Addr:         "redis.infra.svc.cluster.local:6379",
+    Password:     "&lt;from-k8s-secret&gt;",
+    DB:           0,
+    DialTimeout:  2 * time.Second,
+    ReadTimeout:  1 * time.Second,
+    WriteTimeout: 1 * time.Second,
+    PoolSize:     10,
+    MinIdleConns: 2,
+})</code></pre>
+
+  <h3>Redis Server Configuration</h3>
+  <table>
+    <tr><th>Setting</th><th>Value</th><th>Impact on CSRF</th></tr>
+    <tr><td>Maxmemory</td><td>200MB</td><td>Each CSRF token uses ~100 bytes; 100K users = ~10MB</td></tr>
+    <tr><td>Eviction policy</td><td><code>allkeys-lru</code></td><td>Evicts least-recently-used keys when full (theoretical risk)</td></tr>
+    <tr><td>Persistence</td><td>AOF + RDB every 60s</td><td>Tokens survive Redis restart</td></tr>
+    <tr><td>Connection timeout</td><td>300s idle, 60s keepalive</td><td>Long-lived connections for pool</td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="validation">7. Token Validation</h2>
+
+  <pre><code>// csrf-service/internal/store/redis.go:59-76
+func (s *RedisStore) Validate(ctx context.Context, userID, token string) (bool, error) {
+    stored, err := s.client.Get(ctx, keyPrefix+userID).Result()
+    if err != nil {
+        if err == redis.Nil {
+            return false, nil  // No token stored &mdash; genuinely invalid
+        }
+        slog.Warn("Redis error during CSRF validation &mdash; failing open", ...)
+        return true, err  // Fail-open on infrastructure errors
+    }
+
+    valid := subtle.ConstantTimeCompare([]byte(stored), []byte(token)) == 1
+    if valid {
+        // Refresh TTL on successful validation (sliding expiration)
+        s.client.Expire(ctx, keyPrefix+userID, s.ttl)
+    }
+    return valid, nil
+}</code></pre>
+
+  <h3>Step-by-Step Validation</h3>
+  <ol>
+    <li><strong>Redis GET</strong>: Fetch stored token from <code>csrf:&lt;sub&gt;</code></li>
+    <li><strong>Key not found</strong> (<code>redis.Nil</code>): Return <code>(false, nil)</code> &mdash; token genuinely invalid or expired</li>
+    <li><strong>Redis error</strong> (connection/timeout): Return <code>(true, err)</code> &mdash; <strong>fail-open</strong></li>
+    <li><strong>Token comparison</strong>: <code>crypto/subtle.ConstantTimeCompare</code> &mdash; timing-safe</li>
+    <li><strong>TTL refresh</strong>: On match, reset TTL to 30 minutes from now</li>
+    <li><strong>Return result</strong>: <code>(true, nil)</code> if valid, <code>(false, nil)</code> if mismatch</li>
+  </ol>
+
+  <h3>Timing-Safe Comparison</h3>
+  <div class="result pass"><strong>Protected:</strong> <code>crypto/subtle.ConstantTimeCompare</code> executes in constant time regardless of how many characters match, preventing timing side-channel attacks.</div>
+
+  <p>Without this, an attacker could measure response times to guess tokens character by character:</p>
+  <pre><code>// Attacker's timing attack (PREVENTED by constant-time compare):
+Send "aaaa..." &rarr; 1.2ms response
+Send "5aaa..." &rarr; 1.3ms response (one more character matched)
+Send "55aa..." &rarr; 1.4ms response
+... repeat until full 36-character token is guessed</code></pre>
+
+  <h3>JWT Subject Extraction</h3>
+  <pre><code>// csrf-service/internal/jwt/extract.go:15-37
+func ExtractSub(authHeader string) string {
+    // 1. Check "Bearer " prefix
+    // 2. Split by "." to get [header, payload, signature]
+    // 3. Base64url decode payload
+    // 4. JSON unmarshal to extract "sub" claim
+    // Returns "" on any failure
+}</code></pre>
+
+  <div class="result info"><strong>Important:</strong> The csrf-service does NOT verify the JWT signature. Istio <code>RequestAuthentication</code> validates the JWT against Keycloak's JWKS endpoint upstream &mdash; before the request reaches any service. The csrf-service only needs to extract the <code>sub</code> claim.</div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="expiration">8. Token Expiration and Refresh</h2>
+
+  <h3>Expiration Mechanism</h3>
+  <p>Redis native key expiration handles the lifecycle. When a token is created or refreshed, Redis sets <code>SETEX csrf:&lt;sub&gt; 1800 &lt;token&gt;</code>. After 1800 seconds (30 minutes) of inactivity, Redis automatically deletes the key. No background jobs, no sweep processes, no application-level expiration checks.</p>
+
+  <h3>Sliding Window Behavior</h3>
+  <pre><code>Time  0:00  &mdash; User logs in, GET /csrf/token &rarr; token created, TTL = 30min
+Time 10:00  &mdash; User adds to cart (POST), CSRF validates &rarr; TTL reset to 30min
+Time 25:00  &mdash; User checks out (POST), CSRF validates &rarr; TTL reset to 30min
+Time 55:00  &mdash; No activity for 30 minutes &rarr; Redis deletes key automatically
+Time 55:01  &mdash; User tries POST &rarr; 403 (no token in Redis)
+Time 55:02  &mdash; UI auto-retries: fetches new token, retries POST &rarr; succeeds</code></pre>
+
+  <h3>Auto-Recovery in the UI</h3>
+  <pre><code>// ui/src/api/client.ts:58-62
+// Auto-retry on 403 for mutating requests &mdash; CSRF token may have expired
+if (resp.status === 403 && isMutating && !_csrfRetried) {
+    await fetchCsrfToken()                    // Get new token from csrf-service
+    return request&lt;T&gt;(url, options, true)  // Retry original request (once)
+}</code></pre>
+
+  <div class="result pass"><strong>Transparent to users:</strong> Token expiration is invisible in most cases. The only scenario where the user sees a failure is if the retry also fails (e.g., JWT itself has expired).</div>
+
+  <h3>TTL Comparison with Other Frameworks</h3>
+  <table>
+    <tr><th>Strategy</th><th>This Project</th><th>Django CSRF</th><th>Spring Security CSRF</th></tr>
+    <tr><td>TTL</td><td>30 minutes (sliding)</td><td>Session lifetime (days/weeks)</td><td>Session lifetime</td></tr>
+    <tr><td>Refresh</td><td>On each successful validation</td><td>On page load</td><td>Per-session</td></tr>
+    <tr><td>Multi-use</td><td>Yes</td><td>Yes (per-session)</td><td>Yes (per-session)</td></tr>
+    <tr><td>Storage</td><td>Redis</td><td>Database/signed cookie</td><td>HTTP session (server-side)</td></tr>
+    <tr><td>Auto-recovery</td><td>UI retries on 403</td><td>User refreshes page</td><td>User refreshes page</td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="ext-authz">9. Istio ext_authz Integration &mdash; Gateway-Level Enforcement</h2>
+
+  <h3>Configuration Chain</h3>
+
+  <h4>Step 1: Extension Provider Registration (Istio mesh config)</h4>
+  <pre><code>extensionProviders:
+- name: csrf-ext-authz
+  envoyExtAuthzHttp:
+    service: csrf-service.infra.svc.cluster.local
+    port: 8080
+    failOpen: true                          # Envoy-level fail-open
+    headersToUpstreamOnAllow: []
+    includeRequestHeadersInCheck:
+      - authorization                       # JWT for sub extraction
+      - x-csrf-token                        # CSRF token to validate</code></pre>
+
+  <h4>Step 2: AuthorizationPolicy (CUSTOM action)</h4>
+  <pre><code>apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: csrf-ext-authz
+  namespace: infra
+spec:
+  targetRefs:
+    - kind: Gateway
+      group: gateway.networking.k8s.io
+      name: bookstore-gateway
+  action: CUSTOM
+  provider:
+    name: csrf-ext-authz
+  rules:
+    - {}   # Applies to ALL requests through the gateway</code></pre>
+
+  <h4>Step 3: HTTPRoute for token generation</h4>
+  <pre><code>apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: csrf-route
+  namespace: infra
+spec:
+  parentRefs:
+    - name: bookstore-gateway
+      namespace: infra
+      sectionName: https
+  hostnames: ["api.service.net"]
+  rules:
+    - matches:
+        - path: { type: Exact, value: /csrf/token }
+      backendRefs:
+        - name: csrf-service
+          port: 8080</code></pre>
+
+  <h3>Request Processing Order</h3>
+  <table>
+    <tr><th>Order</th><th>Layer</th><th>Action</th></tr>
+    <tr><td><span class="step-num">1</span></td><td>TLS termination</td><td>Envoy decrypts HTTPS</td></tr>
+    <tr><td><span class="step-num">2</span></td><td>RequestAuthentication</td><td>JWT signature validation against Keycloak JWKS</td></tr>
+    <tr><td><span class="step-num">3</span></td><td>AuthorizationPolicy CUSTOM</td><td>ext_authz &rarr; csrf-service (200 allow / 403 deny)</td></tr>
+    <tr><td><span class="step-num">4</span></td><td>AuthorizationPolicy ALLOW/DENY</td><td>Other Istio authorization policies</td></tr>
+    <tr><td><span class="step-num">5</span></td><td>HTTPRoute matching</td><td>Forward to backend service</td></tr>
+  </table>
+
+  <h3>ext_authz Decision Tree</h3>
+  <pre><code>// csrf-service/internal/handler/authz.go
+ExtAuthzCheck(request):
+
+  Safe Method (GET / HEAD / OPTIONS / TRACE)?
+    &rarr; Yes: return 200 immediately                    [authz_safe / ok]
+
+  JWT present in Authorization header?
+    &rarr; No: return 200 (pass through for backend 401)  [authz_noauth / ok]
+
+  X-Csrf-Token header present?
+    &rarr; No: return 403 Forbidden                       [authz_mutate / missing_token]
+
+  Validate token against Redis (2-second timeout):
+    &rarr; Valid:       return 200                         [authz_mutate / ok]
+    &rarr; Invalid:     return 403                         [authz_mutate / invalid_token]
+    &rarr; Redis error: return 200 (fail-open)             [authz_mutate / redis_error_failopen]</code></pre>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="ui-integration">10. UI Integration &mdash; React Client</h2>
+
+  <h3>Token Storage</h3>
+  <pre><code>// ui/src/api/client.ts
+let _csrfToken: string | null = null   // In-memory only &mdash; lost on page refresh</code></pre>
+
+  <h3>Token Fetch (Two Triggers)</h3>
+  <div class="comparison-grid">
+    <div class="this-project">
+      <span class="label-tag">AFTER OIDC CALLBACK</span>
+      <pre><code>// CallbackPage.tsx
+const csrfResp = await fetch(
+  '/csrf/token',
+  { headers: {
+      Authorization:
+        `Bearer ${user.access_token}`
+  } }
+)
+if (csrfResp.ok) {
+  const data = await csrfResp.json()
+  setCsrfToken(data.token)
+}</code></pre>
+    </div>
+    <div class="this-project">
+      <span class="label-tag">AFTER AUTH STATE CHANGE</span>
+      <pre><code>// App.tsx
+useEffect(() => {
+  if (user) {
+    fetchCsrfToken()
+      .catch(err =>
+        console.warn(
+          'CSRF token fetch failed:',
+          err
+        )
+      )
+  }
+}, [user])</code></pre>
+    </div>
+  </div>
+
+  <h3>Automatic Header Attachment</h3>
+  <pre><code>// ui/src/api/client.ts
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'DELETE', 'PATCH'])
+
+const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(isMutating && _csrfToken ? { 'X-CSRF-Token': _csrfToken } : {}),
+}
+// GET, HEAD, OPTIONS, TRACE never include X-CSRF-Token</code></pre>
+
+  <h3>Auto-Retry on 403</h3>
+  <pre><code>if (resp.status === 403 && isMutating && !_csrfRetried) {
+    await fetchCsrfToken()                   // Refresh token
+    return request&lt;T&gt;(url, options, true) // Retry once (prevents infinite loop)
+}</code></pre>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="fail-open">11. Fail-Open Design &mdash; Graceful Degradation</h2>
+
+  <p>The CSRF service implements fail-open at <strong>two independent levels</strong>:</p>
+
+  <div class="comparison-grid">
+    <div class="this-project">
+      <span class="label-tag">LEVEL 1: APPLICATION (Go Code)</span>
+      <pre><code>// Token generation:
+// return token even if Redis fails
+return token, err
+
+// Token validation:
+// return true on Redis errors
+if err != redis.Nil {
+  return true, err // fail-open
+}</code></pre>
+      <p style="margin-top:8px;font-size:0.85rem;color:var(--muted)"><code>redis.Nil</code> (key not found) returns <code>false</code> &mdash; this is NOT fail-open, it's a genuine validation failure.</p>
+    </div>
+    <div class="this-project">
+      <span class="label-tag">LEVEL 2: ISTIO (Envoy Config)</span>
+      <pre><code>envoyExtAuthzHttp:
+  failOpen: true
+
+# If csrf-service pods are
+# all unreachable, Envoy
+# allows the request through.
+# Prevents CSRF outage from
+# taking down the platform.</code></pre>
+    </div>
+  </div>
+
+  <h3>Rationale</h3>
+  <ul>
+    <li><strong>JWT is the primary defense:</strong> Every request is authenticated by JWT, validated by Istio <code>RequestAuthentication</code> (separate from ext_authz). Even if CSRF is skipped, requests are still authenticated.</li>
+    <li><strong>CSRF is defense-in-depth:</strong> As established in Section 1, CSRF is not a meaningful attack vector. The CSRF layer adds value but is not load-bearing for security.</li>
+    <li><strong>Availability over perfect security:</strong> A Redis outage should not cascade into a complete service outage. The risk of allowing requests without CSRF (which JWT still blocks) is far lower than a full outage.</li>
+  </ul>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="comparison">12. Comparison with Standard Implementations</h2>
+
+  <h3>Pattern Classification</h3>
+  <table>
+    <tr><th>Pattern</th><th>Description</th><th>Used Here?</th></tr>
+    <tr><td><strong>Synchronizer Token</strong></td><td>Server generates token, stores server-side, validates each request</td><td><span class="badge green">Yes</span></td></tr>
+    <tr><td>Double Submit Cookie</td><td>Token in both a cookie and a header; server compares the two</td><td>No (no cookies)</td></tr>
+    <tr><td>SameSite Cookie</td><td>Browser attribute restricting cookie sending on cross-origin</td><td>No (no cookies)</td></tr>
+    <tr><td>Origin Header Check</td><td>Server validates <code>Origin</code> / <code>Referer</code> matches expected domain</td><td>No (CORS instead)</td></tr>
+    <tr><td>Custom Request Headers</td><td>Require a header that HTML forms cannot set</td><td>Partially (X-CSRF-Token)</td></tr>
+    <tr><td>Encrypted Token</td><td>Token contains encrypted user data; server decrypts to validate</td><td>No (stateful via Redis)</td></tr>
+  </table>
+
+  <h3>Comparison with Django and Spring Security</h3>
+  <table>
+    <tr><th>Aspect</th><th>This Project</th><th>Django</th><th>Spring Security</th></tr>
+    <tr><td>Token generation</td><td>UUID v4 (122 bits)</td><td>64-char hex (256 bits) HMAC-SHA256</td><td>UUID (via CsrfTokenRepository)</td></tr>
+    <tr><td>Token storage (server)</td><td>Redis with 30min TTL</td><td>Not stored &mdash; validated via HMAC</td><td>HTTP Session</td></tr>
+    <tr><td>Token storage (client)</td><td>In-memory JS variable</td><td><code>csrftoken</code> cookie + form field</td><td>Cookie or session</td></tr>
+    <tr><td>Token delivery</td><td>JSON response from API</td><td>Set-Cookie header + template tag</td><td>Cookie or response header</td></tr>
+    <tr><td>Token submission</td><td><code>X-CSRF-Token</code> header</td><td>POST field or <code>X-CSRFToken</code> header</td><td><code>X-CSRF-TOKEN</code> header</td></tr>
+    <tr><td>Scope</td><td>Per-user (one token per user)</td><td>Per-session</td><td>Per-session</td></tr>
+    <tr><td>Validation</td><td>Redis lookup + constant-time compare</td><td>HMAC verification (stateless)</td><td>Session lookup</td></tr>
+    <tr><td>Enforcement</td><td>Gateway-level (all services)</td><td>Per-application middleware</td><td>Per-application filter</td></tr>
+    <tr><td>SPA support</td><td>Yes (API-first design)</td><td>Requires cookie config</td><td>Requires CookieCsrfTokenRepository</td></tr>
+    <tr><td>Fail-open</td><td>Yes (Redis errors)</td><td>No (hard failure)</td><td>No (hard failure)</td></tr>
+  </table>
+
+  <h3>OWASP CSRF Prevention Cheat Sheet Compliance</h3>
+  <table>
+    <tr><th>OWASP Recommendation</th><th>Compliance</th></tr>
+    <tr><td>Use Synchronizer Token Pattern</td><td><span class="badge green">Pass</span> Server-side token in Redis</td></tr>
+    <tr><td>Tokens must be unique per user session</td><td><span class="badge green">Pass</span> One token per <code>sub</code> claim</td></tr>
+    <tr><td>Tokens must be unpredictable</td><td><span class="badge green">Pass</span> UUID v4, 122 bits entropy</td></tr>
+    <tr><td>Tokens must be validated on the server</td><td><span class="badge green">Pass</span> Redis lookup in csrf-service</td></tr>
+    <tr><td>Use constant-time comparison</td><td><span class="badge green">Pass</span> <code>subtle.ConstantTimeCompare</code></td></tr>
+    <tr><td>Protect all mutating operations</td><td><span class="badge green">Pass</span> POST, PUT, DELETE, PATCH</td></tr>
+    <tr><td>Allow safe methods without token</td><td><span class="badge green">Pass</span> GET, HEAD, OPTIONS, TRACE</td></tr>
+    <tr><td>Do not transmit tokens in URLs</td><td><span class="badge green">Pass</span> Custom header only</td></tr>
+    <tr><td>Consider using SameSite cookies</td><td><span class="badge purple">N/A</span> No cookies used</td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="security-analysis">13. Security Properties Analysis</h2>
+
+  <h3>What the CSRF Layer Defends Against</h3>
+  <table>
+    <tr><th>Threat</th><th>How CSRF Helps</th></tr>
+    <tr><td>JWT replay with stolen tokens</td><td>Attacker also needs CSRF token bound to that JWT's <code>sub</code>; CSRF tokens are never logged</td></tr>
+    <tr><td>Unauthorized automation</td><td>Scripts with valid JWT but no CSRF token are blocked on mutations</td></tr>
+    <tr><td>Future cookie-based auth regressions</td><td>Protection already in place before vulnerability is introduced</td></tr>
+  </table>
+
+  <h3>What the CSRF Layer Does NOT Defend Against</h3>
+  <table>
+    <tr><th>Threat</th><th>Why Not</th><th>How It's Handled Instead</th></tr>
+    <tr><td>XSS (Cross-Site Scripting)</td><td>XSS can read in-memory CSRF token from same origin</td><td>CSP headers, input sanitization, React's built-in escaping</td></tr>
+    <tr><td>SSRF (Server-Side Request Forgery)</td><td>Internal traffic bypasses gateway</td><td>Istio mTLS for service-to-service auth</td></tr>
+    <tr><td>JWT theft via XSS</td><td>If JWT is stolen, CSRF token can be too</td><td>XSS prevention is the real defense</td></tr>
+  </table>
+
+  <h3>Token Isolation Between Users</h3>
+  <div class="result pass"><strong>Verified in E2E tests:</strong> user1's CSRF token cannot be used by admin1. Each token is bound to the JWT <code>sub</code> claim (Keycloak user ID).</div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="k8s-config">14. Kubernetes Production Configuration</h2>
+
+  <h3>Deployment Topology</h3>
+  <pre><code>infra namespace
+&boxvr; csrf-service (Deployment: 2 replicas, HPA: 2-5)
+&boxv;   &boxvr; Pod 1: csrf-service container (65532:65532, distroless)
+&boxv;   &boxur; Pod 2: csrf-service container (65532:65532, distroless)
+&boxvr; csrf-service (Service: ClusterIP, port 8080)
+&boxvr; csrf-service-pdb (PDB: minAvailable 1)
+&boxur; csrf-service (HPA: CPU 70%, 2-5 replicas)</code></pre>
+
+  <h3>Resource Allocation</h3>
+  <table>
+    <tr><th>Resource</th><th>Request</th><th>Limit</th></tr>
+    <tr><td>CPU</td><td>50m</td><td>200m</td></tr>
+    <tr><td>Memory</td><td>32Mi</td><td>64Mi</td></tr>
+  </table>
+
+  <h3>Security Hardening</h3>
+  <table>
+    <tr><th>Control</th><th>Configuration</th></tr>
+    <tr><td>Non-root user</td><td><code>runAsUser: 65532</code> (distroless nonroot)</td></tr>
+    <tr><td>Read-only filesystem</td><td><code>readOnlyRootFilesystem: true</code></td></tr>
+    <tr><td>No privilege escalation</td><td><code>allowPrivilegeEscalation: false</code></td></tr>
+    <tr><td>No capabilities</td><td><code>capabilities.drop: ["ALL"]</code></td></tr>
+    <tr><td>Seccomp profile</td><td><code>seccompProfile.type: RuntimeDefault</code></td></tr>
+    <tr><td>Container image</td><td><code>gcr.io/distroless/static:nonroot</code> (no shell, no OS)</td></tr>
+  </table>
+
+  <h3>High Availability</h3>
+  <table>
+    <tr><th>Mechanism</th><th>Configuration</th></tr>
+    <tr><td>Replicas</td><td>Minimum 2 (via HPA <code>minReplicas</code>)</td></tr>
+    <tr><td>Max replicas</td><td>5 (CPU 70% target)</td></tr>
+    <tr><td>PDB</td><td><code>minAvailable: 1</code></td></tr>
+    <tr><td>Rolling updates</td><td><code>maxSurge: 1, maxUnavailable: 0</code> (zero-downtime)</td></tr>
+    <tr><td>Pre-stop hook</td><td><code>sleep 5</code> (graceful drain)</td></tr>
+    <tr><td>Graceful shutdown</td><td>Go server drains for 10 seconds on SIGTERM</td></tr>
+  </table>
+
+  <h3>Health Probes</h3>
+  <table>
+    <tr><th>Probe</th><th>Endpoint</th><th>Checks</th><th>Config</th></tr>
+    <tr><td>Readiness</td><td><code>/healthz</code></td><td>Redis connectivity</td><td>initialDelay: 2s, period: 5s, failureThreshold: 3</td></tr>
+    <tr><td>Liveness</td><td><code>/livez</code></td><td>Process alive (always 200)</td><td>initialDelay: 5s, period: 10s, failureThreshold: 3</td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="observability">15. Observability and Metrics</h2>
+
+  <h3>Prometheus Metrics</h3>
+  <table>
+    <tr><th>Metric</th><th>Type</th><th>Labels</th><th>Description</th></tr>
+    <tr><td><code>csrf_requests_total</code></td><td>Counter</td><td><code>method</code>, <code>result</code></td><td>Total requests processed</td></tr>
+    <tr><td><code>csrf_redis_errors_total</code></td><td>Counter</td><td>&mdash;</td><td>Redis connectivity errors</td></tr>
+    <tr><td><code>csrf_request_duration_seconds</code></td><td>Histogram</td><td><code>handler</code></td><td>Request latency distribution</td></tr>
+  </table>
+
+  <h3>Label Values for <code>csrf_requests_total</code></h3>
+  <table>
+    <tr><th><code>method</code></th><th><code>result</code></th><th>Meaning</th></tr>
+    <tr><td><code>generate</code></td><td><code>ok</code></td><td>Token successfully generated</td></tr>
+    <tr><td><code>generate</code></td><td><code>unauthorized</code></td><td>No JWT provided for token generation</td></tr>
+    <tr><td><code>authz_safe</code></td><td><code>ok</code></td><td>Safe method (GET/HEAD/OPTIONS/TRACE) passed through</td></tr>
+    <tr><td><code>authz_noauth</code></td><td><code>ok</code></td><td>Mutating request without JWT (backend will 401)</td></tr>
+    <tr><td><code>authz_mutate</code></td><td><code>ok</code></td><td>Valid JWT + valid CSRF token</td></tr>
+    <tr><td><code>authz_mutate</code></td><td><code>missing_token</code></td><td>JWT present but no CSRF header</td></tr>
+    <tr><td><code>authz_mutate</code></td><td><code>invalid_token</code></td><td>Wrong CSRF token</td></tr>
+    <tr><td><code>authz_mutate</code></td><td><code>redis_error_failopen</code></td><td>Redis error, request allowed through</td></tr>
+  </table>
+
+  <div class="result warn"><strong>Alert on:</strong> Rising <code>csrf_requests_total{result="redis_error_failopen"}</code> or <code>csrf_redis_errors_total</code> indicates Redis issues and CSRF degradation.</div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="tests">16. Test Coverage</h2>
+
+  <h3>Unit Tests (Go &mdash; 19 tests, uses miniredis)</h3>
+  <table>
+    <tr><th>Test File</th><th>Tests</th><th>Coverage</th></tr>
+    <tr><td><code>internal/handler/handler_test.go</code></td><td>11</td><td>Token generation, safe methods, mutating requests, invalid tokens, health endpoints</td></tr>
+    <tr><td><code>internal/store/redis_test.go</code></td><td>6</td><td>Generate, validate (valid/invalid/missing), ping, redis-down</td></tr>
+    <tr><td><code>internal/jwt/extract_test.go</code></td><td>8 cases</td><td>Valid JWT, UUID sub, missing Bearer, malformed base64, 2-part JWT, no sub claim</td></tr>
+  </table>
+
+  <h3>E2E Tests (Playwright &mdash; <code>e2e/csrf.spec.ts</code>)</h3>
+  <table>
+    <tr><th>Suite</th><th>Tests</th><th>Coverage</th></tr>
+    <tr><td>Gateway-Level CSRF Protection</td><td>7</td><td>Token generation, 401/403 scenarios, valid flow, reuse, safe methods</td></tr>
+    <tr><td>Cross-Service Protection</td><td>3</td><td>Inventory PUT blocked, valid CSRF works, GET unaffected</td></tr>
+    <tr><td>Browser CSRF Flow</td><td>2</td><td>End-to-end UI add-to-cart, Redis key verification</td></tr>
+    <tr><td>Kubernetes Production Config</td><td>9+</td><td>Replicas, HPA, PDB, rolling update, security context, probes</td></tr>
+    <tr><td>Health Endpoints</td><td>2</td><td>/healthz and /livez return 200</td></tr>
+    <tr><td>Prometheus Metrics</td><td>1</td><td>All 3 metric families exposed</td></tr>
+    <tr><td>Token Security</td><td>5</td><td>Uniqueness, UUID format, per-user isolation, cross-user rejection, no info leakage</td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="limitations">17. Known Limitations and Trade-offs</h2>
+
+  <h3>Single Token Per User (Multi-Tab Issue)</h3>
+  <div class="result warn"><strong>Limitation:</strong> Only one CSRF token exists per user at any time. If a user has multiple browser tabs, a new token in Tab B invalidates Tab A's token.</div>
+  <p>The UI's auto-retry on 403 mitigates this: Tab A gets 403, fetches a new token, and retries &mdash; but this invalidates Tab B's token. In practice, most users don't have multiple tabs performing mutations simultaneously.</p>
+
+  <h3>Redis as Single Point of Failure</h3>
+  <p>CSRF tokens depend on a single Redis instance. If Redis goes down, token generation returns a token but can't persist it, and validation fails-open. This is acceptable because JWT remains the primary authentication mechanism.</p>
+
+  <h3>No Token Binding to Request Details</h3>
+  <p>The token is not bound to the specific URL, method, or body. A valid CSRF token works for any mutating endpoint. This is standard practice &mdash; Django, Spring Security, and Rails also use per-session tokens rather than per-request tokens.</p>
+
+  <h3>30-Minute TTL May Be Too Short for Idle Users</h3>
+  <p>If a user browses for 30+ minutes without clicking, the CSRF token expires. The UI auto-retry handles this transparently, but the user may notice a brief delay.</p>
+
+  <h3>No CSRF on Service-to-Service Calls</h3>
+  <p>Internal service-to-service communication bypasses the gateway and therefore bypasses CSRF. This is by design &mdash; Istio mTLS provides mutual authentication for internal traffic.</p>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="flow-diagrams">18. Request Flow Diagrams</h2>
+
+  <h3>Successful Mutating Request</h3>
+  <div class="flow-diagram"><span class="label">Browser</span>              <span class="label">Gateway</span>              <span class="label">csrf-service</span>          <span class="label">Redis</span>            <span class="label">Backend</span>
+  &boxv;                       &boxv;                       &boxv;                    &boxv;                  &boxv;
+  &boxv;  POST /ecom/cart      &boxv;                       &boxv;                    &boxv;                  &boxv;
+  &boxv;  Auth: Bearer &lt;jwt&gt;   &boxv;                       &boxv;                    &boxv;                  &boxv;
+  &boxv;  X-CSRF-Token: &lt;tok&gt;  &boxv;                       &boxv;                    &boxv;                  &boxv;
+  &boxv;<span class="arrow">&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&rarr;</span>&boxv;                       &boxv;                    &boxv;                  &boxv;
+  &boxv;                       &boxv;  ext_authz check      &boxv;                    &boxv;                  &boxv;
+  &boxv;                       &boxv;<span class="arrow">&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&rarr;</span>&boxv;                    &boxv;                  &boxv;
+  &boxv;                       &boxv;                       &boxv;  GET csrf:&lt;sub&gt;    &boxv;                  &boxv;
+  &boxv;                       &boxv;                       &boxv;<span class="arrow">&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&rarr;</span>&boxv;                  &boxv;
+  &boxv;                       &boxv;                       &boxv;  &lt;stored token&gt;   &boxv;                  &boxv;
+  &boxv;                       &boxv;                       &boxv;<span class="arrow">&larr;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;</span>&boxv;                  &boxv;
+  &boxv;                       &boxv;                       &boxv;                    &boxv;                  &boxv;
+  &boxv;                       &boxv;                       &boxv;  ConstantTime     &boxv;                  &boxv;
+  &boxv;                       &boxv;                       &boxv;  Compare: <span class="label">MATCH</span>   &boxv;                  &boxv;
+  &boxv;                       &boxv;                       &boxv;                    &boxv;                  &boxv;
+  &boxv;                       &boxv;                       &boxv;  EXPIRE 1800      &boxv;                  &boxv;
+  &boxv;                       &boxv;                       &boxv;<span class="arrow">&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&rarr;</span>&boxv;                  &boxv;
+  &boxv;                       &boxv;                       &boxv;                    &boxv;                  &boxv;
+  &boxv;                       &boxv;  <span class="label">200 OK</span>              &boxv;                    &boxv;                  &boxv;
+  &boxv;                       &boxv;<span class="arrow">&larr;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;</span>&boxv;                    &boxv;                  &boxv;
+  &boxv;                       &boxv;                       &boxv;                    &boxv;                  &boxv;
+  &boxv;                       &boxv;  Forward to backend   &boxv;                    &boxv;                  &boxv;
+  &boxv;                       &boxv;<span class="arrow">&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&rarr;</span>&boxv;
+  &boxv;                       &boxv;                       &boxv;                    &boxv;                  &boxv;
+  &boxv;  <span class="label">200 OK (updated)</span>   &boxv;                       &boxv;                    &boxv;                  &boxv;
+  &boxv;<span class="arrow">&larr;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;</span>&boxv;                       &boxv;                    &boxv;                  &boxv;</div>
+
+  <h3>Failed Request (Expired Token) with Auto-Retry</h3>
+  <div class="flow-diagram"><span class="label">Browser</span>              <span class="label">Gateway</span>              <span class="label">csrf-service</span>          <span class="label">Redis</span>
+  &boxv;                       &boxv;                       &boxv;                    &boxv;
+  &boxv;  POST /ecom/cart      &boxv;                       &boxv;                    &boxv;
+  &boxv;  X-CSRF-Token: &lt;old&gt;  &boxv;                       &boxv;                    &boxv;
+  &boxv;<span class="arrow">&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&rarr;</span>&boxv;  ext_authz           &boxv;                    &boxv;
+  &boxv;                       &boxv;<span class="arrow">&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&rarr;</span>&boxv;  GET csrf:&lt;sub&gt;    &boxv;
+  &boxv;                       &boxv;                       &boxv;<span class="arrow">&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&rarr;</span>&boxv;
+  &boxv;                       &boxv;                       &boxv;  <span class="fail">(nil &mdash; expired)</span>  &boxv;
+  &boxv;                       &boxv;  <span class="fail">403 Forbidden</span>       &boxv;                    &boxv;
+  &boxv;                       &boxv;<span class="arrow">&larr;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;</span>&boxv;                    &boxv;
+  &boxv;  <span class="fail">403 Forbidden</span>       &boxv;                       &boxv;                    &boxv;
+  &boxv;<span class="arrow">&larr;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;</span>&boxv;                       &boxv;                    &boxv;
+  &boxv;                       &boxv;                       &boxv;                    &boxv;
+  &boxv;  <span class="label">[UI auto-retry]</span>     &boxv;                       &boxv;                    &boxv;
+  &boxv;                       &boxv;                       &boxv;                    &boxv;
+  &boxv;  GET /csrf/token      &boxv;                       &boxv;                    &boxv;
+  &boxv;<span class="arrow">&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&rarr;</span>&boxv;<span class="arrow">&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&rarr;</span>&boxv;  SET csrf:&lt;sub&gt;    &boxv;
+  &boxv;                       &boxv;                       &boxv;  &lt;new-token&gt;      &boxv;
+  &boxv;                       &boxv;                       &boxv;  TTL 1800         &boxv;
+  &boxv;                       &boxv;                       &boxv;<span class="arrow">&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&rarr;</span>&boxv;
+  &boxv;  { token: &lt;new&gt; }     &boxv;                       &boxv;                    &boxv;
+  &boxv;<span class="arrow">&larr;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;</span>&boxv;                       &boxv;                    &boxv;
+  &boxv;                       &boxv;                       &boxv;                    &boxv;
+  &boxv;  POST /ecom/cart      &boxv;                       &boxv;                    &boxv;
+  &boxv;  X-CSRF-Token: &lt;new&gt;  &boxv;                       &boxv;                    &boxv;
+  &boxv;<span class="arrow">&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&rarr;</span>&boxv;<span class="arrow">&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&rarr;</span>&boxv;  GET csrf:&lt;sub&gt;    &boxv;
+  &boxv;                       &boxv;                       &boxv;<span class="arrow">&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&rarr;</span>&boxv;
+  &boxv;                       &boxv;                       &boxv;  <span class="label">MATCH</span>            &boxv;
+  &boxv;                       &boxv;  <span class="label">200 OK</span>              &boxv;                    &boxv;
+  &boxv;                       &boxv;<span class="arrow">&larr;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;</span>&boxv;                    &boxv;
+  &boxv;  <span class="label">200 OK</span>              &boxv;                       &boxv;                    &boxv;
+  &boxv;<span class="arrow">&larr;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;</span>&boxv;                       &boxv;                    &boxv;</div>
+
+  <h3>Complete HTTP Headers Exchanged</h3>
+
+  <h4>Browser &rarr; Istio Gateway</h4>
+  <pre><code>POST https://api.service.net:30000/ecom/cart HTTP/1.1
+Authorization: Bearer eyJhbGc...
+X-CSRF-Token: 550e8400-e29b-41d4-a716-446655440000
+Content-Type: application/json
+
+{"bookId":"...", "quantity":1}</code></pre>
+
+  <h4>Istio Envoy &rarr; csrf-service (ext_authz)</h4>
+  <pre><code>POST http://csrf-service.infra.svc.cluster.local:8080/ HTTP/1.1
+Authorization: Bearer eyJhbGc...
+X-Csrf-Token: 550e8400-e29b-41d4-a716-446655440000</code></pre>
+
+  <h4>csrf-service &rarr; Envoy (response)</h4>
+  <pre><code>HTTP/1.1 200 OK        (allow &mdash; forward to backend)
+  &mdash; or &mdash;
+HTTP/1.1 403 Forbidden (deny &mdash; block at gateway)</code></pre>
+
+  <footer>
+    <p>BookStore Platform &mdash; CSRF Architecture Deep Dive<br>
+    <a href="index.html">&larr; Back to Documentation Index</a></p>
+  </footer>
+</div>
+</body>
+</html>

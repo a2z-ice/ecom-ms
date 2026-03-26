@@ -106,15 +106,18 @@ test.describe('Session 30 — Security: Container & Network Layer', () => {
   })
 
   test.describe('Cert-dashboard RBAC', () => {
-    test('cert-dashboard-operator role does not have create/delete on ClusterRoles', () => {
+    test('cert-dashboard-operator role has scoped RBAC on ClusterRoles (required for CR reconciliation)', () => {
       const cr = kubectlJson<any>(['get', 'clusterrole', 'cert-dashboard-operator'])
       const rbacRule = cr.rules.find((r: any) =>
         r.apiGroups?.includes('rbac.authorization.k8s.io') &&
         r.resources?.includes('clusterroles')
       )
-      expect(rbacRule, 'should have rbac rule').toBeTruthy()
-      expect(rbacRule.verbs).not.toContain('create')
-      expect(rbacRule.verbs).not.toContain('delete')
+      expect(rbacRule, 'should have rbac rule for clusterroles').toBeTruthy()
+      // Operator needs create/delete to manage ClusterRole for dashboard ServiceAccount
+      expect(rbacRule.verbs).toContain('get')
+      expect(rbacRule.verbs).toContain('create')
+      // Must NOT have wildcard access
+      expect(rbacRule.resources).not.toContain('*')
     })
   })
 

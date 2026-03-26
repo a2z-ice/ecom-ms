@@ -394,7 +394,7 @@ mesh['extensionProviders'].append({
         'port': 8080,
         'failOpen': True,
         'headersToUpstreamOnAllow': [],
-        'includeRequestHeadersInCheck': ['authorization', 'x-csrf-token'],
+        'includeRequestHeadersInCheck': ['authorization', 'x-csrf-token', 'origin', 'referer'],
     }
 })
 cm['data']['mesh'] = yaml.dump(mesh, default_flow_style=False)

@@ -9,9 +9,12 @@ import (
 
 // Metrics holds all Prometheus collectors for the CSRF service.
 type Metrics struct {
-	RequestsTotal    *prometheus.CounterVec
-	RedisErrorsTotal prometheus.Counter
-	RequestDuration  *prometheus.HistogramVec
+	RequestsTotal     *prometheus.CounterVec
+	RedisErrorsTotal  prometheus.Counter
+	RequestDuration   *prometheus.HistogramVec
+	AnomalyTotal      *prometheus.CounterVec
+	OriginChecksTotal *prometheus.CounterVec
+	RateLimitTotal    *prometheus.CounterVec
 }
 
 // NewMetrics creates and registers Prometheus metrics with the default registry.
@@ -38,8 +41,24 @@ func NewMetricsWithRegisterer(reg prometheus.Registerer) *Metrics {
 			Help:    "Request duration in seconds",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0},
 		}, []string{"handler"}),
+
+		AnomalyTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "csrf_anomaly_total",
+			Help: "Anomalous CSRF events by type",
+		}, []string{"type"}),
+
+		OriginChecksTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "csrf_origin_checks_total",
+			Help: "Origin header validation results",
+		}, []string{"result"}),
+
+		RateLimitTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "csrf_rate_limit_total",
+			Help: "Rate limit check results for token generation",
+		}, []string{"result"}),
 	}
-	reg.MustRegister(m.RequestsTotal, m.RedisErrorsTotal, m.RequestDuration)
+	reg.MustRegister(m.RequestsTotal, m.RedisErrorsTotal, m.RequestDuration,
+		m.AnomalyTotal, m.OriginChecksTotal, m.RateLimitTotal)
 	return m
 }
 

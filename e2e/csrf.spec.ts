@@ -102,10 +102,11 @@ test.describe('Gateway-Level CSRF Token Protection', () => {
     expect(resp.status()).toBe(200)
   })
 
-  test('CSRF token can be reused for multiple requests', async ({ request }) => {
+  test('CSRF token is single-use — second request with same token returns 403', async ({ request }) => {
     const jwt = await getToken(request)
     const csrf = await getCsrfToken(request, jwt)
 
+    // First use — succeeds and consumes the token
     const resp1 = await request.post(`${ECOM_BASE}/cart`, {
       headers: {
         Authorization: `Bearer ${jwt}`,
@@ -116,6 +117,7 @@ test.describe('Gateway-Level CSRF Token Protection', () => {
     })
     expect(resp1.status()).toBe(200)
 
+    // Second use of same token — should fail (consumed)
     const resp2 = await request.post(`${ECOM_BASE}/cart`, {
       headers: {
         Authorization: `Bearer ${jwt}`,
@@ -124,7 +126,19 @@ test.describe('Gateway-Level CSRF Token Protection', () => {
       },
       data: { bookId: BOOK_ID, quantity: 1 },
     })
-    expect(resp2.status()).toBe(200)
+    expect(resp2.status()).toBe(403)
+
+    // Re-acquire token and retry — should succeed
+    const csrf2 = await getCsrfToken(request, jwt)
+    const resp3 = await request.post(`${ECOM_BASE}/cart`, {
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrf2,
+      },
+      data: { bookId: BOOK_ID, quantity: 1 },
+    })
+    expect(resp3.status()).toBe(200)
   })
 
   test('GET /ecom/books does not require CSRF token', async ({ request }) => {
