@@ -1,0 +1,776 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 5800" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1a2332"/>
+    </linearGradient>
+    <filter id="shadow" x="-4%" y="-4%" width="108%" height="108%">
+      <feDropShadow dx="2" dy="3" stdDeviation="4" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+    <filter id="shadowSm" x="-2%" y="-2%" width="104%" height="104%">
+      <feDropShadow dx="1" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+    <filter id="glow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <linearGradient id="arrowGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="secGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ef4444" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#ef4444" stop-opacity="0.05"/>
+    </linearGradient>
+    <linearGradient id="vpcGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e3a5f" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#1e3a5f" stop-opacity="0.15"/>
+    </linearGradient>
+    <marker id="arrowHead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#10b981"/>
+    </marker>
+    <marker id="arrowHeadGray" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#64748b"/>
+    </marker>
+    <marker id="arrowHeadOrange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#ff9900"/>
+    </marker>
+    <marker id="arrowHeadBlue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrowHeadRed" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#ef4444"/>
+    </marker>
+    <marker id="arrowHeadPurple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#a78bfa"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1400" height="5800" fill="url(#bg)"/>
+
+  <!-- ==================== ROW 0: TITLE ==================== -->
+  <text x="700" y="45" text-anchor="middle" fill="#f8fafc" font-size="24" font-weight="700" letter-spacing="0.5">BookStore Platform &#x2014; Complete AWS EKS Architecture</text>
+  <text x="700" y="72" text-anchor="middle" fill="#94a3b8" font-size="13" font-weight="400">Browser to Database &#x2014; Every Component, Every Connection, Every Security Boundary</text>
+  <line x1="200" y1="88" x2="1200" y2="88" stroke="#334155" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- ==================== ROW 1: CLIENT LAYER ==================== -->
+  <text x="700" y="118" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600" letter-spacing="1.5">CLIENT LAYER</text>
+
+  <!-- Browser -->
+  <rect x="520" y="132" width="180" height="60" rx="10" fill="#1e293b" stroke="#60a5fa" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="545" y="157" fill="#60a5fa" font-size="18">&#x1F310;</text>
+  <text x="570" y="158" fill="#e2e8f0" font-size="13" font-weight="600">Web Browser</text>
+  <text x="570" y="176" fill="#94a3b8" font-size="10">HTTPS :443 &#x2022; OIDC PKCE</text>
+
+  <!-- Mobile -->
+  <rect x="720" y="132" width="160" height="60" rx="10" fill="#1e293b" stroke="#a78bfa" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="745" y="157" fill="#a78bfa" font-size="18">&#x1F4F1;</text>
+  <text x="770" y="158" fill="#e2e8f0" font-size="13" font-weight="600">Mobile App</text>
+  <text x="770" y="176" fill="#94a3b8" font-size="10">HTTPS :443 &#x2022; OAuth2</text>
+
+  <!-- Arrow: Client to Route 53 -->
+  <line x1="610" y1="192" x2="610" y2="230" stroke="#10b981" stroke-width="2" marker-end="url(#arrowHead)"/>
+  <text x="620" y="215" fill="#94a3b8" font-size="9">DNS lookup</text>
+
+  <!-- ==================== ROW 2: DNS & CERTIFICATE LAYER ==================== -->
+  <text x="700" y="248" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600" letter-spacing="1.5">DNS &amp; CERTIFICATE LAYER</text>
+
+  <!-- Route 53 -->
+  <rect x="340" y="260" width="340" height="65" rx="10" fill="#1e293b" stroke="#ff9900" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="348" y="268" width="70" height="20" rx="4" fill="#ff9900" opacity="0.2"/>
+  <text x="383" y="282" text-anchor="middle" fill="#ff9900" font-size="9" font-weight="700">Route 53</text>
+  <text x="430" y="282" fill="#e2e8f0" font-size="12" font-weight="600">DNS Resolution</text>
+  <text x="355" y="300" fill="#94a3b8" font-size="10">myecom.net &#x2192; ALB</text>
+  <text x="355" y="314" fill="#94a3b8" font-size="10">api.service.net &#x2192; ALB &#x2022; idp.keycloak.net &#x2192; ALB</text>
+
+  <!-- ACM Certificate -->
+  <rect x="710" y="260" width="310" height="65" rx="10" fill="#1e293b" stroke="#10b981" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="718" y="268" width="40" height="20" rx="4" fill="#10b981" opacity="0.2"/>
+  <text x="738" y="282" text-anchor="middle" fill="#10b981" font-size="9" font-weight="700">ACM</text>
+  <text x="770" y="282" fill="#e2e8f0" font-size="12" font-weight="600">Certificate Manager</text>
+  <text x="725" y="300" fill="#94a3b8" font-size="10">Wildcard TLS cert (FREE, auto-renewing)</text>
+  <text x="725" y="314" fill="#94a3b8" font-size="10">*.myecom.net, *.service.net, *.keycloak.net</text>
+
+  <!-- Arrow: Route53 to ALB -->
+  <line x1="510" y1="325" x2="510" y2="370" stroke="#10b981" stroke-width="2" marker-end="url(#arrowHead)"/>
+  <text x="520" y="352" fill="#94a3b8" font-size="9">A record alias</text>
+
+  <!-- ==================== ROW 3: EDGE SECURITY LAYER ==================== -->
+  <text x="700" y="365" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600" letter-spacing="1.5">EDGE SECURITY LAYER</text>
+
+  <!-- WAF v2 -->
+  <rect x="140" y="380" width="280" height="80" rx="10" fill="#1e293b" stroke="#ef4444" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="148" y="388" width="65" height="20" rx="4" fill="#ef4444" opacity="0.2"/>
+  <text x="180" y="402" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">WAF v2</text>
+  <text x="225" y="402" fill="#e2e8f0" font-size="12" font-weight="600">Web Application Firewall</text>
+  <text x="155" y="420" fill="#94a3b8" font-size="10">&#x2022; SQL injection protection</text>
+  <text x="155" y="434" fill="#94a3b8" font-size="10">&#x2022; XSS filtering &#x2022; Rate limiting</text>
+  <text x="155" y="448" fill="#94a3b8" font-size="10">&#x2022; Geo-blocking &#x2022; Bot mitigation</text>
+
+  <!-- ALB -->
+  <rect x="460" y="380" width="320" height="80" rx="10" fill="#1e293b" stroke="#ff9900" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="468" y="388" width="40" height="20" rx="4" fill="#ff9900" opacity="0.2"/>
+  <text x="488" y="402" text-anchor="middle" fill="#ff9900" font-size="9" font-weight="700">ALB</text>
+  <text x="520" y="402" fill="#e2e8f0" font-size="12" font-weight="600">Application Load Balancer</text>
+  <text x="475" y="420" fill="#94a3b8" font-size="10">&#x2022; HTTPS termination (ACM cert)</text>
+  <text x="475" y="434" fill="#94a3b8" font-size="10">&#x2022; Host-based routing to target groups</text>
+  <text x="475" y="448" fill="#94a3b8" font-size="10">&#x2022; Health checks &#x2022; HTTP &#x2192; HTTPS redirect</text>
+
+  <!-- ALB Security Group -->
+  <rect x="820" y="380" width="350" height="80" rx="10" fill="#1e293b" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6,3" filter="url(#shadow)"/>
+  <rect x="828" y="388" width="90" height="20" rx="4" fill="#ef4444" opacity="0.15"/>
+  <text x="873" y="402" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">ALB-SG</text>
+  <text x="930" y="402" fill="#e2e8f0" font-size="11" font-weight="600">Security Group</text>
+  <text x="835" y="420" fill="#94a3b8" font-size="10">IN: 443/tcp from 0.0.0.0/0</text>
+  <text x="835" y="434" fill="#94a3b8" font-size="10">IN: 80/tcp from 0.0.0.0/0 (redirect)</text>
+  <text x="835" y="448" fill="#94a3b8" font-size="10">OUT: 30000-32767 to Workers-SG only</text>
+
+  <!-- WAF to ALB arrow -->
+  <line x1="420" y1="420" x2="455" y2="420" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrowHeadRed)"/>
+  <text x="430" y="414" fill="#ef4444" font-size="8">filter</text>
+
+  <!-- Arrow: ALB to EKS -->
+  <line x1="620" y1="460" x2="620" y2="510" stroke="#ff9900" stroke-width="2" marker-end="url(#arrowHeadOrange)"/>
+  <text x="630" y="490" fill="#94a3b8" font-size="9">ENI to VPC</text>
+
+  <!-- ==================== ROW 4: AWS-MANAGED CONTROL PLANE ==================== -->
+  <text x="700" y="508" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600" letter-spacing="1.5">AWS-MANAGED CONTROL PLANE (OUTSIDE YOUR VPC)</text>
+
+  <!-- Control Plane boundary -->
+  <rect x="140" y="520" width="1120" height="120" rx="12" fill="none" stroke="#ff9900" stroke-width="2" stroke-dasharray="8,4"/>
+  <rect x="140" y="520" width="1120" height="120" rx="12" fill="#ff9900" opacity="0.04"/>
+  <text x="160" y="540" fill="#ff9900" font-size="10" font-weight="600">AWS-Managed VPC (outside your VPC)</text>
+
+  <!-- API Server -->
+  <rect x="170" y="550" width="160" height="55" rx="8" fill="#1e293b" stroke="#ff9900" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="250" y="572" text-anchor="middle" fill="#ff9900" font-size="11" font-weight="700">API Server</text>
+  <text x="250" y="590" text-anchor="middle" fill="#94a3b8" font-size="9">kubectl, SDK, kubelets</text>
+
+  <!-- etcd -->
+  <rect x="360" y="550" width="180" height="55" rx="8" fill="#1e293b" stroke="#ff9900" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="450" y="572" text-anchor="middle" fill="#ff9900" font-size="11" font-weight="700">etcd (3 replicas)</text>
+  <text x="450" y="590" text-anchor="middle" fill="#94a3b8" font-size="9">KMS-encrypted at rest</text>
+
+  <!-- Scheduler -->
+  <rect x="570" y="550" width="140" height="55" rx="8" fill="#1e293b" stroke="#ff9900" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="640" y="572" text-anchor="middle" fill="#ff9900" font-size="11" font-weight="700">Scheduler</text>
+  <text x="640" y="590" text-anchor="middle" fill="#94a3b8" font-size="9">Pod placement</text>
+
+  <!-- Controller Manager -->
+  <rect x="740" y="550" width="180" height="55" rx="8" fill="#1e293b" stroke="#ff9900" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="830" y="572" text-anchor="middle" fill="#ff9900" font-size="11" font-weight="700">Controller Manager</text>
+  <text x="830" y="590" text-anchor="middle" fill="#94a3b8" font-size="9">ReplicaSets, Deployments</text>
+
+  <!-- OIDC Provider -->
+  <rect x="950" y="550" width="170" height="55" rx="8" fill="#1e293b" stroke="#fbbf24" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="1035" y="572" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700">OIDC Provider</text>
+  <text x="1035" y="590" text-anchor="middle" fill="#94a3b8" font-size="9">IRSA token exchange</text>
+
+  <!-- ENI arrows down to VPC -->
+  <line x1="250" y1="640" x2="250" y2="690" stroke="#ff9900" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowHeadOrange)"/>
+  <text x="260" y="670" fill="#ff9900" font-size="8">ENI</text>
+  <line x1="640" y1="640" x2="640" y2="690" stroke="#ff9900" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowHeadOrange)"/>
+  <text x="650" y="670" fill="#ff9900" font-size="8">ENI</text>
+
+  <!-- ==================== ROW 5: VPC BOUNDARY ==================== -->
+  <!-- VPC outer boundary - extends through DB and services -->
+  <rect x="60" y="700" width="1280" height="2380" rx="16" fill="url(#vpcGrad)" stroke="#3b82f6" stroke-width="2.5" stroke-dasharray="10,5"/>
+  <text x="80" y="725" fill="#3b82f6" font-size="14" font-weight="700">Your VPC 10.0.0.0/16</text>
+
+  <!-- Public Subnet -->
+  <rect x="80" y="740" width="600" height="100" rx="10" fill="none" stroke="#10b981" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <rect x="80" y="740" width="600" height="100" rx="10" fill="#10b981" opacity="0.05"/>
+  <text x="100" y="762" fill="#10b981" font-size="11" font-weight="600">Public Subnet &#x2022; 10.0.1.0/24 + 10.0.2.0/24 (Multi-AZ)</text>
+
+  <!-- NAT Gateway -->
+  <rect x="100" y="775" width="200" height="50" rx="8" fill="#1e293b" stroke="#ff9900" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="200" y="797" text-anchor="middle" fill="#ff9900" font-size="11" font-weight="700">NAT Gateway</text>
+  <text x="200" y="813" text-anchor="middle" fill="#94a3b8" font-size="9">Elastic IP &#x2022; Outbound internet</text>
+
+  <!-- Internet Gateway -->
+  <rect x="340" y="775" width="200" height="50" rx="8" fill="#1e293b" stroke="#ff9900" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="440" y="797" text-anchor="middle" fill="#ff9900" font-size="11" font-weight="700">Internet Gateway</text>
+  <text x="440" y="813" text-anchor="middle" fill="#94a3b8" font-size="9">Inbound/Outbound &#x2022; IGW</text>
+
+  <!-- ALB in public subnet note -->
+  <rect x="580" y="775" width="80" height="50" rx="8" fill="#1e293b" stroke="#ff9900" stroke-width="1" filter="url(#shadowSm)"/>
+  <text x="620" y="797" text-anchor="middle" fill="#ff9900" font-size="10" font-weight="600">ALB</text>
+  <text x="620" y="811" text-anchor="middle" fill="#94a3b8" font-size="8">Public</text>
+
+  <!-- ==================== ROW 6: PRIVATE SUBNET - EKS WORKER NODES ==================== -->
+  <text x="700" y="875" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600" letter-spacing="1.5">PRIVATE SUBNET &#x2022; EKS WORKER NODES &#x2022; 10.0.10.0/24 + 10.0.11.0/24</text>
+
+  <!-- Workers Security Group boundary -->
+  <rect x="80" y="890" width="1240" height="1060" rx="14" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="100" y="912" fill="#ef4444" font-size="10" font-weight="600">Workers Security Group &#x2022; IN: 30000-32767 from ALB-SG | IN: ALL from self | OUT: ALL to VPC endpoints + DB-SG + MSK-SG</text>
+
+  <!-- NACL for private subnet -->
+  <rect x="75" y="885" width="1250" height="1070" rx="16" fill="none" stroke="#dc2626" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+  <text x="1200" y="900" text-anchor="end" fill="#dc2626" font-size="9" opacity="0.7">Private Subnet NACL</text>
+
+  <!-- Istio Ambient Mesh bar -->
+  <rect x="100" y="920" width="1200" height="28" rx="6" fill="#466BB0" opacity="0.15"/>
+  <rect x="100" y="920" width="1200" height="28" rx="6" fill="none" stroke="#466BB0" stroke-width="1.2"/>
+  <text x="700" y="939" text-anchor="middle" fill="#466BB0" font-size="11" font-weight="700">Istio Ambient Mesh &#x2014; mTLS STRICT between ALL pods &#x2022; ztunnel L4 + waypoint L7</text>
+
+  <!-- === SYSTEM NODE GROUP === -->
+  <rect x="100" y="960" width="1200" height="310" rx="12" fill="#0f172a" opacity="0.6" stroke="#64748b" stroke-width="1"/>
+  <text x="120" y="985" fill="#e2e8f0" font-size="13" font-weight="700">System Node Group</text>
+  <text x="380" y="985" fill="#64748b" font-size="10">2x t4g.medium (Graviton ARM) &#x2022; On-Demand &#x2022; Taints: CriticalAddonsOnly</text>
+
+  <!-- Row 1 of system pods -->
+  <!-- istiod -->
+  <rect x="120" y="1000" width="130" height="50" rx="7" fill="#1e293b" stroke="#466BB0" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="185" y="1022" text-anchor="middle" fill="#466BB0" font-size="11" font-weight="600">istiod</text>
+  <text x="185" y="1038" text-anchor="middle" fill="#94a3b8" font-size="9">Control plane</text>
+
+  <!-- ztunnel -->
+  <rect x="265" y="1000" width="130" height="50" rx="7" fill="#1e293b" stroke="#466BB0" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="330" y="1022" text-anchor="middle" fill="#466BB0" font-size="11" font-weight="600">ztunnel</text>
+  <text x="330" y="1038" text-anchor="middle" fill="#94a3b8" font-size="9">DaemonSet &#x2022; L4 mTLS</text>
+
+  <!-- cert-manager -->
+  <rect x="410" y="1000" width="140" height="50" rx="7" fill="#1e293b" stroke="#10b981" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="480" y="1022" text-anchor="middle" fill="#10b981" font-size="11" font-weight="600">cert-manager</text>
+  <text x="480" y="1038" text-anchor="middle" fill="#94a3b8" font-size="9">TLS cert lifecycle</text>
+
+  <!-- ALB Controller -->
+  <rect x="565" y="1000" width="155" height="50" rx="7" fill="#1e293b" stroke="#ff9900" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="642" y="1022" text-anchor="middle" fill="#ff9900" font-size="11" font-weight="600">ALB Controller</text>
+  <text x="642" y="1038" text-anchor="middle" fill="#94a3b8" font-size="9">Ingress &#x2192; ALB sync</text>
+
+  <!-- CoreDNS -->
+  <rect x="735" y="1000" width="120" height="50" rx="7" fill="#1e293b" stroke="#64748b" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="795" y="1022" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="600">CoreDNS</text>
+  <text x="795" y="1038" text-anchor="middle" fill="#94a3b8" font-size="9">Cluster DNS</text>
+
+  <!-- External DNS -->
+  <rect x="870" y="1000" width="135" height="50" rx="7" fill="#1e293b" stroke="#ff9900" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="937" y="1022" text-anchor="middle" fill="#ff9900" font-size="11" font-weight="600">External DNS</text>
+  <text x="937" y="1038" text-anchor="middle" fill="#94a3b8" font-size="9">Route 53 sync</text>
+
+  <!-- EBS CSI -->
+  <rect x="1020" y="1000" width="130" height="50" rx="7" fill="#1e293b" stroke="#ff9900" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="1085" y="1022" text-anchor="middle" fill="#ff9900" font-size="11" font-weight="600">EBS CSI</text>
+  <text x="1085" y="1038" text-anchor="middle" fill="#94a3b8" font-size="9">Persistent volumes</text>
+
+  <!-- Row 2 of system pods -->
+  <!-- Prometheus -->
+  <rect x="120" y="1065" width="130" height="50" rx="7" fill="#1e293b" stroke="#e2e8f0" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="185" y="1087" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="600">Prometheus</text>
+  <text x="185" y="1103" text-anchor="middle" fill="#94a3b8" font-size="9">Metrics scraper</text>
+
+  <!-- Grafana -->
+  <rect x="265" y="1065" width="130" height="50" rx="7" fill="#1e293b" stroke="#f59e0b" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="330" y="1087" text-anchor="middle" fill="#f59e0b" font-size="11" font-weight="600">Grafana</text>
+  <text x="330" y="1103" text-anchor="middle" fill="#94a3b8" font-size="9">Dashboards</text>
+
+  <!-- Loki -->
+  <rect x="410" y="1065" width="130" height="50" rx="7" fill="#1e293b" stroke="#f59e0b" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="475" y="1087" text-anchor="middle" fill="#f59e0b" font-size="11" font-weight="600">Loki</text>
+  <text x="475" y="1103" text-anchor="middle" fill="#94a3b8" font-size="9">Log aggregation</text>
+
+  <!-- Tempo -->
+  <rect x="555" y="1065" width="130" height="50" rx="7" fill="#1e293b" stroke="#f59e0b" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="620" y="1087" text-anchor="middle" fill="#f59e0b" font-size="11" font-weight="600">Tempo</text>
+  <text x="620" y="1103" text-anchor="middle" fill="#94a3b8" font-size="9">Distributed tracing</text>
+
+  <!-- Kiali -->
+  <rect x="700" y="1065" width="120" height="50" rx="7" fill="#1e293b" stroke="#466BB0" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="760" y="1087" text-anchor="middle" fill="#466BB0" font-size="11" font-weight="600">Kiali</text>
+  <text x="760" y="1103" text-anchor="middle" fill="#94a3b8" font-size="9">Mesh topology</text>
+
+  <!-- OTel Collector -->
+  <rect x="835" y="1065" width="150" height="50" rx="7" fill="#1e293b" stroke="#a78bfa" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="910" y="1087" text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="600">OTel Collector</text>
+  <text x="910" y="1103" text-anchor="middle" fill="#94a3b8" font-size="9">Telemetry pipeline</text>
+
+  <!-- Metrics Server -->
+  <rect x="1000" y="1065" width="140" height="50" rx="7" fill="#1e293b" stroke="#64748b" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="1070" y="1087" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="600">Metrics Server</text>
+  <text x="1070" y="1103" text-anchor="middle" fill="#94a3b8" font-size="9">HPA autoscaling</text>
+
+  <!-- Row 3 system: Network Policies -->
+  <rect x="120" y="1130" width="155" height="50" rx="7" fill="#1e293b" stroke="#64748b" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="197" y="1152" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="600">Cluster Autoscaler</text>
+  <text x="197" y="1168" text-anchor="middle" fill="#94a3b8" font-size="9">Node scaling</text>
+
+  <rect x="290" y="1130" width="155" height="50" rx="7" fill="#1e293b" stroke="#ef4444" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="367" y="1152" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="600">NetworkPolicies</text>
+  <text x="367" y="1168" text-anchor="middle" fill="#94a3b8" font-size="9">Per-namespace deny</text>
+
+  <rect x="460" y="1130" width="150" height="50" rx="7" fill="#1e293b" stroke="#ef4444" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="535" y="1152" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="600">PeerAuth</text>
+  <text x="535" y="1168" text-anchor="middle" fill="#94a3b8" font-size="9">mTLS STRICT</text>
+
+  <rect x="625" y="1130" width="155" height="50" rx="7" fill="#1e293b" stroke="#ef4444" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="702" y="1152" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="600">AuthzPolicy</text>
+  <text x="702" y="1168" text-anchor="middle" fill="#94a3b8" font-size="9">JWT + role checks</text>
+
+  <rect x="795" y="1130" width="155" height="50" rx="7" fill="#1e293b" stroke="#fbbf24" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="872" y="1152" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="600">RequestAuth</text>
+  <text x="872" y="1168" text-anchor="middle" fill="#94a3b8" font-size="9">Keycloak JWKS</text>
+
+  <rect x="965" y="1130" width="155" height="50" rx="7" fill="#1e293b" stroke="#10b981" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="1042" y="1152" text-anchor="middle" fill="#10b981" font-size="11" font-weight="600">PodDisruptionBudget</text>
+  <text x="1042" y="1168" text-anchor="middle" fill="#94a3b8" font-size="9">HA guarantees</text>
+
+  <!-- === APP NODE GROUP === -->
+  <rect x="100" y="1200" width="1200" height="740" rx="12" fill="#0f172a" opacity="0.6" stroke="#64748b" stroke-width="1"/>
+  <text x="120" y="1225" fill="#e2e8f0" font-size="13" font-weight="700">App Node Group</text>
+  <text x="310" y="1225" fill="#64748b" font-size="10">2x t3.large (Spot Instances) &#x2022; Multi-AZ &#x2022; Labels: workload=app</text>
+
+  <!-- === APPLICATION PODS === -->
+  <!-- Istio Gateway -->
+  <rect x="120" y="1240" width="260" height="55" rx="8" fill="#1e293b" stroke="#466BB0" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="250" y="1262" text-anchor="middle" fill="#466BB0" font-size="12" font-weight="700">Istio Gateway</text>
+  <text x="250" y="1280" text-anchor="middle" fill="#94a3b8" font-size="10">gatewayClassName: istio &#x2022; HTTPS :443</text>
+
+  <!-- UI Service -->
+  <rect x="420" y="1240" width="200" height="55" rx="8" fill="#1e293b" stroke="#a78bfa" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="520" y="1262" text-anchor="middle" fill="#a78bfa" font-size="12" font-weight="700">ui-service</text>
+  <text x="520" y="1280" text-anchor="middle" fill="#94a3b8" font-size="10">React 19.2 &#x2022; Nginx &#x2022; SPA</text>
+
+  <!-- Keycloak -->
+  <rect x="660" y="1240" width="200" height="55" rx="8" fill="#1e293b" stroke="#fbbf24" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="760" y="1262" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="700">Keycloak</text>
+  <text x="760" y="1280" text-anchor="middle" fill="#94a3b8" font-size="10">26.5.4 &#x2022; OIDC &#x2022; PKCE</text>
+
+  <!-- CSRF Service -->
+  <rect x="900" y="1240" width="200" height="55" rx="8" fill="#1e293b" stroke="#f87171" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="1000" y="1262" text-anchor="middle" fill="#f87171" font-size="12" font-weight="700">csrf-service</text>
+  <text x="1000" y="1280" text-anchor="middle" fill="#94a3b8" font-size="10">Go &#x2022; ext_authz &#x2022; Redis</text>
+
+  <!-- ecom-service -->
+  <rect x="120" y="1320" width="280" height="70" rx="8" fill="#1e293b" stroke="#60a5fa" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="260" y="1342" text-anchor="middle" fill="#60a5fa" font-size="12" font-weight="700">ecom-service</text>
+  <text x="260" y="1358" text-anchor="middle" fill="#94a3b8" font-size="10">Spring Boot 4.0.3 &#x2022; Java 21</text>
+  <text x="260" y="1376" text-anchor="middle" fill="#94a3b8" font-size="9">GET /books &#x2022; POST /cart &#x2022; POST /checkout</text>
+
+  <!-- inventory-service -->
+  <rect x="430" y="1320" width="260" height="70" rx="8" fill="#1e293b" stroke="#34d399" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="560" y="1342" text-anchor="middle" fill="#34d399" font-size="12" font-weight="700">inventory-service</text>
+  <text x="560" y="1358" text-anchor="middle" fill="#94a3b8" font-size="10">FastAPI &#x2022; Python 3.12</text>
+  <text x="560" y="1376" text-anchor="middle" fill="#94a3b8" font-size="9">GET /stock &#x2022; POST /reserve &#x2022; Kafka consumer</text>
+
+  <!-- PgAdmin -->
+  <rect x="720" y="1320" width="150" height="70" rx="8" fill="#1e293b" stroke="#336791" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="795" y="1345" text-anchor="middle" fill="#336791" font-size="11" font-weight="600">PgAdmin</text>
+  <text x="795" y="1362" text-anchor="middle" fill="#94a3b8" font-size="9">DB management</text>
+  <text x="795" y="1377" text-anchor="middle" fill="#94a3b8" font-size="9">console</text>
+
+  <!-- Superset -->
+  <rect x="900" y="1320" width="170" height="70" rx="8" fill="#1e293b" stroke="#4fc3f7" stroke-width="1.2" filter="url(#shadow)"/>
+  <text x="985" y="1345" text-anchor="middle" fill="#4fc3f7" font-size="12" font-weight="700">Superset</text>
+  <text x="985" y="1362" text-anchor="middle" fill="#94a3b8" font-size="10">3 dashboards &#x2022; 16 charts</text>
+  <text x="985" y="1377" text-anchor="middle" fill="#94a3b8" font-size="9">analytics visualization</text>
+
+  <!-- Debezium ecom -->
+  <rect x="120" y="1420" width="220" height="55" rx="8" fill="#1e293b" stroke="#fb923c" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="230" y="1442" text-anchor="middle" fill="#fb923c" font-size="11" font-weight="700">Debezium Server (ecom)</text>
+  <text x="230" y="1458" text-anchor="middle" fill="#94a3b8" font-size="9">CDC &#x2022; WAL reader &#x2022; ecom-db</text>
+
+  <!-- Debezium inventory -->
+  <rect x="370" y="1420" width="230" height="55" rx="8" fill="#1e293b" stroke="#fb923c" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="485" y="1442" text-anchor="middle" fill="#fb923c" font-size="11" font-weight="700">Debezium Server (inventory)</text>
+  <text x="485" y="1458" text-anchor="middle" fill="#94a3b8" font-size="9">CDC &#x2022; WAL reader &#x2022; inventory-db</text>
+
+  <!-- Flink Job Manager -->
+  <rect x="630" y="1420" width="200" height="55" rx="8" fill="#1e293b" stroke="#E6526F" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="730" y="1442" text-anchor="middle" fill="#E6526F" font-size="11" font-weight="700">Flink JobManager</text>
+  <text x="730" y="1458" text-anchor="middle" fill="#94a3b8" font-size="9">4 streaming SQL jobs</text>
+
+  <!-- Flink Task Manager -->
+  <rect x="860" y="1420" width="200" height="55" rx="8" fill="#1e293b" stroke="#E6526F" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="960" y="1442" text-anchor="middle" fill="#E6526F" font-size="11" font-weight="700">Flink TaskManager</text>
+  <text x="960" y="1458" text-anchor="middle" fill="#94a3b8" font-size="9">Slot parallelism</text>
+
+  <!-- ==================== ROW 7: APPLICATION DATA FLOW ==================== -->
+  <text x="700" y="1510" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600" letter-spacing="1.5">NUMBERED REQUEST FLOW</text>
+
+  <!-- Flow box -->
+  <rect x="100" y="1520" width="1200" height="400" rx="10" fill="#0f172a" opacity="0.5" stroke="#334155" stroke-width="1"/>
+
+  <!-- Flow step 1 -->
+  <circle cx="130" cy="1548" r="12" fill="#10b981" opacity="0.9"/>
+  <text x="130" y="1553" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="700">1</text>
+  <text x="152" y="1553" fill="#e2e8f0" font-size="11">Browser &#x2192; ALB &#x2192; Istio Gateway &#x2192; UI Pod (React SPA served by Nginx)</text>
+
+  <!-- Flow step 2 -->
+  <circle cx="130" cy="1578" r="12" fill="#fbbf24" opacity="0.9"/>
+  <text x="130" y="1583" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="700">2</text>
+  <text x="152" y="1583" fill="#e2e8f0" font-size="11">UI &#x2192; Keycloak (OIDC Authorization Code + PKCE login &#x2192; JWT access token + refresh token in HTTP-only cookie)</text>
+
+  <!-- Flow step 3 -->
+  <circle cx="130" cy="1608" r="12" fill="#f87171" opacity="0.9"/>
+  <text x="130" y="1613" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="700">3</text>
+  <text x="152" y="1613" fill="#e2e8f0" font-size="11">UI &#x2192; csrf-service via Istio ext_authz (GET /csrf/token &#x2192; CSRF token stored in React state)</text>
+
+  <!-- Flow step 4 -->
+  <circle cx="130" cy="1638" r="12" fill="#60a5fa" opacity="0.9"/>
+  <text x="130" y="1643" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="700">4</text>
+  <text x="152" y="1643" fill="#e2e8f0" font-size="11">UI &#x2192; ecom-service (GET /ecom/books &#x2014; public, no authentication required)</text>
+
+  <!-- Flow step 5 -->
+  <circle cx="130" cy="1668" r="12" fill="#60a5fa" opacity="0.9"/>
+  <text x="130" y="1673" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="700">5</text>
+  <text x="152" y="1673" fill="#e2e8f0" font-size="11">UI &#x2192; ecom-service (POST /ecom/cart &#x2014; JWT in Authorization header + X-CSRF-Token header)</text>
+
+  <!-- Flow step 6 -->
+  <circle cx="130" cy="1698" r="12" fill="#60a5fa" opacity="0.9"/>
+  <text x="130" y="1703" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="700">6</text>
+  <text x="152" y="1703" fill="#e2e8f0" font-size="11">UI &#x2192; ecom-service (POST /ecom/checkout &#x2014; JWT + CSRF + Idempotency-Key header)</text>
+
+  <!-- Flow step 7 -->
+  <circle cx="130" cy="1728" r="12" fill="#34d399" opacity="0.9"/>
+  <text x="130" y="1733" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="700">7</text>
+  <text x="152" y="1733" fill="#e2e8f0" font-size="11">ecom-service &#x2192; inventory-service (POST /inven/reserve &#x2014; internal mTLS, admin role required)</text>
+
+  <!-- Flow step 8 -->
+  <circle cx="130" cy="1758" r="12" fill="#e2e8f0" opacity="0.9"/>
+  <text x="130" y="1763" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="700">8</text>
+  <text x="152" y="1763" fill="#e2e8f0" font-size="11">ecom-service &#x2192; MSK Kafka (publish order.created event to Kafka topic)</text>
+
+  <!-- Flow step 9 -->
+  <circle cx="130" cy="1788" r="12" fill="#e2e8f0" opacity="0.9"/>
+  <text x="130" y="1793" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="700">9</text>
+  <text x="152" y="1793" fill="#e2e8f0" font-size="11">inventory-service &#x2192; MSK Kafka (publish inventory.updated event after stock deduction)</text>
+
+  <!-- CDC Pipeline steps -->
+  <text x="700" y="1830" text-anchor="middle" fill="#fb923c" font-size="11" font-weight="600" letter-spacing="1">CDC PIPELINE FLOW</text>
+
+  <!-- Flow step 10 -->
+  <circle cx="130" cy="1848" r="12" fill="#fb923c" opacity="0.9"/>
+  <text x="130" y="1853" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="700">10</text>
+  <text x="152" y="1853" fill="#e2e8f0" font-size="11">ecom-db (WAL) &#x2192; Debezium Server (ecom) &#x2192; MSK Kafka (ecom-connector.public.orders, .books, .cart_items)</text>
+
+  <!-- Flow step 11 -->
+  <circle cx="130" cy="1878" r="12" fill="#fb923c" opacity="0.9"/>
+  <text x="130" y="1883" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="700">11</text>
+  <text x="152" y="1883" fill="#e2e8f0" font-size="11">inventory-db (WAL) &#x2192; Debezium Server (inventory) &#x2192; MSK Kafka (inventory-connector.public.stock)</text>
+
+  <!-- Flow step 12 -->
+  <circle cx="130" cy="1908" r="12" fill="#E6526F" opacity="0.9"/>
+  <text x="130" y="1913" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="700">12</text>
+  <text x="152" y="1913" fill="#e2e8f0" font-size="11">MSK Kafka &#x2192; Flink SQL (4 streaming jobs: fact_orders, fact_order_items, dim_books, dim_stock) &#x2192; analytics-db</text>
+
+  <!-- Flow step 13 -->
+  <circle cx="130" cy="1938" r="12" fill="#4fc3f7" opacity="0.9"/>
+  <text x="130" y="1943" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="700">13</text>
+  <text x="152" y="1943" fill="#e2e8f0" font-size="11">analytics-db &#x2192; Superset (3 dashboards: Product Sales Volume, Sales Over Time, Stock Levels &#x2022; 16 charts)</text>
+
+  <!-- ==================== ROW 9: DATABASE SUBNET ==================== -->
+  <text x="700" y="1980" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600" letter-spacing="1.5">DATABASE SUBNET &#x2022; 10.0.20.0/24 + 10.0.21.0/24 (Multi-AZ)</text>
+
+  <!-- Database NACL -->
+  <rect x="80" y="1995" width="1240" height="260" rx="14" fill="none" stroke="#dc2626" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+  <text x="1200" y="2010" text-anchor="end" fill="#dc2626" font-size="9" opacity="0.7">Database Subnet NACL &#x2022; IN: 5432 from Workers only &#x2022; OUT: ephemeral to Workers</text>
+
+  <!-- Aurora Security Group -->
+  <rect x="100" y="2020" width="1200" height="220" rx="12" fill="none" stroke="#336791" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <rect x="100" y="2020" width="1200" height="220" rx="12" fill="#336791" opacity="0.05"/>
+  <text x="120" y="2045" fill="#336791" font-size="12" font-weight="700">Aurora Security Group</text>
+  <text x="380" y="2045" fill="#94a3b8" font-size="10">IN: 5432/tcp from Workers-SG ONLY &#x2022; OUT: NONE (no egress needed)</text>
+
+  <!-- ecom-db -->
+  <rect x="120" y="2060" width="260" height="80" rx="8" fill="#1e293b" stroke="#60a5fa" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="250" y="2082" text-anchor="middle" fill="#60a5fa" font-size="12" font-weight="700">Aurora: ecom-db</text>
+  <text x="250" y="2098" text-anchor="middle" fill="#94a3b8" font-size="10">Serverless v2 &#x2022; 0.5&#x2013;4 ACU</text>
+  <text x="250" y="2114" text-anchor="middle" fill="#94a3b8" font-size="9">orders, cart_items, books</text>
+  <text x="250" y="2128" text-anchor="middle" fill="#64748b" font-size="9">KMS encrypted &#x2022; wal_level=logical</text>
+
+  <!-- inventory-db -->
+  <rect x="410" y="2060" width="260" height="80" rx="8" fill="#1e293b" stroke="#34d399" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="540" y="2082" text-anchor="middle" fill="#34d399" font-size="12" font-weight="700">Aurora: inventory-db</text>
+  <text x="540" y="2098" text-anchor="middle" fill="#94a3b8" font-size="10">Serverless v2 &#x2022; 0.5&#x2013;4 ACU</text>
+  <text x="540" y="2114" text-anchor="middle" fill="#94a3b8" font-size="9">stock (book_id, quantity)</text>
+  <text x="540" y="2128" text-anchor="middle" fill="#64748b" font-size="9">KMS encrypted &#x2022; wal_level=logical</text>
+
+  <!-- analytics-db -->
+  <rect x="700" y="2060" width="260" height="80" rx="8" fill="#1e293b" stroke="#E6526F" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="830" y="2082" text-anchor="middle" fill="#E6526F" font-size="12" font-weight="700">Aurora: analytics-db</text>
+  <text x="830" y="2098" text-anchor="middle" fill="#94a3b8" font-size="10">Serverless v2 &#x2022; 0.5&#x2013;4 ACU</text>
+  <text x="830" y="2114" text-anchor="middle" fill="#94a3b8" font-size="9">fact_orders, fact_order_items</text>
+  <text x="830" y="2128" text-anchor="middle" fill="#64748b" font-size="9">dim_books, dim_stock &#x2022; star schema</text>
+
+  <!-- keycloak-db -->
+  <rect x="990" y="2060" width="260" height="80" rx="8" fill="#1e293b" stroke="#fbbf24" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="1120" y="2082" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="700">Aurora: keycloak-db</text>
+  <text x="1120" y="2098" text-anchor="middle" fill="#94a3b8" font-size="10">Serverless v2 &#x2022; 0.5&#x2013;4 ACU</text>
+  <text x="1120" y="2114" text-anchor="middle" fill="#94a3b8" font-size="9">realm, users, clients, sessions</text>
+  <text x="1120" y="2128" text-anchor="middle" fill="#64748b" font-size="9">KMS encrypted &#x2022; Multi-AZ</text>
+
+  <!-- DB connection arrows -->
+  <line x1="260" y1="1390" x2="250" y2="2055" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrowHeadBlue)"/>
+  <line x1="560" y1="1390" x2="540" y2="2055" stroke="#34d399" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrowHead)"/>
+  <line x1="760" y1="1295" x2="1120" y2="2055" stroke="#fbbf24" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arrowHeadOrange)"/>
+
+  <!-- Multi-AZ labels -->
+  <rect x="120" y="2155" width="160" height="30" rx="6" fill="#1e293b" stroke="#336791" stroke-width="1" filter="url(#shadowSm)"/>
+  <text x="200" y="2175" text-anchor="middle" fill="#336791" font-size="10" font-weight="600">Writer (AZ-a)</text>
+  <rect x="300" y="2155" width="160" height="30" rx="6" fill="#1e293b" stroke="#336791" stroke-width="1" filter="url(#shadowSm)"/>
+  <text x="380" y="2175" text-anchor="middle" fill="#336791" font-size="10">Reader Replica (AZ-b)</text>
+  <text x="530" y="2175" fill="#94a3b8" font-size="9">&#x2190; Each Aurora cluster has writer + reader across AZs</text>
+
+  <!-- ==================== ROW 10: MANAGED SERVICES ==================== -->
+  <text x="700" y="2280" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600" letter-spacing="1.5">MANAGED SERVICES (PRIVATE SUBNET)</text>
+
+  <!-- MSK Security Group -->
+  <rect x="80" y="2295" width="660" height="230" rx="12" fill="none" stroke="#e2e8f0" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <rect x="80" y="2295" width="660" height="230" rx="12" fill="#e2e8f0" opacity="0.03"/>
+  <text x="100" y="2320" fill="#e2e8f0" font-size="12" font-weight="700">MSK Security Group</text>
+  <text x="350" y="2320" fill="#94a3b8" font-size="10">IN: 9092,9094 from Workers-SG &#x2022; OUT: NONE</text>
+
+  <!-- Kafka Broker 1 -->
+  <rect x="100" y="2335" width="185" height="60" rx="8" fill="#1e293b" stroke="#e2e8f0" stroke-width="1.2" filter="url(#shadow)"/>
+  <text x="192" y="2357" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">Kafka Broker 1</text>
+  <text x="192" y="2375" text-anchor="middle" fill="#94a3b8" font-size="9">TLS &#x2022; IAM auth &#x2022; AZ-a</text>
+
+  <!-- Kafka Broker 2 -->
+  <rect x="305" y="2335" width="185" height="60" rx="8" fill="#1e293b" stroke="#e2e8f0" stroke-width="1.2" filter="url(#shadow)"/>
+  <text x="397" y="2357" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">Kafka Broker 2</text>
+  <text x="397" y="2375" text-anchor="middle" fill="#94a3b8" font-size="9">TLS &#x2022; IAM auth &#x2022; AZ-b</text>
+
+  <!-- Kafka Broker 3 -->
+  <rect x="510" y="2335" width="185" height="60" rx="8" fill="#1e293b" stroke="#e2e8f0" stroke-width="1.2" filter="url(#shadow)"/>
+  <text x="602" y="2357" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">Kafka Broker 3</text>
+  <text x="602" y="2375" text-anchor="middle" fill="#94a3b8" font-size="9">TLS &#x2022; IAM auth &#x2022; AZ-a</text>
+
+  <!-- Kafka Topics -->
+  <rect x="100" y="2410" width="590" height="100" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1" filter="url(#shadowSm)"/>
+  <text x="120" y="2432" fill="#e2e8f0" font-size="11" font-weight="600">Topics (replication.factor=3, min.insync.replicas=2):</text>
+  <text x="120" y="2450" fill="#94a3b8" font-size="10">&#x2022; order.created &#x2022; inventory.updated</text>
+  <text x="120" y="2466" fill="#94a3b8" font-size="10">&#x2022; ecom-connector.public.orders &#x2022; ecom-connector.public.books</text>
+  <text x="120" y="2482" fill="#94a3b8" font-size="10">&#x2022; ecom-connector.public.cart_items &#x2022; inventory-connector.public.stock</text>
+  <text x="120" y="2498" fill="#94a3b8" font-size="10">&#x2022; debezium.ecom.offsets &#x2022; debezium.inventory.offsets</text>
+
+  <!-- ElastiCache Security Group -->
+  <rect x="770" y="2295" width="560" height="230" rx="12" fill="none" stroke="#DC382D" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <rect x="770" y="2295" width="560" height="230" rx="12" fill="#DC382D" opacity="0.03"/>
+  <text x="790" y="2320" fill="#DC382D" font-size="12" font-weight="700">ElastiCache Security Group</text>
+  <text x="1070" y="2320" fill="#94a3b8" font-size="10">IN: 6379 from Workers-SG &#x2022; OUT: NONE</text>
+
+  <!-- Redis Primary -->
+  <rect x="790" y="2335" width="250" height="75" rx="8" fill="#1e293b" stroke="#DC382D" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="915" y="2360" text-anchor="middle" fill="#DC382D" font-size="12" font-weight="700">ElastiCache Redis</text>
+  <text x="915" y="2378" text-anchor="middle" fill="#94a3b8" font-size="10">Primary (AZ-a) + Replica (AZ-b)</text>
+  <text x="915" y="2396" text-anchor="middle" fill="#94a3b8" font-size="9">AUTH token &#x2022; TLS 1.2 &#x2022; r7g.medium</text>
+
+  <!-- Redis uses -->
+  <rect x="790" y="2425" width="250" height="85" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1" filter="url(#shadowSm)"/>
+  <text x="810" y="2447" fill="#e2e8f0" font-size="11" font-weight="600">Stores:</text>
+  <text x="810" y="2465" fill="#94a3b8" font-size="10">&#x2022; CSRF tokens (per-session)</text>
+  <text x="810" y="2481" fill="#94a3b8" font-size="10">&#x2022; Rate limiting buckets (Bucket4j)</text>
+  <text x="810" y="2497" fill="#94a3b8" font-size="10">&#x2022; Session cache</text>
+
+  <!-- Connection arrows from services to managed services -->
+  <text x="400" y="2278" text-anchor="middle" fill="#64748b" font-size="9">ecom + inventory &#x2192; Kafka (TLS :9094)</text>
+  <text x="950" y="2278" text-anchor="middle" fill="#64748b" font-size="9">csrf-service + ecom &#x2192; Redis (TLS :6379)</text>
+
+  <!-- ==================== ROW 11: SUPPORTING SERVICES ==================== -->
+  <!-- Close VPC rect visually implied by row 10 ending -->
+
+  <text x="700" y="2570" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600" letter-spacing="1.5">AWS SUPPORTING SERVICES</text>
+
+  <!-- S3 -->
+  <rect x="80" y="2590" width="200" height="70" rx="8" fill="#1e293b" stroke="#ff9900" stroke-width="1.2" filter="url(#shadow)"/>
+  <text x="180" y="2615" text-anchor="middle" fill="#ff9900" font-size="12" font-weight="700">S3</text>
+  <text x="180" y="2632" text-anchor="middle" fill="#94a3b8" font-size="10">Terraform state (encrypted)</text>
+  <text x="180" y="2648" text-anchor="middle" fill="#94a3b8" font-size="9">Versioning &#x2022; Bucket policy</text>
+
+  <!-- DynamoDB -->
+  <rect x="300" y="2590" width="170" height="70" rx="8" fill="#1e293b" stroke="#ff9900" stroke-width="1.2" filter="url(#shadow)"/>
+  <text x="385" y="2615" text-anchor="middle" fill="#ff9900" font-size="12" font-weight="700">DynamoDB</text>
+  <text x="385" y="2632" text-anchor="middle" fill="#94a3b8" font-size="10">Terraform state lock</text>
+  <text x="385" y="2648" text-anchor="middle" fill="#94a3b8" font-size="9">PAY_PER_REQUEST</text>
+
+  <!-- Secrets Manager -->
+  <rect x="490" y="2590" width="210" height="70" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1.2" filter="url(#shadow)"/>
+  <text x="595" y="2615" text-anchor="middle" fill="#ef4444" font-size="12" font-weight="700">Secrets Manager</text>
+  <text x="595" y="2632" text-anchor="middle" fill="#94a3b8" font-size="10">DB passwords (4)</text>
+  <text x="595" y="2648" text-anchor="middle" fill="#94a3b8" font-size="9">Redis auth &#x2022; MSK creds &#x2022; Auto-rotate</text>
+
+  <!-- KMS -->
+  <rect x="720" y="2590" width="170" height="70" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1.2" filter="url(#shadow)"/>
+  <text x="805" y="2615" text-anchor="middle" fill="#ef4444" font-size="12" font-weight="700">KMS</text>
+  <text x="805" y="2632" text-anchor="middle" fill="#94a3b8" font-size="10">2 CMKs</text>
+  <text x="805" y="2648" text-anchor="middle" fill="#94a3b8" font-size="9">EKS secrets &#x2022; Aurora encryption</text>
+
+  <!-- CloudWatch -->
+  <rect x="910" y="2590" width="190" height="70" rx="8" fill="#1e293b" stroke="#ff9900" stroke-width="1.2" filter="url(#shadow)"/>
+  <text x="1005" y="2615" text-anchor="middle" fill="#ff9900" font-size="12" font-weight="700">CloudWatch</text>
+  <text x="1005" y="2632" text-anchor="middle" fill="#94a3b8" font-size="10">VPC Flow Logs &#x2022; Alarms</text>
+  <text x="1005" y="2648" text-anchor="middle" fill="#94a3b8" font-size="9">EKS control plane logs</text>
+
+  <!-- ECR -->
+  <rect x="1120" y="2590" width="200" height="70" rx="8" fill="#1e293b" stroke="#ff9900" stroke-width="1.2" filter="url(#shadow)"/>
+  <text x="1220" y="2615" text-anchor="middle" fill="#ff9900" font-size="12" font-weight="700">ECR</text>
+  <text x="1220" y="2632" text-anchor="middle" fill="#94a3b8" font-size="10">5 repositories</text>
+  <text x="1220" y="2648" text-anchor="middle" fill="#94a3b8" font-size="9">ecom, inventory, ui, csrf, flink</text>
+
+  <!-- ==================== ROW 12: VPC ENDPOINTS ==================== -->
+  <text x="700" y="2700" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600" letter-spacing="1.5">VPC ENDPOINTS (PRIVATE CONNECTIVITY &#x2014; NO INTERNET REQUIRED)</text>
+
+  <!-- Endpoints SG -->
+  <rect x="80" y="2715" width="1240" height="120" rx="12" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <rect x="80" y="2715" width="1240" height="120" rx="12" fill="#3b82f6" opacity="0.04"/>
+  <text x="100" y="2740" fill="#3b82f6" font-size="10" font-weight="600">VPC Endpoints Security Group &#x2022; IN: 443/tcp from Workers-SG &#x2022; OUT: NONE</text>
+
+  <!-- S3 Gateway -->
+  <rect x="100" y="2750" width="160" height="50" rx="7" fill="#1e293b" stroke="#10b981" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="180" y="2772" text-anchor="middle" fill="#10b981" font-size="10" font-weight="700">S3 Gateway</text>
+  <text x="180" y="2788" text-anchor="middle" fill="#94a3b8" font-size="9">FREE &#x2022; Route table</text>
+
+  <!-- ECR API -->
+  <rect x="280" y="2750" width="150" height="50" rx="7" fill="#1e293b" stroke="#3b82f6" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="355" y="2772" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="700">ECR API</text>
+  <text x="355" y="2788" text-anchor="middle" fill="#94a3b8" font-size="9">Interface &#x2022; $7.30/mo</text>
+
+  <!-- ECR DKR -->
+  <rect x="450" y="2750" width="150" height="50" rx="7" fill="#1e293b" stroke="#3b82f6" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="525" y="2772" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="700">ECR DKR</text>
+  <text x="525" y="2788" text-anchor="middle" fill="#94a3b8" font-size="9">Interface &#x2022; $7.30/mo</text>
+
+  <!-- STS -->
+  <rect x="620" y="2750" width="140" height="50" rx="7" fill="#1e293b" stroke="#3b82f6" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="690" y="2772" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="700">STS</text>
+  <text x="690" y="2788" text-anchor="middle" fill="#94a3b8" font-size="9">Interface &#x2022; IRSA</text>
+
+  <!-- CloudWatch Logs -->
+  <rect x="780" y="2750" width="170" height="50" rx="7" fill="#1e293b" stroke="#3b82f6" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="865" y="2772" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="700">CW Logs</text>
+  <text x="865" y="2788" text-anchor="middle" fill="#94a3b8" font-size="9">Interface &#x2022; $7.30/mo</text>
+
+  <!-- Secrets Manager Endpoint -->
+  <rect x="970" y="2750" width="180" height="50" rx="7" fill="#1e293b" stroke="#3b82f6" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="1060" y="2772" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="700">Secrets Manager</text>
+  <text x="1060" y="2788" text-anchor="middle" fill="#94a3b8" font-size="9">Interface &#x2022; $7.30/mo</text>
+
+  <!-- KMS Endpoint -->
+  <rect x="1170" y="2750" width="130" height="50" rx="7" fill="#1e293b" stroke="#3b82f6" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="1235" y="2772" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="700">KMS</text>
+  <text x="1235" y="2788" text-anchor="middle" fill="#94a3b8" font-size="9">Interface &#x2022; $7.30/mo</text>
+
+  <!-- ==================== ROW 13: OBSERVABILITY FLOW ==================== -->
+  <text x="700" y="2880" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600" letter-spacing="1.5">OBSERVABILITY PIPELINE</text>
+
+  <!-- Observability flow diagram -->
+  <rect x="80" y="2895" width="1240" height="160" rx="12" fill="#0f172a" opacity="0.5" stroke="#334155" stroke-width="1"/>
+
+  <!-- Services box -->
+  <rect x="100" y="2915" width="150" height="45" rx="7" fill="#1e293b" stroke="#60a5fa" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="175" y="2935" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">ecom-service</text>
+  <text x="175" y="2950" text-anchor="middle" fill="#94a3b8" font-size="9">OTel SDK</text>
+
+  <rect x="100" y="2970" width="150" height="45" rx="7" fill="#1e293b" stroke="#34d399" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="175" y="2990" text-anchor="middle" fill="#34d399" font-size="10" font-weight="600">inventory-service</text>
+  <text x="175" y="3005" text-anchor="middle" fill="#94a3b8" font-size="9">OTel SDK</text>
+
+  <!-- Arrows to OTel -->
+  <line x1="250" y1="2938" x2="310" y2="2948" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowHeadPurple)"/>
+  <line x1="250" y1="2993" x2="310" y2="2978" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arrowHeadPurple)"/>
+
+  <!-- OTel Collector -->
+  <rect x="315" y="2930" width="160" height="55" rx="7" fill="#1e293b" stroke="#a78bfa" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="395" y="2955" text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="700">OTel Collector</text>
+  <text x="395" y="2972" text-anchor="middle" fill="#94a3b8" font-size="9">OTLP :4317/:4318</text>
+
+  <!-- Arrows from OTel to backends -->
+  <line x1="475" y1="2945" x2="540" y2="2935" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrowHeadOrange)"/>
+  <text x="500" y="2933" fill="#94a3b8" font-size="8">logs</text>
+  <line x1="475" y1="2968" x2="540" y2="2978" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrowHeadOrange)"/>
+  <text x="500" y="2983" fill="#94a3b8" font-size="8">traces</text>
+
+  <!-- Loki -->
+  <rect x="545" y="2915" width="120" height="40" rx="7" fill="#1e293b" stroke="#f59e0b" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="605" y="2940" text-anchor="middle" fill="#f59e0b" font-size="11" font-weight="600">Loki</text>
+
+  <!-- Tempo -->
+  <rect x="545" y="2965" width="120" height="40" rx="7" fill="#1e293b" stroke="#f59e0b" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="605" y="2990" text-anchor="middle" fill="#f59e0b" font-size="11" font-weight="600">Tempo</text>
+
+  <!-- Arrows Loki/Tempo to Grafana -->
+  <line x1="665" y1="2935" x2="730" y2="2948" stroke="#f59e0b" stroke-width="1.2" marker-end="url(#arrowHeadOrange)"/>
+  <line x1="665" y1="2985" x2="730" y2="2968" stroke="#f59e0b" stroke-width="1.2" marker-end="url(#arrowHeadOrange)"/>
+
+  <!-- Grafana -->
+  <rect x="735" y="2930" width="140" height="55" rx="7" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="805" y="2955" text-anchor="middle" fill="#f59e0b" font-size="11" font-weight="700">Grafana</text>
+  <text x="805" y="2972" text-anchor="middle" fill="#94a3b8" font-size="9">Dashboards &#x2022; Alerts</text>
+
+  <!-- Prometheus flow -->
+  <rect x="920" y="2915" width="150" height="40" rx="7" fill="#1e293b" stroke="#e2e8f0" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="995" y="2940" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="600">Prometheus</text>
+
+  <line x1="920" y1="2935" x2="878" y2="2948" stroke="#64748b" stroke-width="1.2" marker-end="url(#arrowHeadGray)"/>
+  <text x="896" y="2932" fill="#94a3b8" font-size="8">metrics</text>
+
+  <!-- Kiali -->
+  <rect x="920" y="2965" width="150" height="40" rx="7" fill="#1e293b" stroke="#466BB0" stroke-width="1.2" filter="url(#shadowSm)"/>
+  <text x="995" y="2990" text-anchor="middle" fill="#466BB0" font-size="11" font-weight="600">Kiali</text>
+
+  <text x="1090" y="2940" fill="#94a3b8" font-size="9">scrapes all pods</text>
+  <text x="1090" y="2990" fill="#94a3b8" font-size="9">Istio mesh topology</text>
+
+  <!-- ==================== ROW 14: SECURITY SUMMARY BAR ==================== -->
+  <rect x="60" y="3085" width="1280" height="70" rx="12" fill="#1e293b" stroke="#ef4444" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="700" y="3108" text-anchor="middle" fill="#ef4444" font-size="13" font-weight="700">SECURITY CONTROLS</text>
+
+  <!-- Security badges -->
+  <rect x="85" y="3118" width="60" height="22" rx="4" fill="#ef4444" opacity="0.15"/>
+  <text x="115" y="3133" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">IRSA</text>
+
+  <rect x="155" y="3118" width="55" height="22" rx="4" fill="#ef4444" opacity="0.15"/>
+  <text x="182" y="3133" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">7 SGs</text>
+
+  <rect x="220" y="3118" width="65" height="22" rx="4" fill="#ef4444" opacity="0.15"/>
+  <text x="252" y="3133" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">3 NACLs</text>
+
+  <rect x="295" y="3118" width="90" height="22" rx="4" fill="#ef4444" opacity="0.15"/>
+  <text x="340" y="3133" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">VPC Flow Logs</text>
+
+  <rect x="395" y="3118" width="55" height="22" rx="4" fill="#ef4444" opacity="0.15"/>
+  <text x="422" y="3133" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">KMS</text>
+
+  <rect x="460" y="3118" width="55" height="22" rx="4" fill="#ef4444" opacity="0.15"/>
+  <text x="487" y="3133" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">mTLS</text>
+
+  <rect x="525" y="3118" width="55" height="22" rx="4" fill="#ef4444" opacity="0.15"/>
+  <text x="552" y="3133" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">WAF</text>
+
+  <rect x="590" y="3118" width="105" height="22" rx="4" fill="#ef4444" opacity="0.15"/>
+  <text x="642" y="3133" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">Private Endpoints</text>
+
+  <rect x="705" y="3118" width="75" height="22" rx="4" fill="#ef4444" opacity="0.15"/>
+  <text x="742" y="3133" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">Non-Root</text>
+
+  <rect x="790" y="3118" width="90" height="22" rx="4" fill="#ef4444" opacity="0.15"/>
+  <text x="835" y="3133" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">Read-Only FS</text>
+
+  <rect x="890" y="3118" width="90" height="22" rx="4" fill="#ef4444" opacity="0.15"/>
+  <text x="935" y="3133" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">Secrets Mgr</text>
+
+  <rect x="990" y="3118" width="55" height="22" rx="4" fill="#ef4444" opacity="0.15"/>
+  <text x="1017" y="3133" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">CSRF</text>
+
+  <rect x="1055" y="3118" width="55" height="22" rx="4" fill="#ef4444" opacity="0.15"/>
+  <text x="1082" y="3133" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">JWT</text>
+
+  <rect x="1120" y="3118" width="90" height="22" rx="4" fill="#ef4444" opacity="0.15"/>
+  <text x="1165" y="3133" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">Idempotency</text>
+
+  <rect x="1220" y="3118" width="90" height="22" rx="4" fill="#ef4444" opacity="0.15"/>
+  <text x="1265" y="3133" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">Rate Limiting</text>
+
+  <!-- ==================== ROW 15: COST SUMMARY BAR ==================== -->
+  <rect x="60" y="3170" width="1280" height="70" rx="12" fill="#1e293b" stroke="#10b981" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="120" y="3198" fill="#10b981" font-size="13" font-weight="700">ESTIMATED MONTHLY COST: ~$540&#x2013;$620/mo</text>
+
+  <text x="120" y="3220" fill="#94a3b8" font-size="10">EKS: $73 &#x2022; Nodes: ~$91 (Spot) &#x2022; Aurora: ~$172 (4 clusters) &#x2022; MSK: ~$150 (3 brokers) &#x2022; NAT: ~$45 &#x2022; VPC Endpoints: ~$37 &#x2022; Redis: ~$40 &#x2022; ALB: ~$20 &#x2022; Other: ~$12</text>
+
+  <!-- ==================== FOOTER ==================== -->
+  <line x1="200" y1="3260" x2="1200" y2="3260" stroke="#334155" stroke-width="1" stroke-dasharray="4,4"/>
+  <text x="700" y="3290" text-anchor="middle" fill="#64748b" font-size="12" font-weight="500" font-style="italic">Every arrow is authenticated, every connection encrypted, every resource in private subnets.</text>
+  <text x="700" y="3315" text-anchor="middle" fill="#475569" font-size="10">BookStore Platform &#x2022; AWS EKS Architecture &#x2022; Complete End-to-End Flow</text>
+</svg>

@@ -1,0 +1,2581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Single-AZ Azure AKS Deployment Guide — BookStore Platform</title>
+  <meta property="og:title" content="BookStore Platform — Single-AZ Azure AKS Deployment Guide" />
+  <meta property="og:description" content="Complete production-grade single Availability Zone AKS deployment guide. Cost-optimized at $400-500/mo with full security. Includes Terraform code, inline SVG diagrams, and study-material explanations for every component." />
+  <meta property="og:type" content="article" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; --cyan: #06b6d4; --purple: #8b5cf6; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px 60px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p.subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 52px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 28px 0 10px; color: #cbd5e1; }
+    h4 { font-size: 0.95rem; font-weight: 600; margin: 20px 0 8px; color: #94a3b8; }
+    p { margin-bottom: 16px; color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.82rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.04); }
+    code { background: var(--card); padding: 2px 7px; border-radius: 4px; font-size: 0.86em; color: #fbbf24; }
+    pre { background: var(--card); padding: 18px 20px; border-radius: 10px; overflow-x: auto; margin: 12px 0 20px; border: 1px solid var(--border); position: relative; }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.84rem; line-height: 1.65; }
+    pre .comment { color: #64748b; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* Topnav */
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 1000px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+
+    /* Callouts */
+    .callout { padding: 16px 20px; border-radius: 10px; margin: 16px 0; font-size: 0.88rem; line-height: 1.6; border-left: 4px solid; }
+    .callout.info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+    .callout.warn { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
+    .callout.tip { background: rgba(16,185,129,0.08); border-color: #10b981; }
+    .callout.danger { background: rgba(239,68,68,0.08); border-color: #ef4444; }
+    .callout strong { color: #f1f5f9; }
+    .callout code { font-size: 0.84em; }
+
+    /* TOC */
+    .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 24px 0 40px; }
+    .toc h3 { font-size: 0.9rem; font-weight: 700; color: #f1f5f9; margin: 0 0 12px; }
+    .toc ol { margin: 0; padding-left: 20px; }
+    .toc li { margin-bottom: 4px; }
+    .toc a { font-size: 0.85rem; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+    .toc a:hover { color: var(--accent); }
+    .toc .toc-part { font-size: 0.78rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 6px; list-style: none; margin-left: -20px; }
+    .toc .toc-part:first-child { margin-top: 0; }
+
+    /* Component Sections */
+    .component-section { margin: 32px 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .component-header { padding: 16px 20px; background: rgba(59,130,246,0.06); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .component-header h3 { margin: 0; color: #f1f5f9; font-size: 1.05rem; }
+    .component-body { display: grid; grid-template-columns: 320px 1fr; gap: 0; }
+    .component-visual { padding: 20px; border-right: 1px solid var(--border); display: flex; align-items: center; justify-content: center; background: rgba(15,23,42,0.5); }
+    .component-details { padding: 20px; }
+    .component-details h4 { margin-top: 0; }
+    .component-details pre { margin: 8px 0 14px; }
+    .component-details p:last-child { margin-bottom: 0; }
+    @media (max-width: 900px) { .component-body { grid-template-columns: 1fr; } .component-visual { border-right: none; border-bottom: 1px solid var(--border); } }
+
+    /* Badges for component headers */
+    .security-badge { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #f87171; }
+    .cost-badge { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #34d399; }
+
+    /* Section numbering */
+    .section-num { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: white; font-weight: 800; font-size: 0.88rem; margin-right: 10px; flex-shrink: 0; vertical-align: middle; }
+
+    /* Cost table highlights */
+    .savings { color: var(--green); font-weight: 700; }
+    .cost-high { color: var(--red); font-weight: 600; }
+    .cost-low { color: var(--green); font-weight: 600; }
+
+    /* Checklist */
+    .checklist { list-style: none; margin: 12px 0 20px; padding: 0; }
+    .checklist li { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(51,65,85,0.3); font-size: 0.86rem; }
+    .checklist li:last-child { border-bottom: none; }
+    .check-box { width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: 0.65rem; }
+    .check-box.security { border-color: var(--red); color: var(--red); }
+    .check-box.cost { border-color: var(--green); color: var(--green); }
+    .check-box.ops { border-color: var(--cyan); color: var(--cyan); }
+    .check-cat { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 20px 0 8px; }
+    .check-cat.security { color: var(--red); }
+    .check-cat.cost { color: var(--green); }
+    .check-cat.ops { color: var(--cyan); }
+
+    /* NSG Rule Cards */
+    .nsg-rule { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin: 10px 0; display: grid; grid-template-columns: 48px 1fr; gap: 14px; align-items: start; }
+    .nsg-rule.allow { border-left: 4px solid var(--green); }
+    .nsg-rule.deny { border-left: 4px solid var(--red); }
+    .nsg-rule .rule-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; color: white; margin-top: 2px; }
+    .nsg-rule.allow .rule-icon { background: linear-gradient(135deg, #059669, #10b981); }
+    .nsg-rule.deny .rule-icon { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .nsg-rule .rule-name { font-weight: 700; font-size: 0.9rem; color: #f1f5f9; }
+    .nsg-rule .rule-detail { font-size: 0.8rem; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+    .nsg-rule .rule-detail code { font-size: 0.76rem; }
+    .nsg-rule .rule-why { font-size: 0.8rem; color: #94a3b8; margin-top: 6px; font-style: italic; }
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="production-hardening-azure.html">Azure Hardening</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>Single-AZ Azure AKS Deployment</h1>
+  <p class="subtitle">Complete cost-optimized, production-grade deployment guide for a single Availability Zone. Target: $400-500/mo with full security.</p>
+
+  <div class="badges">
+    <span class="badge green">Cost Optimized</span>
+    <span class="badge red">Security</span>
+    <span class="badge purple">Terraform</span>
+    <span class="badge cyan">Azure AKS</span>
+    <span class="badge orange">Single-AZ</span>
+  </div>
+
+  <div class="callout info">
+    <strong>Who is this guide for?</strong> Teams deploying dev/staging environments, startups validating product-market fit, learning labs, and non-critical production workloads where cost matters more than five-nines availability. Every component is secured to production standards -- you only sacrifice zone redundancy. Upgrading to multi-AZ later requires minimal Terraform changes (see Section 24).
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  TABLE OF CONTENTS                                                   -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li class="toc-part">Foundation (1-4)</li>
+      <li><a href="#s1">Architecture Overview</a></li>
+      <li><a href="#s2">Prerequisites &amp; Identity Setup</a></li>
+      <li><a href="#s3">Terraform State Backend</a></li>
+      <li><a href="#s4">Resource Group</a></li>
+      <li class="toc-part">Networking (5-7)</li>
+      <li><a href="#s5">VNet with Single-AZ Subnets</a></li>
+      <li><a href="#s6">Network Security Groups (4 NSGs)</a></li>
+      <li><a href="#s7">Private Endpoints (6 Services)</a></li>
+      <li class="toc-part">Compute (8-10)</li>
+      <li><a href="#s8">AKS Cluster (Control Plane)</a></li>
+      <li><a href="#s9">AKS Node Pools (Cost-Optimized)</a></li>
+      <li><a href="#s10">Azure Container Registry</a></li>
+      <li class="toc-part">Data &amp; Messaging (11-13)</li>
+      <li><a href="#s11">PostgreSQL Flexible Server (4 Instances)</a></li>
+      <li><a href="#s12">Event Hubs (Kafka Protocol)</a></li>
+      <li><a href="#s13">Azure Cache for Redis</a></li>
+      <li class="toc-part">Security &amp; Ingress (14-18)</li>
+      <li><a href="#s14">Azure Key Vault</a></li>
+      <li><a href="#s15">Application Gateway</a></li>
+      <li><a href="#s16">Azure DNS</a></li>
+      <li><a href="#s17">Azure Policy (5 Policies)</a></li>
+      <li><a href="#s18">Istio Ambient Mesh</a></li>
+      <li class="toc-part">Applications &amp; Operations (19-24)</li>
+      <li><a href="#s19">Application Deployments</a></li>
+      <li><a href="#s20">Observability</a></li>
+      <li><a href="#s21">Total Cost Summary</a></li>
+      <li><a href="#s22">Deployment Commands</a></li>
+      <li><a href="#s23">Security Audit Checklist</a></li>
+      <li><a href="#s24">When to Upgrade to Multi-AZ</a></li>
+    </ol>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 1 — Architecture Overview                                   -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s1"><span class="section-num">1</span> Architecture Overview</h2>
+
+  <h3>Complete Architecture Diagram</h3>
+  <img src="diagrams/aks-complete-flow.svg" alt="Azure AKS Complete Architecture — Browser to Database" style="width:100%;border-radius:12px;border:1px solid #334155;margin:16px 0 28px;" />
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Single-AZ Topology</h3>
+      <span class="cost-badge">$400-500/mo</span>
+      <span class="security-badge">Production Security</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="340" viewBox="0 0 280 340" xmlns="http://www.w3.org/2000/svg">
+          <!-- Azure Cloud -->
+          <rect x="5" y="5" width="270" height="330" rx="14" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="6"/>
+          <text x="140" y="25" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="700">Azure Region (Single AZ)</text>
+          <!-- VNet -->
+          <rect x="15" y="35" width="250" height="285" rx="10" fill="rgba(59,130,246,0.05)" stroke="#334155" stroke-width="1"/>
+          <text x="140" y="52" text-anchor="middle" fill="#94a3b8" font-size="9">VNet 10.0.0.0/16</text>
+          <!-- App GW Subnet -->
+          <rect x="25" y="60" width="110" height="45" rx="6" fill="rgba(139,92,246,0.1)" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="80" y="78" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">App Gateway</text>
+          <text x="80" y="95" text-anchor="middle" fill="#94a3b8" font-size="8">/24 subnet</text>
+          <!-- NAT GW -->
+          <rect x="145" y="60" width="110" height="45" rx="6" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1"/>
+          <text x="200" y="78" text-anchor="middle" fill="#22d3ee" font-size="9" font-weight="600">NAT Gateway</text>
+          <text x="200" y="95" text-anchor="middle" fill="#94a3b8" font-size="8">Egress IP</text>
+          <!-- AKS Subnet -->
+          <rect x="25" y="115" width="230" height="90" rx="8" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="133" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700">AKS Subnet /22</text>
+          <!-- Node boxes -->
+          <rect x="35" y="140" width="65" height="55" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="67" y="158" text-anchor="middle" fill="#f1f5f9" font-size="8" font-weight="600">System Pool</text>
+          <text x="67" y="172" text-anchor="middle" fill="#94a3b8" font-size="7">2x B2s</text>
+          <text x="67" y="186" text-anchor="middle" fill="#34d399" font-size="7">$60/mo</text>
+          <rect x="108" y="140" width="65" height="55" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="140" y="158" text-anchor="middle" fill="#f1f5f9" font-size="8" font-weight="600">App Pool</text>
+          <text x="140" y="172" text-anchor="middle" fill="#94a3b8" font-size="7">2x D2as Spot</text>
+          <text x="140" y="186" text-anchor="middle" fill="#34d399" font-size="7">$17/mo</text>
+          <rect x="181" y="140" width="65" height="55" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="213" y="158" text-anchor="middle" fill="#f1f5f9" font-size="8" font-weight="600">Istio Mesh</text>
+          <text x="213" y="172" text-anchor="middle" fill="#94a3b8" font-size="7">mTLS</text>
+          <text x="213" y="186" text-anchor="middle" fill="#34d399" font-size="7">$0</text>
+          <!-- DB Subnet -->
+          <rect x="25" y="215" width="110" height="50" rx="6" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="1"/>
+          <text x="80" y="233" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="600">PostgreSQL x4</text>
+          <text x="80" y="248" text-anchor="middle" fill="#94a3b8" font-size="8">B1ms, /24 deleg</text>
+          <text x="80" y="260" text-anchor="middle" fill="#34d399" font-size="7">$52/mo</text>
+          <!-- PaaS -->
+          <rect x="145" y="215" width="110" height="50" rx="6" fill="rgba(16,185,129,0.08)" stroke="#10b981" stroke-width="1"/>
+          <text x="200" y="233" text-anchor="middle" fill="#6ee7b7" font-size="9" font-weight="600">PaaS Services</text>
+          <text x="200" y="248" text-anchor="middle" fill="#94a3b8" font-size="8">Redis, EventHubs</text>
+          <text x="200" y="260" text-anchor="middle" fill="#34d399" font-size="7">$38/mo (PE)</text>
+          <!-- Key Vault + ACR -->
+          <rect x="25" y="275" width="230" height="35" rx="6" fill="rgba(139,92,246,0.06)" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="140" y="297" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">Key Vault + ACR + Blob (Private Endpoints)</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Why Single-AZ?</h4>
+        <p>A single Availability Zone deployment places all resources in one physical datacenter within an Azure region. This eliminates cross-zone data transfer charges ($0.01/GB), removes the need for zone-redundant PaaS tiers, and allows use of smaller, burstable SKUs.</p>
+
+        <h4>Trade-offs: Single-AZ vs Multi-AZ</h4>
+        <table>
+          <tr><th>Dimension</th><th>Single-AZ</th><th>Multi-AZ</th></tr>
+          <tr><td>AKS SLA</td><td>99.5%</td><td>99.99%</td></tr>
+          <tr><td>Monthly cost</td><td class="cost-low">$400-500</td><td class="cost-high">$900-1,200</td></tr>
+          <tr><td>Zone failure</td><td>Full outage (RPO depends on backup)</td><td>Auto-failover, minimal downtime</td></tr>
+          <tr><td>Data redundancy</td><td>LRS (3 copies, same DC)</td><td>ZRS (3 copies, 3 DCs)</td></tr>
+          <tr><td>PaaS HA</td><td>Single replica (no standby)</td><td>Zone-redundant replicas</td></tr>
+          <tr><td>Cross-zone traffic</td><td class="cost-low">$0</td><td class="cost-high">~$20-50/mo</td></tr>
+          <tr><td>Best for</td><td>Dev, staging, startups, learning</td><td>Production SLA requirements</td></tr>
+        </table>
+
+        <div class="callout tip">
+          <strong>Security is not compromised.</strong> Single-AZ saves money on redundancy, NOT on security. Every NSG, Private Endpoint, Azure Policy, mTLS rule, and RBAC binding in this guide is identical to what you would deploy in multi-AZ.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 2 — Prerequisites & Identity Setup                          -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s2"><span class="section-num">2</span> Prerequisites &amp; Identity Setup</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Service Principal &amp; RBAC Roles</h3>
+      <span class="security-badge">Identity Foundation</span>
+      <span class="cost-badge">$0/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="220" viewBox="0 0 280 220" xmlns="http://www.w3.org/2000/svg">
+          <!-- Azure AD -->
+          <rect x="80" y="10" width="120" height="40" rx="8" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="35" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700">Entra ID (AAD)</text>
+          <!-- Service Principal -->
+          <rect x="30" y="75" width="100" height="35" rx="6" fill="rgba(139,92,246,0.1)" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="80" y="97" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">Service Principal</text>
+          <!-- Managed Identity -->
+          <rect x="150" y="75" width="100" height="35" rx="6" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-width="1"/>
+          <text x="200" y="97" text-anchor="middle" fill="#6ee7b7" font-size="9" font-weight="600">Managed Identity</text>
+          <!-- Arrows from AAD -->
+          <line x1="110" y1="50" x2="85" y2="75" stroke="#3b82f6" stroke-width="1"/>
+          <line x1="170" y1="50" x2="195" y2="75" stroke="#3b82f6" stroke-width="1"/>
+          <!-- Roles -->
+          <rect x="10" y="130" width="120" height="24" rx="4" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+          <text x="70" y="146" text-anchor="middle" fill="#f87171" font-size="8">Contributor + UAA</text>
+          <rect x="150" y="130" width="120" height="24" rx="4" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+          <text x="210" y="146" text-anchor="middle" fill="#f87171" font-size="8">AcrPull + KV Secrets</text>
+          <!-- Arrows to roles -->
+          <line x1="80" y1="110" x2="70" y2="130" stroke="#8b5cf6" stroke-width="1"/>
+          <line x1="200" y1="110" x2="210" y2="130" stroke="#10b981" stroke-width="1"/>
+          <!-- Terraform + AKS targets -->
+          <rect x="10" y="170" width="60" height="30" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="40" y="189" text-anchor="middle" fill="#94a3b8" font-size="8">Terraform</text>
+          <rect x="80" y="170" width="50" height="30" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="105" y="189" text-anchor="middle" fill="#94a3b8" font-size="8">AKS</text>
+          <rect x="145" y="170" width="50" height="30" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="170" y="189" text-anchor="middle" fill="#94a3b8" font-size="8">ACR</text>
+          <rect x="210" y="170" width="60" height="30" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="240" y="189" text-anchor="middle" fill="#94a3b8" font-size="8">Key Vault</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Step 1: Azure CLI Authentication</h4>
+<pre><code><span class="comment"># Login and set subscription</span>
+az login
+az account set --subscription "YOUR_SUBSCRIPTION_ID"
+
+<span class="comment"># Create Service Principal for Terraform</span>
+az ad sp create-for-rbac \
+  --name "bookstore-terraform-sp" \
+  --role "Contributor" \
+  --scopes "/subscriptions/YOUR_SUBSCRIPTION_ID" \
+  --output json
+
+<span class="comment"># Export ARM_ variables for Terraform</span>
+export ARM_CLIENT_ID="&lt;appId&gt;"
+export ARM_CLIENT_SECRET="&lt;password&gt;"
+export ARM_SUBSCRIPTION_ID="&lt;subscriptionId&gt;"
+export ARM_TENANT_ID="&lt;tenantId&gt;"</code></pre>
+
+        <h4>Per-Component RBAC Roles</h4>
+        <table>
+          <tr><th>Component</th><th>Identity Type</th><th>Role(s)</th></tr>
+          <tr><td>Terraform</td><td>Service Principal</td><td>Contributor + User Access Administrator</td></tr>
+          <tr><td>AKS Kubelet</td><td>Managed Identity</td><td>AcrPull on ACR</td></tr>
+          <tr><td>AKS Control Plane</td><td>Managed Identity</td><td>Network Contributor on VNet</td></tr>
+          <tr><td>External Secrets Operator</td><td>Workload Identity</td><td>Key Vault Secrets User</td></tr>
+          <tr><td>cert-manager</td><td>Workload Identity</td><td>DNS Zone Contributor (if using DNS-01)</td></tr>
+          <tr><td>App Gateway</td><td>Managed Identity</td><td>Key Vault Certificates Officer</td></tr>
+        </table>
+
+        <div class="callout warn">
+          <strong>Principle of Least Privilege:</strong> The Terraform SP needs <code>User Access Administrator</code> only because it assigns RBAC roles (e.g., AcrPull to AKS). If you pre-create role assignments manually, <code>Contributor</code> alone suffices. Never assign <code>Owner</code> to automation service principals.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 3 — Terraform State Backend                                 -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s3"><span class="section-num">3</span> Terraform State Backend</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Azure Blob Storage + Lease Locking</h3>
+      <span class="security-badge">Encrypted at Rest</span>
+      <span class="cost-badge">~$1/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="260" height="180" viewBox="0 0 260 180" xmlns="http://www.w3.org/2000/svg">
+          <!-- Storage Account -->
+          <rect x="50" y="10" width="160" height="100" rx="10" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="130" y="32" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700">Storage Account</text>
+          <!-- Blob container -->
+          <rect x="65" y="42" width="130" height="30" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="130" y="61" text-anchor="middle" fill="#f1f5f9" font-size="9">tfstate container</text>
+          <!-- Lock icon -->
+          <rect x="100" y="78" width="60" height="24" rx="4" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="1"/>
+          <text x="130" y="94" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="700">Lease Lock</text>
+          <!-- Terraform boxes -->
+          <rect x="20" y="135" width="80" height="30" rx="5" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="60" y="154" text-anchor="middle" fill="#a78bfa" font-size="9">terraform A</text>
+          <rect x="160" y="135" width="80" height="30" rx="5" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="200" y="154" text-anchor="middle" fill="#a78bfa" font-size="9">terraform B</text>
+          <!-- Arrows -->
+          <line x1="60" y1="135" x2="100" y2="102" stroke="#10b981" stroke-width="1.5"/>
+          <text x="55" y="125" fill="#10b981" font-size="8">acquires</text>
+          <line x1="200" y1="135" x2="160" y2="102" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4"/>
+          <text x="175" y="125" fill="#ef4444" font-size="8">blocked</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Why Remote State?</h4>
+        <p>Terraform state contains secrets (database passwords, connection strings). Local state files risk accidental git commits. Azure Blob Storage provides encryption at rest, versioning for rollback, and native lease-based locking to prevent concurrent applies.</p>
+
+<pre><code><span class="comment"># Create state storage (run once, outside Terraform)</span>
+az group create -n bookstore-tfstate-rg -l eastus2
+
+az storage account create \
+  -n bookstoretfstate \
+  -g bookstore-tfstate-rg \
+  -l eastus2 \
+  --sku Standard_LRS \
+  --min-tls-version TLS1_2 \
+  --allow-blob-public-access false \
+  --https-only true
+
+az storage container create \
+  -n tfstate \
+  --account-name bookstoretfstate</code></pre>
+
+        <h4>Terraform Backend Configuration</h4>
+<pre><code>terraform {
+  backend "azurerm" {
+    resource_group_name  = "bookstore-tfstate-rg"
+    storage_account_name = "bookstoretfstate"
+    container_name       = "tfstate"
+    key                  = "bookstore.single-az.tfstate"
+    use_oidc             = true  <span class="comment"># or use_cli = true</span>
+  }
+}</code></pre>
+
+        <div class="callout info">
+          <strong>Cost breakdown:</strong> LRS storage is $0.018/GB/mo. A typical state file is 50-200KB. With versioning (keeping last 30 versions), total cost stays under $1/mo. Lease locking is free -- it is a blob storage feature, not a separate service.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 4 — Resource Group                                          -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s4"><span class="section-num">4</span> Resource Group</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Logical Container with Tags</h3>
+      <span class="cost-badge">$0/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="260" height="160" viewBox="0 0 260 160" xmlns="http://www.w3.org/2000/svg">
+          <!-- RG box -->
+          <rect x="20" y="10" width="220" height="140" rx="12" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="2"/>
+          <text x="130" y="35" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="700">bookstore-rg</text>
+          <text x="130" y="52" text-anchor="middle" fill="#94a3b8" font-size="8">eastus2</text>
+          <!-- Resources inside -->
+          <rect x="35" y="65" width="60" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="65" y="83" text-anchor="middle" fill="#94a3b8" font-size="8">AKS</text>
+          <rect x="100" y="65" width="60" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="130" y="83" text-anchor="middle" fill="#94a3b8" font-size="8">VNet</text>
+          <rect x="165" y="65" width="60" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="195" y="83" text-anchor="middle" fill="#94a3b8" font-size="8">PG x4</text>
+          <rect x="35" y="100" width="60" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="65" y="118" text-anchor="middle" fill="#94a3b8" font-size="8">Redis</text>
+          <rect x="100" y="100" width="60" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="130" y="118" text-anchor="middle" fill="#94a3b8" font-size="8">EventHubs</text>
+          <rect x="165" y="100" width="60" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="195" y="118" text-anchor="middle" fill="#94a3b8" font-size="8">Key Vault</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Why One Resource Group?</h4>
+        <p>For a single-AZ deployment, one resource group keeps management simple. All resources share the same lifecycle -- <code>az group delete</code> tears down everything. Tags provide cost attribution without the overhead of multiple RGs.</p>
+
+<pre><code>resource "azurerm_resource_group" "main" {
+  name     = "bookstore-rg"
+  location = "eastus2"
+
+  tags = {
+    environment = "staging"
+    project     = "bookstore"
+    team        = "platform"
+    cost-center = "engineering"
+    managed-by  = "terraform"
+  }
+}
+
+<span class="comment"># All other resources reference:</span>
+<span class="comment"># resource_group_name = azurerm_resource_group.main.name</span>
+<span class="comment"># location            = azurerm_resource_group.main.location</span></code></pre>
+
+        <div class="callout tip">
+          <strong>Region selection matters for cost.</strong> <code>eastus2</code> is typically 5-15% cheaper than <code>westus2</code> or <code>westeurope</code> for compute. Check <a href="https://azure.microsoft.com/en-us/pricing/calculator/">Azure Pricing Calculator</a> for your specific SKUs.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 5 — VNet with Single-AZ                                     -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s5"><span class="section-num">5</span> VNet with Single-AZ Subnets</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Network Foundation</h3>
+      <span class="security-badge">Network Isolation</span>
+      <span class="cost-badge">NAT ~$32/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="320" viewBox="0 0 280 320" xmlns="http://www.w3.org/2000/svg">
+          <!-- VNet -->
+          <rect x="10" y="5" width="260" height="310" rx="12" fill="rgba(59,130,246,0.04)" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="25" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700">VNet: 10.0.0.0/16</text>
+          <!-- AKS Subnet -->
+          <rect x="20" y="38" width="240" height="70" rx="8" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+          <text x="140" y="56" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">AKS Subnet</text>
+          <text x="140" y="72" text-anchor="middle" fill="#94a3b8" font-size="9">10.0.0.0/22 (1,024 IPs)</text>
+          <text x="140" y="88" text-anchor="middle" fill="#94a3b8" font-size="8">Azure CNI: 1 IP per pod + node</text>
+          <text x="140" y="100" text-anchor="middle" fill="#f87171" font-size="8">NSG: aks-nsg</text>
+          <!-- DB Subnet -->
+          <rect x="20" y="118" width="240" height="55" rx="8" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="1"/>
+          <text x="140" y="138" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="600">Database Subnet</text>
+          <text x="140" y="154" text-anchor="middle" fill="#94a3b8" font-size="9">10.0.8.0/24 (256 IPs)</text>
+          <text x="140" y="167" text-anchor="middle" fill="#94a3b8" font-size="8">Delegated: Microsoft.DBforPostgreSQL/flexibleServers</text>
+          <!-- App GW Subnet -->
+          <rect x="20" y="183" width="240" height="55" rx="8" fill="rgba(139,92,246,0.08)" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="140" y="203" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="600">App Gateway Subnet</text>
+          <text x="140" y="219" text-anchor="middle" fill="#94a3b8" font-size="9">10.0.10.0/24 (256 IPs)</text>
+          <text x="140" y="232" text-anchor="middle" fill="#94a3b8" font-size="8">Dedicated -- required by App Gateway v2</text>
+          <!-- NAT Gateway -->
+          <rect x="60" y="252" width="160" height="50" rx="8" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.5"/>
+          <text x="140" y="272" text-anchor="middle" fill="#22d3ee" font-size="10" font-weight="700">NAT Gateway</text>
+          <text x="140" y="290" text-anchor="middle" fill="#94a3b8" font-size="8">Zone-redundant Public IP</text>
+          <text x="140" y="300" text-anchor="middle" fill="#34d399" font-size="8">~$32/mo (gateway + IP)</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Subnet Design Rationale</h4>
+        <p>Azure CNI assigns a VNet IP to every pod. With 4 nodes and ~30 pods per node, you need ~120+ IPs just for pods, plus node IPs and service IPs. A <code>/22</code> (1,024 IPs) gives ample headroom for scaling. The database and App Gateway subnets use <code>/24</code> (256 IPs each), which is more than enough for their respective services.</p>
+
+<pre><code>resource "azurerm_virtual_network" "main" {
+  name                = "bookstore-vnet"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  address_space       = ["10.0.0.0/16"]
+}
+
+resource "azurerm_subnet" "aks" {
+  name                 = "aks-subnet"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = ["10.0.0.0/22"]
+}
+
+resource "azurerm_subnet" "database" {
+  name                 = "database-subnet"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = ["10.0.8.0/24"]
+
+  delegation {
+    name = "pg-delegation"
+    service_delegation {
+      name = "Microsoft.DBforPostgreSQL/flexibleServers"
+      actions = [
+        "Microsoft.Network/virtualNetworks/subnets/join/action"
+      ]
+    }
+  }
+}
+
+resource "azurerm_subnet" "appgw" {
+  name                 = "appgw-subnet"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = ["10.0.10.0/24"]
+}
+
+<span class="comment"># NAT Gateway for deterministic egress IP</span>
+resource "azurerm_public_ip" "nat" {
+  name                = "bookstore-nat-pip"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  zones               = ["1", "2", "3"]  <span class="comment"># zone-redundant</span>
+}
+
+resource "azurerm_nat_gateway" "main" {
+  name                = "bookstore-nat-gw"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  sku_name            = "Standard"
+}
+
+resource "azurerm_nat_gateway_public_ip_association" "main" {
+  nat_gateway_id       = azurerm_nat_gateway.main.id
+  public_ip_address_id = azurerm_public_ip.nat.id
+}
+
+resource "azurerm_subnet_nat_gateway_association" "aks" {
+  subnet_id      = azurerm_subnet.aks.id
+  nat_gateway_id = azurerm_nat_gateway.main.id
+}</code></pre>
+
+        <div class="callout warn">
+          <strong>Why NAT Gateway even in single-AZ?</strong> Without a NAT Gateway, AKS nodes use random Azure-assigned IPs for outbound traffic. This breaks allowlisting for external APIs and prevents auditing egress. The NAT Gateway provides a deterministic, static IP for all outbound connections. The public IP is zone-redundant even though our compute is single-AZ -- this is free and survives zone maintenance.
+        </div>
+
+        <h4>Cost Breakdown</h4>
+        <table>
+          <tr><th>Resource</th><th>Monthly Cost</th></tr>
+          <tr><td>VNet</td><td class="cost-low">$0</td></tr>
+          <tr><td>Subnets (3)</td><td class="cost-low">$0</td></tr>
+          <tr><td>NAT Gateway</td><td>$26.28</td></tr>
+          <tr><td>Static Public IP</td><td>$3.65</td></tr>
+          <tr><td><strong>Total</strong></td><td><strong>~$32/mo</strong></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 6 — Network Security Groups                                 -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s6"><span class="section-num">6</span> Network Security Groups (4 NSGs)</h2>
+
+  <p>NSGs are Azure's stateful firewall at the subnet level. They cost $0 but are the single most important network security control. Each subnet gets a dedicated NSG with explicit allow rules and a deny-all catch-all.</p>
+
+  <!-- NSG 1: AKS -->
+  <div class="component-section">
+    <div class="component-header">
+      <h3>6a. AKS Subnet NSG</h3>
+      <span class="security-badge">Defense in Depth</span>
+      <span class="cost-badge">$0/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="240" viewBox="0 0 280 240" xmlns="http://www.w3.org/2000/svg">
+          <rect x="40" y="60" width="200" height="120" rx="10" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="82" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700">AKS Subnet</text>
+          <!-- Allowed sources -->
+          <rect x="5" y="5" width="80" height="30" rx="5" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-width="1"/>
+          <text x="45" y="24" text-anchor="middle" fill="#6ee7b7" font-size="8">App Gateway</text>
+          <line x1="45" y1="35" x2="80" y2="60" stroke="#10b981" stroke-width="1.5"/>
+          <rect x="100" y="5" width="80" height="30" rx="5" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-width="1"/>
+          <text x="140" y="24" text-anchor="middle" fill="#6ee7b7" font-size="8">AzureCloud</text>
+          <line x1="140" y1="35" x2="140" y2="60" stroke="#10b981" stroke-width="1.5"/>
+          <rect x="195" y="5" width="80" height="30" rx="5" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-width="1"/>
+          <text x="235" y="24" text-anchor="middle" fill="#6ee7b7" font-size="8">Intra-Subnet</text>
+          <line x1="235" y1="35" x2="200" y2="60" stroke="#10b981" stroke-width="1.5"/>
+          <!-- Denied -->
+          <rect x="5" y="200" width="80" height="30" rx="5" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+          <text x="45" y="219" text-anchor="middle" fill="#f87171" font-size="8">DB Subnet</text>
+          <line x1="45" y1="200" x2="80" y2="180" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4"/>
+          <text x="55" y="195" fill="#ef4444" font-size="14" font-weight="700">X</text>
+          <rect x="100" y="200" width="80" height="30" rx="5" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+          <text x="140" y="219" text-anchor="middle" fill="#f87171" font-size="8">Internet</text>
+          <line x1="140" y1="200" x2="140" y2="180" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4"/>
+          <text x="145" y="195" fill="#ef4444" font-size="14" font-weight="700">X</text>
+          <rect x="195" y="200" width="80" height="30" rx="5" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+          <text x="235" y="219" text-anchor="middle" fill="#f87171" font-size="8">Any Other</text>
+          <line x1="235" y1="200" x2="200" y2="180" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4"/>
+          <text x="225" y="195" fill="#ef4444" font-size="14" font-weight="700">X</text>
+          <!-- Rules summary -->
+          <text x="140" y="110" text-anchor="middle" fill="#94a3b8" font-size="9">P100: AppGW 80,443,30000-32767</text>
+          <text x="140" y="125" text-anchor="middle" fill="#94a3b8" font-size="9">P110: AzureCloud 443</text>
+          <text x="140" y="140" text-anchor="middle" fill="#94a3b8" font-size="9">P120: Intra-subnet *</text>
+          <text x="140" y="155" text-anchor="middle" fill="#94a3b8" font-size="9">P130: AzureLB probes</text>
+          <text x="140" y="170" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">P4000: DENY ALL</text>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code>resource "azurerm_network_security_group" "aks" {
+  name                = "aks-nsg"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+
+  <span class="comment"># Allow App Gateway to reach AKS nodes</span>
+  security_rule {
+    name                       = "AllowAppGatewayInbound"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["80", "443", "30000-32767"]
+    source_address_prefix      = "10.0.10.0/24"
+    destination_address_prefix = "10.0.0.0/22"
+  }
+
+  <span class="comment"># AKS control plane communication</span>
+  security_rule {
+    name                       = "AllowAzureCloudInbound"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "AzureCloud"
+    destination_address_prefix = "10.0.0.0/22"
+  }
+
+  <span class="comment"># Pod-to-pod and node-to-node within AKS</span>
+  security_rule {
+    name                       = "AllowIntraSubnet"
+    priority                   = 120
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "10.0.0.0/22"
+    destination_address_prefix = "10.0.0.0/22"
+  }
+
+  <span class="comment"># Azure Load Balancer health probes</span>
+  security_rule {
+    name                       = "AllowAzureLBProbes"
+    priority                   = 130
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "AzureLoadBalancer"
+    destination_address_prefix = "10.0.0.0/22"
+  }
+
+  <span class="comment"># Deny everything else</span>
+  security_rule {
+    name                       = "DenyAllInbound"
+    priority                   = 4000
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}
+
+resource "azurerm_subnet_network_security_group_association" "aks" {
+  subnet_id                 = azurerm_subnet.aks.id
+  network_security_group_id = azurerm_network_security_group.aks.id
+}</code></pre>
+        <div class="callout danger">
+          <strong>This prevents:</strong> Lateral movement from compromised VMs in other subnets. Without this NSG, the default <code>AllowVNetInBound</code> rule (priority 65000) allows any resource in 10.0.0.0/16 to reach AKS nodes on any port.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NSG 2: Database -->
+  <div class="component-section">
+    <div class="component-header">
+      <h3>6b. Database Subnet NSG</h3>
+      <span class="security-badge">DB Isolation</span>
+      <span class="cost-badge">$0/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="260" height="180" viewBox="0 0 260 180" xmlns="http://www.w3.org/2000/svg">
+          <rect x="50" y="55" width="160" height="50" rx="8" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="130" y="78" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="700">PostgreSQL :5432</text>
+          <text x="130" y="96" text-anchor="middle" fill="#94a3b8" font-size="8">10.0.8.0/24</text>
+          <!-- AKS allowed -->
+          <rect x="10" y="5" width="80" height="28" rx="5" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-width="1"/>
+          <text x="50" y="23" text-anchor="middle" fill="#6ee7b7" font-size="8">AKS Subnet</text>
+          <line x1="50" y1="33" x2="85" y2="55" stroke="#10b981" stroke-width="1.5"/>
+          <!-- Others denied -->
+          <rect x="170" y="5" width="80" height="28" rx="5" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+          <text x="210" y="23" text-anchor="middle" fill="#f87171" font-size="8">AppGW Subnet</text>
+          <line x1="210" y1="33" x2="175" y2="55" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4"/>
+          <text x="195" y="47" fill="#ef4444" font-size="14" font-weight="700">X</text>
+          <rect x="10" y="140" width="80" height="28" rx="5" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+          <text x="50" y="158" text-anchor="middle" fill="#f87171" font-size="8">Internet</text>
+          <line x1="50" y1="140" x2="85" y2="105" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4"/>
+          <text x="60" y="130" fill="#ef4444" font-size="14" font-weight="700">X</text>
+          <rect x="170" y="140" width="80" height="28" rx="5" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+          <text x="210" y="158" text-anchor="middle" fill="#f87171" font-size="8">Any Other</text>
+          <line x1="210" y1="140" x2="175" y2="105" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4"/>
+          <text x="195" y="130" fill="#ef4444" font-size="14" font-weight="700">X</text>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code>resource "azurerm_network_security_group" "database" {
+  name                = "database-nsg"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+
+  <span class="comment"># Only AKS pods can reach PostgreSQL</span>
+  security_rule {
+    name                       = "AllowAKSToPostgres"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5432"
+    source_address_prefix      = "10.0.0.0/22"
+    destination_address_prefix = "10.0.8.0/24"
+  }
+
+  security_rule {
+    name                       = "DenyAllInbound"
+    priority                   = 4000
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}
+
+resource "azurerm_subnet_network_security_group_association" "database" {
+  subnet_id                 = azurerm_subnet.database.id
+  network_security_group_id = azurerm_network_security_group.database.id
+}</code></pre>
+        <div class="callout danger">
+          <strong>This prevents:</strong> Direct database access from the internet or any non-AKS resource. Even if an attacker compromises the App Gateway, they cannot reach PostgreSQL directly.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NSG 3: App Gateway -->
+  <div class="component-section">
+    <div class="component-header">
+      <h3>6c. App Gateway Subnet NSG</h3>
+      <span class="security-badge">Ingress Control</span>
+      <span class="cost-badge">$0/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="260" height="180" viewBox="0 0 260 180" xmlns="http://www.w3.org/2000/svg">
+          <rect x="50" y="55" width="160" height="50" rx="8" fill="rgba(139,92,246,0.08)" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="130" y="75" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="700">App Gateway v2</text>
+          <text x="130" y="96" text-anchor="middle" fill="#94a3b8" font-size="8">10.0.10.0/24</text>
+          <!-- Internet allowed on 80/443 -->
+          <rect x="10" y="5" width="80" height="28" rx="5" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-width="1"/>
+          <text x="50" y="23" text-anchor="middle" fill="#6ee7b7" font-size="8">Internet 80/443</text>
+          <line x1="50" y1="33" x2="85" y2="55" stroke="#10b981" stroke-width="1.5"/>
+          <!-- GatewayManager -->
+          <rect x="170" y="5" width="80" height="28" rx="5" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-width="1"/>
+          <text x="210" y="18" text-anchor="middle" fill="#6ee7b7" font-size="7">GatewayManager</text>
+          <text x="210" y="30" text-anchor="middle" fill="#6ee7b7" font-size="7">65200-65535</text>
+          <line x1="210" y1="33" x2="175" y2="55" stroke="#10b981" stroke-width="1.5"/>
+          <!-- Deny -->
+          <rect x="80" y="140" width="100" height="28" rx="5" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+          <text x="130" y="158" text-anchor="middle" fill="#f87171" font-size="8">Everything else DENY</text>
+          <line x1="130" y1="140" x2="130" y2="105" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4"/>
+          <text x="135" y="130" fill="#ef4444" font-size="14" font-weight="700">X</text>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code>resource "azurerm_network_security_group" "appgw" {
+  name                = "appgw-nsg"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+
+  <span class="comment"># Public HTTPS/HTTP ingress</span>
+  security_rule {
+    name                       = "AllowHTTPSInternet"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["80", "443"]
+    source_address_prefix      = "Internet"
+    destination_address_prefix = "10.0.10.0/24"
+  }
+
+  <span class="comment"># REQUIRED: App Gateway v2 health probes</span>
+  security_rule {
+    name                       = "AllowGatewayManager"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "65200-65535"
+    source_address_prefix      = "GatewayManager"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "AllowAzureLBProbes"
+    priority                   = 120
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "AzureLoadBalancer"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "DenyAllInbound"
+    priority                   = 4000
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}
+
+resource "azurerm_subnet_network_security_group_association" "appgw" {
+  subnet_id                 = azurerm_subnet.appgw.id
+  network_security_group_id = azurerm_network_security_group.appgw.id
+}</code></pre>
+        <div class="callout danger">
+          <strong>Critical:</strong> The <code>GatewayManager</code> rule on ports 65200-65535 is mandatory. Without it, Azure cannot probe the App Gateway health and the gateway enters a failed state. This is the #1 misconfiguration for new App Gateway deployments.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NSG Summary -->
+  <div class="callout info">
+    <strong>NSG Summary:</strong> Redis and other PaaS services use Private Endpoints, which inject a NIC directly into the AKS subnet. They are covered by the AKS NSG and do not need a dedicated NSG. All 3 explicit NSGs cost <strong>$0/mo</strong> -- NSGs are free in Azure.
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 7 — Private Endpoints                                       -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s7"><span class="section-num">7</span> Private Endpoints (6 Services)</h2>
+
+  <p>Private Endpoints place a private IP inside your VNet for Azure PaaS services. Traffic never leaves the Azure backbone -- no public internet exposure. Each Private Endpoint costs ~$7.30/mo.</p>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Private Endpoint Architecture</h3>
+      <span class="security-badge">Zero Public Exposure</span>
+      <span class="cost-badge">~$35/mo (5 PEs)</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="300" viewBox="0 0 280 300" xmlns="http://www.w3.org/2000/svg">
+          <!-- VNet box -->
+          <rect x="10" y="5" width="260" height="290" rx="10" fill="rgba(59,130,246,0.04)" stroke="#3b82f6" stroke-width="1"/>
+          <text x="140" y="22" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">VNet (private)</text>
+          <!-- AKS -->
+          <rect x="25" y="30" width="100" height="35" rx="6" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1"/>
+          <text x="75" y="52" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">AKS Pods</text>
+          <!-- Private Endpoints -->
+          <rect x="25" y="80" width="230" height="30" rx="5" fill="rgba(16,185,129,0.08)" stroke="#10b981" stroke-width="1"/>
+          <text x="140" y="99" text-anchor="middle" fill="#6ee7b7" font-size="9" font-weight="600">Private Endpoints (private IPs in VNet)</text>
+          <line x1="75" y1="65" x2="75" y2="80" stroke="#10b981" stroke-width="1.5"/>
+          <!-- Services with PE -->
+          <rect x="20" y="125" width="75" height="30" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+          <text x="57" y="144" text-anchor="middle" fill="#6ee7b7" font-size="8">Redis</text>
+          <line x1="57" y1="110" x2="57" y2="125" stroke="#10b981" stroke-width="1"/>
+          <rect x="102" y="125" width="75" height="30" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+          <text x="139" y="144" text-anchor="middle" fill="#6ee7b7" font-size="8">Event Hubs</text>
+          <line x1="139" y1="110" x2="139" y2="125" stroke="#10b981" stroke-width="1"/>
+          <rect x="184" y="125" width="75" height="30" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+          <text x="221" y="144" text-anchor="middle" fill="#6ee7b7" font-size="8">Key Vault</text>
+          <line x1="221" y1="110" x2="221" y2="125" stroke="#10b981" stroke-width="1"/>
+          <rect x="20" y="170" width="75" height="30" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+          <text x="57" y="189" text-anchor="middle" fill="#6ee7b7" font-size="8">ACR</text>
+          <rect x="102" y="170" width="75" height="30" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+          <text x="139" y="189" text-anchor="middle" fill="#6ee7b7" font-size="8">Blob Storage</text>
+          <!-- PostgreSQL uses delegation -->
+          <rect x="184" y="170" width="75" height="30" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+          <text x="221" y="184" text-anchor="middle" fill="#fbbf24" font-size="7">PostgreSQL</text>
+          <text x="221" y="195" text-anchor="middle" fill="#94a3b8" font-size="6">(VNet deleg)</text>
+          <!-- Public access blocked -->
+          <rect x="40" y="220" width="200" height="55" rx="8" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1" stroke-dasharray="4"/>
+          <text x="140" y="240" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">Public Internet Access</text>
+          <text x="140" y="256" text-anchor="middle" fill="#f87171" font-size="22" font-weight="800">BLOCKED</text>
+          <text x="140" y="270" text-anchor="middle" fill="#94a3b8" font-size="8">public_network_access_enabled = false</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Terraform Pattern (Redis Example)</h4>
+<pre><code>resource "azurerm_private_endpoint" "redis" {
+  name                = "bookstore-redis-pe"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.aks.id
+
+  private_service_connection {
+    name                           = "redis-psc"
+    private_connection_resource_id = azurerm_redis_cache.main.id
+    is_manual_connection           = false
+    subresource_names              = ["redisCache"]
+  }
+
+  private_dns_zone_group {
+    name                 = "redis-dns"
+    private_dns_zone_ids = [azurerm_private_dns_zone.redis.id]
+  }
+}
+
+resource "azurerm_private_dns_zone" "redis" {
+  name                = "privatelink.redis.cache.windows.net"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "redis" {
+  name                  = "redis-vnet-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.redis.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}</code></pre>
+
+        <h4>Private Endpoint Matrix</h4>
+        <table>
+          <tr><th>Service</th><th>Subresource</th><th>DNS Zone</th><th>Cost</th></tr>
+          <tr><td>Redis</td><td>redisCache</td><td>privatelink.redis.cache.windows.net</td><td>$7.30</td></tr>
+          <tr><td>Event Hubs</td><td>namespace</td><td>privatelink.servicebus.windows.net</td><td>$7.30</td></tr>
+          <tr><td>Key Vault</td><td>vault</td><td>privatelink.vaultcore.azure.net</td><td>$7.30</td></tr>
+          <tr><td>ACR</td><td>registry</td><td>privatelink.azurecr.io</td><td>$7.30</td></tr>
+          <tr><td>Blob Storage</td><td>blob</td><td>privatelink.blob.core.windows.net</td><td>$7.30</td></tr>
+          <tr><td>PostgreSQL</td><td colspan="2">VNet delegation (not PE -- included in server cost)</td><td class="cost-low">$0</td></tr>
+          <tr><td colspan="3"><strong>Total</strong></td><td><strong>~$36.50</strong></td></tr>
+        </table>
+
+        <div class="callout warn">
+          <strong>PostgreSQL uses VNet delegation, not a Private Endpoint.</strong> Azure Database for PostgreSQL Flexible Server integrates directly into a delegated subnet. This is more secure than a PE because the server gets a real VNet IP and full NSG coverage. It also costs $0 extra.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 8 — AKS Cluster                                             -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s8"><span class="section-num">8</span> AKS Cluster (Control Plane)</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Standard Tier with Workload Identity</h3>
+      <span class="security-badge">OIDC + Workload Identity</span>
+      <span class="cost-badge">$73/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="220" viewBox="0 0 280 220" xmlns="http://www.w3.org/2000/svg">
+          <!-- Control plane (outside VNet) -->
+          <rect x="50" y="5" width="180" height="70" rx="10" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="2"/>
+          <text x="140" y="28" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700">AKS Control Plane</text>
+          <text x="140" y="45" text-anchor="middle" fill="#94a3b8" font-size="8">Microsoft-managed</text>
+          <text x="140" y="60" text-anchor="middle" fill="#94a3b8" font-size="8">OIDC Issuer + Workload Identity</text>
+          <!-- Tunnel -->
+          <line x1="140" y1="75" x2="140" y2="105" stroke="#3b82f6" stroke-width="2" stroke-dasharray="5"/>
+          <text x="170" y="93" fill="#3b82f6" font-size="8">API tunnel</text>
+          <!-- VNet boundary -->
+          <rect x="20" y="105" width="240" height="105" rx="10" fill="rgba(59,130,246,0.04)" stroke="#334155" stroke-width="1"/>
+          <text x="140" y="122" text-anchor="middle" fill="#94a3b8" font-size="8">Customer VNet (AKS Subnet)</text>
+          <!-- Nodes -->
+          <rect x="30" y="130" width="100" height="35" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+          <text x="80" y="152" text-anchor="middle" fill="#6ee7b7" font-size="9" font-weight="600">System Pool</text>
+          <rect x="150" y="130" width="100" height="35" rx="5" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+          <text x="200" y="152" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="600">App Pool (Spot)</text>
+          <!-- Features -->
+          <text x="80" y="185" text-anchor="middle" fill="#94a3b8" font-size="7">Azure CNI</text>
+          <text x="200" y="185" text-anchor="middle" fill="#94a3b8" font-size="7">Taint: spot=true</text>
+          <text x="140" y="205" text-anchor="middle" fill="#f87171" font-size="8">Defender + Azure Policy enabled</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Why Standard Tier?</h4>
+        <p>The Free tier has no SLA and limits to 10 nodes. Standard tier ($73/mo) provides a 99.5% uptime SLA (single-AZ), financially-backed. For the 99.95% SLA, you need Premium tier ($290/mo) -- overkill for single-AZ since your nodes are in one zone anyway.</p>
+
+<pre><code>resource "azurerm_kubernetes_cluster" "main" {
+  name                = "bookstore-aks"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  dns_prefix          = "bookstore"
+  kubernetes_version  = "1.30"
+  sku_tier            = "Standard"  <span class="comment"># $73/mo for SLA</span>
+
+  <span class="comment"># Workload Identity for pod-level IAM</span>
+  oidc_issuer_enabled       = true
+  workload_identity_enabled = true
+
+  <span class="comment"># Azure CNI for VNet-native pod IPs</span>
+  network_profile {
+    network_plugin    = "azure"
+    network_policy    = "calico"  <span class="comment"># or "azure" for Azure NPM</span>
+    service_cidr      = "172.16.0.0/16"
+    dns_service_ip    = "172.16.0.10"
+  }
+
+  <span class="comment"># System node pool (defined inline)</span>
+  default_node_pool {
+    name                = "system"
+    node_count          = 2
+    vm_size             = "Standard_B2s"
+    vnet_subnet_id      = azurerm_subnet.aks.id
+    zones               = ["1"]  <span class="comment"># Single AZ</span>
+    os_disk_size_gb     = 30
+    os_disk_type        = "Ephemeral"
+    temporary_name_for_rotation = "systemtmp"
+
+    upgrade_settings {
+      max_surge = "1"
+    }
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  <span class="comment"># Security features</span>
+  azure_policy_enabled = true
+
+  key_vault_secrets_provider {
+    secret_rotation_enabled  = true
+    secret_rotation_interval = "2m"
+  }
+
+  auto_scaler_profile {
+    scale_down_delay_after_add = "5m"
+    scale_down_unneeded        = "5m"
+  }
+
+  tags = azurerm_resource_group.main.tags
+}</code></pre>
+
+        <div class="callout info">
+          <strong>Workload Identity explained:</strong> Instead of mounting service account keys into pods (insecure), AKS issues OIDC tokens that Azure AD trusts. Your pod's Kubernetes ServiceAccount is federated with an Azure Managed Identity. Pods can access Azure resources (Key Vault, ACR) without any credentials in the cluster.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 9 — AKS Node Pools                                          -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s9"><span class="section-num">9</span> AKS Node Pools (Cost-Optimized)</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Burstable System + AMD Spot App Pools</h3>
+      <span class="security-badge">Private Subnet</span>
+      <span class="cost-badge">$77/mo (89% savings)</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="260" viewBox="0 0 280 260" xmlns="http://www.w3.org/2000/svg">
+          <!-- System pool -->
+          <rect x="15" y="10" width="250" height="100" rx="10" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="30" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700">System Pool (CriticalAddonsOnly)</text>
+          <rect x="30" y="40" width="100" height="55" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="80" y="58" text-anchor="middle" fill="#f1f5f9" font-size="9" font-weight="600">Node 1</text>
+          <text x="80" y="72" text-anchor="middle" fill="#94a3b8" font-size="8">Standard_B2s</text>
+          <text x="80" y="84" text-anchor="middle" fill="#94a3b8" font-size="7">2 vCPU, 4GB RAM</text>
+          <text x="80" y="92" text-anchor="middle" fill="#34d399" font-size="7">$30.37/mo</text>
+          <rect x="150" y="40" width="100" height="55" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="200" y="58" text-anchor="middle" fill="#f1f5f9" font-size="9" font-weight="600">Node 2</text>
+          <text x="200" y="72" text-anchor="middle" fill="#94a3b8" font-size="8">Standard_B2s</text>
+          <text x="200" y="84" text-anchor="middle" fill="#94a3b8" font-size="7">2 vCPU, 4GB RAM</text>
+          <text x="200" y="92" text-anchor="middle" fill="#34d399" font-size="7">$30.37/mo</text>
+          <!-- App pool -->
+          <rect x="15" y="125" width="250" height="100" rx="10" fill="rgba(245,158,11,0.06)" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="140" y="145" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="700">App Pool (Spot Instances)</text>
+          <rect x="30" y="155" width="100" height="55" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="80" y="173" text-anchor="middle" fill="#f1f5f9" font-size="9" font-weight="600">Spot Node 1</text>
+          <text x="80" y="187" text-anchor="middle" fill="#94a3b8" font-size="8">Standard_D2as_v5</text>
+          <text x="80" y="199" text-anchor="middle" fill="#94a3b8" font-size="7">2 vCPU, 8GB RAM (AMD)</text>
+          <text x="80" y="207" text-anchor="middle" fill="#34d399" font-size="7">~$8.70/mo</text>
+          <rect x="150" y="155" width="100" height="55" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="200" y="173" text-anchor="middle" fill="#f1f5f9" font-size="9" font-weight="600">Spot Node 2</text>
+          <text x="200" y="187" text-anchor="middle" fill="#94a3b8" font-size="8">Standard_D2as_v5</text>
+          <text x="200" y="199" text-anchor="middle" fill="#94a3b8" font-size="7">2 vCPU, 8GB RAM (AMD)</text>
+          <text x="200" y="207" text-anchor="middle" fill="#34d399" font-size="7">~$8.70/mo</text>
+          <!-- Total -->
+          <rect x="60" y="235" width="160" height="22" rx="5" fill="rgba(16,185,129,0.12)" stroke="#10b981" stroke-width="1"/>
+          <text x="140" y="250" text-anchor="middle" fill="#34d399" font-size="10" font-weight="700">Total: ~$77/mo (4 nodes)</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Two-Pool Strategy</h4>
+        <p><strong>System pool</strong> runs kube-system, CoreDNS, and Istio components. These must be on reliable, always-on nodes. Burstable B2s handles this at minimal cost. <strong>App pool</strong> runs your application pods on Spot instances at 60-90% discount. If Azure reclaims a Spot node, Kubernetes reschedules pods to surviving nodes within seconds.</p>
+
+<pre><code><span class="comment"># App node pool -- Spot instances with AMD CPUs</span>
+resource "azurerm_kubernetes_cluster_node_pool" "app" {
+  name                  = "app"
+  kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
+  vm_size               = "Standard_D2as_v5"
+  node_count            = 2
+  zones                 = ["1"]
+  vnet_subnet_id        = azurerm_subnet.aks.id
+  os_disk_size_gb       = 30
+  os_disk_type          = "Ephemeral"
+
+  <span class="comment"># Spot configuration</span>
+  priority        = "Spot"
+  eviction_policy = "Delete"
+  spot_max_price  = -1  <span class="comment"># Pay current spot price</span>
+
+  node_labels = {
+    "kubernetes.azure.com/scalesetpriority" = "spot"
+    "workload-type"                          = "app"
+  }
+
+  node_taints = [
+    "kubernetes.azure.com/scalesetpriority=spot:NoSchedule"
+  ]
+}</code></pre>
+
+        <h4>Cost Comparison</h4>
+        <table>
+          <tr><th>Configuration</th><th>Nodes</th><th>Monthly Cost</th></tr>
+          <tr><td class="cost-high">Over-provisioned (5x D4s_v3 On-Demand)</td><td>5</td><td class="cost-high">$720/mo</td></tr>
+          <tr><td>Moderate (3x D2s_v3 On-Demand)</td><td>3</td><td>$216/mo</td></tr>
+          <tr><td class="cost-low">This guide (2x B2s + 2x D2as Spot)</td><td>4</td><td class="cost-low">$77/mo</td></tr>
+        </table>
+        <p class="savings">Savings: $643/mo (89%) vs over-provisioned</p>
+
+        <div class="callout warn">
+          <strong>Spot eviction handling:</strong> Your application Deployments must have <code>tolerations</code> for the spot taint and <code>podDisruptionBudgets</code> to ensure at least 1 replica survives eviction. System pool has no taints -- critical add-ons always have a home.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 10 — ACR                                                     -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s10"><span class="section-num">10</span> Azure Container Registry</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Basic SKU with AcrPull</h3>
+      <span class="security-badge">No Docker Hub dependency</span>
+      <span class="cost-badge">$5/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="260" height="160" viewBox="0 0 260 160" xmlns="http://www.w3.org/2000/svg">
+          <!-- ACR -->
+          <rect x="70" y="10" width="120" height="50" rx="8" fill="rgba(139,92,246,0.1)" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="130" y="32" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="700">ACR (Basic)</text>
+          <text x="130" y="48" text-anchor="middle" fill="#94a3b8" font-size="8">bookstoreacr.azurecr.io</text>
+          <!-- Pull arrow -->
+          <line x1="130" y1="60" x2="130" y2="95" stroke="#10b981" stroke-width="2"/>
+          <polygon points="125,90 135,90 130,100" fill="#10b981"/>
+          <text x="155" y="80" fill="#10b981" font-size="8" font-weight="600">AcrPull</text>
+          <!-- AKS -->
+          <rect x="60" y="100" width="140" height="40" rx="8" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+          <text x="130" y="120" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="600">AKS Kubelet MI</text>
+          <text x="130" y="135" text-anchor="middle" fill="#94a3b8" font-size="8">Managed Identity pulls images</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>SKU Selection</h4>
+        <p>Basic SKU ($5/mo, 10GB storage) is sufficient for single-AZ with a handful of microservice images. Standard ($20/mo) adds geo-replication and webhooks. Premium ($50/mo) adds Private Endpoint support -- only needed if you require the registry to be entirely private.</p>
+
+<pre><code>resource "azurerm_container_registry" "main" {
+  name                = "bookstoreacr"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  sku                 = "Basic"
+  admin_enabled       = false  <span class="comment"># Use managed identity, not admin creds</span>
+}
+
+<span class="comment"># Grant AKS kubelet identity permission to pull images</span>
+resource "azurerm_role_assignment" "aks_acr_pull" {
+  scope                = azurerm_container_registry.main.id
+  role_definition_name = "AcrPull"
+  principal_id         = azurerm_kubernetes_cluster.main.kubelet_identity[0].object_id
+}</code></pre>
+
+        <div class="callout tip">
+          <strong>Why disable admin?</strong> Admin credentials are a shared username/password pair -- if leaked, anyone can push images. Managed Identity authentication is automatic, rotated by Azure, and tied to the AKS cluster identity. Zero credentials to manage.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 11 — PostgreSQL                                              -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s11"><span class="section-num">11</span> PostgreSQL Flexible Server (4 Instances)</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Burstable B1ms, VNet-Integrated</h3>
+      <span class="security-badge">VNet Isolation + SSL</span>
+      <span class="cost-badge">$52/mo (4 servers)</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="260" viewBox="0 0 280 260" xmlns="http://www.w3.org/2000/svg">
+          <!-- Database subnet -->
+          <rect x="10" y="5" width="260" height="250" rx="10" fill="rgba(245,158,11,0.04)" stroke="#f59e0b" stroke-width="1"/>
+          <text x="140" y="25" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="700">Database Subnet (delegated)</text>
+          <!-- 4 DB instances -->
+          <rect x="20" y="40" width="115" height="70" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+          <text x="77" y="60" text-anchor="middle" fill="#f1f5f9" font-size="9" font-weight="600">ecom-db</text>
+          <text x="77" y="75" text-anchor="middle" fill="#94a3b8" font-size="8">B1ms (1vCPU, 2GB)</text>
+          <text x="77" y="90" text-anchor="middle" fill="#94a3b8" font-size="7">32GB storage</text>
+          <text x="77" y="103" text-anchor="middle" fill="#34d399" font-size="7">$13.14/mo</text>
+          <rect x="145" y="40" width="115" height="70" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+          <text x="202" y="60" text-anchor="middle" fill="#f1f5f9" font-size="9" font-weight="600">inventory-db</text>
+          <text x="202" y="75" text-anchor="middle" fill="#94a3b8" font-size="8">B1ms (1vCPU, 2GB)</text>
+          <text x="202" y="90" text-anchor="middle" fill="#94a3b8" font-size="7">32GB storage</text>
+          <text x="202" y="103" text-anchor="middle" fill="#34d399" font-size="7">$13.14/mo</text>
+          <rect x="20" y="120" width="115" height="70" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+          <text x="77" y="140" text-anchor="middle" fill="#f1f5f9" font-size="9" font-weight="600">analytics-db</text>
+          <text x="77" y="155" text-anchor="middle" fill="#94a3b8" font-size="8">B1ms (1vCPU, 2GB)</text>
+          <text x="77" y="170" text-anchor="middle" fill="#94a3b8" font-size="7">32GB storage</text>
+          <text x="77" y="183" text-anchor="middle" fill="#34d399" font-size="7">$13.14/mo</text>
+          <rect x="145" y="120" width="115" height="70" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+          <text x="202" y="140" text-anchor="middle" fill="#f1f5f9" font-size="9" font-weight="600">keycloak-db</text>
+          <text x="202" y="155" text-anchor="middle" fill="#94a3b8" font-size="8">B1ms (1vCPU, 2GB)</text>
+          <text x="202" y="170" text-anchor="middle" fill="#94a3b8" font-size="7">32GB storage</text>
+          <text x="202" y="183" text-anchor="middle" fill="#34d399" font-size="7">$13.14/mo</text>
+          <!-- Security note -->
+          <rect x="30" y="205" width="220" height="40" rx="6" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.2)" stroke-width="1"/>
+          <text x="140" y="222" text-anchor="middle" fill="#f87171" font-size="8">wal_level=logical (for Debezium CDC)</text>
+          <text x="140" y="236" text-anchor="middle" fill="#f87171" font-size="8">SSL enforced, public access disabled</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Why Burstable B1ms?</h4>
+        <p>For dev/staging workloads, databases are mostly idle. Burstable SKUs accumulate CPU credits during idle time and burst when needed. B1ms provides 1 vCPU and 2GB RAM -- sufficient for microservice databases with moderate query loads. General Purpose D2s ($136/mo each) is 10x the cost for capacity you will not use.</p>
+
+<pre><code><span class="comment"># Reusable module for all 4 databases</span>
+resource "azurerm_postgresql_flexible_server" "ecom" {
+  name                          = "bookstore-ecom-db"
+  resource_group_name           = azurerm_resource_group.main.name
+  location                      = azurerm_resource_group.main.location
+  version                       = "16"
+  delegated_subnet_id           = azurerm_subnet.database.id
+  private_dns_zone_id           = azurerm_private_dns_zone.postgres.id
+  public_network_access_enabled = false
+  zone                          = "1"
+
+  <span class="comment"># Burstable for cost savings</span>
+  sku_name   = "B_Standard_B1ms"
+  storage_mb = 32768
+
+  <span class="comment"># No HA for single-AZ (saves ~$13/mo per server)</span>
+  <span class="comment"># high_availability { mode = "ZoneRedundant" }  # OMITTED</span>
+
+  authentication {
+    password_auth_enabled         = true
+    active_directory_auth_enabled = false
+  }
+}
+
+<span class="comment"># Enable logical replication for Debezium CDC</span>
+resource "azurerm_postgresql_flexible_server_configuration" "ecom_wal" {
+  server_id = azurerm_postgresql_flexible_server.ecom.id
+  name      = "wal_level"
+  value     = "logical"
+}
+
+<span class="comment"># Repeat for: inventory-db, analytics-db, keycloak-db</span>
+
+resource "azurerm_private_dns_zone" "postgres" {
+  name                = "bookstore.postgres.database.azure.com"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "postgres" {
+  name                  = "postgres-vnet-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.postgres.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}</code></pre>
+
+        <h4>Cost Comparison</h4>
+        <table>
+          <tr><th>Configuration</th><th>Per Server</th><th>4 Servers</th></tr>
+          <tr><td class="cost-high">GP D2s + HA (Zone Redundant)</td><td>$272</td><td class="cost-high">$1,088/mo</td></tr>
+          <tr><td>GP D2s (No HA)</td><td>$136</td><td>$544/mo</td></tr>
+          <tr><td class="cost-low">Burstable B1ms (No HA)</td><td>$13.14</td><td class="cost-low">$52.56/mo</td></tr>
+        </table>
+        <p class="savings">Savings: $992/mo (91%) vs GP with HA</p>
+
+        <div class="callout warn">
+          <strong>Single-AZ trade-off:</strong> Without HA, a database server restart takes 1-3 minutes (Azure maintenance, patching, or node failure). For dev/staging this is acceptable. For production, enable at minimum <code>SameZone</code> HA mode, which adds a standby replica in the same zone (~$13/mo extra per server).
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 12 — Event Hubs                                              -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s12"><span class="section-num">12</span> Event Hubs (Kafka Protocol)</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Standard Tier, 1 Throughput Unit</h3>
+      <span class="security-badge">Private Endpoint</span>
+      <span class="cost-badge">$22/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="260" height="200" viewBox="0 0 260 200" xmlns="http://www.w3.org/2000/svg">
+          <!-- Event Hubs namespace -->
+          <rect x="30" y="10" width="200" height="110" rx="10" fill="rgba(139,92,246,0.08)" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="130" y="32" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="700">Event Hubs Namespace</text>
+          <text x="130" y="48" text-anchor="middle" fill="#94a3b8" font-size="8">Standard tier, 1 TU, auto-inflate to 3</text>
+          <!-- Topics -->
+          <rect x="42" y="60" width="85" height="24" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="84" y="76" text-anchor="middle" fill="#f1f5f9" font-size="8">order.created</text>
+          <rect x="133" y="60" width="85" height="24" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="175" y="76" text-anchor="middle" fill="#f1f5f9" font-size="8">inventory.updated</text>
+          <rect x="42" y="90" width="176" height="24" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="130" y="106" text-anchor="middle" fill="#f1f5f9" font-size="8">debezium CDC topics (ecom-connector.*)</text>
+          <!-- Producers -->
+          <rect x="10" y="140" width="70" height="25" rx="4" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1"/>
+          <text x="45" y="156" text-anchor="middle" fill="#60a5fa" font-size="8">ecom-svc</text>
+          <line x1="45" y1="140" x2="80" y2="120" stroke="#3b82f6" stroke-width="1"/>
+          <rect x="90" y="140" width="70" height="25" rx="4" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1"/>
+          <text x="125" y="156" text-anchor="middle" fill="#60a5fa" font-size="8">Debezium</text>
+          <line x1="125" y1="140" x2="130" y2="120" stroke="#3b82f6" stroke-width="1"/>
+          <!-- Consumer -->
+          <rect x="175" y="140" width="75" height="25" rx="4" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-width="1"/>
+          <text x="212" y="156" text-anchor="middle" fill="#6ee7b7" font-size="8">inventory-svc</text>
+          <line x1="212" y1="140" x2="180" y2="120" stroke="#10b981" stroke-width="1"/>
+          <!-- Private Endpoint -->
+          <rect x="60" y="175" width="140" height="20" rx="4" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+          <text x="130" y="189" text-anchor="middle" fill="#f87171" font-size="8">Private Endpoint (no public access)</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Why Event Hubs instead of Self-Managed Kafka?</h4>
+        <p>Running Kafka on AKS requires 3 broker nodes + 3 ZooKeeper nodes (or KRaft) -- that is 6 pods consuming significant compute. Event Hubs provides a Kafka-compatible endpoint as a managed service. Your producers and consumers use the standard Kafka protocol (bootstrap servers, SASL auth) with zero operational burden.</p>
+
+<pre><code>resource "azurerm_eventhub_namespace" "main" {
+  name                          = "bookstore-eventhubs"
+  resource_group_name           = azurerm_resource_group.main.name
+  location                      = azurerm_resource_group.main.location
+  sku                           = "Standard"
+  capacity                      = 1  <span class="comment"># 1 Throughput Unit</span>
+  auto_inflate_enabled          = true
+  maximum_throughput_units       = 3
+  public_network_access_enabled = false
+  minimum_tls_version           = "1.2"
+  kafka_enabled                 = true  <span class="comment"># Kafka protocol support</span>
+}
+
+resource "azurerm_eventhub" "order_created" {
+  name                = "order.created"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 4
+  message_retention   = 7  <span class="comment"># days</span>
+}
+
+resource "azurerm_eventhub" "inventory_updated" {
+  name                = "inventory.updated"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  partition_count     = 4
+  message_retention   = 7
+}
+
+<span class="comment"># Consumer group for each service</span>
+resource "azurerm_eventhub_consumer_group" "inventory_consumer" {
+  name                = "inventory-service"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  eventhub_name       = azurerm_eventhub.order_created.name
+  resource_group_name = azurerm_resource_group.main.name
+}</code></pre>
+
+        <h4>Cost Comparison</h4>
+        <table>
+          <tr><th>Option</th><th>Monthly Cost</th></tr>
+          <tr><td class="cost-high">Event Hubs Premium (1 PU)</td><td class="cost-high">$1,462</td></tr>
+          <tr><td>Self-managed Kafka (3 brokers on D2s)</td><td>$216+</td></tr>
+          <tr><td class="cost-low">Event Hubs Standard (1 TU)</td><td class="cost-low">$22</td></tr>
+        </table>
+
+        <div class="callout info">
+          <strong>Throughput Units explained:</strong> 1 TU = 1 MB/s ingress + 2 MB/s egress + 1,000 events/sec. For a bookstore with moderate traffic, 1 TU with auto-inflate to 3 handles burst scenarios. You only pay for the TU-hours actually consumed.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 13 — Redis                                                   -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s13"><span class="section-num">13</span> Azure Cache for Redis</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Basic C0 with Private Endpoint</h3>
+      <span class="security-badge">TLS 1.2 + PE</span>
+      <span class="cost-badge">$16/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="240" height="160" viewBox="0 0 240 160" xmlns="http://www.w3.org/2000/svg">
+          <!-- Redis box -->
+          <rect x="50" y="30" width="140" height="60" rx="8" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="120" y="55" text-anchor="middle" fill="#f87171" font-size="11" font-weight="700">Redis C0</text>
+          <text x="120" y="72" text-anchor="middle" fill="#94a3b8" font-size="8">250MB, no replication</text>
+          <text x="120" y="84" text-anchor="middle" fill="#94a3b8" font-size="8">TLS 1.2 minimum</text>
+          <!-- Use cases -->
+          <rect x="10" y="110" width="65" height="24" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="42" y="126" text-anchor="middle" fill="#94a3b8" font-size="7">Sessions</text>
+          <rect x="82" y="110" width="65" height="24" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="114" y="126" text-anchor="middle" fill="#94a3b8" font-size="7">CSRF Tokens</text>
+          <rect x="154" y="110" width="70" height="24" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="189" y="126" text-anchor="middle" fill="#94a3b8" font-size="7">Rate Limiting</text>
+          <!-- PE badge -->
+          <rect x="55" y="5" width="130" height="18" rx="4" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-width="1"/>
+          <text x="120" y="17" text-anchor="middle" fill="#6ee7b7" font-size="8">Private Endpoint Only</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Why Basic C0?</h4>
+        <p>For single-AZ, there is no need for replication (Standard C0 adds a replica for $32/mo). Basic C0 provides 250MB and 256 connections -- sufficient for session storage, CSRF tokens, and rate limiting for a bookstore. If the Redis instance restarts, sessions are temporarily lost (users re-authenticate) -- acceptable for dev/staging.</p>
+
+<pre><code>resource "azurerm_redis_cache" "main" {
+  name                          = "bookstore-redis"
+  resource_group_name           = azurerm_resource_group.main.name
+  location                      = azurerm_resource_group.main.location
+  capacity                      = 0
+  family                        = "C"
+  sku_name                      = "Basic"
+  minimum_tls_version           = "1.2"
+  public_network_access_enabled = false
+  redis_version                 = "6"
+
+  redis_configuration {
+    maxmemory_policy = "allkeys-lru"
+  }
+}</code></pre>
+
+        <h4>Cost Comparison</h4>
+        <table>
+          <tr><th>SKU</th><th>Replication</th><th>Monthly Cost</th></tr>
+          <tr><td class="cost-high">Premium P1 (6GB, cluster)</td><td>Yes + clustering</td><td class="cost-high">$224</td></tr>
+          <tr><td>Standard C0 (250MB)</td><td>Yes (1 replica)</td><td>$32</td></tr>
+          <tr><td class="cost-low">Basic C0 (250MB)</td><td>No</td><td class="cost-low">$16</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 14 — Key Vault                                               -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s14"><span class="section-num">14</span> Azure Key Vault</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Standard SKU with RBAC &amp; ESO</h3>
+      <span class="security-badge">Soft Delete + Purge Protection</span>
+      <span class="cost-badge">~$0.50/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="220" viewBox="0 0 280 220" xmlns="http://www.w3.org/2000/svg">
+          <!-- Key Vault -->
+          <rect x="80" y="5" width="120" height="45" rx="8" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="140" y="25" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="700">Azure Key Vault</text>
+          <text x="140" y="42" text-anchor="middle" fill="#94a3b8" font-size="8">RBAC authorization</text>
+          <!-- Arrow to ESO -->
+          <line x1="140" y1="50" x2="140" y2="75" stroke="#f59e0b" stroke-width="1.5"/>
+          <!-- ESO -->
+          <rect x="55" y="75" width="170" height="35" rx="6" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+          <text x="140" y="92" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="600">External Secrets Operator (ESO)</text>
+          <text x="140" y="104" text-anchor="middle" fill="#94a3b8" font-size="7">Workload Identity federation</text>
+          <!-- Arrow to K8s Secrets -->
+          <line x1="140" y1="110" x2="140" y2="130" stroke="#3b82f6" stroke-width="1.5"/>
+          <!-- K8s Secrets -->
+          <rect x="55" y="130" width="170" height="30" rx="6" fill="rgba(16,185,129,0.08)" stroke="#10b981" stroke-width="1"/>
+          <text x="140" y="150" text-anchor="middle" fill="#6ee7b7" font-size="9" font-weight="600">Kubernetes Secrets (auto-synced)</text>
+          <!-- Arrow to Pods -->
+          <line x1="140" y1="160" x2="140" y2="178" stroke="#10b981" stroke-width="1.5"/>
+          <!-- Pods -->
+          <rect x="30" y="178" width="70" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="65" y="196" text-anchor="middle" fill="#94a3b8" font-size="8">ecom-svc</text>
+          <rect x="105" y="178" width="70" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="140" y="196" text-anchor="middle" fill="#94a3b8" font-size="8">inventory-svc</text>
+          <rect x="180" y="178" width="70" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="215" y="196" text-anchor="middle" fill="#94a3b8" font-size="8">keycloak</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Why RBAC over Access Policies?</h4>
+        <p>Access Policies are a legacy authorization model specific to Key Vault. RBAC uses the same Azure role assignment model as every other Azure service -- consistent, auditable via Azure Activity Log, and supports conditions (e.g., restrict to specific secret names). Microsoft recommends RBAC for all new Key Vaults.</p>
+
+<pre><code>resource "azurerm_key_vault" "main" {
+  name                          = "bookstore-kv"
+  resource_group_name           = azurerm_resource_group.main.name
+  location                      = azurerm_resource_group.main.location
+  sku_name                      = "standard"
+  tenant_id                     = data.azurerm_client_config.current.tenant_id
+  enable_rbac_authorization     = true
+  soft_delete_retention_days    = 7
+  purge_protection_enabled      = true
+  public_network_access_enabled = false
+}
+
+<span class="comment"># Grant ESO workload identity access to secrets</span>
+resource "azurerm_role_assignment" "eso_secrets" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_user_assigned_identity.eso.principal_id
+}
+
+<span class="comment"># Store database passwords</span>
+resource "azurerm_key_vault_secret" "ecom_db_password" {
+  name         = "ecom-db-password"
+  value        = random_password.ecom_db.result
+  key_vault_id = azurerm_key_vault.main.id
+}
+
+<span class="comment"># Repeat for all service secrets</span></code></pre>
+
+        <div class="callout info">
+          <strong>ESO flow:</strong> External Secrets Operator runs in the cluster and watches <code>ExternalSecret</code> CRDs. When you create one pointing to <code>ecom-db-password</code> in Key Vault, ESO authenticates via Workload Identity, fetches the secret, and creates a native Kubernetes Secret. Your pods use standard <code>secretKeyRef</code> -- they never know about Key Vault.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 15 — Application Gateway                                     -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s15"><span class="section-num">15</span> Application Gateway</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Standard_v2 with HTTPS Termination</h3>
+      <span class="security-badge">TLS Termination</span>
+      <span class="cost-badge">~$173/mo (Standard) or ~$350/mo (WAF)</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="220" viewBox="0 0 280 220" xmlns="http://www.w3.org/2000/svg">
+          <!-- Internet -->
+          <rect x="95" y="5" width="90" height="30" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+          <text x="140" y="24" text-anchor="middle" fill="#f87171" font-size="9" font-weight="600">Internet</text>
+          <!-- Arrow -->
+          <line x1="140" y1="35" x2="140" y2="55" stroke="#f87171" stroke-width="1.5"/>
+          <text x="165" y="48" fill="#94a3b8" font-size="7">HTTPS :443</text>
+          <!-- App GW -->
+          <rect x="30" y="55" width="220" height="65" rx="10" fill="rgba(139,92,246,0.08)" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="140" y="75" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="700">Application Gateway v2</text>
+          <text x="140" y="92" text-anchor="middle" fill="#94a3b8" font-size="8">TLS termination + HTTP-to-HTTPS redirect</text>
+          <text x="140" y="108" text-anchor="middle" fill="#94a3b8" font-size="8">Health probes + URL-based routing</text>
+          <!-- Backend pools -->
+          <line x1="70" y1="120" x2="70" y2="145" stroke="#10b981" stroke-width="1.5"/>
+          <line x1="140" y1="120" x2="140" y2="145" stroke="#10b981" stroke-width="1.5"/>
+          <line x1="210" y1="120" x2="210" y2="145" stroke="#10b981" stroke-width="1.5"/>
+          <text x="140" y="140" text-anchor="middle" fill="#10b981" font-size="7">HTTP (plaintext inside VNet)</text>
+          <rect x="20" y="150" width="75" height="35" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="57" y="168" text-anchor="middle" fill="#f1f5f9" font-size="8">UI Service</text>
+          <text x="57" y="180" text-anchor="middle" fill="#94a3b8" font-size="7">/</text>
+          <rect x="102" y="150" width="75" height="35" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="139" y="168" text-anchor="middle" fill="#f1f5f9" font-size="8">ecom-svc</text>
+          <text x="139" y="180" text-anchor="middle" fill="#94a3b8" font-size="7">/ecom/*</text>
+          <rect x="184" y="150" width="75" height="35" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="221" y="168" text-anchor="middle" fill="#f1f5f9" font-size="8">inventory-svc</text>
+          <text x="221" y="180" text-anchor="middle" fill="#94a3b8" font-size="7">/inven/*</text>
+          <!-- Note -->
+          <text x="140" y="210" text-anchor="middle" fill="#94a3b8" font-size="8">Istio mTLS encrypts pod-to-pod after App GW</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Standard vs WAF Decision</h4>
+        <p>Standard_v2 handles TLS termination, URL routing, and health probes. WAF_v2 adds OWASP 3.2 rule sets, bot protection, and geo-filtering -- essential for internet-facing production, but $175/mo extra. For dev/staging or when Istio's AuthorizationPolicy provides sufficient L7 protection, Standard_v2 is appropriate.</p>
+
+<pre><code>resource "azurerm_application_gateway" "main" {
+  name                = "bookstore-appgw"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+
+  sku {
+    name     = "Standard_v2"  <span class="comment"># WAF_v2 for production</span>
+    tier     = "Standard_v2"
+    capacity = 1  <span class="comment"># Fixed capacity (no autoscale)</span>
+  }
+
+  gateway_ip_configuration {
+    name      = "appgw-ip-config"
+    subnet_id = azurerm_subnet.appgw.id
+  }
+
+  frontend_ip_configuration {
+    name                 = "appgw-feip"
+    public_ip_address_id = azurerm_public_ip.appgw.id
+  }
+
+  frontend_port {
+    name = "https"
+    port = 443
+  }
+
+  frontend_port {
+    name = "http"
+    port = 80
+  }
+
+  <span class="comment"># HTTPS listener</span>
+  http_listener {
+    name                           = "https-listener"
+    frontend_ip_configuration_name = "appgw-feip"
+    frontend_port_name             = "https"
+    protocol                       = "Https"
+    ssl_certificate_name           = "bookstore-cert"
+  }
+
+  <span class="comment"># HTTP-to-HTTPS redirect</span>
+  http_listener {
+    name                           = "http-listener"
+    frontend_ip_configuration_name = "appgw-feip"
+    frontend_port_name             = "http"
+    protocol                       = "Http"
+  }
+
+  redirect_configuration {
+    name                 = "http-to-https"
+    redirect_type        = "Permanent"
+    target_listener_name = "https-listener"
+    include_path         = true
+    include_query_string = true
+  }
+
+  request_routing_rule {
+    name                        = "http-redirect"
+    priority                    = 100
+    rule_type                   = "Basic"
+    http_listener_name          = "http-listener"
+    redirect_configuration_name = "http-to-https"
+  }
+
+  <span class="comment"># URL path map for service routing</span>
+  url_path_map {
+    name                               = "bookstore-paths"
+    default_backend_address_pool_name  = "ui-pool"
+    default_backend_http_settings_name = "ui-settings"
+
+    path_rule {
+      name                       = "ecom-api"
+      paths                      = ["/ecom/*"]
+      backend_address_pool_name  = "ecom-pool"
+      backend_http_settings_name = "api-settings"
+    }
+
+    path_rule {
+      name                       = "inventory-api"
+      paths                      = ["/inven/*"]
+      backend_address_pool_name  = "inventory-pool"
+      backend_http_settings_name = "api-settings"
+    }
+  }
+
+  <span class="comment"># ... backend pools, HTTP settings, probes omitted for brevity</span>
+}</code></pre>
+
+        <div class="callout tip">
+          <strong>Cost tip:</strong> Set <code>capacity = 1</code> (fixed) instead of autoscale for single-AZ. Autoscale minimum is 2 instances, doubling the cost. One instance handles ~100 concurrent connections easily for dev/staging workloads.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 16 — Azure DNS                                               -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s16"><span class="section-num">16</span> Azure DNS</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>DNS Zone + A Records</h3>
+      <span class="cost-badge">$0.50/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="260" height="150" viewBox="0 0 260 150" xmlns="http://www.w3.org/2000/svg">
+          <!-- DNS Zone -->
+          <rect x="50" y="10" width="160" height="50" rx="8" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="130" y="30" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="700">bookstore.dev</text>
+          <text x="130" y="48" text-anchor="middle" fill="#94a3b8" font-size="8">Azure DNS Zone</text>
+          <!-- Records -->
+          <line x1="85" y1="60" x2="85" y2="85" stroke="#3b82f6" stroke-width="1"/>
+          <line x1="130" y1="60" x2="130" y2="85" stroke="#3b82f6" stroke-width="1"/>
+          <line x1="175" y1="60" x2="175" y2="85" stroke="#3b82f6" stroke-width="1"/>
+          <rect x="45" y="85" width="80" height="22" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="85" y="100" text-anchor="middle" fill="#94a3b8" font-size="7">A: app.bookstore.dev</text>
+          <rect x="135" y="85" width="80" height="22" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="175" y="100" text-anchor="middle" fill="#94a3b8" font-size="7">A: api.bookstore.dev</text>
+          <!-- App GW target -->
+          <rect x="70" y="120" width="120" height="22" rx="4" fill="rgba(139,92,246,0.08)" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="130" y="135" text-anchor="middle" fill="#a78bfa" font-size="8">App Gateway Public IP</text>
+          <line x1="85" y1="107" x2="100" y2="120" stroke="#8b5cf6" stroke-width="1"/>
+          <line x1="175" y1="107" x2="160" y2="120" stroke="#8b5cf6" stroke-width="1"/>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code>resource "azurerm_dns_zone" "main" {
+  name                = "bookstore.dev"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_dns_a_record" "app" {
+  name                = "app"
+  zone_name           = azurerm_dns_zone.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 300
+  target_resource_id  = azurerm_public_ip.appgw.id
+}
+
+resource "azurerm_dns_a_record" "api" {
+  name                = "api"
+  zone_name           = azurerm_dns_zone.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 300
+  target_resource_id  = azurerm_public_ip.appgw.id
+}
+
+resource "azurerm_dns_a_record" "idp" {
+  name                = "idp"
+  zone_name           = azurerm_dns_zone.main.name
+  resource_group_name = azurerm_resource_group.main.name
+  ttl                 = 300
+  target_resource_id  = azurerm_public_ip.appgw.id
+}</code></pre>
+
+        <div class="callout info">
+          <strong>Cost:</strong> $0.50/mo per hosted zone + $0.40 per million queries. For low-traffic environments, total is under $1/mo.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 17 — Azure Policy                                            -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s17"><span class="section-num">17</span> Azure Policy (5 Policies)</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Kubernetes Admission Control</h3>
+      <span class="security-badge">Enforce at Admission</span>
+      <span class="cost-badge">$0/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="260" height="220" viewBox="0 0 260 220" xmlns="http://www.w3.org/2000/svg">
+          <!-- Shield -->
+          <rect x="60" y="5" width="140" height="45" rx="8" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="130" y="25" text-anchor="middle" fill="#f87171" font-size="10" font-weight="700">Azure Policy</text>
+          <text x="130" y="42" text-anchor="middle" fill="#94a3b8" font-size="8">Gatekeeper (OPA) on AKS</text>
+          <!-- 5 policies -->
+          <rect x="15" y="65" width="110" height="24" rx="4" fill="#1e293b" stroke="#ef4444" stroke-width="1"/>
+          <text x="70" y="81" text-anchor="middle" fill="#fca5a5" font-size="8">No privileged containers</text>
+          <rect x="135" y="65" width="110" height="24" rx="4" fill="#1e293b" stroke="#ef4444" stroke-width="1"/>
+          <text x="190" y="81" text-anchor="middle" fill="#fca5a5" font-size="8">ACR images only</text>
+          <rect x="15" y="95" width="110" height="24" rx="4" fill="#1e293b" stroke="#ef4444" stroke-width="1"/>
+          <text x="70" y="111" text-anchor="middle" fill="#fca5a5" font-size="8">No privilege escalation</text>
+          <rect x="135" y="95" width="110" height="24" rx="4" fill="#1e293b" stroke="#ef4444" stroke-width="1"/>
+          <text x="190" y="111" text-anchor="middle" fill="#fca5a5" font-size="8">Run as non-root</text>
+          <rect x="75" y="125" width="110" height="24" rx="4" fill="#1e293b" stroke="#ef4444" stroke-width="1"/>
+          <text x="130" y="141" text-anchor="middle" fill="#fca5a5" font-size="8">Read-only root filesystem</text>
+          <!-- Arrows -->
+          <line x1="130" y1="50" x2="70" y2="65" stroke="#ef4444" stroke-width="1"/>
+          <line x1="130" y1="50" x2="190" y2="65" stroke="#ef4444" stroke-width="1"/>
+          <!-- Deploy request -->
+          <rect x="50" y="170" width="80" height="30" rx="5" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1"/>
+          <text x="90" y="189" text-anchor="middle" fill="#60a5fa" font-size="8">kubectl apply</text>
+          <line x1="90" y1="170" x2="110" y2="149" stroke="#3b82f6" stroke-width="1"/>
+          <rect x="145" y="170" width="70" height="30" rx="5" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
+          <text x="180" y="189" text-anchor="middle" fill="#f87171" font-size="8">DENIED</text>
+          <line x1="145" y1="185" x2="130" y2="185" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4"/>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>How Azure Policy Works on AKS</h4>
+        <p>Azure Policy installs Gatekeeper (OPA) as an admission controller in your cluster. Every <code>kubectl apply</code> is intercepted and evaluated against your policies. Non-compliant resources are rejected before they are created -- not after. This is preventive, not detective.</p>
+
+<pre><code><span class="comment"># 1. No privileged containers</span>
+resource "azurerm_resource_policy_assignment" "no_privileged" {
+  name                 = "no-privileged-containers"
+  resource_id          = azurerm_kubernetes_cluster.main.id
+  policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/95edb821-ddaf-4404-9732-666045e056b4"
+  enforce              = true
+}
+
+<span class="comment"># 2. Container images only from ACR</span>
+resource "azurerm_resource_policy_assignment" "acr_only" {
+  name                 = "allowed-container-registries"
+  resource_id          = azurerm_kubernetes_cluster.main.id
+  policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/febd0533-8e55-448f-b837-bd0e06f16469"
+  enforce              = true
+  parameters = jsonencode({
+    allowedContainerImagesRegex = {
+      value = "^bookstoreacr\\.azurecr\\.io/.+$"
+    }
+  })
+}
+
+<span class="comment"># 3. No privilege escalation</span>
+resource "azurerm_resource_policy_assignment" "no_priv_esc" {
+  name                 = "no-privilege-escalation"
+  resource_id          = azurerm_kubernetes_cluster.main.id
+  policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/1c6e92c9-99f0-4e55-9cf2-0c234dc48f99"
+  enforce              = true
+}
+
+<span class="comment"># 4. Must run as non-root</span>
+resource "azurerm_resource_policy_assignment" "non_root" {
+  name                 = "must-run-as-non-root"
+  resource_id          = azurerm_kubernetes_cluster.main.id
+  policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/098fc59e-46c7-4d99-9b16-64990e543d75"
+  enforce              = true
+}
+
+<span class="comment"># 5. Read-only root filesystem</span>
+resource "azurerm_resource_policy_assignment" "readonly_rootfs" {
+  name                 = "readonly-root-filesystem"
+  resource_id          = azurerm_kubernetes_cluster.main.id
+  policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/df49d893-a74c-421d-bc95-c663042e5b80"
+  enforce              = true
+}</code></pre>
+
+        <div class="callout tip">
+          <strong>Start with audit, then enforce.</strong> Set <code>enforce = false</code> initially to see which existing pods would violate policies (check Azure Policy compliance dashboard). Once clean, flip to <code>enforce = true</code>.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 18 — Istio Ambient Mesh                                      -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s18"><span class="section-num">18</span> Istio Ambient Mesh</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>mTLS STRICT + AuthorizationPolicy</h3>
+      <span class="security-badge">Zero-Trust Networking</span>
+      <span class="cost-badge">$0/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="200" viewBox="0 0 280 200" xmlns="http://www.w3.org/2000/svg">
+          <!-- Mesh boundary -->
+          <rect x="10" y="5" width="260" height="190" rx="12" fill="rgba(139,92,246,0.04)" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="6"/>
+          <text x="140" y="24" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="700">Istio Ambient Mesh (ztunnel)</text>
+          <!-- Pod 1 -->
+          <rect x="20" y="45" width="110" height="55" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+          <text x="75" y="65" text-anchor="middle" fill="#f1f5f9" font-size="9" font-weight="600">ecom-service</text>
+          <text x="75" y="80" text-anchor="middle" fill="#94a3b8" font-size="7">ServiceAccount: ecom-sa</text>
+          <text x="75" y="92" text-anchor="middle" fill="#94a3b8" font-size="7">SPIFFE identity</text>
+          <!-- Pod 2 -->
+          <rect x="150" y="45" width="110" height="55" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+          <text x="205" y="65" text-anchor="middle" fill="#f1f5f9" font-size="9" font-weight="600">inventory-service</text>
+          <text x="205" y="80" text-anchor="middle" fill="#94a3b8" font-size="7">ServiceAccount: inven-sa</text>
+          <text x="205" y="92" text-anchor="middle" fill="#94a3b8" font-size="7">SPIFFE identity</text>
+          <!-- mTLS arrow -->
+          <line x1="130" y1="72" x2="150" y2="72" stroke="#10b981" stroke-width="2"/>
+          <rect x="120" y="58" width="40" height="14" rx="3" fill="rgba(16,185,129,0.2)" stroke="#10b981" stroke-width="1"/>
+          <text x="140" y="68" text-anchor="middle" fill="#6ee7b7" font-size="7" font-weight="700">mTLS</text>
+          <!-- AuthorizationPolicy -->
+          <rect x="30" y="120" width="220" height="60" rx="8" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+          <text x="140" y="140" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">AuthorizationPolicy (deny-all default)</text>
+          <text x="140" y="156" text-anchor="middle" fill="#94a3b8" font-size="8">ALLOW: ecom-sa -> inventory-svc:8080 (GET /stock/*)</text>
+          <text x="140" y="170" text-anchor="middle" fill="#94a3b8" font-size="8">ALLOW: App GW -> * (from 10.0.10.0/24)</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Why Istio Ambient (not Sidecars)?</h4>
+        <p>Ambient mesh uses a per-node ztunnel DaemonSet instead of per-pod sidecar proxies. This saves ~100MB RAM per pod (5 services x 2 replicas = 1GB saved). mTLS is automatic -- every pod gets a SPIFFE identity and all traffic is encrypted without application changes.</p>
+
+<pre><code><span class="comment"># Install Istio with ambient profile</span>
+istioctl install --set profile=ambient \
+  --set values.global.meshID=bookstore \
+  --set values.global.network=main \
+  -y
+
+<span class="comment"># Label namespaces for ambient mesh enrollment</span>
+kubectl label namespace ecom istio.io/dataplane-mode=ambient
+kubectl label namespace inventory istio.io/dataplane-mode=ambient
+
+<span class="comment"># PeerAuthentication: STRICT mTLS per namespace</span>
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: ecom
+spec:
+  mtls:
+    mode: STRICT
+
+<span class="comment"># AuthorizationPolicy: deny-all + explicit allows</span>
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-ecom-to-inventory
+  namespace: inventory
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/ecom/sa/ecom-sa"]
+    to:
+    - operation:
+        methods: ["GET", "POST"]
+        paths: ["/inven/*"]</code></pre>
+
+        <div class="callout danger">
+          <strong>Security guarantee:</strong> With <code>STRICT</code> mTLS and a default-deny AuthorizationPolicy, even if an attacker gains shell access in a compromised pod, they cannot reach any other service without a valid SPIFFE certificate. Lateral movement is blocked at the network level.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 19 — Application Deployments                                 -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s19"><span class="section-num">19</span> Application Deployments</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>5 Services with Security Contexts</h3>
+      <span class="security-badge">Non-root + ReadOnly FS</span>
+      <span class="cost-badge">$0 (uses existing nodes)</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="240" viewBox="0 0 280 240" xmlns="http://www.w3.org/2000/svg">
+          <!-- Services -->
+          <rect x="15" y="10" width="75" height="55" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+          <text x="52" y="30" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">UI</text>
+          <text x="52" y="43" text-anchor="middle" fill="#94a3b8" font-size="7">React + Nginx</text>
+          <text x="52" y="56" text-anchor="middle" fill="#94a3b8" font-size="6">128Mi / 256Mi</text>
+          <rect x="100" y="10" width="80" height="55" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+          <text x="140" y="30" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">ecom-service</text>
+          <text x="140" y="43" text-anchor="middle" fill="#94a3b8" font-size="7">Spring Boot</text>
+          <text x="140" y="56" text-anchor="middle" fill="#94a3b8" font-size="6">512Mi / 768Mi</text>
+          <rect x="190" y="10" width="80" height="55" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+          <text x="230" y="30" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">inventory-svc</text>
+          <text x="230" y="43" text-anchor="middle" fill="#94a3b8" font-size="7">FastAPI</text>
+          <text x="230" y="56" text-anchor="middle" fill="#94a3b8" font-size="6">256Mi / 384Mi</text>
+          <rect x="40" y="75" width="80" height="55" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="80" y="95" text-anchor="middle" fill="#a78bfa" font-size="8" font-weight="600">Keycloak</text>
+          <text x="80" y="108" text-anchor="middle" fill="#94a3b8" font-size="7">Identity Provider</text>
+          <text x="80" y="121" text-anchor="middle" fill="#94a3b8" font-size="6">512Mi / 768Mi</text>
+          <rect x="155" y="75" width="80" height="55" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="195" y="95" text-anchor="middle" fill="#a78bfa" font-size="8" font-weight="600">Debezium</text>
+          <text x="195" y="108" text-anchor="middle" fill="#94a3b8" font-size="7">CDC Pipeline</text>
+          <text x="195" y="121" text-anchor="middle" fill="#94a3b8" font-size="6">256Mi / 512Mi</text>
+          <!-- Security context box -->
+          <rect x="20" y="145" width="240" height="85" rx="8" fill="rgba(239,68,68,0.05)" stroke="rgba(239,68,68,0.2)" stroke-width="1"/>
+          <text x="140" y="165" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">Required Security Context (all pods)</text>
+          <text x="140" y="182" text-anchor="middle" fill="#94a3b8" font-size="8">runAsNonRoot: true, runAsUser: 1000</text>
+          <text x="140" y="196" text-anchor="middle" fill="#94a3b8" font-size="8">readOnlyRootFilesystem: true</text>
+          <text x="140" y="210" text-anchor="middle" fill="#94a3b8" font-size="8">allowPrivilegeEscalation: false</text>
+          <text x="140" y="224" text-anchor="middle" fill="#94a3b8" font-size="8">capabilities: drop: ["ALL"]</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Deployment Template Pattern</h4>
+<pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecom-service
+  namespace: ecom
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ecom-service
+  template:
+    metadata:
+      labels:
+        app: ecom-service
+    spec:
+      serviceAccountName: ecom-sa
+      <span class="comment"># Tolerate spot node taint</span>
+      tolerations:
+      - key: "kubernetes.azure.com/scalesetpriority"
+        operator: "Equal"
+        value: "spot"
+        effect: "NoSchedule"
+      <span class="comment"># Prefer app pool</span>
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: workload-type
+                operator: In
+                values: ["app"]
+      <span class="comment"># Init container for migrations</span>
+      initContainers:
+      - name: migrate
+        image: bookstoreacr.azurecr.io/ecom-service:latest
+        command: ["java", "-jar", "app.jar", "--migrate"]
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: ecom-db-credentials
+              key: jdbc-url
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+      containers:
+      - name: ecom-service
+        image: bookstoreacr.azurecr.io/ecom-service:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: ecom-db-credentials
+              key: jdbc-url
+        - name: KEYCLOAK_JWKS_URI
+          value: "http://keycloak.identity.svc:8080/..."
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 768Mi
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        livenessProbe:
+          httpGet:
+            path: /ecom/actuator/health
+            port: 8080
+          initialDelaySeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /ecom/actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 10</code></pre>
+
+        <div class="callout info">
+          <strong>PodDisruptionBudget:</strong> For each service with 2 replicas, create a PDB with <code>minAvailable: 1</code>. This ensures Kubernetes never evicts both replicas simultaneously during Spot eviction or node upgrades.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 20 — Observability                                           -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s20"><span class="section-num">20</span> Observability</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Prometheus + Grafana + Loki + Tempo</h3>
+      <span class="security-badge">Full Stack Visibility</span>
+      <span class="cost-badge">~$0 additional</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="220" viewBox="0 0 280 220" xmlns="http://www.w3.org/2000/svg">
+          <!-- Sources -->
+          <rect x="15" y="10" width="70" height="30" rx="5" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+          <text x="50" y="29" text-anchor="middle" fill="#60a5fa" font-size="8">ecom-svc</text>
+          <rect x="95" y="10" width="70" height="30" rx="5" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+          <text x="130" y="29" text-anchor="middle" fill="#60a5fa" font-size="8">inventory-svc</text>
+          <rect x="175" y="10" width="90" height="30" rx="5" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+          <text x="220" y="29" text-anchor="middle" fill="#60a5fa" font-size="8">Istio ztunnel</text>
+          <!-- OTel Collector -->
+          <rect x="55" y="55" width="170" height="35" rx="8" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="140" y="72" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="700">OTel Collector</text>
+          <text x="140" y="84" text-anchor="middle" fill="#94a3b8" font-size="7">metrics, logs, traces</text>
+          <line x1="50" y1="40" x2="100" y2="55" stroke="#f59e0b" stroke-width="1"/>
+          <line x1="130" y1="40" x2="140" y2="55" stroke="#f59e0b" stroke-width="1"/>
+          <line x1="220" y1="40" x2="180" y2="55" stroke="#f59e0b" stroke-width="1"/>
+          <!-- Backends -->
+          <rect x="15" y="110" width="75" height="35" rx="5" fill="#1e293b" stroke="#ef4444" stroke-width="1"/>
+          <text x="52" y="128" text-anchor="middle" fill="#f87171" font-size="9" font-weight="600">Prometheus</text>
+          <text x="52" y="140" text-anchor="middle" fill="#94a3b8" font-size="7">Metrics</text>
+          <rect x="100" y="110" width="75" height="35" rx="5" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+          <text x="137" y="128" text-anchor="middle" fill="#6ee7b7" font-size="9" font-weight="600">Loki</text>
+          <text x="137" y="140" text-anchor="middle" fill="#94a3b8" font-size="7">Logs</text>
+          <rect x="185" y="110" width="80" height="35" rx="5" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="225" y="128" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="600">Tempo</text>
+          <text x="225" y="140" text-anchor="middle" fill="#94a3b8" font-size="7">Traces</text>
+          <line x1="100" y1="90" x2="52" y2="110" stroke="#ef4444" stroke-width="1"/>
+          <line x1="140" y1="90" x2="137" y2="110" stroke="#10b981" stroke-width="1"/>
+          <line x1="180" y1="90" x2="225" y2="110" stroke="#8b5cf6" stroke-width="1"/>
+          <!-- Grafana -->
+          <rect x="60" y="165" width="160" height="40" rx="8" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="140" y="185" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700">Grafana Dashboards</text>
+          <text x="140" y="200" text-anchor="middle" fill="#94a3b8" font-size="8">Unified view: metrics + logs + traces</text>
+          <line x1="52" y1="145" x2="100" y2="165" stroke="#f59e0b" stroke-width="1"/>
+          <line x1="137" y1="145" x2="140" y2="165" stroke="#f59e0b" stroke-width="1"/>
+          <line x1="225" y1="145" x2="180" y2="165" stroke="#f59e0b" stroke-width="1"/>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Self-Hosted vs Azure Monitor</h4>
+        <p>Azure Monitor (Container Insights) costs ~$2.76/GB of ingested logs. For a bookstore generating 5-10GB/month of logs, that is $14-28/mo. Self-hosted Prometheus + Loki + Tempo on AKS costs $0 beyond the node resources they consume. Since we already have spare capacity on the app pool, self-hosted is the cost-optimal choice.</p>
+
+        <h4>Minimal Resource Requirements</h4>
+        <table>
+          <tr><th>Component</th><th>CPU Request</th><th>Memory Request</th></tr>
+          <tr><td>Prometheus</td><td>100m</td><td>256Mi</td></tr>
+          <tr><td>Grafana</td><td>100m</td><td>128Mi</td></tr>
+          <tr><td>Loki</td><td>100m</td><td>256Mi</td></tr>
+          <tr><td>Tempo</td><td>100m</td><td>256Mi</td></tr>
+          <tr><td>OTel Collector</td><td>100m</td><td>128Mi</td></tr>
+          <tr><td><strong>Total</strong></td><td><strong>500m</strong></td><td><strong>1,024Mi</strong></td></tr>
+        </table>
+
+        <div class="callout tip">
+          <strong>Alternative: Azure Managed Grafana + Managed Prometheus.</strong> If you want zero operational burden, Azure offers managed versions at ~$50/mo total. Good middle ground between self-hosted and full Container Insights.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 21 — Total Cost Summary                                      -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s21"><span class="section-num">21</span> Total Cost Summary</h2>
+
+  <table>
+    <tr><th>Component</th><th>SKU / Tier</th><th>Monthly Cost</th></tr>
+    <tr><td>VNet + Subnets</td><td>-</td><td class="cost-low">$0</td></tr>
+    <tr><td>NAT Gateway + Public IP</td><td>Standard</td><td>$32</td></tr>
+    <tr><td>NSGs (3)</td><td>-</td><td class="cost-low">$0</td></tr>
+    <tr><td>Private Endpoints (5)</td><td>-</td><td>$36.50</td></tr>
+    <tr><td>AKS Control Plane</td><td>Standard tier</td><td>$73</td></tr>
+    <tr><td>System Pool (2x B2s)</td><td>Burstable</td><td>$60.74</td></tr>
+    <tr><td>App Pool (2x D2as_v5 Spot)</td><td>Spot</td><td>$17.40</td></tr>
+    <tr><td>ACR</td><td>Basic</td><td>$5</td></tr>
+    <tr><td>PostgreSQL (4x B1ms)</td><td>Burstable, no HA</td><td>$52.56</td></tr>
+    <tr><td>Event Hubs (1 TU Standard)</td><td>Standard</td><td>$22</td></tr>
+    <tr><td>Azure Cache for Redis</td><td>Basic C0</td><td>$16</td></tr>
+    <tr><td>Key Vault</td><td>Standard</td><td>$0.50</td></tr>
+    <tr><td>Application Gateway</td><td>Standard_v2</td><td>$173</td></tr>
+    <tr><td>Azure DNS</td><td>-</td><td>$0.50</td></tr>
+    <tr><td>Azure Policy</td><td>-</td><td class="cost-low">$0</td></tr>
+    <tr><td>Istio Ambient Mesh</td><td>Open source</td><td class="cost-low">$0</td></tr>
+    <tr><td>Observability (self-hosted)</td><td>-</td><td class="cost-low">$0</td></tr>
+    <tr><td>Terraform State (Blob)</td><td>LRS</td><td>$1</td></tr>
+    <tr style="background: rgba(16,185,129,0.08);"><td><strong>TOTAL (This Guide)</strong></td><td></td><td class="cost-low" style="font-size: 1.1rem;"><strong>~$490/mo</strong></td></tr>
+  </table>
+
+  <h3>Comparison with Other Configurations</h3>
+  <table>
+    <tr><th>Configuration</th><th>Monthly Cost</th><th>Savings</th></tr>
+    <tr><td class="cost-high">Over-provisioned (GP VMs, Premium PaaS, HA everywhere)</td><td class="cost-high">~$4,200/mo</td><td>-</td></tr>
+    <tr><td>Optimized Multi-AZ (Zone-redundant, right-sized)</td><td>~$900/mo</td><td>79% vs over-provisioned</td></tr>
+    <tr><td class="cost-low"><strong>This Guide (Single-AZ, cost-optimized)</strong></td><td class="cost-low"><strong>~$490/mo</strong></td><td class="savings">88% vs over-provisioned</td></tr>
+  </table>
+
+  <div class="callout tip">
+    <strong>Where the biggest savings come from:</strong> (1) Spot instances for app workloads: -$640/mo. (2) Burstable B1ms for PostgreSQL instead of GP D2s: -$490/mo. (3) Event Hubs Standard vs Premium: -$1,440/mo. (4) No HA replicas (single-AZ): -$300/mo. These four decisions account for 70% of the savings.
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 22 — Deployment Commands                                     -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s22"><span class="section-num">22</span> Deployment Commands</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Step-by-Step Deployment</h3>
+    </div>
+    <div class="component-body" style="grid-template-columns: 1fr;">
+      <div class="component-details">
+        <h4>Phase 1: Foundation (one-time setup)</h4>
+<pre><code><span class="comment"># 1. Login and set subscription</span>
+az login
+az account set --subscription "YOUR_SUB_ID"
+
+<span class="comment"># 2. Create Terraform state backend</span>
+az group create -n bookstore-tfstate-rg -l eastus2
+az storage account create -n bookstoretfstate -g bookstore-tfstate-rg \
+  -l eastus2 --sku Standard_LRS --min-tls-version TLS1_2 \
+  --allow-blob-public-access false --https-only true
+az storage container create -n tfstate --account-name bookstoretfstate
+
+<span class="comment"># 3. Create Service Principal</span>
+az ad sp create-for-rbac --name "bookstore-tf-sp" \
+  --role "Contributor" --scopes "/subscriptions/YOUR_SUB_ID"
+
+<span class="comment"># 4. Export credentials</span>
+export ARM_CLIENT_ID="..."
+export ARM_CLIENT_SECRET="..."
+export ARM_SUBSCRIPTION_ID="..."
+export ARM_TENANT_ID="..."</code></pre>
+
+        <h4>Phase 2: Terraform Infrastructure</h4>
+<pre><code><span class="comment"># 5. Initialize and plan</span>
+cd terraform/
+terraform init
+terraform plan -out=tfplan
+
+<span class="comment"># 6. Apply infrastructure (takes ~15-20 minutes)</span>
+terraform apply tfplan
+
+<span class="comment"># 7. Get AKS credentials</span>
+az aks get-credentials \
+  --resource-group bookstore-rg \
+  --name bookstore-aks \
+  --overwrite-existing</code></pre>
+
+        <h4>Phase 3: Cluster Configuration</h4>
+<pre><code><span class="comment"># 8. Install Istio ambient mesh</span>
+istioctl install --set profile=ambient -y
+
+<span class="comment"># 9. Install External Secrets Operator</span>
+helm repo add external-secrets https://charts.external-secrets.io
+helm install external-secrets external-secrets/external-secrets \
+  -n external-secrets --create-namespace
+
+<span class="comment"># 10. Apply Istio security policies</span>
+kubectl apply -f k8s/istio/
+
+<span class="comment"># 11. Create namespaces and label for ambient mesh</span>
+kubectl create namespace ecom
+kubectl create namespace inventory
+kubectl create namespace identity
+kubectl create namespace infra
+kubectl label namespace ecom istio.io/dataplane-mode=ambient
+kubectl label namespace inventory istio.io/dataplane-mode=ambient</code></pre>
+
+        <h4>Phase 4: Application Deployment</h4>
+<pre><code><span class="comment"># 12. Build and push images to ACR</span>
+az acr login --name bookstoreacr
+docker build -t bookstoreacr.azurecr.io/ecom-service:latest ./ecom-service
+docker build -t bookstoreacr.azurecr.io/inventory-service:latest ./inventory-service
+docker build -t bookstoreacr.azurecr.io/ui-service:latest ./ui
+docker push bookstoreacr.azurecr.io/ecom-service:latest
+docker push bookstoreacr.azurecr.io/inventory-service:latest
+docker push bookstoreacr.azurecr.io/ui-service:latest
+
+<span class="comment"># 13. Deploy ExternalSecrets, then services</span>
+kubectl apply -f k8s/secrets/
+kubectl apply -f k8s/services/
+
+<span class="comment"># 14. Verify</span>
+kubectl get pods -A
+curl -sk https://app.bookstore.dev/
+curl -sk https://api.bookstore.dev/ecom/books</code></pre>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 23 — Security Audit Checklist                                -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s23"><span class="section-num">23</span> Security Audit Checklist</h2>
+
+  <p>Use this checklist before going live. Each item maps to a specific Terraform resource or Kubernetes manifest in this guide.</p>
+
+  <p class="check-cat security">Network Security</p>
+  <ul class="checklist">
+    <li><span class="check-box security"></span>AKS subnet has custom NSG with DenyAllInbound at priority 4000</li>
+    <li><span class="check-box security"></span>Database subnet NSG allows only AKS subnet on port 5432</li>
+    <li><span class="check-box security"></span>App Gateway subnet NSG includes GatewayManager rule (65200-65535)</li>
+    <li><span class="check-box security"></span>All PaaS services have <code>public_network_access_enabled = false</code></li>
+    <li><span class="check-box security"></span>Private Endpoints created for Redis, Event Hubs, Key Vault, ACR, Blob</li>
+    <li><span class="check-box security"></span>Private DNS zones linked to VNet for all PE services</li>
+    <li><span class="check-box security"></span>NAT Gateway assigned to AKS subnet for deterministic egress</li>
+    <li><span class="check-box security"></span>No public IPs on AKS nodes (NAT Gateway handles egress)</li>
+  </ul>
+
+  <p class="check-cat security">Identity &amp; Access</p>
+  <ul class="checklist">
+    <li><span class="check-box security"></span>AKS uses Managed Identity (not Service Principal)</li>
+    <li><span class="check-box security"></span>Workload Identity enabled with OIDC issuer</li>
+    <li><span class="check-box security"></span>ACR admin credentials disabled</li>
+    <li><span class="check-box security"></span>AcrPull role assigned to AKS kubelet identity (not admin)</li>
+    <li><span class="check-box security"></span>Key Vault uses RBAC authorization (not access policies)</li>
+    <li><span class="check-box security"></span>ESO uses Workload Identity federation for Key Vault access</li>
+    <li><span class="check-box security"></span>Terraform SP has minimum required roles (Contributor + UAA)</li>
+    <li><span class="check-box security"></span>No hardcoded secrets in manifests or Terraform code</li>
+  </ul>
+
+  <p class="check-cat security">Kubernetes Security</p>
+  <ul class="checklist">
+    <li><span class="check-box security"></span>Azure Policy: no privileged containers (enforced)</li>
+    <li><span class="check-box security"></span>Azure Policy: ACR images only (enforced)</li>
+    <li><span class="check-box security"></span>Azure Policy: no privilege escalation (enforced)</li>
+    <li><span class="check-box security"></span>Azure Policy: run as non-root (enforced)</li>
+    <li><span class="check-box security"></span>Azure Policy: read-only root filesystem (enforced)</li>
+    <li><span class="check-box security"></span>All pods have resource requests and limits</li>
+    <li><span class="check-box security"></span>All pods drop ALL capabilities</li>
+    <li><span class="check-box security"></span>Migrations run as init containers (not as root)</li>
+    <li><span class="check-box security"></span>PodDisruptionBudgets defined for all services</li>
+  </ul>
+
+  <p class="check-cat security">Service Mesh</p>
+  <ul class="checklist">
+    <li><span class="check-box security"></span>Istio ambient mesh enrolled for all app namespaces</li>
+    <li><span class="check-box security"></span>PeerAuthentication STRICT mTLS per namespace</li>
+    <li><span class="check-box security"></span>AuthorizationPolicy deny-all default</li>
+    <li><span class="check-box security"></span>Explicit ALLOW rules for each service-to-service path</li>
+    <li><span class="check-box security"></span>JWT validation via RequestAuthentication for external requests</li>
+  </ul>
+
+  <p class="check-cat security">Data Protection</p>
+  <ul class="checklist">
+    <li><span class="check-box security"></span>PostgreSQL SSL enforced (<code>ssl_enforcement_enabled = true</code>)</li>
+    <li><span class="check-box security"></span>Redis TLS 1.2 minimum</li>
+    <li><span class="check-box security"></span>Key Vault soft delete + purge protection enabled</li>
+    <li><span class="check-box security"></span>Storage account: HTTPS only, TLS 1.2, no public blob access</li>
+    <li><span class="check-box security"></span>Event Hubs TLS 1.2 minimum</li>
+  </ul>
+
+  <p class="check-cat security">TLS &amp; Ingress</p>
+  <ul class="checklist">
+    <li><span class="check-box security"></span>App Gateway HTTPS listener with valid certificate</li>
+    <li><span class="check-box security"></span>HTTP-to-HTTPS redirect configured (301)</li>
+    <li><span class="check-box security"></span>Backend health probes configured for all pools</li>
+    <li><span class="check-box security"></span>No wildcard certificates (specific SANs only)</li>
+  </ul>
+
+  <p class="check-cat cost">Cost Controls</p>
+  <ul class="checklist">
+    <li><span class="check-box cost"></span>Resource tags applied to all resources (environment, project, team)</li>
+    <li><span class="check-box cost"></span>Budget alerts configured in Azure Cost Management</li>
+    <li><span class="check-box cost"></span>Spot instances used for non-critical app workloads</li>
+    <li><span class="check-box cost"></span>Burstable SKUs for databases (B1ms)</li>
+    <li><span class="check-box cost"></span>No HA replicas (acceptable for single-AZ)</li>
+    <li><span class="check-box cost"></span>Auto-inflate enabled on Event Hubs (pay only for usage)</li>
+  </ul>
+
+  <p class="check-cat ops">Operational Readiness</p>
+  <ul class="checklist">
+    <li><span class="check-box ops"></span>Terraform state remote backend with locking</li>
+    <li><span class="check-box ops"></span>Prometheus + Grafana dashboards deployed</li>
+    <li><span class="check-box ops"></span>Log aggregation (Loki) operational</li>
+    <li><span class="check-box ops"></span>Distributed tracing (Tempo) operational</li>
+    <li><span class="check-box ops"></span>Database backup policy configured (7-day retention)</li>
+    <li><span class="check-box ops"></span>AKS auto-upgrade channel set (patch or stable)</li>
+  </ul>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!--  SECTION 24 — When to Upgrade to Multi-AZ                             -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <h2 id="s24"><span class="section-num">24</span> When to Upgrade to Multi-AZ</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Migration Checklist &amp; Terraform Changes</h3>
+      <span class="cost-badge">+$400-700/mo</span>
+    </div>
+    <div class="component-body" style="grid-template-columns: 1fr;">
+      <div class="component-details">
+        <h4>You Need Multi-AZ When...</h4>
+        <ul>
+          <li>Your SLA requirement exceeds 99.5% (e.g., contractual 99.9% or 99.99%)</li>
+          <li>Revenue loss from 1-3 hour outage exceeds the monthly cost difference ($400-700)</li>
+          <li>You have regulatory requirements for geographic redundancy (SOC2, ISO 27001)</li>
+          <li>Your database cannot tolerate 1-3 minute restart during Azure maintenance</li>
+          <li>You process financial transactions where data loss is unacceptable (RPO=0)</li>
+          <li>Traffic patterns exceed Spot instance reliability (frequent evictions)</li>
+          <li>You need horizontal auto-scaling beyond what fits in a single zone</li>
+        </ul>
+
+        <h4>Terraform Changes Required</h4>
+        <p>The migration is incremental -- each change can be applied independently. No data migration required for any of these changes.</p>
+
+<pre><code><span class="comment"># 1. AKS node pools: spread across zones</span>
+<span class="comment"># CHANGE: zones = ["1"] -> zones = ["1", "2", "3"]</span>
+resource "azurerm_kubernetes_cluster" "main" {
+  default_node_pool {
+    zones = ["1", "2", "3"]  <span class="comment"># was ["1"]</span>
+  }
+}
+resource "azurerm_kubernetes_cluster_node_pool" "app" {
+  zones = ["1", "2", "3"]    <span class="comment"># was ["1"]</span>
+}
+<span class="comment"># Cost impact: ~$0 (same VMs, just spread across zones)</span>
+<span class="comment"># Cross-zone traffic: ~$20-50/mo for inter-zone pod communication</span>
+
+<span class="comment"># 2. PostgreSQL: enable Zone-Redundant HA</span>
+resource "azurerm_postgresql_flexible_server" "ecom" {
+  high_availability {
+    mode                      = "ZoneRedundant"
+    standby_availability_zone = "2"
+  }
+}
+<span class="comment"># Cost impact: +$13/mo per server (doubles compute) = +$52/mo for 4</span>
+
+<span class="comment"># 3. Redis: upgrade to Standard C0 (replication)</span>
+resource "azurerm_redis_cache" "main" {
+  sku_name = "Standard"  <span class="comment"># was "Basic"</span>
+  zones    = ["1", "2"]
+}
+<span class="comment"># Cost impact: +$16/mo ($32 total)</span>
+
+<span class="comment"># 4. AKS tier: upgrade for better SLA</span>
+resource "azurerm_kubernetes_cluster" "main" {
+  sku_tier = "Premium"  <span class="comment"># was "Standard" -- 99.95% SLA</span>
+}
+<span class="comment"># Cost impact: +$217/mo ($290 total)</span>
+
+<span class="comment"># 5. Storage: upgrade to ZRS for cross-zone durability</span>
+<span class="comment"># LRS -> ZRS for Terraform state + any PVC-backed storage</span>
+<span class="comment"># Cost impact: ~$0.005/GB/mo difference</span>
+
+<span class="comment"># 6. Optional: App Gateway WAF_v2</span>
+resource "azurerm_application_gateway" "main" {
+  sku {
+    name = "WAF_v2"   <span class="comment"># was "Standard_v2"</span>
+    tier = "WAF_v2"
+  }
+}
+<span class="comment"># Cost impact: +$175/mo</span></code></pre>
+
+        <h4>Migration Cost Summary</h4>
+        <table>
+          <tr><th>Change</th><th>Additional Monthly Cost</th></tr>
+          <tr><td>Node pools across 3 zones</td><td>~$30 (cross-zone traffic)</td></tr>
+          <tr><td>PostgreSQL Zone-Redundant HA (x4)</td><td>+$52</td></tr>
+          <tr><td>Redis Standard (replicated)</td><td>+$16</td></tr>
+          <tr><td>AKS Premium tier</td><td>+$217</td></tr>
+          <tr><td>Cross-zone data transfer</td><td>~$20-50</td></tr>
+          <tr><td>WAF (optional)</td><td>+$175</td></tr>
+          <tr><td><strong>Total Multi-AZ Premium</strong></td><td><strong>+$510-$540/mo</strong></td></tr>
+          <tr style="background: rgba(59,130,246,0.06);"><td><strong>New total (Multi-AZ)</strong></td><td><strong>~$1,000-$1,030/mo</strong></td></tr>
+        </table>
+
+        <div class="callout info">
+          <strong>Zero-downtime migration:</strong> All these Terraform changes trigger rolling updates, not replacements. AKS nodes drain and recreate one at a time. PostgreSQL HA adds a standby without downtime. Redis replication is transparent. No application code changes required.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+
+  <footer>
+    <p>BookStore Platform &mdash; Single-AZ Azure AKS Deployment Guide</p>
+    <p>See also: <a href="production-hardening-azure.html">Production Hardening Guide</a> &middot; <a href="hardening-visual-azure.html">Visual Hardening Walkthrough</a> &middot; <a href="architecture.html">Architecture</a></p>
+  </footer>
+
+</div>
+</body>
+</html>
