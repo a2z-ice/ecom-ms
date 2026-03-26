@@ -1,0 +1,520 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1200" font-family="Inter, -apple-system, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1400" y2="1200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0f172a"/><stop offset="100%" stop-color="#1a2332"/>
+    </linearGradient>
+    <filter id="sh"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-opacity="0.3"/></filter>
+    <filter id="shLg"><feDropShadow dx="0" dy="3" stdDeviation="6" flood-opacity="0.35"/></filter>
+    <marker id="ar" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#475569"/></marker>
+    <marker id="arAz" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#0078d4"/></marker>
+    <marker id="arW" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#f1f5f9"/></marker>
+    <marker id="arG" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#34d399"/></marker>
+    <marker id="arR" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#DC382D"/></marker>
+    <marker id="arDb" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#336791"/></marker>
+    <marker id="arY" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#fbbf24"/></marker>
+    <marker id="arP" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#a78bfa"/></marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1400" height="1200" fill="url(#bg)" rx="16"/>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 0: TITLE                                        -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <text x="700" y="32" text-anchor="middle" font-size="20" font-weight="800" fill="#f1f5f9">BookStore Platform &#x2014; Complete Azure AKS Architecture</text>
+  <text x="700" y="50" text-anchor="middle" font-size="11" fill="#64748b">Browser to Database &#x2014; Every Component, Every Connection, Every Security Boundary</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 1: CLIENT LAYER                                 -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="590" y="62" width="220" height="32" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1" filter="url(#sh)"/>
+  <text x="700" y="83" text-anchor="middle" font-size="12" font-weight="600" fill="#f1f5f9">Browser &#x2022; HTTPS :443</text>
+  <line x1="700" y1="94" x2="700" y2="108" stroke="#475569" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 2: DNS & CERTIFICATE                            -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="340" y="112" width="340" height="38" rx="8" fill="#1e293b" stroke="#0078d4" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="510" y="130" text-anchor="middle" font-size="11" font-weight="700" fill="#60a5fa">Azure DNS Zone</text>
+  <text x="510" y="143" text-anchor="middle" font-size="9" fill="#94a3b8">myecom.net &#x2022; api.service.net &#x2022; idp.keycloak.net</text>
+
+  <rect x="720" y="112" width="340" height="38" rx="8" fill="#1e293b" stroke="#34d399" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="890" y="130" text-anchor="middle" font-size="11" font-weight="700" fill="#34d399">Managed TLS Certificate</text>
+  <text x="890" y="143" text-anchor="middle" font-size="9" fill="#94a3b8">Let&#x27;s Encrypt &#x2022; Auto-Renewal &#x2022; cert-manager in-cluster</text>
+
+  <line x1="700" y1="150" x2="700" y2="162" stroke="#475569" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 3: EDGE SECURITY &#x2014; APP GATEWAY + WAF         -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="200" y="166" width="1000" height="56" rx="10" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5" filter="url(#shLg)"/>
+  <rect x="200" y="166" width="1000" height="20" rx="10" fill="#f59e0b" opacity="0.15"/>
+  <text x="700" y="181" text-anchor="middle" font-size="11" font-weight="700" fill="#fbbf24">Application Gateway v2 + WAF v2 (Optional)</text>
+  <text x="700" y="198" text-anchor="middle" font-size="9" fill="#94a3b8">HTTPS termination &#x2022; URL path routing &#x2022; Health probes &#x2022; DDoS protection &#x2022; OWASP 3.2 rules</text>
+  <text x="700" y="212" text-anchor="middle" font-size="8" fill="#64748b">NSG: IN 443/80 from Internet, 65200-65535 from GatewayManager &#x2022; OUT: to AKS Subnet</text>
+
+  <line x1="700" y1="222" x2="700" y2="236" stroke="#475569" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 4: AZURE-MANAGED CONTROL PLANE                  -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="30" y="240" width="1340" height="80" rx="10" fill="none" stroke="#0078d4" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.7"/>
+  <rect x="38" y="234" width="310" height="18" rx="4" fill="#0078d4" opacity="0.2"/>
+  <text x="46" y="247" font-size="9" font-weight="700" fill="#60a5fa">AZURE-MANAGED (outside your VNet)</text>
+
+  <!-- AKS Control Plane -->
+  <rect x="50" y="258" width="520" height="50" rx="8" fill="#1e293b" stroke="#0078d4" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="310" y="276" text-anchor="middle" font-size="11" font-weight="700" fill="#60a5fa">AKS Control Plane</text>
+  <rect x="62" y="282" width="78" height="20" rx="4" fill="#0e2a4d" stroke="#0078d4" stroke-width="0.8"/>
+  <text x="101" y="296" text-anchor="middle" font-size="9" font-weight="600" fill="#60a5fa">API Server</text>
+  <rect x="148" y="282" width="56" height="20" rx="4" fill="#0e2a4d" stroke="#0078d4" stroke-width="0.8"/>
+  <text x="176" y="296" text-anchor="middle" font-size="9" font-weight="600" fill="#60a5fa">etcd</text>
+  <rect x="212" y="282" width="76" height="20" rx="4" fill="#0e2a4d" stroke="#0078d4" stroke-width="0.8"/>
+  <text x="250" y="296" text-anchor="middle" font-size="9" font-weight="600" fill="#60a5fa">Scheduler</text>
+  <rect x="296" y="282" width="110" height="20" rx="4" fill="#0e2a4d" stroke="#0078d4" stroke-width="0.8"/>
+  <text x="351" y="296" text-anchor="middle" font-size="9" font-weight="600" fill="#60a5fa">Controller Mgr</text>
+  <rect x="414" y="282" width="140" height="20" rx="4" fill="#0e2a4d" stroke="#0078d4" stroke-width="0.8"/>
+  <text x="484" y="296" text-anchor="middle" font-size="9" font-weight="600" fill="#60a5fa">Cloud Controller Mgr</text>
+
+  <!-- Entra ID -->
+  <rect x="600" y="258" width="250" height="50" rx="8" fill="#1e293b" stroke="#a78bfa" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="725" y="276" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa">Azure AD / Entra ID</text>
+  <text x="725" y="296" text-anchor="middle" font-size="9" fill="#94a3b8">Workload Identity OIDC Issuer &#x2022; RBAC</text>
+
+  <!-- Azure Monitor -->
+  <rect x="880" y="258" width="220" height="50" rx="8" fill="#1e293b" stroke="#34d399" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="990" y="276" text-anchor="middle" font-size="11" font-weight="700" fill="#34d399">Azure Monitor</text>
+  <text x="990" y="296" text-anchor="middle" font-size="9" fill="#94a3b8">Container Insights &#x2022; Log Analytics</text>
+
+  <!-- Azure Policy -->
+  <rect x="1120" y="258" width="230" height="50" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="1235" y="276" text-anchor="middle" font-size="11" font-weight="700" fill="#ef4444">Azure Policy</text>
+  <text x="1235" y="296" text-anchor="middle" font-size="9" fill="#94a3b8">Gatekeeper &#x2022; 5 Constraint Templates</text>
+
+  <!-- Arrow: Control Plane to VNet -->
+  <line x1="310" y1="308" x2="310" y2="332" stroke="#0078d4" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arAz)"/>
+  <text x="320" y="326" font-size="7" fill="#0078d4">Private Link</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 5-6: VNet + AKS SUBNET                         -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- VNet boundary -->
+  <rect x="20" y="336" width="1360" height="480" rx="12" fill="none" stroke="#0078d4" stroke-width="2" opacity="0.5"/>
+  <rect x="28" y="330" width="220" height="18" rx="4" fill="#0078d4" opacity="0.25"/>
+  <text x="36" y="343" font-size="9" font-weight="700" fill="#60a5fa">Your VNet 10.0.0.0/16</text>
+
+  <!-- NAT Gateway badge -->
+  <rect x="1200" y="330" width="160" height="18" rx="4" fill="#0078d4" opacity="0.2"/>
+  <text x="1280" y="343" text-anchor="middle" font-size="8" font-weight="600" fill="#60a5fa">NAT Gateway (Zone-Redundant)</text>
+
+  <!-- AKS Subnet NSG boundary -->
+  <rect x="36" y="352" width="1328" height="270" rx="10" fill="none" stroke="#475569" stroke-width="1.2" stroke-dasharray="4,3"/>
+  <rect x="44" y="346" width="200" height="16" rx="3" fill="#475569" opacity="0.3"/>
+  <text x="52" y="357" font-size="8" font-weight="600" fill="#94a3b8">AKS Subnet 10.0.1.0/22 &#x2022; NSG Protected</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SYSTEM NODE POOL                                    -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="50" y="368" width="430" height="120" rx="8" fill="#1e293b" stroke="#0078d4" stroke-width="1" filter="url(#sh)"/>
+  <rect x="50" y="368" width="430" height="18" rx="8" fill="#0078d4" opacity="0.2"/>
+  <text x="265" y="381" text-anchor="middle" font-size="9" font-weight="700" fill="#60a5fa">System Pool (2x Standard_B2s) &#x2014; Infrastructure Pods</text>
+
+  <!-- System pool pods row 1 -->
+  <rect x="62" y="392" width="72" height="22" rx="4" fill="#0e2a4d" stroke="#466BB0" stroke-width="0.8"/>
+  <text x="98" y="407" text-anchor="middle" font-size="8" font-weight="600" fill="#466BB0">istiod</text>
+
+  <rect x="140" y="392" width="72" height="22" rx="4" fill="#0e2a4d" stroke="#466BB0" stroke-width="0.8"/>
+  <text x="176" y="407" text-anchor="middle" font-size="8" font-weight="600" fill="#466BB0">ztunnel</text>
+
+  <rect x="218" y="392" width="86" height="22" rx="4" fill="#0e2a4d" stroke="#34d399" stroke-width="0.8"/>
+  <text x="261" y="407" text-anchor="middle" font-size="8" font-weight="600" fill="#34d399">cert-manager</text>
+
+  <rect x="310" y="392" width="56" height="22" rx="4" fill="#0e2a4d" stroke="#fbbf24" stroke-width="0.8"/>
+  <text x="338" y="407" text-anchor="middle" font-size="8" font-weight="600" fill="#fbbf24">AGIC</text>
+
+  <rect x="372" y="392" width="96" height="22" rx="4" fill="#0e2a4d" stroke="#f59e0b" stroke-width="0.8"/>
+  <text x="420" y="407" text-anchor="middle" font-size="8" font-weight="600" fill="#f59e0b">OTel Collector</text>
+
+  <!-- System pool pods row 2 -->
+  <rect x="62" y="420" width="80" height="22" rx="4" fill="#0e2a4d" stroke="#f59e0b" stroke-width="0.8"/>
+  <text x="102" y="435" text-anchor="middle" font-size="8" font-weight="600" fill="#f59e0b">Prometheus</text>
+
+  <rect x="148" y="420" width="66" height="22" rx="4" fill="#0e2a4d" stroke="#f59e0b" stroke-width="0.8"/>
+  <text x="181" y="435" text-anchor="middle" font-size="8" font-weight="600" fill="#f59e0b">Grafana</text>
+
+  <rect x="220" y="420" width="50" height="22" rx="4" fill="#0e2a4d" stroke="#f59e0b" stroke-width="0.8"/>
+  <text x="245" y="435" text-anchor="middle" font-size="8" font-weight="600" fill="#f59e0b">Loki</text>
+
+  <rect x="276" y="420" width="56" height="22" rx="4" fill="#0e2a4d" stroke="#f59e0b" stroke-width="0.8"/>
+  <text x="304" y="435" text-anchor="middle" font-size="8" font-weight="600" fill="#f59e0b">Tempo</text>
+
+  <rect x="338" y="420" width="54" height="22" rx="4" fill="#0e2a4d" stroke="#466BB0" stroke-width="0.8"/>
+  <text x="365" y="435" text-anchor="middle" font-size="8" font-weight="600" fill="#466BB0">Kiali</text>
+
+  <rect x="398" y="420" width="68" height="22" rx="4" fill="#0e2a4d" stroke="#34d399" stroke-width="0.8"/>
+  <text x="432" y="435" text-anchor="middle" font-size="8" font-weight="600" fill="#34d399">CoreDNS</text>
+
+  <!-- System pool pods row 3 -->
+  <rect x="62" y="448" width="110" height="22" rx="4" fill="#0e2a4d" stroke="#a78bfa" stroke-width="0.8"/>
+  <text x="117" y="463" text-anchor="middle" font-size="8" font-weight="600" fill="#a78bfa">External Secrets Op</text>
+
+  <rect x="178" y="448" width="80" height="22" rx="4" fill="#0e2a4d" stroke="#ef4444" stroke-width="0.8"/>
+  <text x="218" y="463" text-anchor="middle" font-size="8" font-weight="600" fill="#ef4444">Gatekeeper</text>
+
+  <rect x="264" y="448" width="100" height="22" rx="4" fill="#0e2a4d" stroke="#466BB0" stroke-width="0.8"/>
+  <text x="314" y="463" text-anchor="middle" font-size="8" font-weight="600" fill="#466BB0">Istio Gateway</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- APP NODE POOL                                       -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="500" y="368" width="850" height="120" rx="8" fill="#1e293b" stroke="#34d399" stroke-width="1" filter="url(#sh)"/>
+  <rect x="500" y="368" width="850" height="18" rx="8" fill="#34d399" opacity="0.15"/>
+  <text x="925" y="381" text-anchor="middle" font-size="9" font-weight="700" fill="#34d399">App Pool (2x Standard_D2as_v5 Spot) &#x2014; Application Pods</text>
+
+  <!-- App pool pods row 1 -->
+  <rect x="514" y="392" width="90" height="22" rx="4" fill="#0e2a4d" stroke="#60a5fa" stroke-width="0.8"/>
+  <text x="559" y="407" text-anchor="middle" font-size="8" font-weight="600" fill="#60a5fa">ecom-service</text>
+
+  <rect x="610" y="392" width="104" height="22" rx="4" fill="#0e2a4d" stroke="#34d399" stroke-width="0.8"/>
+  <text x="662" y="407" text-anchor="middle" font-size="8" font-weight="600" fill="#34d399">inventory-service</text>
+
+  <rect x="720" y="392" width="76" height="22" rx="4" fill="#0e2a4d" stroke="#a78bfa" stroke-width="0.8"/>
+  <text x="758" y="407" text-anchor="middle" font-size="8" font-weight="600" fill="#a78bfa">ui-service</text>
+
+  <rect x="802" y="392" width="80" height="22" rx="4" fill="#0e2a4d" stroke="#E6526F" stroke-width="0.8"/>
+  <text x="842" y="407" text-anchor="middle" font-size="8" font-weight="600" fill="#E6526F">csrf-service</text>
+
+  <rect x="888" y="392" width="74" height="22" rx="4" fill="#0e2a4d" stroke="#fbbf24" stroke-width="0.8"/>
+  <text x="925" y="407" text-anchor="middle" font-size="8" font-weight="600" fill="#fbbf24">keycloak</text>
+
+  <rect x="968" y="392" width="110" height="22" rx="4" fill="#0e2a4d" stroke="#fb923c" stroke-width="0.8"/>
+  <text x="1023" y="407" text-anchor="middle" font-size="8" font-weight="600" fill="#fb923c">debezium-ecom</text>
+
+  <rect x="1084" y="392" width="120" height="22" rx="4" fill="#0e2a4d" stroke="#fb923c" stroke-width="0.8"/>
+  <text x="1144" y="407" text-anchor="middle" font-size="8" font-weight="600" fill="#fb923c">debezium-inventory</text>
+
+  <rect x="1210" y="392" width="126" height="22" rx="4" fill="#0e2a4d" stroke="#4fc3f7" stroke-width="0.8"/>
+  <text x="1273" y="407" text-anchor="middle" font-size="8" font-weight="600" fill="#4fc3f7">flink-jobmanager</text>
+
+  <!-- App pool pods row 2 -->
+  <rect x="514" y="420" width="130" height="22" rx="4" fill="#0e2a4d" stroke="#4fc3f7" stroke-width="0.8"/>
+  <text x="579" y="435" text-anchor="middle" font-size="8" font-weight="600" fill="#4fc3f7">flink-taskmanager</text>
+
+  <rect x="650" y="420" width="76" height="22" rx="4" fill="#0e2a4d" stroke="#f87171" stroke-width="0.8"/>
+  <text x="688" y="435" text-anchor="middle" font-size="8" font-weight="600" fill="#f87171">superset</text>
+
+  <rect x="732" y="420" width="70" height="22" rx="4" fill="#0e2a4d" stroke="#336791" stroke-width="0.8"/>
+  <text x="767" y="435" text-anchor="middle" font-size="8" font-weight="600" fill="#336791">pgadmin</text>
+
+  <rect x="808" y="420" width="66" height="22" rx="4" fill="#0e2a4d" stroke="#466BB0" stroke-width="0.8"/>
+  <text x="841" y="435" text-anchor="middle" font-size="8" font-weight="600" fill="#466BB0">ztunnel</text>
+
+  <rect x="880" y="420" width="100" height="22" rx="4" fill="#0e2a4d" stroke="#34d399" stroke-width="0.8"/>
+  <text x="930" y="435" text-anchor="middle" font-size="8" font-weight="600" fill="#34d399">cert-manager</text>
+
+  <!-- Istio Ambient Mesh bar -->
+  <rect x="50" y="496" width="1300" height="20" rx="5" fill="#466BB0" opacity="0.15" stroke="#466BB0" stroke-width="1"/>
+  <text x="700" y="510" text-anchor="middle" font-size="9" font-weight="700" fill="#466BB0">Istio Ambient Mesh &#x2014; mTLS STRICT &#x2022; L4 ztunnel &#x2022; JWT Validation &#x2022; AuthorizationPolicy &#x2022; PeerAuthentication</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 7: APPLICATION REQUEST FLOW (numbered 1-9)      -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="36" y="524" width="1328" height="96" rx="8" fill="#1e293b" stroke="#60a5fa" stroke-width="1" opacity="0.6"/>
+  <text x="700" y="540" text-anchor="middle" font-size="10" font-weight="700" fill="#f1f5f9">Application Request Flow</text>
+
+  <!-- Flow step 1 -->
+  <rect x="50" y="548" width="168" height="16" rx="3" fill="#0e2a4d" stroke="#60a5fa" stroke-width="0.6"/>
+  <text x="134" y="560" text-anchor="middle" font-size="8" fill="#60a5fa">1 Browser &#x2192; App GW &#x2192; Istio GW &#x2192; UI</text>
+
+  <!-- Flow step 2 -->
+  <rect x="224" y="548" width="140" height="16" rx="3" fill="#0e2a4d" stroke="#fbbf24" stroke-width="0.6"/>
+  <text x="294" y="560" text-anchor="middle" font-size="8" fill="#fbbf24">2 UI &#x2192; Keycloak (OIDC PKCE)</text>
+
+  <!-- Flow step 3 -->
+  <rect x="370" y="548" width="150" height="16" rx="3" fill="#0e2a4d" stroke="#E6526F" stroke-width="0.6"/>
+  <text x="445" y="560" text-anchor="middle" font-size="8" fill="#E6526F">3 UI &#x2192; csrf-service (ext_authz)</text>
+
+  <!-- Flow step 4 -->
+  <rect x="526" y="548" width="166" height="16" rx="3" fill="#0e2a4d" stroke="#60a5fa" stroke-width="0.6"/>
+  <text x="609" y="560" text-anchor="middle" font-size="8" fill="#60a5fa">4 UI &#x2192; ecom (GET /books)</text>
+
+  <!-- Flow step 5 -->
+  <rect x="698" y="548" width="200" height="16" rx="3" fill="#0e2a4d" stroke="#60a5fa" stroke-width="0.6"/>
+  <text x="798" y="560" text-anchor="middle" font-size="8" fill="#60a5fa">5 UI &#x2192; ecom (POST /cart &#x2014; JWT+CSRF)</text>
+
+  <!-- Flow step 6 -->
+  <rect x="50" y="570" width="168" height="16" rx="3" fill="#0e2a4d" stroke="#60a5fa" stroke-width="0.6"/>
+  <text x="134" y="582" text-anchor="middle" font-size="8" fill="#60a5fa">6 UI &#x2192; ecom (POST /checkout)</text>
+
+  <!-- Flow step 7 -->
+  <rect x="224" y="570" width="196" height="16" rx="3" fill="#0e2a4d" stroke="#34d399" stroke-width="0.6"/>
+  <text x="322" y="582" text-anchor="middle" font-size="8" fill="#34d399">7 ecom &#x2192; inventory (POST /reserve &#x2014; mTLS)</text>
+
+  <!-- Flow step 8 -->
+  <rect x="426" y="570" width="210" height="16" rx="3" fill="#0e2a4d" stroke="#f1f5f9" stroke-width="0.6"/>
+  <text x="531" y="582" text-anchor="middle" font-size="8" fill="#e2e8f0">8 ecom &#x2192; Event Hubs (order.created)</text>
+
+  <!-- Flow step 9 -->
+  <rect x="642" y="570" width="230" height="16" rx="3" fill="#0e2a4d" stroke="#f1f5f9" stroke-width="0.6"/>
+  <text x="757" y="582" text-anchor="middle" font-size="8" fill="#e2e8f0">9 inventory &#x2192; Event Hubs (inventory.updated)</text>
+
+  <!-- Flow steps 10-13 (right side) -->
+  <rect x="904" y="548" width="220" height="16" rx="3" fill="#0e2a4d" stroke="#fb923c" stroke-width="0.6"/>
+  <text x="1014" y="560" text-anchor="middle" font-size="8" fill="#fb923c">10 ecom-db &#x2192; Debezium &#x2192; Event Hubs (CDC)</text>
+
+  <rect x="1130" y="548" width="220" height="16" rx="3" fill="#0e2a4d" stroke="#fb923c" stroke-width="0.6"/>
+  <text x="1240" y="560" text-anchor="middle" font-size="8" fill="#fb923c">11 inventory-db &#x2192; Debezium &#x2192; EH (CDC)</text>
+
+  <rect x="904" y="570" width="210" height="16" rx="3" fill="#0e2a4d" stroke="#4fc3f7" stroke-width="0.6"/>
+  <text x="1009" y="582" text-anchor="middle" font-size="8" fill="#4fc3f7">12 Event Hubs &#x2192; Flink SQL &#x2192; analytics-db</text>
+
+  <rect x="1120" y="570" width="166" height="16" rx="3" fill="#0e2a4d" stroke="#f87171" stroke-width="0.6"/>
+  <text x="1203" y="582" text-anchor="middle" font-size="8" fill="#f87171">13 analytics-db &#x2192; Superset</text>
+
+  <!-- CDC flow arrow from request flow to DB section -->
+  <text x="700" y="603" text-anchor="middle" font-size="8" fill="#64748b">&#x2193; All database connections via Private Endpoints &#x2193;</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 9: DATABASE SUBNET                              -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="36" y="614" width="1328" height="86" rx="10" fill="none" stroke="#336791" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <rect x="44" y="608" width="280" height="16" rx="3" fill="#336791" opacity="0.25"/>
+  <text x="52" y="619" font-size="8" font-weight="700" fill="#336791">DB Subnet 10.0.10.0/24 (Delegated) &#x2022; NSG Protected</text>
+
+  <!-- ecom-db -->
+  <rect x="60" y="632" width="290" height="56" rx="8" fill="#1e293b" stroke="#336791" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="205" y="650" text-anchor="middle" font-size="10" font-weight="700" fill="#336791">PostgreSQL Flexible Server</text>
+  <rect x="72" y="656" width="62" height="18" rx="3" fill="#0e2a4d" stroke="#336791" stroke-width="0.6"/>
+  <text x="103" y="669" text-anchor="middle" font-size="8" font-weight="600" fill="#60a5fa">ecom-db</text>
+  <rect x="140" y="656" width="80" height="18" rx="3" fill="#0e2a4d" stroke="#336791" stroke-width="0.6"/>
+  <text x="180" y="669" text-anchor="middle" font-size="8" font-weight="600" fill="#34d399">inventory-db</text>
+  <rect x="226" y="656" width="78" height="18" rx="3" fill="#0e2a4d" stroke="#336791" stroke-width="0.6"/>
+  <text x="265" y="669" text-anchor="middle" font-size="8" font-weight="600" fill="#4fc3f7">analytics-db</text>
+  <text x="205" y="684" text-anchor="middle" font-size="7" fill="#64748b">VNet-integrated &#x2022; SSL enforced &#x2022; wal_level=logical &#x2022; Burstable B1ms</text>
+
+  <!-- keycloak-db (separate) -->
+  <rect x="370" y="632" width="180" height="56" rx="8" fill="#1e293b" stroke="#336791" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="460" y="650" text-anchor="middle" font-size="10" font-weight="700" fill="#336791">PostgreSQL Flexible</text>
+  <rect x="382" y="656" width="82" height="18" rx="3" fill="#0e2a4d" stroke="#336791" stroke-width="0.6"/>
+  <text x="423" y="669" text-anchor="middle" font-size="8" font-weight="600" fill="#fbbf24">keycloak-db</text>
+  <text x="460" y="684" text-anchor="middle" font-size="7" fill="#64748b">VNet-integrated &#x2022; SSL enforced &#x2022; Burstable B1ms</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 10: PRIVATE MANAGED SERVICES                    -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- Event Hubs -->
+  <rect x="580" y="632" width="360" height="56" rx="8" fill="#1e293b" stroke="#e2e8f0" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="760" y="650" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">Azure Event Hubs (Kafka API)</text>
+  <text x="760" y="664" text-anchor="middle" font-size="8" fill="#94a3b8">Private Endpoint &#x2022; Standard Tier &#x2022; Kafka 3.x Protocol</text>
+  <text x="760" y="678" text-anchor="middle" font-size="7" fill="#64748b">Topics: order.created &#x2022; inventory.updated &#x2022; ecom-connector.public.* &#x2022; inventory-connector.public.*</text>
+
+  <!-- Redis -->
+  <rect x="960" y="632" width="260" height="56" rx="8" fill="#1e293b" stroke="#DC382D" stroke-width="1.2" filter="url(#sh)"/>
+  <text x="1090" y="650" text-anchor="middle" font-size="10" font-weight="700" fill="#DC382D">Azure Cache for Redis</text>
+  <text x="1090" y="664" text-anchor="middle" font-size="8" fill="#94a3b8">Private Endpoint &#x2022; Basic C0 &#x2022; TLS 1.2</text>
+  <text x="1090" y="678" text-anchor="middle" font-size="7" fill="#64748b">CSRF tokens &#x2022; Rate limiting buckets &#x2022; Session cache</text>
+
+  <!-- Connection lines from AKS pods down to databases -->
+  <line x1="559" y1="414" x2="205" y2="632" stroke="#336791" stroke-width="0.8" opacity="0.4" stroke-dasharray="3,2"/>
+  <line x1="662" y1="414" x2="180" y2="656" stroke="#336791" stroke-width="0.8" opacity="0.4" stroke-dasharray="3,2"/>
+  <line x1="925" y1="414" x2="423" y2="656" stroke="#336791" stroke-width="0.8" opacity="0.4" stroke-dasharray="3,2"/>
+
+  <!-- Connection from ecom to Event Hubs -->
+  <line x1="559" y1="414" x2="660" y2="632" stroke="#e2e8f0" stroke-width="0.8" opacity="0.3" stroke-dasharray="3,2"/>
+  <!-- Connection from csrf-service to Redis -->
+  <line x1="842" y1="414" x2="1020" y2="632" stroke="#DC382D" stroke-width="0.8" opacity="0.3" stroke-dasharray="3,2"/>
+
+  <!-- End of VNet boundary (already closed at y=816) -->
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 11: SUPPORTING SERVICES (Private Endpoints)     -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="36" y="710" width="1328" height="76" rx="8" fill="#1e293b" stroke="#a78bfa" stroke-width="1" opacity="0.6" filter="url(#sh)"/>
+  <text x="700" y="726" text-anchor="middle" font-size="10" font-weight="700" fill="#a78bfa">Supporting Services &#x2014; All Private Endpoints &#x2022; Public Access: DISABLED</text>
+
+  <!-- Key Vault -->
+  <rect x="56" y="736" width="320" height="40" rx="6" fill="#0e2a4d" stroke="#ef4444" stroke-width="1"/>
+  <text x="216" y="752" text-anchor="middle" font-size="10" font-weight="700" fill="#ef4444">Azure Key Vault</text>
+  <text x="216" y="766" text-anchor="middle" font-size="8" fill="#94a3b8">Private Endpoint &#x2192; ESO &#x2192; K8s Secrets &#x2192; Pods &#x2022; RBAC + Workload Identity</text>
+
+  <!-- ACR -->
+  <rect x="390" y="736" width="300" height="40" rx="6" fill="#0e2a4d" stroke="#0078d4" stroke-width="1"/>
+  <text x="540" y="752" text-anchor="middle" font-size="10" font-weight="700" fill="#0078d4">Azure Container Registry</text>
+  <text x="540" y="766" text-anchor="middle" font-size="8" fill="#94a3b8">Private Endpoint &#x2022; AcrPull role to AKS &#x2022; Image scanning</text>
+
+  <!-- Blob Storage -->
+  <rect x="704" y="736" width="300" height="40" rx="6" fill="#0e2a4d" stroke="#60a5fa" stroke-width="1"/>
+  <text x="854" y="752" text-anchor="middle" font-size="10" font-weight="700" fill="#60a5fa">Azure Blob Storage</text>
+  <text x="854" y="766" text-anchor="middle" font-size="8" fill="#94a3b8">Private Endpoint &#x2022; Terraform remote state &#x2022; Versioning enabled</text>
+
+  <!-- Azure DNS (Private Zones) -->
+  <rect x="1018" y="736" width="330" height="40" rx="6" fill="#0e2a4d" stroke="#0078d4" stroke-width="1"/>
+  <text x="1183" y="752" text-anchor="middle" font-size="10" font-weight="700" fill="#0078d4">Private DNS Zones</text>
+  <text x="1183" y="766" text-anchor="middle" font-size="8" fill="#94a3b8">postgres.database.azure.com &#x2022; redis.cache &#x2022; eventhub &#x2022; vault &#x2022; acr</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 12: AZURE POLICY / GATEKEEPER                   -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="36" y="798" width="1328" height="38" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1" opacity="0.6"/>
+  <text x="700" y="815" text-anchor="middle" font-size="10" font-weight="700" fill="#ef4444">Azure Policy / Gatekeeper Constraints</text>
+  <text x="700" y="828" text-anchor="middle" font-size="8" fill="#94a3b8">No Privileged Containers &#x2022; ACR Images Only &#x2022; No Privilege Escalation &#x2022; Non-Root UID &#x2022; Read-Only Root Filesystem</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 13: OBSERVABILITY FLOW                          -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="36" y="846" width="1328" height="68" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1" opacity="0.6"/>
+  <text x="700" y="862" text-anchor="middle" font-size="10" font-weight="700" fill="#f59e0b">Observability Pipeline</text>
+
+  <!-- Traces flow -->
+  <rect x="56" y="872" width="300" height="16" rx="3" fill="#0e2a4d" stroke="#f59e0b" stroke-width="0.6"/>
+  <text x="206" y="884" text-anchor="middle" font-size="8" fill="#f59e0b">Services &#x2192; OTel Collector &#x2192; Tempo (Traces)</text>
+
+  <!-- Logs flow -->
+  <rect x="370" y="872" width="280" height="16" rx="3" fill="#0e2a4d" stroke="#f59e0b" stroke-width="0.6"/>
+  <text x="510" y="884" text-anchor="middle" font-size="8" fill="#f59e0b">Services &#x2192; OTel Collector &#x2192; Loki (Logs)</text>
+
+  <!-- Metrics flow -->
+  <rect x="664" y="872" width="220" height="16" rx="3" fill="#0e2a4d" stroke="#f59e0b" stroke-width="0.6"/>
+  <text x="774" y="884" text-anchor="middle" font-size="8" fill="#f59e0b">Prometheus &#x2192; Grafana (Metrics)</text>
+
+  <!-- Container Insights -->
+  <rect x="898" y="872" width="200" height="16" rx="3" fill="#0e2a4d" stroke="#34d399" stroke-width="0.6"/>
+  <text x="998" y="884" text-anchor="middle" font-size="8" fill="#34d399">Container Insights (Built-in)</text>
+
+  <!-- Kiali -->
+  <rect x="1112" y="872" width="200" height="16" rx="3" fill="#0e2a4d" stroke="#466BB0" stroke-width="0.6"/>
+  <text x="1212" y="884" text-anchor="middle" font-size="8" fill="#466BB0">Kiali &#x2192; Mesh Topology + Traffic</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 14: SECURITY SUMMARY                            -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="36" y="924" width="1328" height="48" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1" opacity="0.6"/>
+  <text x="700" y="940" text-anchor="middle" font-size="10" font-weight="700" fill="#ef4444">Security Summary &#x2014; Defense in Depth</text>
+
+  <!-- Security badges -->
+  <rect x="56" y="948" width="110" height="16" rx="8" fill="#ef4444" opacity="0.2" stroke="#ef4444" stroke-width="0.6"/>
+  <text x="111" y="960" text-anchor="middle" font-size="8" font-weight="600" fill="#ef4444">Workload Identity</text>
+
+  <rect x="174" y="948" width="66" height="16" rx="8" fill="#ef4444" opacity="0.2" stroke="#ef4444" stroke-width="0.6"/>
+  <text x="207" y="960" text-anchor="middle" font-size="8" font-weight="600" fill="#ef4444">4 NSGs</text>
+
+  <rect x="248" y="948" width="110" height="16" rx="8" fill="#ef4444" opacity="0.2" stroke="#ef4444" stroke-width="0.6"/>
+  <text x="303" y="960" text-anchor="middle" font-size="8" font-weight="600" fill="#ef4444">Private Endpoints</text>
+
+  <rect x="366" y="948" width="78" height="16" rx="8" fill="#ef4444" opacity="0.2" stroke="#ef4444" stroke-width="0.6"/>
+  <text x="405" y="960" text-anchor="middle" font-size="8" font-weight="600" fill="#ef4444">Key Vault</text>
+
+  <rect x="452" y="948" width="56" height="16" rx="8" fill="#466BB0" opacity="0.3" stroke="#466BB0" stroke-width="0.6"/>
+  <text x="480" y="960" text-anchor="middle" font-size="8" font-weight="600" fill="#466BB0">mTLS</text>
+
+  <rect x="516" y="948" width="48" height="16" rx="8" fill="#f59e0b" opacity="0.2" stroke="#f59e0b" stroke-width="0.6"/>
+  <text x="540" y="960" text-anchor="middle" font-size="8" font-weight="600" fill="#f59e0b">WAF</text>
+
+  <rect x="572" y="948" width="88" height="16" rx="8" fill="#ef4444" opacity="0.2" stroke="#ef4444" stroke-width="0.6"/>
+  <text x="616" y="960" text-anchor="middle" font-size="8" font-weight="600" fill="#ef4444">Azure Policy</text>
+
+  <rect x="668" y="948" width="72" height="16" rx="8" fill="#ef4444" opacity="0.2" stroke="#ef4444" stroke-width="0.6"/>
+  <text x="704" y="960" text-anchor="middle" font-size="8" font-weight="600" fill="#ef4444">Non-Root</text>
+
+  <rect x="748" y="948" width="56" height="16" rx="8" fill="#ef4444" opacity="0.2" stroke="#ef4444" stroke-width="0.6"/>
+  <text x="776" y="960" text-anchor="middle" font-size="8" font-weight="600" fill="#ef4444">RO FS</text>
+
+  <rect x="812" y="948" width="64" height="16" rx="8" fill="#E6526F" opacity="0.2" stroke="#E6526F" stroke-width="0.6"/>
+  <text x="844" y="960" text-anchor="middle" font-size="8" font-weight="600" fill="#E6526F">CSRF</text>
+
+  <rect x="884" y="948" width="80" height="16" rx="8" fill="#60a5fa" opacity="0.2" stroke="#60a5fa" stroke-width="0.6"/>
+  <text x="924" y="960" text-anchor="middle" font-size="8" font-weight="600" fill="#60a5fa">JWT Validation</text>
+
+  <rect x="972" y="948" width="90" height="16" rx="8" fill="#34d399" opacity="0.2" stroke="#34d399" stroke-width="0.6"/>
+  <text x="1017" y="960" text-anchor="middle" font-size="8" font-weight="600" fill="#34d399">TLS Everywhere</text>
+
+  <rect x="1070" y="948" width="76" height="16" rx="8" fill="#0078d4" opacity="0.2" stroke="#0078d4" stroke-width="0.6"/>
+  <text x="1108" y="960" text-anchor="middle" font-size="8" font-weight="600" fill="#0078d4">NetworkPol</text>
+
+  <rect x="1154" y="948" width="96" height="16" rx="8" fill="#fbbf24" opacity="0.2" stroke="#fbbf24" stroke-width="0.6"/>
+  <text x="1202" y="960" text-anchor="middle" font-size="8" font-weight="600" fill="#fbbf24">Rate Limiting</text>
+
+  <rect x="1258" y="948" width="90" height="16" rx="8" fill="#DC382D" opacity="0.2" stroke="#DC382D" stroke-width="0.6"/>
+  <text x="1303" y="960" text-anchor="middle" font-size="8" font-weight="600" fill="#DC382D">SSL Enforced</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- ROW 15: COST SUMMARY                                -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <rect x="36" y="982" width="1328" height="62" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1" opacity="0.6"/>
+  <text x="700" y="998" text-anchor="middle" font-size="10" font-weight="700" fill="#10b981">Estimated Monthly Cost: ~$400&#x2013;$500/mo</text>
+
+  <!-- Cost breakdown badges -->
+  <rect x="80" y="1008" width="120" height="28" rx="6" fill="#10b981" opacity="0.1" stroke="#10b981" stroke-width="0.6"/>
+  <text x="140" y="1022" text-anchor="middle" font-size="9" font-weight="700" fill="#10b981">AKS</text>
+  <text x="140" y="1032" text-anchor="middle" font-size="8" fill="#64748b">~$73/mo</text>
+
+  <rect x="216" y="1008" width="130" height="28" rx="6" fill="#10b981" opacity="0.1" stroke="#10b981" stroke-width="0.6"/>
+  <text x="281" y="1022" text-anchor="middle" font-size="9" font-weight="700" fill="#10b981">Worker Nodes</text>
+  <text x="281" y="1032" text-anchor="middle" font-size="8" fill="#64748b">~$77/mo (Spot)</text>
+
+  <rect x="362" y="1008" width="130" height="28" rx="6" fill="#10b981" opacity="0.1" stroke="#10b981" stroke-width="0.6"/>
+  <text x="427" y="1022" text-anchor="middle" font-size="9" font-weight="700" fill="#10b981">PostgreSQL (x4)</text>
+  <text x="427" y="1032" text-anchor="middle" font-size="8" fill="#64748b">~$52/mo</text>
+
+  <rect x="508" y="1008" width="120" height="28" rx="6" fill="#10b981" opacity="0.1" stroke="#10b981" stroke-width="0.6"/>
+  <text x="568" y="1022" text-anchor="middle" font-size="9" font-weight="700" fill="#10b981">Event Hubs</text>
+  <text x="568" y="1032" text-anchor="middle" font-size="8" fill="#64748b">~$22/mo</text>
+
+  <rect x="644" y="1008" width="100" height="28" rx="6" fill="#10b981" opacity="0.1" stroke="#10b981" stroke-width="0.6"/>
+  <text x="694" y="1022" text-anchor="middle" font-size="9" font-weight="700" fill="#10b981">Redis</text>
+  <text x="694" y="1032" text-anchor="middle" font-size="8" fill="#64748b">~$16/mo</text>
+
+  <rect x="760" y="1008" width="120" height="28" rx="6" fill="#10b981" opacity="0.1" stroke="#10b981" stroke-width="0.6"/>
+  <text x="820" y="1022" text-anchor="middle" font-size="9" font-weight="700" fill="#10b981">NAT Gateway</text>
+  <text x="820" y="1032" text-anchor="middle" font-size="8" fill="#64748b">~$32/mo</text>
+
+  <rect x="896" y="1008" width="130" height="28" rx="6" fill="#10b981" opacity="0.1" stroke="#10b981" stroke-width="0.6"/>
+  <text x="961" y="1022" text-anchor="middle" font-size="9" font-weight="700" fill="#10b981">App Gateway</text>
+  <text x="961" y="1032" text-anchor="middle" font-size="8" fill="#64748b">~$173/mo (v2+WAF)</text>
+
+  <rect x="1042" y="1008" width="130" height="28" rx="6" fill="#10b981" opacity="0.1" stroke="#10b981" stroke-width="0.6"/>
+  <text x="1107" y="1022" text-anchor="middle" font-size="9" font-weight="700" fill="#10b981">Key Vault + ACR</text>
+  <text x="1107" y="1032" text-anchor="middle" font-size="8" fill="#64748b">~$10/mo</text>
+
+  <rect x="1188" y="1008" width="130" height="28" rx="6" fill="#10b981" opacity="0.1" stroke="#10b981" stroke-width="0.6"/>
+  <text x="1253" y="1022" text-anchor="middle" font-size="9" font-weight="700" fill="#10b981">DNS + Storage</text>
+  <text x="1253" y="1032" text-anchor="middle" font-size="8" fill="#64748b">~$5/mo</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- FOOTER                                              -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <line x1="100" y1="1060" x2="1300" y2="1060" stroke="#334155" stroke-width="0.5"/>
+  <text x="700" y="1078" text-anchor="middle" font-size="10" font-weight="600" fill="#64748b">BookStore Platform &#x2014; Production-Grade E-Commerce on Azure AKS</text>
+  <text x="700" y="1094" text-anchor="middle" font-size="9" fill="#475569">Terraform IaC &#x2022; Istio Ambient Mesh &#x2022; Workload Identity &#x2022; Private Endpoints &#x2022; cert-manager &#x2022; Gatekeeper &#x2022; Zero-Trust</text>
+  <text x="700" y="1108" text-anchor="middle" font-size="8" fill="#334155">4 Microservices &#x2022; 4 PostgreSQL Instances &#x2022; Event-Driven CDC &#x2022; Full Observability Stack &#x2022; OIDC PKCE + CSRF + mTLS</text>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- CONNECTING FLOW ARROWS (main vertical spine)        -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- App GW to Istio Gateway in system pool -->
+  <path d="M700,222 L700,232 L314,232 L314,448" stroke="#fbbf24" stroke-width="1.2" fill="none" marker-end="url(#arY)" opacity="0.5"/>
+
+  <!-- Istio Gateway to UI pod -->
+  <path d="M364,459 L758,392" stroke="#466BB0" stroke-width="1" fill="none" marker-end="url(#ar)" opacity="0.4" stroke-dasharray="3,2"/>
+
+  <!-- UI to Keycloak -->
+  <path d="M796,403 L888,403" stroke="#fbbf24" stroke-width="0.8" fill="none" marker-end="url(#arY)" opacity="0.4" stroke-dasharray="2,2"/>
+
+  <!-- UI to csrf-service -->
+  <path d="M796,403 L802,403" stroke="#E6526F" stroke-width="0.8" fill="none" opacity="0.4" stroke-dasharray="2,2"/>
+
+  <!-- ecom to inventory -->
+  <path d="M604,403 L610,403" stroke="#34d399" stroke-width="0.8" fill="none" opacity="0.4" stroke-dasharray="2,2"/>
+
+  <!-- Debezium to Event Hubs -->
+  <line x1="1023" y1="414" x2="760" y2="632" stroke="#fb923c" stroke-width="0.8" opacity="0.3" stroke-dasharray="3,2"/>
+  <line x1="1144" y1="414" x2="760" y2="632" stroke="#fb923c" stroke-width="0.8" opacity="0.3" stroke-dasharray="3,2"/>
+
+  <!-- Flink from Event Hubs to analytics-db -->
+  <line x1="579" y1="435" x2="760" y2="632" stroke="#4fc3f7" stroke-width="0.8" opacity="0.3" stroke-dasharray="3,2"/>
+  <line x1="579" y1="435" x2="265" y2="656" stroke="#4fc3f7" stroke-width="0.8" opacity="0.3" stroke-dasharray="3,2"/>
+
+  <!-- Superset to analytics-db -->
+  <line x1="688" y1="442" x2="265" y2="656" stroke="#f87171" stroke-width="0.8" opacity="0.3" stroke-dasharray="3,2"/>
+
+</svg>

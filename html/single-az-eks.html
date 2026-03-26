@@ -1,0 +1,3034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Single-AZ EKS Deployment Guide — BookStore Platform</title>
+  <meta property="og:title" content="BookStore Platform — Single-AZ AWS EKS Deployment Guide" />
+  <meta property="og:description" content="Complete, cost-optimized single-AZ deployment guide for the BookStore Platform on AWS EKS. Production-grade security at $540-600/month." />
+  <meta property="og:type" content="article" />
+  <style>
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --border: #334155; --green: #10b981; --red: #ef4444; --yellow: #f59e0b; --cyan: #06b6d4; --purple: #8b5cf6; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px 60px; }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, #60a5fa, #a78bfa); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    h1 + p.subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 40px; }
+    h2 { font-size: 1.4rem; font-weight: 700; margin: 52px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: #f1f5f9; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 28px 0 10px; color: #cbd5e1; }
+    h4 { font-size: 0.95rem; font-weight: 600; margin: 20px 0 8px; color: #94a3b8; }
+    p { margin-bottom: 16px; color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
+    th { background: var(--card); text-align: left; padding: 10px 14px; font-size: 0.82rem; font-weight: 600; color: var(--accent); border-bottom: 2px solid var(--border); }
+    td { padding: 10px 14px; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(59,130,246,0.04); }
+    code { background: var(--card); padding: 2px 7px; border-radius: 4px; font-size: 0.86em; color: #fbbf24; }
+    pre { background: #0d1117; padding: 14px 16px; border-radius: 8px; overflow-x: auto; margin: 10px 0 14px; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; color: #e2e8f0; font-size: 0.8rem; line-height: 1.6; }
+    pre .comment { color: #64748b; }
+    ul, ol { margin: 8px 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-right: 6px; color: white; }
+    .badge.green { background: linear-gradient(135deg, #059669, #10b981); }
+    .badge.purple { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+    .badge.orange { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .badge.red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .badge.cyan { background: linear-gradient(135deg, #0891b2, #06b6d4); }
+    .badges { margin-bottom: 24px; }
+    footer { text-align: center; margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* Callouts */
+    .callout { padding: 16px 20px; border-radius: 10px; margin: 16px 0; font-size: 0.88rem; line-height: 1.6; border-left: 4px solid; }
+    .callout.info { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
+    .callout.warn { background: rgba(245,158,11,0.08); border-color: #f59e0b; }
+    .callout.tip { background: rgba(16,185,129,0.08); border-color: #10b981; }
+    .callout.danger { background: rgba(239,68,68,0.08); border-color: #ef4444; }
+    .callout strong { color: #f1f5f9; }
+    .callout code { font-size: 0.84em; }
+
+    /* TOC */
+    .toc { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 24px 0 40px; }
+    .toc h3 { font-size: 0.9rem; font-weight: 700; color: #f1f5f9; margin: 0 0 12px; }
+    .toc ol { margin: 0; padding-left: 20px; }
+    .toc li { margin-bottom: 4px; }
+    .toc a { font-size: 0.85rem; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+    .toc a:hover { color: var(--accent); }
+    .toc .toc-part { font-size: 0.78rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 6px; list-style: none; margin-left: -20px; }
+    .toc .toc-part:first-child { margin-top: 0; }
+
+    /* Topnav */
+    .topnav { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .topnav-inner { max-width: 1000px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .topnav-brand { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .topnav-links { display: flex; gap: 20px; align-items: center; }
+    .topnav-links a { color: var(--muted); font-size: 0.82rem; font-weight: 500; text-decoration: none; transition: color 0.15s; }
+    .topnav-links a:hover { color: var(--text); }
+    .topnav-links a.highlight { color: #a78bfa; }
+
+    /* ── Component Section Layout ── */
+    .component-section { margin: 32px 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .component-header { background: var(--card); padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .component-header h3 { margin: 0; color: #f1f5f9; font-size: 1.05rem; }
+    .component-body { display: grid; grid-template-columns: 320px 1fr; gap: 0; }
+    .component-visual { padding: 20px; border-right: 1px solid var(--border); background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; }
+    .component-visual svg { max-width: 100%; height: auto; }
+    .component-details { padding: 20px; }
+    .component-details h4 { margin-top: 0; }
+    .component-details h4:first-child { margin-top: 0; }
+    .security-badge { display: inline-block; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #f87171; padding: 3px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .cost-badge { display: inline-block; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #34d399; padding: 3px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    @media (max-width: 900px) { .component-body { grid-template-columns: 1fr; } .component-visual { border-right: none; border-bottom: 1px solid var(--border); } }
+
+    /* Section number */
+    .section-num { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: white; font-weight: 800; font-size: 0.85rem; margin-right: 10px; flex-shrink: 0; vertical-align: middle; }
+
+    /* Stats bar */
+    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0 40px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+    .stat-card .stat-num { font-size: 1.8rem; font-weight: 800; }
+    .stat-card .stat-label { font-size: 0.78rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+    .savings { color: var(--green); font-weight: 700; }
+    .cost-high { color: var(--red); font-weight: 600; }
+    .cost-low { color: var(--green); font-weight: 600; }
+
+    /* Checklist */
+    .checklist { list-style: none; margin: 12px 0 20px; padding: 0; }
+    .checklist li { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(51,65,85,0.3); font-size: 0.86rem; }
+    .checklist li:last-child { border-bottom: none; }
+    .check-box { width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; font-size: 0.65rem; }
+    .check-box.security { border-color: var(--red); color: var(--red); }
+    .check-box.cost { border-color: var(--green); color: var(--green); }
+    .check-box.ops { border-color: var(--cyan); color: var(--cyan); }
+    .check-cat { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 20px 0 8px; }
+    .check-cat.security { color: var(--red); }
+    .check-cat.cost { color: var(--green); }
+    .check-cat.ops { color: var(--cyan); }
+
+    /* Prevents callout */
+    .prevents { background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.15); border-radius: 8px; padding: 10px 14px; margin: 10px 0; font-size: 0.82rem; }
+    .prevents strong { color: #f87171; }
+    .cost-box { background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.15); border-radius: 8px; padding: 10px 14px; margin: 10px 0; font-size: 0.82rem; }
+    .cost-box strong { color: #34d399; }
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="index.html" class="topnav-brand">BookStore Platform</a>
+    <div class="topnav-links">
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="production-hardening-aws.html">Hardening Guide</a>
+      <a href="bookstore-platform-manual.html" class="highlight">Full Manual</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <h1>Single-AZ EKS Deployment Guide</h1>
+  <p class="subtitle">Cost-optimized, production-grade AWS EKS deployment for the BookStore Platform. Every dollar justified, every attack surface minimized.</p>
+
+  <div class="badges">
+    <span class="badge green">Cost-Optimized</span>
+    <span class="badge red">Security-Hardened</span>
+    <span class="badge purple">Terraform</span>
+    <span class="badge cyan">AWS EKS</span>
+    <span class="badge orange">Single-AZ</span>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--green);">~$570</div>
+      <div class="stat-label">Monthly Cost</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--red);">7</div>
+      <div class="stat-label">Security Groups</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--accent);">80%</div>
+      <div class="stat-label">Cost Savings vs Over-Provisioned</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--purple);">99.5%</div>
+      <div class="stat-label">Target SLA</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ TOC ═══════════════════════ -->
+  <div class="toc">
+    <h3>Table of Contents</h3>
+    <ol>
+      <li class="toc-part">Foundation</li>
+      <li><a href="#s1">Architecture Overview</a></li>
+      <li><a href="#s2">Prerequisites &amp; IAM Setup</a></li>
+      <li><a href="#s3">Terraform State Backend</a></li>
+      <li class="toc-part">Networking</li>
+      <li><a href="#s4">VPC with Single-AZ Optimization</a></li>
+      <li><a href="#s5">Security Groups (All 7)</a></li>
+      <li><a href="#s6">Network ACLs (3 Tiers)</a></li>
+      <li><a href="#s7">VPC Flow Logs</a></li>
+      <li><a href="#s8">VPC Endpoints (6)</a></li>
+      <li class="toc-part">Compute &amp; Orchestration</li>
+      <li><a href="#s9">EKS Cluster (Control Plane)</a></li>
+      <li><a href="#s10">EKS Node Groups (Cost-Optimized)</a></li>
+      <li><a href="#s11">ECR Repositories</a></li>
+      <li class="toc-part">Data &amp; Messaging</li>
+      <li><a href="#s12">Aurora PostgreSQL Serverless v2</a></li>
+      <li><a href="#s13">Amazon MSK (Kafka)</a></li>
+      <li><a href="#s14">ElastiCache Redis</a></li>
+      <li class="toc-part">Ingress &amp; DNS</li>
+      <li><a href="#s15">Route 53 + ACM</a></li>
+      <li><a href="#s16">Application Load Balancer</a></li>
+      <li class="toc-part">Secrets &amp; Encryption</li>
+      <li><a href="#s17">Secrets Manager</a></li>
+      <li><a href="#s18">KMS Keys</a></li>
+      <li class="toc-part">Kubernetes Platform</li>
+      <li><a href="#s19">Istio Ambient Mesh</a></li>
+      <li><a href="#s20">Application Deployments</a></li>
+      <li><a href="#s21">Observability Stack</a></li>
+      <li class="toc-part">Summary &amp; Operations</li>
+      <li><a href="#s22">Total Cost Summary</a></li>
+      <li><a href="#s23">Deployment Commands</a></li>
+      <li><a href="#s24">Security Audit Checklist</a></li>
+    </ol>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  1. ARCHITECTURE OVERVIEW                                          -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s1"><span class="section-num">1</span> Architecture Overview</h2>
+
+  <p>This guide deploys the entire BookStore Platform into a <strong>single Availability Zone</strong> on AWS EKS. The architecture prioritizes cost efficiency while maintaining production-grade security controls. Every service, database, and networking component is placed within one AZ, eliminating cross-AZ data transfer charges and reducing redundant infrastructure.</p>
+
+  <h3>Complete Architecture Diagram</h3>
+  <img src="diagrams/eks-complete-flow.svg" alt="AWS EKS Complete Architecture — Browser to Database" style="width:100%;border-radius:12px;border:1px solid #334155;margin:16px 0 28px;" />
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Single-AZ Architecture</h3>
+      <span class="cost-badge">Target: $540-600/mo</span>
+      <span class="security-badge">Zero-Trust Networking</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="380" viewBox="0 0 280 380" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- AZ boundary -->
+          <rect x="10" y="30" width="260" height="340" rx="12" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="6,4"/>
+          <text x="140" y="22" text-anchor="middle" fill="#3b82f6" font-size="11" font-weight="700">us-east-1a (Single AZ)</text>
+          <!-- Public subnet -->
+          <rect x="25" y="45" width="230" height="55" rx="8" fill="rgba(16,185,129,0.08)" stroke="#10b981" stroke-width="1"/>
+          <text x="140" y="62" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">PUBLIC SUBNET 10.0.1.0/24</text>
+          <rect x="45" y="72" width="60" height="22" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+          <text x="75" y="87" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">ALB</text>
+          <rect x="135" y="72" width="60" height="22" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+          <text x="165" y="87" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">NAT GW</text>
+          <!-- Private subnet -->
+          <rect x="25" y="115" width="230" height="120" rx="8" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+          <text x="140" y="132" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="600">PRIVATE SUBNET 10.0.10.0/24</text>
+          <!-- EKS nodes -->
+          <rect x="35" y="140" width="95" height="40" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="82" y="157" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">System Nodes</text>
+          <text x="82" y="172" text-anchor="middle" fill="#94a3b8" font-size="7">2x t4g.medium</text>
+          <rect x="145" y="140" width="100" height="40" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+          <text x="195" y="157" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">App Nodes (Spot)</text>
+          <text x="195" y="172" text-anchor="middle" fill="#94a3b8" font-size="7">2x t3.large</text>
+          <!-- Services in nodes -->
+          <rect x="40" y="190" width="90" height="16" rx="3" fill="rgba(139,92,246,0.15)" stroke="#8b5cf6" stroke-width="0.5"/>
+          <text x="85" y="202" text-anchor="middle" fill="#c4b5fd" font-size="7">Istio + Monitoring</text>
+          <rect x="150" y="190" width="90" height="16" rx="3" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="0.5"/>
+          <text x="195" y="202" text-anchor="middle" fill="#fbbf24" font-size="7">App Pods</text>
+          <!-- VPC Endpoints -->
+          <rect x="40" y="213" width="200" height="16" rx="3" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="0.5"/>
+          <text x="140" y="225" text-anchor="middle" fill="#22d3ee" font-size="7">VPC Endpoints (ECR, STS, CW, SM, S3)</text>
+          <!-- DB subnet -->
+          <rect x="25" y="250" width="230" height="105" rx="8" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1"/>
+          <text x="140" y="267" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">DATABASE SUBNET 10.0.100.0/24</text>
+          <rect x="35" y="278" width="55" height="30" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+          <text x="62" y="297" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="600">Aurora x4</text>
+          <rect x="105" y="278" width="55" height="30" rx="4" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="132" y="297" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="600">MSK x3</text>
+          <rect x="175" y="278" width="55" height="30" rx="4" fill="#1e293b" stroke="#ef4444" stroke-width="1"/>
+          <text x="202" y="297" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="600">Redis</text>
+          <!-- KMS -->
+          <rect x="35" y="318" width="210" height="22" rx="4" fill="rgba(251,191,36,0.08)" stroke="#fbbf24" stroke-width="0.5"/>
+          <text x="140" y="333" text-anchor="middle" fill="#fbbf24" font-size="7" font-weight="600">KMS Encryption (at rest + EKS secrets)</text>
+          <!-- Arrows -->
+          <line x1="75" y1="94" x2="82" y2="140" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrG)"/>
+          <line x1="82" y1="206" x2="62" y2="278" stroke="#3b82f6" stroke-width="1" marker-end="url(#arrB)"/>
+          <line x1="195" y1="206" x2="132" y2="278" stroke="#3b82f6" stroke-width="1" marker-end="url(#arrB)"/>
+          <line x1="195" y1="206" x2="202" y2="278" stroke="#3b82f6" stroke-width="1" marker-end="url(#arrB)"/>
+          <defs>
+            <marker id="arrG" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#10b981"/></marker>
+            <marker id="arrB" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#3b82f6"/></marker>
+          </defs>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Why Single-AZ?</h4>
+        <p>A multi-AZ deployment provides 99.99% availability but costs 2-3x more. Single-AZ targets 99.5% uptime, which is acceptable for dev/staging, startups with limited budget, learning environments, and non-critical production workloads.</p>
+
+        <h4>Single-AZ vs Multi-AZ Trade-offs</h4>
+        <table>
+          <tr><th>Attribute</th><th>Single-AZ</th><th>Multi-AZ</th></tr>
+          <tr><td>Target SLA</td><td class="cost-low">99.5%</td><td>99.99%</td></tr>
+          <tr><td>Monthly Cost</td><td class="cost-low">$540-600</td><td class="cost-high">$1,200+</td></tr>
+          <tr><td>NAT Gateways</td><td class="cost-low">1</td><td>3</td></tr>
+          <tr><td>Aurora Replicas</td><td class="cost-low">0 (writer only)</td><td>1-2 per cluster</td></tr>
+          <tr><td>Redis Replicas</td><td class="cost-low">0 (single node)</td><td>1-2</td></tr>
+          <tr><td>AZ Failure Risk</td><td class="cost-high">Full outage</td><td>Automatic failover</td></tr>
+          <tr><td>Cross-AZ Data</td><td class="cost-low">$0</td><td>$10-50/mo</td></tr>
+          <tr><td>Security Controls</td><td>Identical</td><td>Identical</td></tr>
+        </table>
+
+        <div class="callout info">
+          <strong>Key Insight:</strong> Security does not change between single-AZ and multi-AZ. All 7 Security Groups, 3-tier NACLs, VPC Endpoints, KMS encryption, and Istio mTLS apply identically. You are trading availability, not security, for cost savings.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  2. PREREQUISITES & IAM SETUP                                      -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s2"><span class="section-num">2</span> Prerequisites &amp; IAM Setup</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>IAM User &amp; Tools</h3>
+      <span class="security-badge">Least Privilege IAM</span>
+      <span class="cost-badge">$0/mo (IAM is free)</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="300" viewBox="0 0 280 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- IAM User -->
+          <rect x="85" y="10" width="110" height="40" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+          <text x="140" y="35" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">IAM User</text>
+          <!-- Policies fan out -->
+          <line x1="140" y1="50" x2="50" y2="85" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrY)"/>
+          <line x1="140" y1="50" x2="95" y2="85" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrY)"/>
+          <line x1="140" y1="50" x2="140" y2="85" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrY)"/>
+          <line x1="140" y1="50" x2="185" y2="85" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrY)"/>
+          <line x1="140" y1="50" x2="230" y2="85" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrY)"/>
+          <!-- Policy boxes -->
+          <rect x="15" y="85" width="70" height="24" rx="4" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1"/>
+          <text x="50" y="101" text-anchor="middle" fill="#fbbf24" font-size="7" font-weight="600">EKS Full</text>
+          <rect x="60" y="85" width="70" height="24" rx="4" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1"/>
+          <text x="95" y="101" text-anchor="middle" fill="#fbbf24" font-size="7" font-weight="600">VPC Full</text>
+          <rect x="105" y="85" width="70" height="24" rx="4" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1"/>
+          <text x="140" y="101" text-anchor="middle" fill="#fbbf24" font-size="7" font-weight="600">RDS/Aurora</text>
+          <rect x="150" y="85" width="70" height="24" rx="4" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1"/>
+          <text x="185" y="101" text-anchor="middle" fill="#fbbf24" font-size="7" font-weight="600">MSK/Redis</text>
+          <rect x="195" y="85" width="70" height="24" rx="4" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1"/>
+          <text x="230" y="101" text-anchor="middle" fill="#fbbf24" font-size="7" font-weight="600">ECR/S3</text>
+          <!-- More policies -->
+          <rect x="65" y="118" width="70" height="24" rx="4" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1"/>
+          <text x="100" y="134" text-anchor="middle" fill="#fbbf24" font-size="7" font-weight="600">KMS/Secrets</text>
+          <rect x="145" y="118" width="70" height="24" rx="4" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1"/>
+          <text x="180" y="134" text-anchor="middle" fill="#fbbf24" font-size="7" font-weight="600">CloudWatch</text>
+          <!-- Tools section -->
+          <text x="140" y="165" text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="700">Required Tools</text>
+          <rect x="20" y="178" width="75" height="22" rx="4" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+          <text x="57" y="193" text-anchor="middle" fill="#e2e8f0" font-size="8">aws-cli v2</text>
+          <rect x="102" y="178" width="75" height="22" rx="4" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="139" y="193" text-anchor="middle" fill="#e2e8f0" font-size="8">terraform 1.7+</text>
+          <rect x="185" y="178" width="75" height="22" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+          <text x="222" y="193" text-anchor="middle" fill="#e2e8f0" font-size="8">kubectl 1.30+</text>
+          <rect x="20" y="208" width="75" height="22" rx="4" fill="#1e293b" stroke="#06b6d4" stroke-width="1"/>
+          <text x="57" y="223" text-anchor="middle" fill="#e2e8f0" font-size="8">helm v3</text>
+          <rect x="102" y="208" width="75" height="22" rx="4" fill="#1e293b" stroke="#ef4444" stroke-width="1"/>
+          <text x="139" y="223" text-anchor="middle" fill="#e2e8f0" font-size="8">docker</text>
+          <rect x="185" y="208" width="75" height="22" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+          <text x="222" y="223" text-anchor="middle" fill="#e2e8f0" font-size="8">istioctl 1.29</text>
+          <defs><marker id="arrY" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#f59e0b"/></marker></defs>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Step 1: Create a Dedicated IAM User</h4>
+        <p>Never use root credentials. Create a dedicated IAM user with programmatic access and fine-grained policies. Each policy maps to one AWS service boundary.</p>
+
+<pre><code><span class="comment"># Create IAM user (no console access)</span>
+aws iam create-user --user-name bookstore-deployer
+aws iam create-access-key --user-name bookstore-deployer
+
+<span class="comment"># Attach 7 fine-grained managed policies</span>
+aws iam attach-user-policy --user-name bookstore-deployer \
+  --policy-arn arn:aws:iam::policy/AmazonEKSClusterPolicy
+aws iam attach-user-policy --user-name bookstore-deployer \
+  --policy-arn arn:aws:iam::policy/AmazonVPCFullAccess
+aws iam attach-user-policy --user-name bookstore-deployer \
+  --policy-arn arn:aws:iam::policy/AmazonRDSFullAccess
+aws iam attach-user-policy --user-name bookstore-deployer \
+  --policy-arn arn:aws:iam::policy/AmazonMSKFullAccess
+aws iam attach-user-policy --user-name bookstore-deployer \
+  --policy-arn arn:aws:iam::policy/AmazonElastiCacheFullAccess
+aws iam attach-user-policy --user-name bookstore-deployer \
+  --policy-arn arn:aws:iam::policy/AmazonEC2ContainerRegistryFullAccess
+aws iam attach-user-policy --user-name bookstore-deployer \
+  --policy-arn arn:aws:iam::policy/AmazonS3FullAccess</code></pre>
+
+        <h4>Step 2: Configure AWS CLI</h4>
+<pre><code><span class="comment"># Configure with the new user's credentials</span>
+aws configure --profile bookstore
+<span class="comment"># AWS Access Key ID: &lt;from step 1&gt;</span>
+<span class="comment"># AWS Secret Access Key: &lt;from step 1&gt;</span>
+<span class="comment"># Default region: us-east-1</span>
+<span class="comment"># Default output: json</span>
+
+export AWS_PROFILE=bookstore
+export AWS_REGION=us-east-1</code></pre>
+
+        <h4>Custom Deployer Policy (Recommended)</h4>
+        <p>For tighter control, create a single custom policy instead of attaching 7 managed policies. This restricts resource creation to your specific VPC and tags.</p>
+
+<pre><code><span class="comment"># terraform/iam-deployer-policy.json</span>
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EKSManagement",
+      "Effect": "Allow",
+      "Action": [
+        "eks:CreateCluster", "eks:DeleteCluster",
+        "eks:DescribeCluster", "eks:UpdateClusterConfig",
+        "eks:CreateNodegroup", "eks:DeleteNodegroup",
+        "eks:CreateAddon", "eks:TagResource"
+      ],
+      "Resource": "arn:aws:eks:us-east-1:*:cluster/bookstore-*"
+    },
+    {
+      "Sid": "NetworkManagement",
+      "Effect": "Allow",
+      "Action": ["ec2:*Vpc*", "ec2:*Subnet*", "ec2:*SecurityGroup*",
+                  "ec2:*NatGateway*", "ec2:*InternetGateway*",
+                  "ec2:*RouteTable*", "ec2:*NetworkAcl*",
+                  "ec2:*FlowLog*", "ec2:*VpcEndpoint*",
+                  "ec2:AllocateAddress", "ec2:ReleaseAddress"],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": { "aws:RequestedRegion": "us-east-1" }
+      }
+    }
+  ]
+}</code></pre>
+
+        <div class="prevents">
+          <strong>This prevents:</strong> Credential over-provisioning. If the deployer key leaks, the attacker can only manage bookstore resources in us-east-1, not delete S3 buckets in other accounts or regions.
+        </div>
+        <div class="cost-box">
+          <strong>Cost:</strong> $0/mo. IAM users, groups, policies, and roles are completely free.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  3. TERRAFORM STATE BACKEND                                        -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s3"><span class="section-num">3</span> Terraform State Backend</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>S3 + DynamoDB State Locking</h3>
+      <span class="security-badge">Encrypted + Versioned</span>
+      <span class="cost-badge">~$1/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="220" viewBox="0 0 280 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- S3 bucket -->
+          <rect x="75" y="20" width="130" height="60" rx="10" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+          <text x="140" y="48" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">S3 Bucket</text>
+          <text x="140" y="64" text-anchor="middle" fill="#94a3b8" font-size="8">terraform.tfstate</text>
+          <!-- Lock icon -->
+          <rect x="120" y="95" width="40" height="35" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+          <circle cx="140" cy="108" r="6" fill="none" stroke="#ef4444" stroke-width="2"/>
+          <line x1="140" y1="114" x2="140" y2="120" stroke="#ef4444" stroke-width="2"/>
+          <!-- DynamoDB -->
+          <rect x="75" y="145" width="130" height="45" rx="10" fill="#1e293b" stroke="#8b5cf6" stroke-width="2"/>
+          <text x="140" y="168" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">DynamoDB</text>
+          <text x="140" y="182" text-anchor="middle" fill="#94a3b8" font-size="8">State Locking</text>
+          <!-- Features -->
+          <text x="15" y="38" fill="#10b981" font-size="8" font-weight="600">AES-256</text>
+          <text x="15" y="52" fill="#10b981" font-size="8" font-weight="600">Versioned</text>
+          <text x="15" y="66" fill="#ef4444" font-size="8" font-weight="600">No Public</text>
+          <text x="225" y="38" fill="#3b82f6" font-size="8" font-weight="600">HTTPS</text>
+          <text x="225" y="52" fill="#3b82f6" font-size="8" font-weight="600">Only</text>
+          <!-- Arrows -->
+          <line x1="140" y1="80" x2="140" y2="95" stroke="#f59e0b" stroke-width="1.5"/>
+          <line x1="140" y1="130" x2="140" y2="145" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#arrP)"/>
+          <defs><marker id="arrP" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#8b5cf6"/></marker></defs>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Why a Remote Backend?</h4>
+        <p>Terraform state contains every resource ID, password reference, and infrastructure detail. Storing it locally is a security and collaboration risk. S3 provides encryption at rest, versioning for rollback, and DynamoDB prevents concurrent modifications that can corrupt state.</p>
+
+<pre><code><span class="comment"># terraform/backend.tf — Bootstrap (run once)</span>
+resource "aws_s3_bucket" "terraform_state" {
+  bucket = "bookstore-tf-state-${data.aws_caller_identity.current.account_id}"
+
+  tags = { Project = "bookstore", ManagedBy = "terraform" }
+}
+
+resource "aws_s3_bucket_versioning" "state" {
+  bucket = aws_s3_bucket.terraform_state.id
+  versioning_configuration { status = "Enabled" }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "state" {
+  bucket = aws_s3_bucket.terraform_state.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "aws:kms"  <span class="comment"># KMS > AES-256</span>
+    }
+    bucket_key_enabled = true     <span class="comment"># reduces KMS costs</span>
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "state" {
+  bucket                  = aws_s3_bucket.terraform_state.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+<span class="comment"># Deny any non-HTTPS access</span>
+resource "aws_s3_bucket_policy" "enforce_tls" {
+  bucket = aws_s3_bucket.terraform_state.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "DenyInsecureTransport"
+      Effect    = "Deny"
+      Principal = "*"
+      Action    = "s3:*"
+      Resource  = [
+        aws_s3_bucket.terraform_state.arn,
+        "${aws_s3_bucket.terraform_state.arn}/*"
+      ]
+      Condition = {
+        Bool = { "aws:SecureTransport" = "false" }
+      }
+    }]
+  })
+}
+
+resource "aws_dynamodb_table" "terraform_locks" {
+  name         = "bookstore-tf-locks"
+  billing_mode = "PAY_PER_REQUEST"  <span class="comment"># on-demand = $0 when idle</span>
+  hash_key     = "LockID"
+
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+
+  tags = { Project = "bookstore", ManagedBy = "terraform" }
+}</code></pre>
+
+        <h4>Backend Configuration</h4>
+<pre><code><span class="comment"># terraform/main.tf</span>
+terraform {
+  backend "s3" {
+    bucket         = "bookstore-tf-state-123456789012"
+    key            = "single-az/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "bookstore-tf-locks"
+    encrypt        = true
+  }
+}</code></pre>
+
+        <div class="prevents">
+          <strong>This prevents:</strong> State file exfiltration (encrypted at rest + HTTPS-only policy), state corruption (DynamoDB locking), accidental deletion (versioning enables rollback), and public exposure (all 4 public access blocks enabled).
+        </div>
+        <div class="cost-box">
+          <strong>Cost:</strong> ~$1/mo. S3 storage for a state file is pennies. DynamoDB on PAY_PER_REQUEST with a few lock operations per day costs effectively $0. KMS key usage adds ~$0.03/mo.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  4. VPC WITH SINGLE-AZ                                             -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s4"><span class="section-num">4</span> VPC with Single-AZ Optimization</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>3 Subnets in 1 AZ</h3>
+      <span class="security-badge">3-Tier Network Isolation</span>
+      <span class="cost-badge">NAT: $45/mo (saves $90 vs 3-AZ)</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="340" viewBox="0 0 280 340" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- VPC boundary -->
+          <rect x="10" y="10" width="260" height="320" rx="12" fill="none" stroke="#3b82f6" stroke-width="2"/>
+          <text x="140" y="30" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="700">VPC 10.0.0.0/16</text>
+          <!-- IGW -->
+          <rect x="105" y="40" width="70" height="28" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+          <text x="140" y="58" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">IGW</text>
+          <!-- Public Subnet -->
+          <rect x="25" y="80" width="230" height="60" rx="8" fill="rgba(16,185,129,0.08)" stroke="#10b981" stroke-width="1.5"/>
+          <text x="48" y="96" fill="#10b981" font-size="9" font-weight="700">PUBLIC</text>
+          <text x="120" y="96" fill="#94a3b8" font-size="8">10.0.1.0/24 | us-east-1a</text>
+          <rect x="35" y="104" width="55" height="24" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+          <text x="62" y="120" text-anchor="middle" fill="#e2e8f0" font-size="8">ALB</text>
+          <rect x="110" y="104" width="55" height="24" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+          <text x="137" y="120" text-anchor="middle" fill="#e2e8f0" font-size="8">NAT GW</text>
+          <rect x="185" y="104" width="55" height="24" rx="4" fill="#1e293b" stroke="#06b6d4" stroke-width="1"/>
+          <text x="212" y="120" text-anchor="middle" fill="#e2e8f0" font-size="8">Bastion</text>
+          <!-- Private Subnet -->
+          <rect x="25" y="155" width="230" height="60" rx="8" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="48" y="171" fill="#3b82f6" font-size="9" font-weight="700">PRIVATE</text>
+          <text x="120" y="171" fill="#94a3b8" font-size="8">10.0.10.0/24 | us-east-1a</text>
+          <rect x="35" y="179" width="70" height="24" rx="4" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="70" y="195" text-anchor="middle" fill="#e2e8f0" font-size="8">EKS Nodes</text>
+          <rect x="120" y="179" width="70" height="24" rx="4" fill="#1e293b" stroke="#06b6d4" stroke-width="1"/>
+          <text x="155" y="195" text-anchor="middle" fill="#e2e8f0" font-size="8">VPC Endpoints</text>
+          <!-- Database Subnet -->
+          <rect x="25" y="230" width="230" height="60" rx="8" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="48" y="246" fill="#ef4444" font-size="9" font-weight="700">DATABASE</text>
+          <text x="135" y="246" fill="#94a3b8" font-size="8">10.0.100.0/24 | us-east-1a</text>
+          <rect x="35" y="254" width="50" height="24" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+          <text x="60" y="270" text-anchor="middle" fill="#e2e8f0" font-size="7">Aurora</text>
+          <rect x="100" y="254" width="50" height="24" rx="4" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="125" y="270" text-anchor="middle" fill="#e2e8f0" font-size="7">MSK</text>
+          <rect x="165" y="254" width="50" height="24" rx="4" fill="#1e293b" stroke="#ef4444" stroke-width="1"/>
+          <text x="190" y="270" text-anchor="middle" fill="#e2e8f0" font-size="7">Redis</text>
+          <!-- Route tables -->
+          <text x="140" y="310" text-anchor="middle" fill="#94a3b8" font-size="8">Public RT: 0.0.0.0/0 → IGW</text>
+          <text x="140" y="324" text-anchor="middle" fill="#94a3b8" font-size="8">Private RT: 0.0.0.0/0 → NAT | DB RT: no default route</text>
+          <!-- Arrow from IGW to public -->
+          <line x1="140" y1="68" x2="140" y2="80" stroke="#10b981" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Network Design Rationale</h4>
+        <p>Three subnets in one AZ provide the same logical isolation as a multi-AZ setup. The public subnet hosts internet-facing resources (ALB, NAT Gateway). The private subnet hosts EKS worker nodes with no direct internet access. The database subnet has no default route at all -- it is isolated from the internet entirely, with traffic only from the private subnet.</p>
+
+        <p>Using a single NAT Gateway saves $90/month compared to the recommended 3-AZ pattern (one per AZ). The trade-off: if the NAT Gateway or its AZ fails, outbound internet access is lost. For a single-AZ deployment this is acceptable since the entire stack is in that AZ anyway.</p>
+
+<pre><code><span class="comment"># terraform/vpc.tf</span>
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "~> 5.0"
+
+  name = "bookstore-vpc"
+  cidr = "10.0.0.0/16"
+
+  <span class="comment"># Single AZ — only one of each subnet tier</span>
+  azs              = ["us-east-1a"]
+  public_subnets   = ["10.0.1.0/24"]
+  private_subnets  = ["10.0.10.0/24"]
+  database_subnets = ["10.0.100.0/24"]
+
+  <span class="comment"># 1 NAT Gateway total (not 1 per AZ)</span>
+  enable_nat_gateway     = true
+  single_nat_gateway     = true
+  one_nat_gateway_per_az = false
+
+  <span class="comment"># DNS settings required for VPC endpoints</span>
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
+  <span class="comment"># Database subnet: no default route to internet</span>
+  create_database_subnet_route_table = true
+
+  <span class="comment"># Tags required by EKS auto-discovery</span>
+  public_subnet_tags = {
+    "kubernetes.io/role/elb" = "1"
+  }
+  private_subnet_tags = {
+    "kubernetes.io/role/internal-elb" = "1"
+  }
+
+  tags = {
+    Project     = "bookstore"
+    Environment = "single-az"
+    ManagedBy   = "terraform"
+  }
+}</code></pre>
+
+        <div class="callout warn">
+          <strong>EKS Subnet Requirement:</strong> EKS needs at least 2 subnets in different AZs for the control plane ENIs. For single-AZ <em>worker nodes</em>, add a second AZ subnet for EKS but place no workloads there: <code>private_subnets = ["10.0.10.0/24", "10.0.11.0/24"]</code> with <code>azs = ["us-east-1a", "us-east-1b"]</code>. All node groups are pinned to <code>us-east-1a</code> via <code>subnet_ids</code>.
+        </div>
+
+<pre><code><span class="comment"># Updated for EKS 2-AZ requirement (control plane only)</span>
+  azs              = ["us-east-1a", "us-east-1b"]
+  public_subnets   = ["10.0.1.0/24", "10.0.2.0/24"]
+  private_subnets  = ["10.0.10.0/24", "10.0.11.0/24"]
+  database_subnets = ["10.0.100.0/24", "10.0.101.0/24"]
+  <span class="comment"># Node groups target only us-east-1a subnets</span></code></pre>
+
+        <div class="prevents">
+          <strong>This prevents:</strong> Database internet exposure (no default route in DB subnet), lateral movement from public to database tier (separate route tables), and unauthorized internet access from data tier resources.
+        </div>
+        <div class="cost-box">
+          <strong>Cost:</strong> NAT Gateway $45/mo ($32 fixed + ~$13 data processing at ~300 GB). Subnets, route tables, and the IGW are free. Multi-AZ NAT would cost $135/mo (3 x $45).
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  5. SECURITY GROUPS                                                -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s5"><span class="section-num">5</span> Security Groups (All 7)</h2>
+
+  <p>Security Groups are stateful firewalls applied at the ENI level. Every resource gets a dedicated SG with least-privilege rules. No SG uses <code>0.0.0.0/0</code> for ingress, and egress is restricted to only the services each component needs.</p>
+
+  <!-- SG 1: ALB -->
+  <div class="component-section">
+    <div class="component-header">
+      <h3>5.1 ALB Security Group</h3>
+      <span class="security-badge">Internet-Facing Boundary</span>
+      <span class="cost-badge">$0/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="180" viewBox="0 0 280 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <text x="140" y="15" text-anchor="middle" fill="#94a3b8" font-size="9">Internet</text>
+          <line x1="140" y1="20" x2="140" y2="45" stroke="#10b981" stroke-width="2" marker-end="url(#aG5)"/>
+          <rect x="80" y="45" width="120" height="45" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+          <text x="140" y="72" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">ALB</text>
+          <text x="20" y="60" fill="#10b981" font-size="8" font-weight="600">IN: 443</text>
+          <text x="20" y="72" fill="#10b981" font-size="8" font-weight="600">IN: 80</text>
+          <line x1="140" y1="90" x2="140" y2="125" stroke="#10b981" stroke-width="2" marker-end="url(#aG5)"/>
+          <rect x="70" y="125" width="140" height="35" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="147" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="600">Worker Nodes SG</text>
+          <text x="215" y="112" fill="#10b981" font-size="8" font-weight="600">OUT: 30000-32767</text>
+          <!-- Blocked -->
+          <line x1="80" y1="67" x2="20" y2="100" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="5" y="112" fill="#ef4444" font-size="7">Blocked: Aurora, MSK, Redis</text>
+          <line x1="200" y1="67" x2="260" y2="100" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="220" y="112" fill="#ef4444" font-size="7">Blocked: Internet</text>
+          <defs><marker id="aG5" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#10b981"/></marker></defs>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code><span class="comment"># terraform/security-groups.tf — ALB SG</span>
+resource "aws_security_group" "alb" {
+  name_prefix = "bookstore-alb-"
+  vpc_id      = module.vpc.vpc_id
+  description = "ALB: HTTPS from internet, egress to workers only"
+
+  tags = { Name = "bookstore-alb-sg" }
+}
+
+<span class="comment"># Ingress: HTTPS from anywhere</span>
+resource "aws_vpc_security_group_ingress_rule" "alb_https" {
+  security_group_id = aws_security_group.alb.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+}
+
+<span class="comment"># Ingress: HTTP (redirect to HTTPS)</span>
+resource "aws_vpc_security_group_ingress_rule" "alb_http" {
+  security_group_id = aws_security_group.alb.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+}
+
+<span class="comment"># Egress: ONLY to Worker SG on NodePort range</span>
+resource "aws_vpc_security_group_egress_rule" "alb_to_workers" {
+  security_group_id            = aws_security_group.alb.id
+  referenced_security_group_id = aws_security_group.workers.id
+  ip_protocol                  = "tcp"
+  from_port                    = 30000
+  to_port                      = 32767
+}</code></pre>
+        <div class="prevents"><strong>This prevents:</strong> ALB compromise leading to lateral movement. Even if an attacker exploits HTTP request smuggling, they cannot reach Aurora (5432), MSK (9092), or Redis (6379) from the ALB.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SG 2: EKS Cluster -->
+  <div class="component-section">
+    <div class="component-header">
+      <h3>5.2 EKS Cluster Security Group</h3>
+      <span class="security-badge">Control Plane Isolation</span>
+      <span class="cost-badge">$0/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="160" viewBox="0 0 280 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="75" y="10" width="130" height="45" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+          <text x="140" y="37" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">EKS Control Plane</text>
+          <rect x="75" y="100" width="130" height="45" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+          <text x="140" y="127" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">Worker Nodes</text>
+          <!-- Bidirectional arrows -->
+          <line x1="120" y1="55" x2="120" y2="100" stroke="#10b981" stroke-width="2" marker-end="url(#aG52)"/>
+          <line x1="160" y1="100" x2="160" y2="55" stroke="#10b981" stroke-width="2" marker-end="url(#aG52)"/>
+          <text x="200" y="72" fill="#10b981" font-size="8" font-weight="600">443, 10250</text>
+          <text x="200" y="84" fill="#94a3b8" font-size="7">Bidirectional</text>
+          <defs><marker id="aG52" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#10b981"/></marker></defs>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code><span class="comment"># EKS Cluster SG (auto-created by EKS module)</span>
+<span class="comment"># Additional rule: Workers → CP on 443 (API server)</span>
+resource "aws_vpc_security_group_ingress_rule" "cluster_from_workers" {
+  security_group_id            = module.eks.cluster_security_group_id
+  referenced_security_group_id = aws_security_group.workers.id
+  ip_protocol                  = "tcp"
+  from_port                    = 443
+  to_port                      = 443
+}
+
+<span class="comment"># CP → Workers on 10250 (kubelet) + 1025-65535 (pods)</span>
+resource "aws_vpc_security_group_ingress_rule" "workers_from_cluster" {
+  security_group_id            = aws_security_group.workers.id
+  referenced_security_group_id = module.eks.cluster_security_group_id
+  ip_protocol                  = "tcp"
+  from_port                    = 1025
+  to_port                      = 65535
+}</code></pre>
+        <div class="prevents"><strong>This prevents:</strong> Unauthorized access to the Kubernetes API server. Only worker nodes can talk to the control plane on port 443, and the control plane can only reach kubelet (10250) and pod ports on workers.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SG 3: Workers -->
+  <div class="component-section">
+    <div class="component-header">
+      <h3>5.3 Worker Nodes Security Group</h3>
+      <span class="security-badge">Per-Service Egress</span>
+      <span class="cost-badge">$0/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="200" viewBox="0 0 280 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="85" y="5" width="110" height="36" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+          <text x="140" y="28" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700">EKS Workers</text>
+          <line x1="100" y1="41" x2="30" y2="75" stroke="#10b981" stroke-width="1.5" marker-end="url(#aG53)"/>
+          <text x="5" y="90" fill="#3b82f6" font-size="8" font-weight="600">Aurora :5432</text>
+          <line x1="120" y1="41" x2="70" y2="115" stroke="#10b981" stroke-width="1.5" marker-end="url(#aG53)"/>
+          <text x="25" y="128" fill="#3b82f6" font-size="8" font-weight="600">MSK :9092-9094</text>
+          <line x1="140" y1="41" x2="140" y2="115" stroke="#10b981" stroke-width="1.5" marker-end="url(#aG53)"/>
+          <text x="115" y="128" fill="#3b82f6" font-size="8" font-weight="600">Redis :6379</text>
+          <line x1="160" y1="41" x2="210" y2="115" stroke="#10b981" stroke-width="1.5" marker-end="url(#aG53)"/>
+          <text x="190" y="128" fill="#3b82f6" font-size="8" font-weight="600">VPCE :443</text>
+          <line x1="180" y1="41" x2="250" y2="75" stroke="#10b981" stroke-width="1.5" marker-end="url(#aG53)"/>
+          <text x="228" y="90" fill="#3b82f6" font-size="8" font-weight="600">NAT :443</text>
+          <text x="140" y="158" text-anchor="middle" fill="#10b981" font-size="8" font-weight="600">5 targeted egress rules</text>
+          <text x="140" y="175" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">NO 0.0.0.0/0 catch-all</text>
+          <defs><marker id="aG53" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#10b981"/></marker></defs>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code><span class="comment"># terraform/security-groups.tf — Workers SG</span>
+resource "aws_security_group" "workers" {
+  name_prefix = "bookstore-workers-"
+  vpc_id      = module.vpc.vpc_id
+  description = "EKS workers: per-service egress, ALB ingress"
+}
+
+<span class="comment"># Ingress from ALB on NodePort range</span>
+resource "aws_vpc_security_group_ingress_rule" "workers_from_alb" {
+  security_group_id            = aws_security_group.workers.id
+  referenced_security_group_id = aws_security_group.alb.id
+  ip_protocol                  = "tcp"
+  from_port                    = 30000
+  to_port                      = 32767
+}
+
+<span class="comment"># Worker-to-worker (pod communication)</span>
+resource "aws_vpc_security_group_ingress_rule" "workers_self" {
+  security_group_id            = aws_security_group.workers.id
+  referenced_security_group_id = aws_security_group.workers.id
+  ip_protocol                  = "-1"
+}
+
+<span class="comment"># Egress: Aurora PostgreSQL</span>
+resource "aws_vpc_security_group_egress_rule" "workers_to_aurora" {
+  security_group_id            = aws_security_group.workers.id
+  referenced_security_group_id = aws_security_group.aurora.id
+  ip_protocol                  = "tcp"
+  from_port                    = 5432
+  to_port                      = 5432
+}
+
+<span class="comment"># Egress: MSK Kafka</span>
+resource "aws_vpc_security_group_egress_rule" "workers_to_msk" {
+  security_group_id            = aws_security_group.workers.id
+  referenced_security_group_id = aws_security_group.msk.id
+  ip_protocol                  = "tcp"
+  from_port                    = 9092
+  to_port                      = 9094
+}
+
+<span class="comment"># Egress: ElastiCache Redis</span>
+resource "aws_vpc_security_group_egress_rule" "workers_to_redis" {
+  security_group_id            = aws_security_group.workers.id
+  referenced_security_group_id = aws_security_group.redis.id
+  ip_protocol                  = "tcp"
+  from_port                    = 6379
+  to_port                      = 6379
+}
+
+<span class="comment"># Egress: VPC Endpoints (ECR, STS, CW, SM)</span>
+resource "aws_vpc_security_group_egress_rule" "workers_to_vpce" {
+  security_group_id            = aws_security_group.workers.id
+  referenced_security_group_id = aws_security_group.vpce.id
+  ip_protocol                  = "tcp"
+  from_port                    = 443
+  to_port                      = 443
+}
+
+<span class="comment"># Egress: NAT Gateway (internet via HTTPS only)</span>
+resource "aws_vpc_security_group_egress_rule" "workers_to_nat" {
+  security_group_id = aws_security_group.workers.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+}</code></pre>
+        <div class="prevents"><strong>This prevents:</strong> A compromised pod from connecting to arbitrary internet destinations for C2 beaconing, crypto mining, or data exfiltration on non-HTTPS ports. Egress is limited to exactly 5 destinations.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SG 4: Aurora -->
+  <div class="component-section">
+    <div class="component-header">
+      <h3>5.4 Aurora Security Group</h3>
+      <span class="security-badge">Workers-Only Access</span>
+      <span class="cost-badge">$0/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="140" viewBox="0 0 280 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="80" y="15" width="120" height="35" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="37" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="600">Worker Nodes SG</text>
+          <line x1="140" y1="50" x2="140" y2="75" stroke="#10b981" stroke-width="2" marker-end="url(#aG54)"/>
+          <text x="185" y="66" fill="#10b981" font-size="9" font-weight="600">:5432</text>
+          <rect x="70" y="75" width="140" height="45" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+          <text x="140" y="102" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">Aurora SG</text>
+          <line x1="70" y1="97" x2="20" y2="97" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="5" y="80" fill="#ef4444" font-size="7">Blocked:</text>
+          <text x="5" y="92" fill="#ef4444" font-size="7">ALB, Internet,</text>
+          <text x="5" y="104" fill="#ef4444" font-size="7">other VPC CIDRs</text>
+          <defs><marker id="aG54" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#10b981"/></marker></defs>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code><span class="comment"># Aurora SG: only Workers can reach port 5432</span>
+resource "aws_security_group" "aurora" {
+  name_prefix = "bookstore-aurora-"
+  vpc_id      = module.vpc.vpc_id
+  description = "Aurora: ingress from EKS workers only"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "aurora_from_workers" {
+  security_group_id            = aws_security_group.aurora.id
+  referenced_security_group_id = aws_security_group.workers.id
+  ip_protocol                  = "tcp"
+  from_port                    = 5432
+  to_port                      = 5432
+}
+
+<span class="comment"># No egress rules needed (Aurora is a managed service)</span></code></pre>
+        <div class="prevents"><strong>This prevents:</strong> Direct database access from the ALB, internet, or any non-EKS resource. Even if an attacker compromises the ALB, they cannot reach Aurora because the ALB SG has no egress rule to the Aurora SG.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SG 5: MSK -->
+  <div class="component-section">
+    <div class="component-header">
+      <h3>5.5 MSK (Kafka) Security Group</h3>
+      <span class="security-badge">Workers + Inter-Broker</span>
+      <span class="cost-badge">$0/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="160" viewBox="0 0 280 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="85" y="10" width="110" height="30" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="30" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="600">Workers</text>
+          <line x1="140" y1="40" x2="140" y2="65" stroke="#10b981" stroke-width="1.5" marker-end="url(#aG55)"/>
+          <text x="180" y="56" fill="#10b981" font-size="8">:9092/9094</text>
+          <rect x="30" y="65" width="65" height="35" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="62" y="87" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">Broker 1</text>
+          <rect x="107" y="65" width="65" height="35" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="140" y="87" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">Broker 2</text>
+          <rect x="185" y="65" width="65" height="35" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="217" y="87" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">Broker 3</text>
+          <!-- Inter-broker arrows -->
+          <line x1="95" y1="82" x2="107" y2="82" stroke="#f59e0b" stroke-width="1.5"/>
+          <line x1="172" y1="82" x2="185" y2="82" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="140" y="120" text-anchor="middle" fill="#f59e0b" font-size="8" font-weight="600">Inter-broker: 9092-9094 (self-ref SG)</text>
+          <text x="140" y="140" text-anchor="middle" fill="#ef4444" font-size="8">No internet, no ALB, no other services</text>
+          <defs><marker id="aG55" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#10b981"/></marker></defs>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code><span class="comment"># MSK SG</span>
+resource "aws_security_group" "msk" {
+  name_prefix = "bookstore-msk-"
+  vpc_id      = module.vpc.vpc_id
+  description = "MSK: workers + inter-broker replication"
+}
+
+<span class="comment"># Workers → MSK (plaintext + TLS)</span>
+resource "aws_vpc_security_group_ingress_rule" "msk_from_workers" {
+  security_group_id            = aws_security_group.msk.id
+  referenced_security_group_id = aws_security_group.workers.id
+  ip_protocol                  = "tcp"
+  from_port                    = 9092
+  to_port                      = 9094
+}
+
+<span class="comment"># Inter-broker replication (self-referencing)</span>
+resource "aws_vpc_security_group_ingress_rule" "msk_inter_broker" {
+  security_group_id            = aws_security_group.msk.id
+  referenced_security_group_id = aws_security_group.msk.id
+  ip_protocol                  = "tcp"
+  from_port                    = 9092
+  to_port                      = 9094
+}</code></pre>
+        <div class="prevents"><strong>This prevents:</strong> Unauthorized message production/consumption. Only EKS pods and other brokers can access Kafka. A compromised ALB or database cannot inject messages into topics.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SG 6: Redis -->
+  <div class="component-section">
+    <div class="component-header">
+      <h3>5.6 Redis Security Group</h3>
+      <span class="security-badge">Workers-Only</span>
+      <span class="cost-badge">$0/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="120" viewBox="0 0 280 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="85" y="10" width="110" height="30" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="30" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="600">Workers</text>
+          <line x1="140" y1="40" x2="140" y2="65" stroke="#10b981" stroke-width="2" marker-end="url(#aG56)"/>
+          <text x="185" y="56" fill="#10b981" font-size="9" font-weight="600">:6379</text>
+          <rect x="80" y="65" width="120" height="40" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+          <text x="140" y="90" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">Redis</text>
+          <defs><marker id="aG56" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#10b981"/></marker></defs>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code><span class="comment"># Redis SG</span>
+resource "aws_security_group" "redis" {
+  name_prefix = "bookstore-redis-"
+  vpc_id      = module.vpc.vpc_id
+  description = "Redis: ingress from EKS workers only"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "redis_from_workers" {
+  security_group_id            = aws_security_group.redis.id
+  referenced_security_group_id = aws_security_group.workers.id
+  ip_protocol                  = "tcp"
+  from_port                    = 6379
+  to_port                      = 6379
+}</code></pre>
+        <div class="prevents"><strong>This prevents:</strong> CSRF token theft and session hijacking. Redis stores CSRF tokens and rate-limit counters. Only application pods can reach it.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SG 7: VPC Endpoints -->
+  <div class="component-section">
+    <div class="component-header">
+      <h3>5.7 VPC Endpoints Security Group</h3>
+      <span class="security-badge">PrivateLink Access</span>
+      <span class="cost-badge">$0/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="130" viewBox="0 0 280 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="85" y="10" width="110" height="30" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="30" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="600">Workers</text>
+          <line x1="140" y1="40" x2="140" y2="65" stroke="#06b6d4" stroke-width="2" marker-end="url(#aGC)"/>
+          <text x="185" y="56" fill="#06b6d4" font-size="9" font-weight="600">:443</text>
+          <rect x="60" y="65" width="160" height="40" rx="8" fill="#1e293b" stroke="#06b6d4" stroke-width="2"/>
+          <text x="140" y="85" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="600">VPC Endpoints</text>
+          <text x="140" y="98" text-anchor="middle" fill="#94a3b8" font-size="7">ECR, STS, CloudWatch, Secrets Mgr</text>
+          <defs><marker id="aGC" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#06b6d4"/></marker></defs>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code><span class="comment"># VPC Endpoints SG</span>
+resource "aws_security_group" "vpce" {
+  name_prefix = "bookstore-vpce-"
+  vpc_id      = module.vpc.vpc_id
+  description = "VPC Endpoints: HTTPS from workers only"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "vpce_from_workers" {
+  security_group_id            = aws_security_group.vpce.id
+  referenced_security_group_id = aws_security_group.workers.id
+  ip_protocol                  = "tcp"
+  from_port                    = 443
+  to_port                      = 443
+}</code></pre>
+        <div class="prevents"><strong>This prevents:</strong> Non-EKS resources from accessing AWS APIs through the VPC endpoints. Only worker nodes can pull images from ECR, assume IRSA roles via STS, or push logs to CloudWatch.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  6. NETWORK ACLs                                                   -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s6"><span class="section-num">6</span> Network ACLs (3 Tiers)</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Stateless Defense-in-Depth</h3>
+      <span class="security-badge">Layer 2 Firewall</span>
+      <span class="cost-badge">$0/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="260" viewBox="0 0 280 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <text x="140" y="15" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">INTERNET</text>
+          <!-- Public NACL -->
+          <rect x="30" y="25" width="220" height="55" rx="8" fill="rgba(16,185,129,0.06)" stroke="#10b981" stroke-width="1.5"/>
+          <text x="140" y="42" text-anchor="middle" fill="#10b981" font-size="9" font-weight="700">PUBLIC NACL</text>
+          <text x="50" y="58" fill="#10b981" font-size="7">IN: 443,80</text>
+          <text x="50" y="70" fill="#10b981" font-size="7">IN: 1024-65535</text>
+          <text x="170" y="58" fill="#10b981" font-size="7">OUT: 1024-65535</text>
+          <text x="170" y="70" fill="#10b981" font-size="7">OUT: 443 to VPC</text>
+          <!-- Private NACL -->
+          <rect x="30" y="95" width="220" height="55" rx="8" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="112" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="700">PRIVATE NACL</text>
+          <text x="50" y="128" fill="#3b82f6" font-size="7">IN: VPC CIDR only</text>
+          <text x="50" y="140" fill="#ef4444" font-size="7">DENY: 0.0.0.0/0</text>
+          <text x="170" y="128" fill="#3b82f6" font-size="7">OUT: VPC CIDR</text>
+          <text x="170" y="140" fill="#3b82f6" font-size="7">OUT: 443 (NAT)</text>
+          <!-- Database NACL -->
+          <rect x="30" y="165" width="220" height="55" rx="8" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="140" y="182" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">DATABASE NACL</text>
+          <text x="50" y="198" fill="#ef4444" font-size="7">IN: 5432 from 10.0.10.0/24</text>
+          <text x="50" y="210" fill="#ef4444" font-size="7">IN: 9092 from 10.0.10.0/24</text>
+          <text x="170" y="198" fill="#ef4444" font-size="7">OUT: 1024-65535</text>
+          <text x="170" y="210" fill="#ef4444" font-size="7">to 10.0.10.0/24 only</text>
+          <!-- Arrows -->
+          <line x1="140" y1="80" x2="140" y2="95" stroke="#94a3b8" stroke-width="1"/>
+          <line x1="140" y1="150" x2="140" y2="165" stroke="#94a3b8" stroke-width="1"/>
+          <text x="140" y="247" text-anchor="middle" fill="#94a3b8" font-size="8">NACLs are stateless: both IN + OUT rules required</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Why NACLs When We Have Security Groups?</h4>
+        <p>NACLs are stateless and operate at the subnet level, while SGs are stateful and operate at the ENI level. NACLs provide defense-in-depth: if a SG is misconfigured, the NACL still blocks unauthorized traffic. They are evaluated before SGs, acting as a coarse-grained first filter.</p>
+
+<pre><code><span class="comment"># terraform/nacls.tf — Public NACL</span>
+resource "aws_network_acl" "public" {
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.public_subnets
+
+  <span class="comment"># Allow HTTPS in</span>
+  ingress {
+    rule_no    = 100
+    protocol   = "tcp"
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 443
+    to_port    = 443
+  }
+  <span class="comment"># Allow HTTP in (for redirect)</span>
+  ingress {
+    rule_no    = 110
+    protocol   = "tcp"
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 80
+    to_port    = 80
+  }
+  <span class="comment"># Allow ephemeral return traffic</span>
+  ingress {
+    rule_no    = 200
+    protocol   = "tcp"
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 1024
+    to_port    = 65535
+  }
+  <span class="comment"># Outbound: ephemeral ports to internet</span>
+  egress {
+    rule_no    = 100
+    protocol   = "tcp"
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 1024
+    to_port    = 65535
+  }
+  <span class="comment"># Outbound: to VPC (ALB → Workers)</span>
+  egress {
+    rule_no    = 110
+    protocol   = "tcp"
+    action     = "allow"
+    cidr_block = "10.0.0.0/16"
+    from_port  = 1
+    to_port    = 65535
+  }
+
+  tags = { Name = "bookstore-public-nacl" }
+}
+
+<span class="comment"># Database NACL — most restrictive</span>
+resource "aws_network_acl" "database" {
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.database_subnets
+
+  <span class="comment"># ONLY allow PostgreSQL from private subnet</span>
+  ingress {
+    rule_no    = 100
+    protocol   = "tcp"
+    action     = "allow"
+    cidr_block = "10.0.10.0/24"
+    from_port  = 5432
+    to_port    = 5432
+  }
+  <span class="comment"># ONLY allow Kafka from private subnet</span>
+  ingress {
+    rule_no    = 110
+    protocol   = "tcp"
+    action     = "allow"
+    cidr_block = "10.0.10.0/24"
+    from_port  = 9092
+    to_port    = 9094
+  }
+  <span class="comment"># ONLY allow Redis from private subnet</span>
+  ingress {
+    rule_no    = 120
+    protocol   = "tcp"
+    action     = "allow"
+    cidr_block = "10.0.10.0/24"
+    from_port  = 6379
+    to_port    = 6379
+  }
+  <span class="comment"># Deny all other ingress</span>
+  ingress {
+    rule_no    = 900
+    protocol   = "-1"
+    action     = "deny"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 0
+    to_port    = 0
+  }
+  <span class="comment"># Ephemeral return to private subnet only</span>
+  egress {
+    rule_no    = 100
+    protocol   = "tcp"
+    action     = "allow"
+    cidr_block = "10.0.10.0/24"
+    from_port  = 1024
+    to_port    = 65535
+  }
+  egress {
+    rule_no    = 900
+    protocol   = "-1"
+    action     = "deny"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 0
+    to_port    = 0
+  }
+
+  tags = { Name = "bookstore-database-nacl" }
+}</code></pre>
+
+        <div class="prevents"><strong>This prevents:</strong> Database subnet access from the public subnet (even if ALB is compromised and somehow bypasses SGs). The database NACL allows only ports 5432, 6379, 9092-9094 from 10.0.10.0/24 and nothing else.</div>
+        <div class="cost-box"><strong>Cost:</strong> $0/mo. NACLs are a free VPC feature.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  7. VPC FLOW LOGS                                                  -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s7"><span class="section-num">7</span> VPC Flow Logs</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>REJECT Traffic Logging</h3>
+      <span class="security-badge">Audit Trail</span>
+      <span class="cost-badge">~$5/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="180" viewBox="0 0 280 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="25" y="15" width="230" height="50" rx="10" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="45" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">VPC</text>
+          <!-- Capture icon -->
+          <rect x="95" y="80" width="90" height="35" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="140" y="100" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="600">REJECT Only</text>
+          <!-- CloudWatch -->
+          <rect x="70" y="130" width="140" height="35" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="140" y="152" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="600">CloudWatch Logs</text>
+          <text x="140" y="163" text-anchor="middle" fill="#94a3b8" font-size="7">30-day retention</text>
+          <!-- Arrows -->
+          <line x1="140" y1="65" x2="140" y2="80" stroke="#ef4444" stroke-width="1.5" marker-end="url(#aR7)"/>
+          <line x1="140" y1="115" x2="140" y2="130" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#aY7)"/>
+          <defs>
+            <marker id="aR7" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#ef4444"/></marker>
+            <marker id="aY7" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#f59e0b"/></marker>
+          </defs>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Why REJECT-only?</h4>
+        <p>Logging ALL traffic generates massive volumes and high costs. REJECT-only captures every blocked connection attempt, which is exactly what you need for security investigations: port scans, unauthorized access attempts, and misconfigured SGs. Accepted traffic is already visible via application logs and Istio telemetry.</p>
+
+<pre><code><span class="comment"># terraform/flow-logs.tf</span>
+resource "aws_flow_log" "vpc_reject" {
+  vpc_id               = module.vpc.vpc_id
+  traffic_type         = "REJECT"
+  log_destination_type = "cloud-watch-logs"
+  log_destination      = aws_cloudwatch_log_group.flow_logs.arn
+  iam_role_arn         = aws_iam_role.flow_logs.arn
+
+  tags = { Name = "bookstore-vpc-flow-logs" }
+}
+
+resource "aws_cloudwatch_log_group" "flow_logs" {
+  name              = "/aws/vpc/bookstore-flow-logs"
+  retention_in_days = 30  <span class="comment"># 30 days balances cost vs forensics</span>
+
+  tags = { Project = "bookstore" }
+}
+
+resource "aws_iam_role" "flow_logs" {
+  name = "bookstore-flow-logs-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "vpc-flow-logs.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "flow_logs" {
+  name = "bookstore-flow-logs-policy"
+  role = aws_iam_role.flow_logs.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams"
+      ]
+      Effect   = "Allow"
+      Resource = "*"
+    }]
+  })
+}</code></pre>
+
+        <div class="prevents"><strong>This prevents:</strong> Blind spots in security posture. Flow logs reveal port scanning attempts, lateral movement from compromised instances, and SG misconfigurations that would otherwise go undetected.</div>
+        <div class="cost-box"><strong>Cost:</strong> ~$5/mo. REJECT-only logs generate ~1-5 GB/month for a small cluster. CloudWatch ingestion is $0.50/GB, storage is $0.03/GB/month. 30-day retention keeps costs bounded.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  8. VPC ENDPOINTS                                                  -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s8"><span class="section-num">8</span> VPC Endpoints (6)</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>PrivateLink: Traffic Never Leaves VPC</h3>
+      <span class="security-badge">No Internet for AWS APIs</span>
+      <span class="cost-badge">~$37/mo (saves NAT data charges)</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="280" viewBox="0 0 280 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Workers -->
+          <rect x="85" y="10" width="110" height="35" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+          <text x="140" y="32" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700">EKS Workers</text>
+          <!-- VPC Endpoint hub -->
+          <rect x="70" y="65" width="140" height="30" rx="6" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+          <text x="140" y="84" text-anchor="middle" fill="#06b6d4" font-size="9" font-weight="600">VPC Endpoints</text>
+          <line x1="140" y1="45" x2="140" y2="65" stroke="#06b6d4" stroke-width="2" marker-end="url(#aC8)"/>
+          <!-- 6 services -->
+          <rect x="10" y="115" width="75" height="28" rx="5" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1"/>
+          <text x="47" y="133" text-anchor="middle" fill="#06b6d4" font-size="8" font-weight="600">S3 (Gateway)</text>
+          <text x="47" y="148" text-anchor="middle" fill="#10b981" font-size="7" font-weight="700">FREE</text>
+          <rect x="100" y="115" width="75" height="28" rx="5" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1"/>
+          <text x="137" y="133" text-anchor="middle" fill="#06b6d4" font-size="8" font-weight="600">ECR API</text>
+          <rect x="190" y="115" width="75" height="28" rx="5" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1"/>
+          <text x="227" y="133" text-anchor="middle" fill="#06b6d4" font-size="8" font-weight="600">ECR DKR</text>
+          <rect x="10" y="165" width="75" height="28" rx="5" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1"/>
+          <text x="47" y="183" text-anchor="middle" fill="#06b6d4" font-size="8" font-weight="600">STS (IRSA)</text>
+          <rect x="100" y="165" width="75" height="28" rx="5" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1"/>
+          <text x="137" y="183" text-anchor="middle" fill="#06b6d4" font-size="8" font-weight="600">CloudWatch</text>
+          <rect x="190" y="165" width="75" height="28" rx="5" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1"/>
+          <text x="227" y="183" text-anchor="middle" fill="#06b6d4" font-size="8" font-weight="600">Secrets Mgr</text>
+          <!-- Lines from hub -->
+          <line x1="100" y1="95" x2="47" y2="115" stroke="#06b6d4" stroke-width="1"/>
+          <line x1="140" y1="95" x2="137" y2="115" stroke="#06b6d4" stroke-width="1"/>
+          <line x1="180" y1="95" x2="227" y2="115" stroke="#06b6d4" stroke-width="1"/>
+          <line x1="100" y1="95" x2="47" y2="165" stroke="#06b6d4" stroke-width="0.5"/>
+          <line x1="140" y1="95" x2="137" y2="165" stroke="#06b6d4" stroke-width="0.5"/>
+          <line x1="180" y1="95" x2="227" y2="165" stroke="#06b6d4" stroke-width="0.5"/>
+          <!-- No internet -->
+          <text x="140" y="220" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">Traffic stays inside VPC</text>
+          <line x1="100" y1="235" x2="25" y2="255" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <text x="35" y="268" fill="#ef4444" font-size="8" font-weight="600">No NAT needed for AWS APIs</text>
+          <defs><marker id="aC8" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#06b6d4"/></marker></defs>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Why VPC Endpoints?</h4>
+        <p>Without VPC Endpoints, every ECR image pull, CloudWatch log push, and STS token exchange goes through the NAT Gateway, adding latency and data processing costs ($0.045/GB). VPC Endpoints route this traffic directly within the AWS network, improving security (traffic never traverses the public internet) and reducing NAT costs.</p>
+
+<pre><code><span class="comment"># terraform/vpc-endpoints.tf</span>
+
+<span class="comment"># S3 Gateway Endpoint — always free, no reason to skip</span>
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = module.vpc.vpc_id
+  service_name      = "com.amazonaws.us-east-1.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = module.vpc.private_route_table_ids
+
+  tags = { Name = "bookstore-s3-endpoint" }
+}
+
+<span class="comment"># Interface Endpoints (PrivateLink) — $7.30/mo each</span>
+locals {
+  interface_endpoints = {
+    ecr_api      = "com.amazonaws.us-east-1.ecr.api"
+    ecr_dkr      = "com.amazonaws.us-east-1.ecr.dkr"
+    sts          = "com.amazonaws.us-east-1.sts"
+    logs         = "com.amazonaws.us-east-1.logs"
+    secretsmanager = "com.amazonaws.us-east-1.secretsmanager"
+  }
+}
+
+resource "aws_vpc_endpoint" "interface" {
+  for_each = local.interface_endpoints
+
+  vpc_id              = module.vpc.vpc_id
+  service_name        = each.value
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [module.vpc.private_subnets[0]]
+  security_group_ids  = [aws_security_group.vpce.id]
+  private_dns_enabled = true
+
+  tags = { Name = "bookstore-${each.key}-endpoint" }
+}</code></pre>
+
+        <div class="prevents"><strong>This prevents:</strong> AWS API traffic from traversing the public internet. A compromised NAT Gateway or network path cannot intercept ECR image pulls, STS token exchanges, or secrets retrieval. Traffic is entirely within the AWS backbone.</div>
+        <div class="cost-box"><strong>Cost:</strong> S3 Gateway: $0. 5 Interface Endpoints: 5 x $7.30 = $36.50/mo. This investment saves NAT data processing charges; at ~100 GB/mo of ECR pulls alone, you save $4.50/mo on NAT while gaining a security benefit.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  9. EKS CLUSTER                                                    -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s9"><span class="section-num">9</span> EKS Cluster (Control Plane)</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Private API Server + KMS Encryption</h3>
+      <span class="security-badge">No Public API Endpoint</span>
+      <span class="cost-badge">$73/mo (fixed)</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="220" viewBox="0 0 280 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- AWS managed VPC -->
+          <rect x="15" y="10" width="250" height="90" rx="10" fill="rgba(245,158,11,0.06)" stroke="#f59e0b" stroke-width="1" stroke-dasharray="6,3"/>
+          <text x="140" y="28" text-anchor="middle" fill="#f59e0b" font-size="8" font-weight="600">AWS-MANAGED VPC</text>
+          <rect x="50" y="38" width="180" height="50" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+          <text x="140" y="58" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">EKS Control Plane</text>
+          <text x="140" y="78" text-anchor="middle" fill="#94a3b8" font-size="8">API Server + etcd + Scheduler</text>
+          <!-- ENI bridge -->
+          <rect x="110" y="110" width="60" height="22" rx="4" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="125" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600">ENIs</text>
+          <line x1="140" y1="88" x2="140" y2="110" stroke="#3b82f6" stroke-width="1.5"/>
+          <!-- Your VPC -->
+          <rect x="15" y="140" width="250" height="65" rx="10" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1" stroke-dasharray="6,3"/>
+          <text x="140" y="155" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600">YOUR VPC — PRIVATE SUBNET</text>
+          <rect x="50" y="162" width="80" height="30" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="90" y="181" text-anchor="middle" fill="#e2e8f0" font-size="8">Worker Nodes</text>
+          <rect x="150" y="162" width="80" height="30" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1"/>
+          <text x="190" y="177" text-anchor="middle" fill="#e2e8f0" font-size="8">KMS</text>
+          <text x="190" y="188" text-anchor="middle" fill="#94a3b8" font-size="7">Secrets Encryption</text>
+          <line x1="140" y1="132" x2="140" y2="140" stroke="#3b82f6" stroke-width="1.5"/>
+          <!-- Blocked internet -->
+          <line x1="50" y1="55" x2="5" y2="30" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,3"/>
+          <text x="3" y="22" fill="#ef4444" font-size="7">No Public</text>
+          <text x="3" y="32" fill="#ef4444" font-size="7">Endpoint</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Private Endpoint Only</h4>
+        <p>The EKS API server endpoint is configured as private-only. This means <code>kubectl</code> commands must originate from within the VPC (via a bastion host, VPN, or CI/CD runner in the private subnet). The API server is never exposed to the internet, eliminating the largest attack surface for Kubernetes clusters.</p>
+
+<pre><code><span class="comment"># terraform/eks.tf</span>
+module "eks" {
+  source  = "terraform-aws-modules/eks/aws"
+  version = "~> 20.0"
+
+  cluster_name    = "bookstore-cluster"
+  cluster_version = "1.30"
+
+  <span class="comment"># PRIVATE only — no public API endpoint</span>
+  cluster_endpoint_public_access  = false
+  cluster_endpoint_private_access = true
+
+  <span class="comment"># KMS encryption for Kubernetes Secrets</span>
+  cluster_encryption_config = {
+    provider_key_arn = aws_kms_key.eks.arn
+    resources        = ["secrets"]
+  }
+
+  <span class="comment"># OIDC provider for IRSA (IAM Roles for Service Accounts)</span>
+  enable_irsa = true
+
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.private_subnets
+
+  <span class="comment"># Cluster addons</span>
+  cluster_addons = {
+    coredns    = { most_recent = true }
+    kube-proxy = { most_recent = true }
+    vpc-cni    = { most_recent = true }
+  }
+
+  tags = {
+    Project     = "bookstore"
+    Environment = "single-az"
+  }
+}
+
+<span class="comment"># KMS key for EKS secrets envelope encryption</span>
+resource "aws_kms_key" "eks" {
+  description             = "EKS Secrets encryption key"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  tags = { Name = "bookstore-eks-key" }
+}</code></pre>
+
+        <div class="prevents"><strong>This prevents:</strong> Internet-based attacks on the Kubernetes API server (brute force, credential stuffing, unauthenticated CVE exploits). KMS encryption prevents etcd secret extraction even if an attacker gains access to the underlying storage.</div>
+        <div class="cost-box"><strong>Cost:</strong> $73/mo (fixed EKS control plane fee). This is the same regardless of single-AZ or multi-AZ. KMS key adds $1/mo.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  10. EKS NODE GROUPS                                               -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s10"><span class="section-num">10</span> EKS Node Groups (Cost-Optimized)</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Graviton + Spot Instances</h3>
+      <span class="security-badge">Private Subnet, No Public IPs</span>
+      <span class="cost-badge">~$91/mo (vs $585 over-provisioned)</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="240" viewBox="0 0 280 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- System Node Group -->
+          <rect x="15" y="15" width="120" height="100" rx="10" fill="rgba(139,92,246,0.06)" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="75" y="35" text-anchor="middle" fill="#8b5cf6" font-size="9" font-weight="700">SYSTEM NODES</text>
+          <text x="75" y="50" text-anchor="middle" fill="#94a3b8" font-size="8">On-Demand (stable)</text>
+          <rect x="25" y="58" width="45" height="22" rx="4" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="47" y="73" text-anchor="middle" fill="#e2e8f0" font-size="7">t4g.med</text>
+          <rect x="80" y="58" width="45" height="22" rx="4" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="102" y="73" text-anchor="middle" fill="#e2e8f0" font-size="7">t4g.med</text>
+          <text x="75" y="100" text-anchor="middle" fill="#10b981" font-size="8" font-weight="600">ARM Graviton</text>
+          <text x="75" y="112" text-anchor="middle" fill="#34d399" font-size="7">$0.0336/hr x 2</text>
+          <!-- App Node Group -->
+          <rect x="145" y="15" width="120" height="100" rx="10" fill="rgba(245,158,11,0.06)" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="205" y="35" text-anchor="middle" fill="#f59e0b" font-size="9" font-weight="700">APP NODES</text>
+          <text x="205" y="50" text-anchor="middle" fill="#94a3b8" font-size="8">Spot (70% savings)</text>
+          <rect x="155" y="58" width="45" height="22" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+          <text x="177" y="73" text-anchor="middle" fill="#e2e8f0" font-size="7">t3.large</text>
+          <rect x="210" y="58" width="45" height="22" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+          <text x="232" y="73" text-anchor="middle" fill="#e2e8f0" font-size="7">t3.large</text>
+          <text x="205" y="100" text-anchor="middle" fill="#f59e0b" font-size="8" font-weight="600">Multi-Instance Fallback</text>
+          <text x="205" y="112" text-anchor="middle" fill="#34d399" font-size="7">~$0.024/hr x 2</text>
+          <!-- Pod distribution -->
+          <rect x="15" y="130" width="250" height="50" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+          <text x="140" y="150" text-anchor="middle" fill="#94a3b8" font-size="8" font-weight="600">POD DISTRIBUTION</text>
+          <text x="55" y="168" text-anchor="middle" fill="#8b5cf6" font-size="7">Istio, Prometheus</text>
+          <text x="55" y="178" text-anchor="middle" fill="#8b5cf6" font-size="7">Grafana, CoreDNS</text>
+          <text x="140" y="168" text-anchor="middle" fill="#f59e0b" font-size="7">ecom, inventory</text>
+          <text x="140" y="178" text-anchor="middle" fill="#f59e0b" font-size="7">UI, Keycloak, CSRF</text>
+          <text x="225" y="168" text-anchor="middle" fill="#f59e0b" font-size="7">Debezium</text>
+          <text x="225" y="178" text-anchor="middle" fill="#f59e0b" font-size="7">Flink</text>
+          <!-- Cost comparison -->
+          <text x="140" y="210" text-anchor="middle" fill="#10b981" font-size="10" font-weight="700">$91/mo total</text>
+          <text x="140" y="228" text-anchor="middle" fill="#ef4444" font-size="8">vs $585/mo for 5x t3.xlarge On-Demand</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Two-Tier Node Strategy</h4>
+        <p><strong>System nodes</strong> run infrastructure that must not be interrupted: Istio control plane, Prometheus, CoreDNS. These use Graviton ARM instances (20% cheaper than x86) with On-Demand pricing for stability.</p>
+        <p><strong>App nodes</strong> run application workloads (ecom, inventory, UI, Keycloak). These use Spot instances (up to 70% cheaper) with a multi-instance-type fallback to reduce interruption risk. If one instance type is reclaimed, the ASG launches a different type.</p>
+
+<pre><code><span class="comment"># terraform/eks-nodegroups.tf</span>
+
+<span class="comment"># System node group: stable, Graviton ARM, On-Demand</span>
+module "eks" {
+  <span class="comment"># ... (from section 9)</span>
+
+  eks_managed_node_groups = {
+    system = {
+      instance_types = ["t4g.medium"]  <span class="comment"># ARM Graviton</span>
+      capacity_type  = "ON_DEMAND"
+      min_size       = 2
+      max_size       = 3
+      desired_size   = 2
+
+      <span class="comment"># Pin to single AZ</span>
+      subnet_ids = [module.vpc.private_subnets[0]]
+
+      labels = {
+        "node-role" = "system"
+      }
+      taints = [{
+        key    = "CriticalAddonsOnly"
+        value  = "true"
+        effect = "PREFER_NO_SCHEDULE"
+      }]
+
+      <span class="comment"># Security: no public IPs, custom SG</span>
+      ami_type               = "AL2023_ARM_64_STANDARD"
+      vpc_security_group_ids = [aws_security_group.workers.id]
+    }
+
+    <span class="comment"># App node group: Spot, multi-instance fallback</span>
+    app = {
+      instance_types = [
+        "t3.large",    <span class="comment"># primary: 2 vCPU, 8 GiB</span>
+        "t3a.large",   <span class="comment"># fallback: AMD variant</span>
+        "m5.large",    <span class="comment"># fallback: general purpose</span>
+        "m5a.large"    <span class="comment"># fallback: AMD general purpose</span>
+      ]
+      capacity_type = "SPOT"
+      min_size      = 2
+      max_size      = 4
+      desired_size  = 2
+
+      subnet_ids = [module.vpc.private_subnets[0]]
+
+      labels = {
+        "node-role" = "app"
+      }
+
+      ami_type               = "AL2023_x86_64_STANDARD"
+      vpc_security_group_ids = [aws_security_group.workers.id]
+    }
+  }
+}</code></pre>
+
+        <div class="prevents"><strong>This prevents:</strong> Worker nodes from being accessible from the internet (private subnet, no public IPs). Custom SGs ensure nodes cannot reach unintended destinations. Taint on system nodes prevents app workloads from consuming infra resources.</div>
+        <div class="cost-box"><strong>Cost breakdown:</strong> System nodes: 2x t4g.medium On-Demand at $0.0336/hr = $49/mo. App nodes: 2x t3.large Spot at ~$0.024/hr (avg 70% discount) = $35/mo. Total: ~$84-91/mo vs $585 for 5x t3.xlarge On-Demand.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  11. ECR REPOSITORIES                                              -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s11"><span class="section-num">11</span> ECR Repositories</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>5 Repos with Lifecycle &amp; Scanning</h3>
+      <span class="security-badge">Scan on Push</span>
+      <span class="cost-badge">~$2/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="200" viewBox="0 0 280 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Build -->
+          <rect x="15" y="20" width="70" height="35" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="50" y="42" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="600">Docker Build</text>
+          <!-- Push arrow -->
+          <line x1="85" y1="37" x2="110" y2="37" stroke="#10b981" stroke-width="2" marker-end="url(#aG11)"/>
+          <text x="97" y="30" fill="#10b981" font-size="7">Push</text>
+          <!-- ECR -->
+          <rect x="110" y="10" width="80" height="55" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+          <text x="150" y="32" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700">ECR</text>
+          <text x="150" y="48" text-anchor="middle" fill="#94a3b8" font-size="7">Scan + Lifecycle</text>
+          <!-- Pull arrow -->
+          <line x1="190" y1="37" x2="215" y2="37" stroke="#3b82f6" stroke-width="2" marker-end="url(#aB11)"/>
+          <text x="202" y="30" fill="#3b82f6" font-size="7">Pull</text>
+          <!-- EKS -->
+          <rect x="215" y="20" width="55" height="35" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="242" y="42" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="600">EKS</text>
+          <!-- 5 repos -->
+          <rect x="15" y="85" width="75" height="22" rx="4" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1"/>
+          <text x="52" y="100" text-anchor="middle" fill="#fbbf24" font-size="7">ecom-service</text>
+          <rect x="100" y="85" width="80" height="22" rx="4" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1"/>
+          <text x="140" y="100" text-anchor="middle" fill="#fbbf24" font-size="7">inventory-service</text>
+          <rect x="190" y="85" width="75" height="22" rx="4" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1"/>
+          <text x="227" y="100" text-anchor="middle" fill="#fbbf24" font-size="7">ui-service</text>
+          <rect x="40" y="115" width="75" height="22" rx="4" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1"/>
+          <text x="77" y="130" text-anchor="middle" fill="#fbbf24" font-size="7">csrf-service</text>
+          <rect x="130" y="115" width="100" height="22" rx="4" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1"/>
+          <text x="180" y="130" text-anchor="middle" fill="#fbbf24" font-size="7">flink (CDC pipeline)</text>
+          <!-- Lifecycle -->
+          <text x="140" y="160" text-anchor="middle" fill="#10b981" font-size="8" font-weight="600">Keep 10 tagged images</text>
+          <text x="140" y="175" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="600">Delete untagged after 1 day</text>
+          <text x="140" y="190" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="600">Scan every push for CVEs</text>
+          <defs>
+            <marker id="aG11" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#10b981"/></marker>
+            <marker id="aB11" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#3b82f6"/></marker>
+          </defs>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code><span class="comment"># terraform/ecr.tf</span>
+locals {
+  ecr_repos = [
+    "bookstore/ecom-service",
+    "bookstore/inventory-service",
+    "bookstore/ui-service",
+    "bookstore/csrf-service",
+    "bookstore/flink"
+  ]
+}
+
+resource "aws_ecr_repository" "repos" {
+  for_each = toset(local.ecr_repos)
+
+  name                 = each.key
+  image_tag_mutability = "IMMUTABLE"  <span class="comment"># prevent tag overwriting</span>
+
+  image_scanning_configuration {
+    scan_on_push = true  <span class="comment"># CVE scan every push</span>
+  }
+
+  encryption_configuration {
+    encryption_type = "AES256"
+  }
+
+  tags = { Project = "bookstore" }
+}
+
+<span class="comment"># Lifecycle: keep 10, delete untagged after 1 day</span>
+resource "aws_ecr_lifecycle_policy" "cleanup" {
+  for_each   = aws_ecr_repository.repos
+  repository = each.value.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Delete untagged images after 1 day"
+        selection = {
+          tagStatus   = "untagged"
+          countType   = "sinceImagePushed"
+          countUnit   = "days"
+          countNumber = 1
+        }
+        action = { type = "expire" }
+      },
+      {
+        rulePriority = 2
+        description  = "Keep only 10 tagged images"
+        selection = {
+          tagStatus   = "tagged"
+          tagPrefixList = ["v"]
+          countType   = "imageCountMoreThan"
+          countNumber = 10
+        }
+        action = { type = "expire" }
+      }
+    ]
+  })
+}</code></pre>
+
+        <div class="prevents"><strong>This prevents:</strong> Deploying images with known CVEs (scan on push), tag hijacking (immutable tags), and unbounded storage costs (lifecycle policies auto-clean old images).</div>
+        <div class="cost-box"><strong>Cost:</strong> ~$2/mo. ECR charges $0.10/GB/month. With lifecycle policies keeping only 10 images per repo (~500 MB each), total storage is ~25 GB = $2.50/mo. Scans are free for basic scanning.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  12. AURORA POSTGRESQL                                             -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s12"><span class="section-num">12</span> Aurora PostgreSQL Serverless v2</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>4 Clusters, Auto-Scaling, CDC-Ready</h3>
+      <span class="security-badge">Encrypted + SG-Isolated</span>
+      <span class="cost-badge">~$172/mo (min 0.5 ACU)</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="250" viewBox="0 0 280 250" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- 4 database cylinders -->
+          <rect x="15" y="20" width="55" height="60" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+          <ellipse cx="42" cy="28" rx="22" ry="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="42" y="55" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">ecom</text>
+          <text x="42" y="68" text-anchor="middle" fill="#94a3b8" font-size="7">0.5-4 ACU</text>
+
+          <rect x="80" y="20" width="55" height="60" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+          <ellipse cx="107" cy="28" rx="22" ry="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="107" y="55" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">inventory</text>
+          <text x="107" y="68" text-anchor="middle" fill="#94a3b8" font-size="7">0.5-4 ACU</text>
+
+          <rect x="145" y="20" width="55" height="60" rx="8" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+          <ellipse cx="172" cy="28" rx="22" ry="8" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+          <text x="172" y="55" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">analytics</text>
+          <text x="172" y="68" text-anchor="middle" fill="#94a3b8" font-size="7">0.5-4 ACU</text>
+
+          <rect x="210" y="20" width="55" height="60" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+          <ellipse cx="237" cy="28" rx="22" ry="8" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="237" y="55" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">keycloak</text>
+          <text x="237" y="68" text-anchor="middle" fill="#94a3b8" font-size="7">0.5-4 ACU</text>
+
+          <!-- Auto-scale arrows -->
+          <text x="140" y="105" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">Auto-scales: 0.5 ACU (idle) → 4 ACU (peak)</text>
+          <!-- Features -->
+          <rect x="20" y="120" width="240" height="18" rx="4" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="0.5"/>
+          <text x="140" y="133" text-anchor="middle" fill="#ef4444" font-size="8">KMS Encryption at Rest</text>
+          <rect x="20" y="145" width="240" height="18" rx="4" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="0.5"/>
+          <text x="140" y="158" text-anchor="middle" fill="#3b82f6" font-size="8">wal_level=logical (Debezium CDC)</text>
+          <rect x="20" y="170" width="240" height="18" rx="4" fill="rgba(16,185,129,0.06)" stroke="#10b981" stroke-width="0.5"/>
+          <text x="140" y="183" text-anchor="middle" fill="#10b981" font-size="8">Single writer (no reader replica in single-AZ)</text>
+          <!-- Cost bar -->
+          <text x="140" y="215" text-anchor="middle" fill="#34d399" font-size="10" font-weight="700">$172/mo total (4 clusters)</text>
+          <text x="140" y="232" text-anchor="middle" fill="#ef4444" font-size="8">vs $344/mo with min 2 ACU per cluster</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Why Serverless v2?</h4>
+        <p>Aurora Serverless v2 auto-scales in 0.5 ACU increments. At idle, each cluster consumes only 0.5 ACU ($0.06/hr). During peak load, it scales up to 4 ACU without any downtime. This is ideal for dev/staging where traffic is bursty. Fixed-provisioned Aurora (db.r6g.large) would cost $200+/mo per cluster regardless of usage.</p>
+
+<pre><code><span class="comment"># terraform/aurora.tf</span>
+locals {
+  databases = {
+    ecom      = { name = "ecom",      engine_version = "16.4" }
+    inventory = { name = "inventory", engine_version = "16.4" }
+    analytics = { name = "analytics", engine_version = "16.4" }
+    keycloak  = { name = "keycloak",  engine_version = "16.4" }
+  }
+}
+
+resource "aws_rds_cluster" "db" {
+  for_each = local.databases
+
+  cluster_identifier = "bookstore-${each.value.name}"
+  engine             = "aurora-postgresql"
+  engine_mode        = "provisioned"
+  engine_version     = each.value.engine_version
+
+  database_name   = each.value.name
+  master_username = each.value.name
+  master_password = random_password.db[each.key].result
+
+  <span class="comment"># Serverless v2 scaling: 0.5 ACU min, 4 ACU max</span>
+  serverlessv2_scaling_configuration {
+    min_capacity = 0.5
+    max_capacity = 4.0
+  }
+
+  <span class="comment"># Security</span>
+  storage_encrypted       = true
+  kms_key_id             = aws_kms_key.aurora.arn
+  vpc_security_group_ids = [aws_security_group.aurora.id]
+  db_subnet_group_name   = aws_db_subnet_group.aurora.name
+
+  <span class="comment"># Single-AZ: no multi-AZ failover</span>
+  availability_zones = ["us-east-1a"]
+
+  <span class="comment"># Backup (important even in single-AZ)</span>
+  backup_retention_period = 7
+  preferred_backup_window = "03:00-04:00"
+
+  skip_final_snapshot = false
+  final_snapshot_identifier = "bookstore-${each.value.name}-final"
+
+  tags = { Project = "bookstore", Service = each.value.name }
+}
+
+<span class="comment"># Single writer instance (no reader in single-AZ)</span>
+resource "aws_rds_cluster_instance" "writer" {
+  for_each = local.databases
+
+  identifier         = "bookstore-${each.value.name}-writer"
+  cluster_identifier = aws_rds_cluster.db[each.key].id
+  instance_class     = "db.serverless"
+  engine             = "aurora-postgresql"
+  engine_version     = each.value.engine_version
+
+  availability_zone = "us-east-1a"
+}
+
+<span class="comment"># Parameter group: enable logical replication for CDC</span>
+resource "aws_rds_cluster_parameter_group" "cdc" {
+  name   = "bookstore-pg16-cdc"
+  family = "aurora-postgresql16"
+
+  parameter {
+    name         = "rds.logical_replication"
+    value        = "1"
+    apply_method = "pending-reboot"
+  }
+  parameter {
+    name         = "wal_level"
+    value        = "logical"
+    apply_method = "pending-reboot"
+  }
+}
+
+<span class="comment"># Subnet group in database tier only</span>
+resource "aws_db_subnet_group" "aurora" {
+  name       = "bookstore-aurora"
+  subnet_ids = module.vpc.database_subnets
+}</code></pre>
+
+        <div class="prevents"><strong>This prevents:</strong> Unauthorized database access (SG restricts to workers only), data theft (KMS encryption at rest), and accidental data loss (7-day automated backups + final snapshot). The <code>wal_level=logical</code> parameter enables Debezium CDC without manual intervention.</div>
+        <div class="cost-box"><strong>Cost:</strong> 4 clusters x 0.5 ACU minimum x $0.06/hr = $172/mo at idle. Under load, scales to max 4 ACU ($0.48/hr) per cluster. No reader replicas in single-AZ saves ~$172/mo vs provisioned with 1 reader.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  13. AMAZON MSK                                                    -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s13"><span class="section-num">13</span> Amazon MSK (Kafka)</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>3 Brokers in 1 AZ</h3>
+      <span class="security-badge">TLS + IAM Auth</span>
+      <span class="cost-badge">~$150/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="200" viewBox="0 0 280 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- 3 brokers -->
+          <rect x="15" y="30" width="75" height="50" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="52" y="55" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="700">Broker 1</text>
+          <text x="52" y="70" text-anchor="middle" fill="#94a3b8" font-size="7">kafka.t3.small</text>
+          <rect x="102" y="30" width="75" height="50" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="140" y="55" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="700">Broker 2</text>
+          <text x="140" y="70" text-anchor="middle" fill="#94a3b8" font-size="7">kafka.t3.small</text>
+          <rect x="190" y="30" width="75" height="50" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="227" y="55" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="700">Broker 3</text>
+          <text x="227" y="70" text-anchor="middle" fill="#94a3b8" font-size="7">kafka.t3.small</text>
+          <!-- Inter-broker -->
+          <line x1="90" y1="55" x2="102" y2="55" stroke="#f59e0b" stroke-width="1.5"/>
+          <line x1="177" y1="55" x2="190" y2="55" stroke="#f59e0b" stroke-width="1.5"/>
+          <!-- Config -->
+          <text x="140" y="15" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="600">us-east-1a (single AZ)</text>
+          <rect x="30" y="100" width="220" height="25" rx="5" fill="rgba(16,185,129,0.06)" stroke="#10b981" stroke-width="1"/>
+          <text x="140" y="117" text-anchor="middle" fill="#10b981" font-size="8">replication.factor=3, min.insync.replicas=2</text>
+          <rect x="30" y="132" width="220" height="25" rx="5" fill="rgba(239,68,68,0.06)" stroke="#ef4444" stroke-width="1"/>
+          <text x="140" y="149" text-anchor="middle" fill="#ef4444" font-size="8">TLS in transit + IAM authentication</text>
+          <rect x="30" y="164" width="220" height="25" rx="5" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1"/>
+          <text x="140" y="181" text-anchor="middle" fill="#3b82f6" font-size="8">100 GiB EBS per broker (gp3)</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Why 3 Brokers Even in Single-AZ?</h4>
+        <p>Kafka requires 3 brokers for KRaft quorum and replication factor 3. Even in a single AZ, this ensures that if one broker process fails, the cluster maintains data integrity with <code>min.insync.replicas=2</code>. Using <code>kafka.t3.small</code> (2 vCPU, 2 GiB) is the smallest MSK instance type and sufficient for the BookStore's moderate throughput.</p>
+
+<pre><code><span class="comment"># terraform/msk.tf</span>
+resource "aws_msk_cluster" "kafka" {
+  cluster_name           = "bookstore-kafka"
+  kafka_version          = "3.6.0"
+  number_of_broker_nodes = 3
+
+  broker_node_group_info {
+    instance_type   = "kafka.t3.small"
+    client_subnets  = module.vpc.database_subnets
+    security_groups = [aws_security_group.msk.id]
+
+    storage_info {
+      ebs_storage_info {
+        volume_size = 100  <span class="comment"># GiB per broker</span>
+      }
+    }
+  }
+
+  encryption_info {
+    encryption_in_transit {
+      client_broker = "TLS"           <span class="comment"># TLS for client connections</span>
+      in_cluster    = true             <span class="comment"># TLS for inter-broker</span>
+    }
+  }
+
+  client_authentication {
+    sasl {
+      iam = true  <span class="comment"># IAM-based auth (recommended over SASL/SCRAM)</span>
+    }
+  }
+
+  configuration_info {
+    arn      = aws_msk_configuration.bookstore.arn
+    revision = aws_msk_configuration.bookstore.latest_revision
+  }
+
+  tags = { Project = "bookstore" }
+}
+
+resource "aws_msk_configuration" "bookstore" {
+  name              = "bookstore-kafka-config"
+  kafka_versions    = ["3.6.0"]
+  server_properties = &lt;&lt;-EOF
+    auto.create.topics.enable=false
+    default.replication.factor=3
+    min.insync.replicas=2
+    num.partitions=3
+    log.retention.hours=168
+  EOF
+}</code></pre>
+
+        <div class="prevents"><strong>This prevents:</strong> Message interception (TLS in transit), unauthorized topic access (IAM authentication), data loss on broker failure (replication factor 3), and topic sprawl (auto.create.topics disabled).</div>
+        <div class="cost-box"><strong>Cost:</strong> 3x kafka.t3.small = ~$150/mo ($0.068/hr x 3 x 730 hrs). Storage: 300 GiB x $0.10/GB = $30/mo. Total ~$150/mo vs $648/mo for 3x kafka.m5.large.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  14. ELASTICACHE REDIS                                             -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s14"><span class="section-num">14</span> ElastiCache Redis</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Single Node, Auth + TLS</h3>
+      <span class="security-badge">AUTH Token Required</span>
+      <span class="cost-badge">~$13/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="150" viewBox="0 0 280 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="80" y="25" width="120" height="60" rx="10" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+          <text x="140" y="52" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="700">Redis</text>
+          <text x="140" y="70" text-anchor="middle" fill="#94a3b8" font-size="8">cache.t3.micro</text>
+          <!-- Features -->
+          <text x="15" y="40" fill="#ef4444" font-size="8" font-weight="600">AUTH token</text>
+          <text x="15" y="55" fill="#10b981" font-size="8" font-weight="600">TLS enabled</text>
+          <text x="15" y="70" fill="#3b82f6" font-size="8" font-weight="600">Single node</text>
+          <text x="210" y="40" fill="#f59e0b" font-size="8" font-weight="600">CSRF tokens</text>
+          <text x="210" y="55" fill="#f59e0b" font-size="8" font-weight="600">Rate limits</text>
+          <text x="210" y="70" fill="#f59e0b" font-size="8" font-weight="600">Sessions</text>
+          <!-- No replica note -->
+          <text x="140" y="110" text-anchor="middle" fill="#94a3b8" font-size="9">No replica (single-AZ trade-off)</text>
+          <text x="140" y="128" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">$13/mo vs $200/mo for r6g.large cluster</text>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code><span class="comment"># terraform/redis.tf</span>
+resource "aws_elasticache_replication_group" "redis" {
+  replication_group_id = "bookstore-redis"
+  description          = "BookStore CSRF + rate limiting + sessions"
+
+  node_type            = "cache.t3.micro"
+  num_cache_clusters   = 1  <span class="comment"># single node, no replica</span>
+
+  <span class="comment"># Security</span>
+  auth_token                 = random_password.redis.result
+  transit_encryption_enabled = true
+  at_rest_encryption_enabled = true
+
+  <span class="comment"># Network</span>
+  subnet_group_name   = aws_elasticache_subnet_group.redis.name
+  security_group_ids  = [aws_security_group.redis.id]
+
+  <span class="comment"># Engine</span>
+  engine               = "redis"
+  engine_version       = "7.1"
+  parameter_group_name = "default.redis7"
+  port                 = 6379
+
+  <span class="comment"># Maintenance</span>
+  maintenance_window       = "sun:05:00-sun:06:00"
+  snapshot_retention_limit = 1  <span class="comment"># daily snapshot, 1 day</span>
+
+  tags = { Project = "bookstore" }
+}
+
+resource "aws_elasticache_subnet_group" "redis" {
+  name       = "bookstore-redis"
+  subnet_ids = module.vpc.database_subnets
+}
+
+resource "random_password" "redis" {
+  length  = 32
+  special = false  <span class="comment"># Redis AUTH token restrictions</span>
+}</code></pre>
+
+        <div class="prevents"><strong>This prevents:</strong> Unauthenticated Redis access (AUTH token required), CSRF token interception (TLS in transit), and data theft from snapshots (encryption at rest).</div>
+        <div class="cost-box"><strong>Cost:</strong> cache.t3.micro = ~$13/mo ($0.017/hr x 730). Single node with no replica. A production HA setup with cache.r6g.large + 1 replica would cost $200+/mo.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  15. ROUTE 53 + ACM                                               -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s15"><span class="section-num">15</span> Route 53 + ACM</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>DNS + Free TLS Certificates</h3>
+      <span class="security-badge">HTTPS Everywhere</span>
+      <span class="cost-badge">~$0.50/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="180" viewBox="0 0 280 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <text x="140" y="15" text-anchor="middle" fill="#94a3b8" font-size="9">User types: bookstore.example.com</text>
+          <line x1="140" y1="20" x2="140" y2="42" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#aB15)"/>
+          <rect x="65" y="42" width="150" height="40" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+          <text x="140" y="62" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700">Route 53</text>
+          <text x="140" y="76" text-anchor="middle" fill="#94a3b8" font-size="7">Hosted Zone</text>
+          <line x1="140" y1="82" x2="140" y2="105" stroke="#10b981" stroke-width="1.5" marker-end="url(#aG15)"/>
+          <rect x="70" y="105" width="140" height="40" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+          <text x="140" y="125" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700">ALB (HTTPS)</text>
+          <text x="140" y="139" text-anchor="middle" fill="#94a3b8" font-size="7">ACM Wildcard Certificate</text>
+          <!-- ACM badge -->
+          <rect x="10" y="108" width="50" height="20" rx="4" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-width="1"/>
+          <text x="35" y="122" text-anchor="middle" fill="#10b981" font-size="8" font-weight="700">FREE</text>
+          <text x="140" y="168" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">*.bookstore.example.com — auto-renewing</text>
+          <defs>
+            <marker id="aB15" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#3b82f6"/></marker>
+            <marker id="aG15" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#10b981"/></marker>
+          </defs>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code><span class="comment"># terraform/dns.tf</span>
+resource "aws_route53_zone" "main" {
+  name = "bookstore.example.com"
+
+  tags = { Project = "bookstore" }
+}
+
+<span class="comment"># Wildcard ACM certificate — completely free</span>
+resource "aws_acm_certificate" "wildcard" {
+  domain_name               = "bookstore.example.com"
+  subject_alternative_names = ["*.bookstore.example.com"]
+  validation_method         = "DNS"
+
+  lifecycle { create_before_destroy = true }
+
+  tags = { Project = "bookstore" }
+}
+
+<span class="comment"># DNS validation records (auto-created)</span>
+resource "aws_route53_record" "cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.wildcard.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  zone_id = aws_route53_zone.main.zone_id
+  name    = each.value.name
+  type    = each.value.type
+  records = [each.value.record]
+  ttl     = 300
+}
+
+resource "aws_acm_certificate_validation" "wildcard" {
+  certificate_arn = aws_acm_certificate.wildcard.arn
+  validation_record_fqdns = [
+    for record in aws_route53_record.cert_validation : record.fqdn
+  ]
+}
+
+<span class="comment"># A record pointing to ALB</span>
+resource "aws_route53_record" "app" {
+  zone_id = aws_route53_zone.main.zone_id
+  name    = "bookstore.example.com"
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.main.dns_name
+    zone_id                = aws_lb.main.zone_id
+    evaluate_target_health = true
+  }
+}</code></pre>
+
+        <div class="prevents"><strong>This prevents:</strong> Man-in-the-middle attacks (all traffic is HTTPS), certificate expiry outages (ACM auto-renews), and DNS hijacking (Route 53 with IAM controls).</div>
+        <div class="cost-box"><strong>Cost:</strong> Route 53 hosted zone: $0.50/mo. ACM certificate: $0 (free for certificates used with AWS services). DNS queries: ~$0.40/mo for 1M queries.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  16. APPLICATION LOAD BALANCER                                     -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s16"><span class="section-num">16</span> Application Load Balancer</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>HTTPS + WAF + HTTP Redirect</h3>
+      <span class="security-badge">WAF Managed Rules</span>
+      <span class="cost-badge">~$32/mo (ALB + WAF)</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="220" viewBox="0 0 280 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <text x="140" y="15" text-anchor="middle" fill="#94a3b8" font-size="9">Internet Traffic</text>
+          <!-- WAF -->
+          <rect x="85" y="25" width="110" height="30" rx="6" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="140" y="44" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">WAF v2</text>
+          <line x1="140" y1="55" x2="140" y2="72" stroke="#ef4444" stroke-width="1.5" marker-end="url(#aR16)"/>
+          <!-- ALB -->
+          <rect x="60" y="72" width="160" height="50" rx="10" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+          <text x="140" y="95" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700">ALB</text>
+          <text x="140" y="112" text-anchor="middle" fill="#94a3b8" font-size="8">ACM cert + HTTP→HTTPS redirect</text>
+          <!-- Target groups -->
+          <line x1="100" y1="122" x2="60" y2="155" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#aB16)"/>
+          <line x1="140" y1="122" x2="140" y2="155" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#aB16)"/>
+          <line x1="180" y1="122" x2="220" y2="155" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#aB16)"/>
+          <rect x="20" y="155" width="70" height="25" rx="5" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+          <text x="55" y="172" text-anchor="middle" fill="#e2e8f0" font-size="8">UI :30080</text>
+          <rect x="105" y="155" width="70" height="25" rx="5" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+          <text x="140" y="172" text-anchor="middle" fill="#e2e8f0" font-size="8">API :30081</text>
+          <rect x="190" y="155" width="70" height="25" rx="5" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+          <text x="225" y="172" text-anchor="middle" fill="#e2e8f0" font-size="8">IDP :30082</text>
+          <text x="140" y="205" text-anchor="middle" fill="#10b981" font-size="8" font-weight="600">AWS LB Controller creates via Ingress annotations</text>
+          <defs>
+            <marker id="aR16" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#ef4444"/></marker>
+            <marker id="aB16" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#3b82f6"/></marker>
+          </defs>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code><span class="comment"># terraform/alb.tf — via AWS Load Balancer Controller</span>
+<span class="comment"># The ALB is created by the controller from K8s Ingress.</span>
+<span class="comment"># Install the controller via Helm:</span>
+
+resource "helm_release" "aws_lb_controller" {
+  name       = "aws-load-balancer-controller"
+  repository = "https://aws.github.io/eks-charts"
+  chart      = "aws-load-balancer-controller"
+  namespace  = "kube-system"
+
+  set {
+    name  = "clusterName"
+    value = module.eks.cluster_name
+  }
+  set {
+    name  = "serviceAccount.create"
+    value = "true"
+  }
+  set {
+    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+    value = module.lb_controller_irsa.iam_role_arn
+  }
+}
+
+<span class="comment"># WAF v2 — optional but recommended</span>
+resource "aws_wafv2_web_acl" "alb" {
+  name  = "bookstore-waf"
+  scope = "REGIONAL"
+
+  default_action { allow {} }
+
+  <span class="comment"># AWS Managed Rules: Core Rule Set</span>
+  rule {
+    name     = "AWSManagedRulesCommonRuleSet"
+    priority = 1
+    override_action { none {} }
+    statement {
+      managed_rule_group_statement {
+        vendor_name = "AWS"
+        name        = "AWSManagedRulesCommonRuleSet"
+      }
+    }
+    visibility_config {
+      sampled_requests_enabled   = true
+      cloudwatch_metrics_enabled = true
+      metric_name               = "CommonRuleSet"
+    }
+  }
+
+  <span class="comment"># SQL Injection protection</span>
+  rule {
+    name     = "AWSManagedRulesSQLiRuleSet"
+    priority = 2
+    override_action { none {} }
+    statement {
+      managed_rule_group_statement {
+        vendor_name = "AWS"
+        name        = "AWSManagedRulesSQLiRuleSet"
+      }
+    }
+    visibility_config {
+      sampled_requests_enabled   = true
+      cloudwatch_metrics_enabled = true
+      metric_name               = "SQLiRuleSet"
+    }
+  }
+
+  visibility_config {
+    sampled_requests_enabled   = true
+    cloudwatch_metrics_enabled = true
+    metric_name               = "BookstoreWAF"
+  }
+
+  tags = { Project = "bookstore" }
+}</code></pre>
+
+        <div class="prevents"><strong>This prevents:</strong> SQL injection (WAF SQLi rules), cross-site scripting (WAF Common Rule Set), HTTP downgrade attacks (HTTP→HTTPS redirect), and SSL stripping.</div>
+        <div class="cost-box"><strong>Cost:</strong> ALB: ~$22/mo ($16.43 fixed + ~$6 LCU usage). WAF: $5/mo (web ACL) + $2/mo (2 managed rules) + ~$3/mo (request volume) = ~$10/mo. Total: ~$32/mo.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  17. SECRETS MANAGER                                               -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s17"><span class="section-num">17</span> Secrets Manager</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Auto-Generated DB Passwords</h3>
+      <span class="security-badge">No Hardcoded Secrets</span>
+      <span class="cost-badge">~$1.60/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="200" viewBox="0 0 280 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="60" y="10" width="160" height="40" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+          <text x="140" y="35" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700">AWS Secrets Manager</text>
+          <line x1="140" y1="50" x2="140" y2="75" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#aY17)"/>
+          <rect x="50" y="75" width="180" height="35" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="140" y="95" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="600">External Secrets Operator</text>
+          <line x1="140" y1="110" x2="140" y2="130" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#aP17)"/>
+          <rect x="65" y="130" width="150" height="30" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="149" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="600">Kubernetes Secrets</text>
+          <line x1="140" y1="160" x2="140" y2="180" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#aB17)"/>
+          <text x="140" y="196" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">Pods (via env vars)</text>
+          <defs>
+            <marker id="aY17" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#f59e0b"/></marker>
+            <marker id="aP17" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#8b5cf6"/></marker>
+            <marker id="aB17" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#3b82f6"/></marker>
+          </defs>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code><span class="comment"># terraform/secrets.tf</span>
+locals {
+  db_secrets = ["ecom", "inventory", "analytics", "keycloak"]
+}
+
+resource "random_password" "db" {
+  for_each = toset(local.db_secrets)
+  length   = 32
+  special  = true
+}
+
+resource "aws_secretsmanager_secret" "db" {
+  for_each = toset(local.db_secrets)
+  name     = "bookstore/${each.key}/db-credentials"
+
+  tags = { Project = "bookstore", Service = each.key }
+}
+
+resource "aws_secretsmanager_secret_version" "db" {
+  for_each  = toset(local.db_secrets)
+  secret_id = aws_secretsmanager_secret.db[each.key].id
+  secret_string = jsonencode({
+    username = each.key
+    password = random_password.db[each.key].result
+    host     = aws_rds_cluster.db[each.key].endpoint
+    port     = 5432
+    dbname   = each.key
+  })
+}
+
+<span class="comment"># External Secrets Operator syncs to K8s Secrets</span>
+resource "helm_release" "external_secrets" {
+  name       = "external-secrets"
+  repository = "https://charts.external-secrets.io"
+  chart      = "external-secrets"
+  namespace  = "external-secrets"
+  create_namespace = true
+}</code></pre>
+
+        <div class="prevents"><strong>This prevents:</strong> Hardcoded passwords in Terraform state (passwords generated at apply time), secret sprawl (centralized in Secrets Manager), and stale credentials (rotation support built-in).</div>
+        <div class="cost-box"><strong>Cost:</strong> $0.40/secret/mo x 4 secrets = $1.60/mo. API calls are $0.05 per 10,000 calls, negligible for this use case.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  18. KMS KEYS                                                      -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s18"><span class="section-num">18</span> KMS Keys</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Encryption Key Management</h3>
+      <span class="security-badge">Envelope Encryption</span>
+      <span class="cost-badge">~$2/mo</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="180" viewBox="0 0 280 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- KMS Key -->
+          <rect x="90" y="15" width="100" height="40" rx="8" fill="#1e293b" stroke="#fbbf24" stroke-width="2"/>
+          <text x="140" y="40" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700">KMS Keys</text>
+          <!-- Branches -->
+          <line x1="115" y1="55" x2="60" y2="85" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#aY18)"/>
+          <line x1="165" y1="55" x2="220" y2="85" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#aY18)"/>
+          <rect x="20" y="85" width="80" height="35" rx="6" fill="#1e293b" stroke="#fbbf24" stroke-width="1"/>
+          <text x="60" y="103" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">EKS Secrets</text>
+          <text x="60" y="115" text-anchor="middle" fill="#94a3b8" font-size="7">Envelope encryption</text>
+          <rect x="180" y="85" width="80" height="35" rx="6" fill="#1e293b" stroke="#fbbf24" stroke-width="1"/>
+          <text x="220" y="103" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">Aurora + S3</text>
+          <text x="220" y="115" text-anchor="middle" fill="#94a3b8" font-size="7">At-rest encryption</text>
+          <text x="140" y="148" text-anchor="middle" fill="#10b981" font-size="8" font-weight="600">Auto-rotation enabled (annual)</text>
+          <text x="140" y="166" text-anchor="middle" fill="#94a3b8" font-size="8">$1/mo per key x 2 = $2/mo</text>
+          <defs><marker id="aY18" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#fbbf24"/></marker></defs>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code><span class="comment"># terraform/kms.tf</span>
+<span class="comment"># Key 1: EKS Secrets encryption (created in section 9)</span>
+resource "aws_kms_key" "eks" {
+  description             = "EKS Secrets envelope encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+  tags = { Name = "bookstore-eks-key" }
+}
+
+<span class="comment"># Key 2: Aurora + S3 encryption</span>
+resource "aws_kms_key" "aurora" {
+  description             = "Aurora data-at-rest encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+  tags = { Name = "bookstore-aurora-key" }
+}
+
+<span class="comment"># Key aliases for human-readable references</span>
+resource "aws_kms_alias" "eks" {
+  name          = "alias/bookstore-eks"
+  target_key_id = aws_kms_key.eks.key_id
+}
+
+resource "aws_kms_alias" "aurora" {
+  name          = "alias/bookstore-aurora"
+  target_key_id = aws_kms_key.aurora.key_id
+}</code></pre>
+
+        <div class="prevents"><strong>This prevents:</strong> Reading Kubernetes Secrets from etcd snapshots (envelope encryption), reading database backups from S3/EBS (at-rest encryption), and using compromised keys indefinitely (annual auto-rotation).</div>
+        <div class="cost-box"><strong>Cost:</strong> $1/mo per key x 2 = $2/mo. API calls add ~$0.03/mo per 10,000 encrypt/decrypt operations.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  19. ISTIO AMBIENT MESH                                            -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s19"><span class="section-num">19</span> Istio Ambient Mesh</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Zero-Trust Service Mesh</h3>
+      <span class="security-badge">mTLS STRICT</span>
+      <span class="cost-badge">$0/mo (open source)</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="220" viewBox="0 0 280 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Pod A -->
+          <rect x="20" y="50" width="90" height="50" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="65" y="72" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="600">ecom-service</text>
+          <text x="65" y="88" text-anchor="middle" fill="#94a3b8" font-size="7">Pod</text>
+          <!-- Pod B -->
+          <rect x="170" y="50" width="90" height="50" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="215" y="72" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="600">inventory-svc</text>
+          <text x="215" y="88" text-anchor="middle" fill="#94a3b8" font-size="7">Pod</text>
+          <!-- mTLS connection -->
+          <line x1="110" y1="75" x2="170" y2="75" stroke="#10b981" stroke-width="2.5"/>
+          <rect x="120" y="62" width="40" height="22" rx="4" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+          <text x="140" y="77" text-anchor="middle" fill="#10b981" font-size="8" font-weight="700">mTLS</text>
+          <!-- ztunnel -->
+          <rect x="20" y="115" width="90" height="25" rx="5" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-width="1"/>
+          <text x="65" y="132" text-anchor="middle" fill="#10b981" font-size="8">ztunnel (L4)</text>
+          <rect x="170" y="115" width="90" height="25" rx="5" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-width="1"/>
+          <text x="215" y="132" text-anchor="middle" fill="#10b981" font-size="8">ztunnel (L4)</text>
+          <!-- Istiod -->
+          <rect x="90" y="160" width="100" height="35" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+          <text x="140" y="180" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="600">istiod</text>
+          <text x="140" y="192" text-anchor="middle" fill="#94a3b8" font-size="7">Cert authority + config</text>
+          <!-- Lines from istiod -->
+          <line x1="115" y1="160" x2="65" y2="140" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4,3"/>
+          <line x1="165" y1="160" x2="215" y2="140" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="140" y="25" text-anchor="middle" fill="#10b981" font-size="9" font-weight="700">Ambient Mesh: No sidecars needed</text>
+          <text x="140" y="40" text-anchor="middle" fill="#94a3b8" font-size="8">ztunnel per node handles mTLS transparently</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Why Ambient Mesh?</h4>
+        <p>Istio Ambient Mesh replaces per-pod sidecar proxies with per-node ztunnel agents. This reduces resource overhead (no Envoy sidecar in every pod) while maintaining STRICT mTLS between all services. Every connection is encrypted and authenticated at the infrastructure level, regardless of what the application does.</p>
+
+<pre><code><span class="comment"># terraform/istio.tf — Install via Helm</span>
+resource "helm_release" "istio_base" {
+  name       = "istio-base"
+  repository = "https://istio-release.storage.googleapis.com/charts"
+  chart      = "base"
+  namespace  = "istio-system"
+  create_namespace = true
+  version    = "1.29.1"
+}
+
+resource "helm_release" "istiod" {
+  name       = "istiod"
+  repository = "https://istio-release.storage.googleapis.com/charts"
+  chart      = "istiod"
+  namespace  = "istio-system"
+  version    = "1.29.1"
+
+  set { name = "profile"; value = "ambient" }
+
+  depends_on = [helm_release.istio_base]
+}
+
+resource "helm_release" "istio_cni" {
+  name       = "istio-cni"
+  repository = "https://istio-release.storage.googleapis.com/charts"
+  chart      = "cni"
+  namespace  = "istio-system"
+  version    = "1.29.1"
+
+  set { name = "profile"; value = "ambient" }
+
+  depends_on = [helm_release.istiod]
+}
+
+resource "helm_release" "istio_ztunnel" {
+  name       = "ztunnel"
+  repository = "https://istio-release.storage.googleapis.com/charts"
+  chart      = "ztunnel"
+  namespace  = "istio-system"
+  version    = "1.29.1"
+
+  depends_on = [helm_release.istio_cni]
+}</code></pre>
+
+<pre><code><span class="comment"># PeerAuthentication: STRICT mTLS (per namespace)</span>
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: ecom
+spec:
+  mtls:
+    mode: STRICT</code></pre>
+
+        <div class="prevents"><strong>This prevents:</strong> Eavesdropping on service-to-service traffic (mTLS encryption), service impersonation (mutual certificate validation), and unauthorized service access (AuthorizationPolicy deny-by-default).</div>
+        <div class="cost-box"><strong>Cost:</strong> $0/mo. Istio is open source. ztunnel and istiod run on existing system nodes. Ambient Mesh uses ~50% fewer resources than sidecar mode since there is no Envoy proxy per pod.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  20. APPLICATION DEPLOYMENTS                                       -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s20"><span class="section-num">20</span> Application Deployments</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>5 Services, Hardened Security Context</h3>
+      <span class="security-badge">Non-Root, RO Filesystem</span>
+      <span class="cost-badge">Runs on existing nodes</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="240" viewBox="0 0 280 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- 5 pods -->
+          <rect x="15" y="15" width="75" height="40" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+          <text x="52" y="35" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">Keycloak</text>
+          <text x="52" y="48" text-anchor="middle" fill="#94a3b8" font-size="7">Identity</text>
+
+          <rect x="100" y="15" width="75" height="40" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="137" y="35" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">ecom-service</text>
+          <text x="137" y="48" text-anchor="middle" fill="#94a3b8" font-size="7">Spring Boot</text>
+
+          <rect x="185" y="15" width="80" height="40" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+          <text x="225" y="35" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">inventory-svc</text>
+          <text x="225" y="48" text-anchor="middle" fill="#94a3b8" font-size="7">FastAPI</text>
+
+          <rect x="40" y="65" width="75" height="40" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+          <text x="77" y="85" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">UI</text>
+          <text x="77" y="98" text-anchor="middle" fill="#94a3b8" font-size="7">React + Nginx</text>
+
+          <rect x="140" y="65" width="75" height="40" rx="6" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+          <text x="177" y="85" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">CSRF Service</text>
+          <text x="177" y="98" text-anchor="middle" fill="#94a3b8" font-size="7">Go ext_authz</text>
+
+          <!-- Security context -->
+          <rect x="20" y="125" width="240" height="100" rx="8" fill="rgba(239,68,68,0.04)" stroke="#ef4444" stroke-width="1"/>
+          <text x="140" y="142" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">SECURITY CONTEXT (all pods)</text>
+          <text x="40" y="162" fill="#e2e8f0" font-size="8">runAsNonRoot: true</text>
+          <text x="40" y="178" fill="#e2e8f0" font-size="8">readOnlyRootFilesystem: true</text>
+          <text x="40" y="194" fill="#e2e8f0" font-size="8">allowPrivilegeEscalation: false</text>
+          <text x="40" y="210" fill="#e2e8f0" font-size="8">capabilities: drop: ["ALL"]</text>
+          <text x="180" y="162" fill="#94a3b8" font-size="7">Prevents container escape</text>
+          <text x="180" y="178" fill="#94a3b8" font-size="7">Prevents filesystem attacks</text>
+          <text x="180" y="194" fill="#94a3b8" font-size="7">Prevents privilege escalation</text>
+          <text x="180" y="210" fill="#94a3b8" font-size="7">Drops all Linux capabilities</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Deployment Pattern</h4>
+        <p>Every application pod follows the same hardened security context pattern. Init containers run database migrations (Liquibase for ecom, Alembic for inventory). Resource requests and limits are set to prevent noisy-neighbor issues on Spot nodes.</p>
+
+<pre><code><span class="comment"># Example: ecom-service Deployment (applies to all)</span>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ecom-service
+  namespace: ecom
+spec:
+  replicas: 2
+  template:
+    spec:
+      <span class="comment"># Prefer app nodes (Spot)</span>
+      nodeSelector:
+        node-role: app
+      initContainers:
+        - name: migrate
+          image: ACCOUNT.dkr.ecr.REGION.amazonaws.com/bookstore/ecom-service:latest
+          command: ["java", "-jar", "app.jar", "--spring.main.web-application-type=none",
+                    "--spring.liquibase.enabled=true"]
+          envFrom:
+            - secretRef:
+                name: ecom-db-credentials
+      containers:
+        - name: ecom-service
+          image: ACCOUNT.dkr.ecr.REGION.amazonaws.com/bookstore/ecom-service:latest
+          ports:
+            - containerPort: 8080
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 768Mi
+          readinessProbe:
+            httpGet: { path: /ecom/actuator/health, port: 8080 }
+            initialDelaySeconds: 15
+          livenessProbe:
+            httpGet: { path: /ecom/actuator/health, port: 8080 }
+            initialDelaySeconds: 30
+          env:
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                secretKeyRef: { name: ecom-db-credentials, key: url }
+            - name: KEYCLOAK_JWKS_URI
+              value: "http://keycloak.identity.svc:8080/realms/bookstore/protocol/openid-connect/certs"</code></pre>
+
+        <div class="prevents"><strong>This prevents:</strong> Container escape via writable filesystem, privilege escalation to root, capability abuse (NET_RAW for packet sniffing, SYS_ADMIN for mounting), and resource starvation from runaway pods.</div>
+        <div class="cost-box"><strong>Cost:</strong> $0 additional. All pods run on the existing EKS node groups. Resource requests are tuned to fit within the 4 nodes (2 system + 2 app).</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  21. OBSERVABILITY STACK                                           -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s21"><span class="section-num">21</span> Observability Stack</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Prometheus + Grafana + Loki + Tempo</h3>
+      <span class="security-badge">Network-Isolated</span>
+      <span class="cost-badge">~$0/mo additional</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="220" viewBox="0 0 280 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Apps -->
+          <rect x="85" y="10" width="110" height="30" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="140" y="30" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="600">Application Pods</text>
+          <!-- OTel Collector -->
+          <line x1="140" y1="40" x2="140" y2="60" stroke="#06b6d4" stroke-width="1.5" marker-end="url(#aC21)"/>
+          <rect x="65" y="60" width="150" height="30" rx="6" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+          <text x="140" y="80" text-anchor="middle" fill="#06b6d4" font-size="9" font-weight="600">OpenTelemetry Collector</text>
+          <!-- Fan out -->
+          <line x1="100" y1="90" x2="50" y2="120" stroke="#06b6d4" stroke-width="1"/>
+          <line x1="140" y1="90" x2="140" y2="120" stroke="#06b6d4" stroke-width="1"/>
+          <line x1="180" y1="90" x2="230" y2="120" stroke="#06b6d4" stroke-width="1"/>
+          <!-- Prometheus -->
+          <rect x="10" y="120" width="75" height="35" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="1"/>
+          <text x="47" y="142" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">Prometheus</text>
+          <!-- Loki -->
+          <rect x="102" y="120" width="75" height="35" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+          <text x="140" y="142" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">Loki (Logs)</text>
+          <!-- Tempo -->
+          <rect x="195" y="120" width="75" height="35" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+          <text x="232" y="142" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">Tempo (Traces)</text>
+          <!-- Grafana -->
+          <line x1="47" y1="155" x2="140" y2="180" stroke="#10b981" stroke-width="1"/>
+          <line x1="140" y1="155" x2="140" y2="180" stroke="#10b981" stroke-width="1"/>
+          <line x1="232" y1="155" x2="140" y2="180" stroke="#10b981" stroke-width="1"/>
+          <rect x="80" y="180" width="120" height="30" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+          <text x="140" y="200" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700">Grafana</text>
+          <defs><marker id="aC21" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5Z" fill="#06b6d4"/></marker></defs>
+        </svg>
+      </div>
+      <div class="component-details">
+<pre><code><span class="comment"># terraform/observability.tf</span>
+resource "helm_release" "kube_prometheus_stack" {
+  name       = "kube-prometheus-stack"
+  repository = "https://prometheus-community.github.io/helm-charts"
+  chart      = "kube-prometheus-stack"
+  namespace  = "observability"
+  create_namespace = true
+
+  values = [yamlencode({
+    prometheus = {
+      prometheusSpec = {
+        retention = "7d"
+        storageSpec = {
+          volumeClaimTemplate = {
+            spec = {
+              storageClassName = "gp3"
+              resources = { requests = { storage = "20Gi" } }
+            }
+          }
+        }
+        nodeSelector = { "node-role" = "system" }
+      }
+    }
+    grafana = {
+      nodeSelector = { "node-role" = "system" }
+      persistence = { enabled = true, size = "5Gi" }
+    }
+  })]
+}
+
+resource "helm_release" "loki" {
+  name       = "loki"
+  repository = "https://grafana.github.io/helm-charts"
+  chart      = "loki"
+  namespace  = "observability"
+
+  values = [yamlencode({
+    loki = { commonConfig = { replication_factor = 1 } }
+    singleBinary = {
+      replicas     = 1
+      nodeSelector = { "node-role" = "system" }
+    }
+    backend  = { replicas = 0 }
+    read     = { replicas = 0 }
+    write    = { replicas = 0 }
+  })]
+}
+
+resource "helm_release" "tempo" {
+  name       = "tempo"
+  repository = "https://grafana.github.io/helm-charts"
+  chart      = "tempo"
+  namespace  = "observability"
+
+  values = [yamlencode({
+    tempo = { retention = "72h" }
+    nodeSelector = { "node-role" = "system" }
+  })]
+}</code></pre>
+
+        <div class="prevents"><strong>This prevents:</strong> Blind spots in production. Prometheus captures metrics for alerts, Loki centralizes logs for forensics, Tempo traces request flow across services for debugging latency.</div>
+        <div class="cost-box"><strong>Cost:</strong> ~$0 additional. All observability pods run on existing system nodes. EBS storage for Prometheus (20 GiB) adds ~$1.60/mo. No managed AWS observability services needed.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  22. TOTAL COST SUMMARY                                            -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s22"><span class="section-num">22</span> Total Cost Summary</h2>
+
+  <table>
+    <tr><th>Component</th><th>Configuration</th><th class="cost-low">Monthly Cost</th><th class="cost-high">Over-Provisioned</th></tr>
+    <tr><td>EKS Control Plane</td><td>Fixed fee</td><td>$73.00</td><td>$73.00</td></tr>
+    <tr><td>EKS System Nodes</td><td>2x t4g.medium On-Demand</td><td>$49.00</td><td>$292.00 (4x t3.xlarge)</td></tr>
+    <tr><td>EKS App Nodes</td><td>2x t3.large Spot (~70% off)</td><td>$35.00</td><td>$293.00 (4x t3.xlarge OD)</td></tr>
+    <tr><td>Aurora PostgreSQL</td><td>4 clusters, 0.5-4 ACU each</td><td>$172.00</td><td>$800.00 (4x db.r6g.large)</td></tr>
+    <tr><td>Amazon MSK</td><td>3x kafka.t3.small</td><td>$150.00</td><td>$648.00 (3x kafka.m5.large)</td></tr>
+    <tr><td>NAT Gateway</td><td>1 (single-AZ)</td><td>$45.00</td><td>$135.00 (3 NATs)</td></tr>
+    <tr><td>VPC Endpoints</td><td>5 Interface + 1 Gateway</td><td>$37.00</td><td>$37.00</td></tr>
+    <tr><td>ElastiCache Redis</td><td>1x cache.t3.micro</td><td>$13.00</td><td>$200.00 (r6g.large cluster)</td></tr>
+    <tr><td>ALB + WAF</td><td>ALB + 2 WAF managed rules</td><td>$32.00</td><td>$32.00</td></tr>
+    <tr><td>VPC Flow Logs</td><td>REJECT only, 30-day retention</td><td>$5.00</td><td>$50.00 (ALL traffic)</td></tr>
+    <tr><td>KMS Keys</td><td>2 CMKs with rotation</td><td>$2.00</td><td>$2.00</td></tr>
+    <tr><td>ECR</td><td>5 repos, lifecycle policies</td><td>$2.00</td><td>$10.00 (no cleanup)</td></tr>
+    <tr><td>Secrets Manager</td><td>4 secrets</td><td>$1.60</td><td>$1.60</td></tr>
+    <tr><td>Route 53</td><td>1 hosted zone</td><td>$0.50</td><td>$0.50</td></tr>
+    <tr><td>Terraform State</td><td>S3 + DynamoDB</td><td>$1.00</td><td>$1.00</td></tr>
+    <tr><td>Istio + Observability</td><td>Open source on existing nodes</td><td>$0.00</td><td>$0.00</td></tr>
+    <tr style="font-weight: 700; border-top: 2px solid var(--accent);">
+      <td>TOTAL</td><td></td>
+      <td class="cost-low" style="font-size: 1.1rem;">~$618/mo</td>
+      <td class="cost-high" style="font-size: 1.1rem;">~$2,575/mo</td>
+    </tr>
+  </table>
+
+  <div class="callout tip">
+    <strong>Savings: ~$1,957/mo (76% reduction).</strong> The single-AZ optimized stack costs about one-quarter of a naively provisioned setup. Security is identical: all 7 SGs, 3-tier NACLs, KMS encryption, VPC Endpoints, mTLS, and WAF are in place. The trade-off is availability (99.5% vs 99.99%), which is acceptable for dev/staging, startups, and non-critical workloads.
+  </div>
+
+  <div class="callout info">
+    <strong>Multi-AZ comparison:</strong> A properly optimized multi-AZ deployment (same right-sizing but 3 AZs) costs ~$1,100-1,200/mo. The single-AZ savings over multi-AZ come primarily from: 1 NAT instead of 3 (-$90), single Aurora writers (-$172), single Redis node (-$13), and reduced cross-AZ data transfer (-$20).
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  23. DEPLOYMENT COMMANDS                                           -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s23"><span class="section-num">23</span> Deployment Commands</h2>
+
+  <div class="component-section">
+    <div class="component-header">
+      <h3>Step-by-Step Deployment</h3>
+      <span class="security-badge">Production Ready</span>
+    </div>
+    <div class="component-body">
+      <div class="component-visual">
+        <svg width="280" height="320" viewBox="0 0 280 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Steps -->
+          <circle cx="30" cy="25" r="12" fill="#3b82f6"/><text x="30" y="30" text-anchor="middle" fill="white" font-size="10" font-weight="700">1</text>
+          <text x="55" y="30" fill="#e2e8f0" font-size="9" font-weight="600">Terraform Init</text>
+          <line x1="30" y1="37" x2="30" y2="50" stroke="#334155" stroke-width="1.5"/>
+
+          <circle cx="30" cy="62" r="12" fill="#8b5cf6"/><text x="30" y="67" text-anchor="middle" fill="white" font-size="10" font-weight="700">2</text>
+          <text x="55" y="67" fill="#e2e8f0" font-size="9" font-weight="600">Plan + Apply Infra</text>
+          <line x1="30" y1="74" x2="30" y2="87" stroke="#334155" stroke-width="1.5"/>
+
+          <circle cx="30" cy="99" r="12" fill="#f59e0b"/><text x="30" y="104" text-anchor="middle" fill="white" font-size="10" font-weight="700">3</text>
+          <text x="55" y="104" fill="#e2e8f0" font-size="9" font-weight="600">Build + Push Images</text>
+          <line x1="30" y1="111" x2="30" y2="124" stroke="#334155" stroke-width="1.5"/>
+
+          <circle cx="30" cy="136" r="12" fill="#10b981"/><text x="30" y="141" text-anchor="middle" fill="white" font-size="10" font-weight="700">4</text>
+          <text x="55" y="141" fill="#e2e8f0" font-size="9" font-weight="600">Install Istio + Mesh</text>
+          <line x1="30" y1="148" x2="30" y2="161" stroke="#334155" stroke-width="1.5"/>
+
+          <circle cx="30" cy="173" r="12" fill="#06b6d4"/><text x="30" y="178" text-anchor="middle" fill="white" font-size="10" font-weight="700">5</text>
+          <text x="55" y="178" fill="#e2e8f0" font-size="9" font-weight="600">Deploy K8s Manifests</text>
+          <line x1="30" y1="185" x2="30" y2="198" stroke="#334155" stroke-width="1.5"/>
+
+          <circle cx="30" cy="210" r="12" fill="#ef4444"/><text x="30" y="215" text-anchor="middle" fill="white" font-size="10" font-weight="700">6</text>
+          <text x="55" y="215" fill="#e2e8f0" font-size="9" font-weight="600">Smoke Test</text>
+          <line x1="30" y1="222" x2="30" y2="235" stroke="#334155" stroke-width="1.5"/>
+
+          <circle cx="30" cy="247" r="12" fill="#94a3b8"/><text x="30" y="252" text-anchor="middle" fill="white" font-size="10" font-weight="700">7</text>
+          <text x="55" y="252" fill="#e2e8f0" font-size="9" font-weight="600">Tear Down (when done)</text>
+        </svg>
+      </div>
+      <div class="component-details">
+        <h4>Step 1: Initialize Terraform</h4>
+<pre><code>cd terraform/
+terraform init</code></pre>
+
+        <h4>Step 2: Plan and Apply Infrastructure</h4>
+<pre><code><span class="comment"># Review what will be created</span>
+terraform plan -out=tfplan
+
+<span class="comment"># Apply (creates VPC, EKS, Aurora, MSK, Redis, etc.)</span>
+terraform apply tfplan
+
+<span class="comment"># Configure kubectl</span>
+aws eks update-kubeconfig --name bookstore-cluster --region us-east-1</code></pre>
+
+        <h4>Step 3: Build and Push Docker Images</h4>
+<pre><code><span class="comment"># Login to ECR</span>
+aws ecr get-login-password --region us-east-1 | \
+  docker login --username AWS --password-stdin ACCOUNT.dkr.ecr.us-east-1.amazonaws.com
+
+<span class="comment"># Build and push each service</span>
+for svc in ecom-service inventory-service ui csrf-service flink; do
+  docker build -t ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/bookstore/$svc:v1 ./$svc/
+  docker push ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/bookstore/$svc:v1
+done</code></pre>
+
+        <h4>Step 4: Install Istio Ambient Mesh</h4>
+<pre><code><span class="comment"># Istio is installed via Terraform Helm releases (section 19)</span>
+<span class="comment"># Verify installation:</span>
+kubectl get pods -n istio-system
+kubectl get peerauthentication -A</code></pre>
+
+        <h4>Step 5: Deploy Kubernetes Manifests</h4>
+<pre><code><span class="comment"># Apply External Secrets, then app manifests</span>
+kubectl apply -f k8s/namespaces/
+kubectl apply -f k8s/external-secrets/
+kubectl apply -f k8s/apps/
+
+<span class="comment"># Wait for all pods</span>
+kubectl get pods -A --watch</code></pre>
+
+        <h4>Step 6: Smoke Test</h4>
+<pre><code><span class="comment"># Verify all services are healthy</span>
+curl -sk https://bookstore.example.com/ecom/books | jq .
+curl -sk https://bookstore.example.com/inven/health
+curl -sk https://bookstore.example.com  <span class="comment"># UI</span></code></pre>
+
+        <h4>Step 7: Tear Down (When Done)</h4>
+<pre><code><span class="comment"># Destroy all infrastructure</span>
+terraform destroy
+
+<span class="comment"># Note: S3 state bucket is not destroyed by default</span>
+<span class="comment"># (it has deletion protection). Remove manually if needed.</span></code></pre>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  24. SECURITY AUDIT CHECKLIST                                      -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2 id="s24"><span class="section-num">24</span> Security Audit Checklist</h2>
+
+  <p>Verify every security control is in place before going live. This checklist covers networking, encryption, access control, and operational security.</p>
+
+  <div class="check-cat security">Network Security</div>
+  <ul class="checklist">
+    <li><span class="check-box security"></span>ALB SG: ingress only 80/443, egress only to Workers SG on 30000-32767</li>
+    <li><span class="check-box security"></span>Workers SG: 5 targeted egress rules, no 0.0.0.0/0 catch-all</li>
+    <li><span class="check-box security"></span>Aurora SG: ingress only from Workers SG on 5432</li>
+    <li><span class="check-box security"></span>MSK SG: ingress from Workers + self-referencing inter-broker</li>
+    <li><span class="check-box security"></span>Redis SG: ingress only from Workers SG on 6379</li>
+    <li><span class="check-box security"></span>VPC Endpoints SG: ingress only from Workers SG on 443</li>
+    <li><span class="check-box security"></span>Public NACL: allows only 80, 443, and ephemeral ports</li>
+    <li><span class="check-box security"></span>Database NACL: allows only 5432, 6379, 9092-9094 from private subnet</li>
+    <li><span class="check-box security"></span>Database subnet has no default route to internet</li>
+    <li><span class="check-box security"></span>VPC Flow Logs enabled (REJECT traffic)</li>
+    <li><span class="check-box security"></span>6 VPC Endpoints active (S3, ECR API, ECR DKR, STS, CW Logs, Secrets Manager)</li>
+  </ul>
+
+  <div class="check-cat security">Encryption</div>
+  <ul class="checklist">
+    <li><span class="check-box security"></span>EKS Secrets encrypted with KMS (envelope encryption)</li>
+    <li><span class="check-box security"></span>Aurora encrypted at rest with KMS CMK</li>
+    <li><span class="check-box security"></span>Redis at-rest encryption enabled</li>
+    <li><span class="check-box security"></span>Redis transit encryption (TLS) enabled</li>
+    <li><span class="check-box security"></span>MSK TLS in transit for client and inter-broker</li>
+    <li><span class="check-box security"></span>S3 state bucket encrypted with KMS + bucket key</li>
+    <li><span class="check-box security"></span>ACM certificate attached to ALB (HTTPS termination)</li>
+    <li><span class="check-box security"></span>KMS key auto-rotation enabled on all CMKs</li>
+  </ul>
+
+  <div class="check-cat security">Access Control</div>
+  <ul class="checklist">
+    <li><span class="check-box security"></span>EKS API server: private endpoint only (no public access)</li>
+    <li><span class="check-box security"></span>EKS nodes: no public IP addresses</li>
+    <li><span class="check-box security"></span>IAM deployer user: least-privilege policies (not AdministratorAccess)</li>
+    <li><span class="check-box security"></span>IRSA enabled: pods use IAM roles, not static credentials</li>
+    <li><span class="check-box security"></span>Redis AUTH token required for all connections</li>
+    <li><span class="check-box security"></span>MSK IAM authentication enabled</li>
+    <li><span class="check-box security"></span>Aurora passwords in Secrets Manager (not in Terraform state or env vars)</li>
+    <li><span class="check-box security"></span>S3 state bucket: public access blocked (all 4 settings)</li>
+    <li><span class="check-box security"></span>S3 state bucket: HTTPS-only policy (deny insecure transport)</li>
+  </ul>
+
+  <div class="check-cat security">Kubernetes Security</div>
+  <ul class="checklist">
+    <li><span class="check-box security"></span>All pods: runAsNonRoot: true</li>
+    <li><span class="check-box security"></span>All pods: readOnlyRootFilesystem: true</li>
+    <li><span class="check-box security"></span>All pods: allowPrivilegeEscalation: false</li>
+    <li><span class="check-box security"></span>All pods: capabilities drop ALL</li>
+    <li><span class="check-box security"></span>Istio PeerAuthentication: STRICT mTLS on all namespaces</li>
+    <li><span class="check-box security"></span>Istio AuthorizationPolicy: deny-by-default, explicit allows</li>
+    <li><span class="check-box security"></span>RequestAuthentication: JWT validation from Keycloak</li>
+    <li><span class="check-box security"></span>CSRF ext_authz: state-changing requests validated</li>
+    <li><span class="check-box security"></span>Resource requests/limits set on all containers</li>
+  </ul>
+
+  <div class="check-cat cost">Cost Controls</div>
+  <ul class="checklist">
+    <li><span class="check-box cost"></span>Single NAT Gateway (not 3)</li>
+    <li><span class="check-box cost"></span>Aurora Serverless v2 min 0.5 ACU (not fixed provisioned)</li>
+    <li><span class="check-box cost"></span>App nodes on Spot instances with multi-type fallback</li>
+    <li><span class="check-box cost"></span>System nodes on Graviton ARM (t4g, 20% cheaper)</li>
+    <li><span class="check-box cost"></span>Redis cache.t3.micro (right-sized for session/CSRF workload)</li>
+    <li><span class="check-box cost"></span>MSK kafka.t3.small (smallest instance type)</li>
+    <li><span class="check-box cost"></span>ECR lifecycle policies (keep 10, clean untagged daily)</li>
+    <li><span class="check-box cost"></span>Flow Logs REJECT only (not ALL)</li>
+    <li><span class="check-box cost"></span>All resources tagged with Project=bookstore for cost attribution</li>
+  </ul>
+
+  <div class="check-cat ops">Operational Readiness</div>
+  <ul class="checklist">
+    <li><span class="check-box ops"></span>Prometheus collecting metrics from all services</li>
+    <li><span class="check-box ops"></span>Grafana dashboards configured (cluster, app, logs)</li>
+    <li><span class="check-box ops"></span>Loki receiving logs from OTel Collector</li>
+    <li><span class="check-box ops"></span>Aurora automated backups: 7-day retention</li>
+    <li><span class="check-box ops"></span>Terraform state versioned in S3 (rollback capability)</li>
+    <li><span class="check-box ops"></span>DynamoDB state locking prevents concurrent applies</li>
+    <li><span class="check-box ops"></span>ECR scan-on-push reporting CVEs to CloudWatch</li>
+  </ul>
+
+
+  <footer>
+    <p>BookStore Platform &mdash; Single-AZ EKS Deployment Guide</p>
+    <p>
+      <a href="production-hardening-aws.html">Full Hardening Guide</a> &middot;
+      <a href="hardening-visual-aws.html">Before/After Visual</a> &middot;
+      <a href="deploy-aws.html">Multi-AZ Deploy Guide</a> &middot;
+      <a href="index.html">Home</a>
+    </p>
+  </footer>
+
+</div>
+</body>
+</html>
