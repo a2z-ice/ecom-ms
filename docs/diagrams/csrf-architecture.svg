@@ -145,7 +145,7 @@
   <rect x="865" y="196" width="200" height="88" rx="12" fill="url(#nRed)" filter="url(#glowR)"/>
   <text x="965" y="222" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Redis</text>
   <text x="965" y="242" text-anchor="middle" fill="#fecaca" font-size="10">CSRF Token Store</text>
-  <text x="965" y="260" text-anchor="middle" fill="#fca5a5" font-size="9">Key: csrf:{sub} | TTL: 30min</text>
+  <text x="965" y="260" text-anchor="middle" fill="#fca5a5" font-size="9">Key: csrf:{sub} | TTL: 10min sliding</text>
   <text x="965" y="276" text-anchor="middle" fill="#fca5a5" font-size="8">Timing-safe compare | Fail-open</text>
 
   <!-- Return arrow: CSRF → Gateway (200 or 403) -->

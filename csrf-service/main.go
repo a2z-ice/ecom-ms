@@ -61,7 +61,7 @@ func main() {
 	}
 
 	h := handler.New(tokenStore, metrics, originValidator, rateLimiter, introspector,
-		cfg.AllowedAudiences, cfg.ValidateAudience)
+		cfg.AllowedAudiences, cfg.ValidateAudience, cfg.SlidingTTL)
 
 	// Verify Redis connectivity
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -83,6 +83,7 @@ func main() {
 	slog.Info("CSRF service configuration",
 		"mode", failMode,
 		"tokenTTL", cfg.TokenTTL,
+		"slidingTTL", cfg.SlidingTTL,
 		"rateLimit", cfg.RateLimitPerMin,
 		"validateAudience", cfg.ValidateAudience,
 		"requireOrigin", cfg.RequireOrigin,

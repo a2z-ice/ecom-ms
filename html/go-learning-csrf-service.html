@@ -289,7 +289,7 @@ name := <span class="go-string">"hello"</span>               <span class="go-com
 <pre><code><span class="go-keyword">type</span> <span class="go-type">Config</span> <span class="go-keyword">struct</span> {
     Port             <span class="go-type">string</span>           <span class="go-comment">// "8080"</span>
     RedisAddr        <span class="go-type">string</span>           <span class="go-comment">// "redis.infra.svc:6379"</span>
-    TokenTTL         <span class="go-type">time.Duration</span>    <span class="go-comment">// 30 * time.Minute</span>
+    TokenTTL         <span class="go-type">time.Duration</span>    <span class="go-comment">// 10 * time.Minute</span>
     FailClosed       <span class="go-type">bool</span>             <span class="go-comment">// false (fail-open by default)</span>
     AllowedOrigins   []<span class="go-type">string</span>         <span class="go-comment">// ["https://myecom.net:30000", ...]</span>
     RateLimitPerMin  <span class="go-type">int</span>              <span class="go-comment">// 60</span>
@@ -487,7 +487,7 @@ client := redis.NewClient(&redis.Options{
 })</code></pre>
 
 <h4>What happens when you call <code>s.client.Set(...)</code>:</h4>
-<div class="flow"><span class="go-func">s.client.Set(ctx, "csrf:user-123", "token-uuid", 30*time.Minute)</span>
+<div class="flow"><span class="go-func">s.client.Set(ctx, "csrf:user-123", "token-uuid", 10*time.Minute)</span>
 
 Under the hood:
   <span class="b">1.</span> go-redis checks the <span class="y">connection pool</span> for an idle TCP connection
@@ -496,7 +496,7 @@ Under the hood:
      &bull; Pool full (10 connections)? <span class="r">&rarr; Wait until one is returned</span>
 
   <span class="b">2.</span> Sends Redis protocol (RESP) over TCP:
-     <span class="go-string">*4\r\n$3\r\nSET\r\n$14\r\ncsrf:user-123\r\n$36\r\n550e8400-...\r\n$2\r\nEX\r\n$4\r\n1800\r\n</span>
+     <span class="go-string">*4\r\n$3\r\nSET\r\n$14\r\ncsrf:user-123\r\n$36\r\n550e8400-...\r\n$2\r\nEX\r\n$3\r\n600\r\n</span>
      (This is the Redis wire protocol &mdash; plain text over TCP)
 
   <span class="b">3.</span> Waits for response:
@@ -758,7 +758,7 @@ If Envoy <span class="r">cancels</span> the request (e.g., client disconnected):
         value = token + <span class="go-string">"|"</span> + origin          <span class="go-comment">// Bind to origin: "550e...|https://myecom.net:30000"</span>
     }
 
-    <span class="go-comment">// Redis SET with TTL: key="csrf:user-123", value="uuid|origin", expires in 30min</span>
+    <span class="go-comment">// Redis SET with TTL: key="csrf:user-123", value="uuid|origin", expires in 10min</span>
     <span class="go-keyword">if</span> err := s.client.Set(ctx, keyPrefix+userID, value, s.ttl).Err(); err != <span class="go-keyword">nil</span> {
         <span class="go-keyword">if</span> s.failClosed {
             <span class="go-keyword">return</span> <span class="go-string">""</span>, err                  <span class="go-comment">// Fail-closed: return empty token</span>

@@ -100,10 +100,10 @@ Redis-backed token store using Spring's auto-configured `StringRedisTemplate`.
 @Service
 public class CsrfTokenService {
     private static final String KEY_PREFIX = "csrf:";
-    private static final Duration TOKEN_TTL = Duration.ofMinutes(30);
+    private static final Duration TOKEN_TTL = Duration.ofMinutes(10);
     private final StringRedisTemplate redisTemplate;
 
-    // Generate a new CSRF token, store in Redis with 30min TTL
+    // Generate a new CSRF token, store in Redis with 10min TTL
     public String generateToken(String userId) {
         String token = UUID.randomUUID().toString();
         redisTemplate.opsForValue().set(KEY_PREFIX + userId, token, TOKEN_TTL);
@@ -130,7 +130,7 @@ public class CsrfTokenService {
 
 **Key design decisions:**
 - **Redis key format:** `csrf:{JWT-sub-claim}` — one token per authenticated user
-- **TTL:** 30 minutes, refreshed on every successful validation
+- **TTL:** 10 minutes (configurable via `CSRF_TOKEN_TTL_MINUTES`), refreshed on every successful validation and on authenticated safe method requests (sliding TTL via `CSRF_SLIDING_TTL=true`)
 - **Fail-open:** If Redis is unavailable, requests are allowed through (JWT remains the primary defense)
 
 #### 3.2 CsrfValidationFilter.java
@@ -317,7 +317,7 @@ csrf:
 | Aspect | Status |
 |--------|--------|
 | CSRF protection | Enabled (custom Redis-backed filter) |
-| Redis key format | `csrf:{userId}` with 30min TTL |
+| Redis key format | `csrf:{userId}` with 10min TTL |
 | X-CSRF-Token header | Sent by UI on all POST/PUT/DELETE/PATCH |
 | CSRF endpoint | `GET /ecom/csrf-token` (JWT required) |
 | Mutating requests | JWT + CSRF token required |
@@ -333,7 +333,7 @@ csrf:
 | Scenario | Behavior |
 |----------|----------|
 | User clicks button before CSRF token is fetched | 403 returned, auto-retry fetches token, request succeeds |
-| Token expires after 30min idle | Same 403-retry mechanism |
+| Token expires after 10min idle | Same 403-retry mechanism; also auto-regeneration returns new token in 403 body |
 | Redis is unavailable | Fail-open: request allowed with warning log |
 | Unauthenticated request to mutating endpoint | CSRF filter passes through; Spring Security rejects at auth layer (401) |
 | GET requests | Always exempt from CSRF validation |
@@ -465,7 +465,7 @@ csrf:d4d573f8-178d-4843-92e2-d0e3596ee18e
 kubectl exec -n infra deploy/redis -- redis-cli -a CHANGE_ME TTL 'csrf:d4d573f8-178d-4843-92e2-d0e3596ee18e'
 ```
 
-**Expected:** A value between 0 and 1800 (30 minutes in seconds).
+**Expected:** A value between 0 and 600 (10 minutes in seconds).
 
 ### Step 10: Run the CSRF E2E Tests
 

@@ -64,6 +64,7 @@
       title: 'Infrastructure',
       links: [
         { label: 'CDC Pipeline Hardening', href: 'cdc-hardening.html' },
+        { label: 'CDC & Superset Stability', href: 'cdc-superset-stability-guide.html', highlight: true },
         { label: 'Schema Registry', href: 'schema-registry.html' },
         { label: 'PostgreSQL HA (CNPG)', href: 'postgresql-ha.html' },
         { label: 'Sessions 30\u201333: Hardening', href: 'sessions-30-33-architecture-hardening.html' },
@@ -82,7 +83,8 @@
         { label: '\u2466 Architecture Deep Dive', href: 'csrf-architecture-deep-dive.html', highlight: true },
         { label: '\u2467 Security Enhancements', href: 'csrf-security-enhancements.html', highlight: true },
         { label: '\u2468 Before vs After (8 Fixes)', href: 'csrf-before-after-comparison.html', highlight: true },
-        { label: '\u2469 JWT Introspection', href: 'csrf-jwt-introspection.html', highlight: true }
+        { label: '\u2469 JWT Introspection', href: 'csrf-jwt-introspection.html', highlight: true },
+        { label: '\u246A Sliding TTL & Auto-Regen', href: 'csrf-sliding-ttl-auto-regen.html', highlight: true }
       ]
     },
     {

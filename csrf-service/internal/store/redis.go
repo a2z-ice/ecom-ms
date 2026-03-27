@@ -22,6 +22,9 @@ type TokenStore interface {
 	// Validate checks if the provided token matches the stored token.
 	// Tokens are single-use: consumed (deleted) on successful validation.
 	Validate(ctx context.Context, userID, token, origin string) (bool, error)
+	// RefreshTTL extends the TTL of an existing token without reading its value.
+	// Returns nil if the key does not exist (no token to refresh).
+	RefreshTTL(ctx context.Context, userID string) error
 	// Ping checks Redis connectivity.
 	Ping(ctx context.Context) error
 	// Close releases the underlying connection.
@@ -103,6 +106,15 @@ func (s *RedisStore) Validate(ctx context.Context, userID, token, origin string)
 		}
 	}
 	return valid, nil
+}
+
+func (s *RedisStore) RefreshTTL(ctx context.Context, userID string) error {
+	_, err := s.client.Expire(ctx, keyPrefix+userID, s.ttl).Result()
+	if err != nil {
+		slog.Warn("Failed to refresh CSRF token TTL", "user", userID, "error", err)
+		return err
+	}
+	return nil
 }
 
 func (s *RedisStore) Ping(ctx context.Context) error {

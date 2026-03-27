@@ -171,16 +171,16 @@ This is NOT the Double Submit Cookie pattern (which stores tokens in both a cook
 | State | Trigger | Redis Key | TTL |
 |-------|---------|-----------|-----|
 | **Not Created** | User not authenticated | — | — |
-| **Generated** | `GET /csrf/token` with valid JWT | `csrf:<sub>` = `<uuid>` | 30 minutes |
-| **Validated + Refreshed** | Successful ext_authz check | `csrf:<sub>` (same value) | 30 minutes (reset) |
-| **Expired** | 30 minutes without validation | Key deleted by Redis | — |
-| **Regenerated** | Another `GET /csrf/token` call | `csrf:<sub>` = `<new-uuid>` | 30 minutes |
+| **Generated** | `GET /csrf/token` with valid JWT | `csrf:<sub>` = `<uuid>` | 10 minutes |
+| **Validated + Refreshed** | Successful ext_authz check or authenticated safe method (sliding TTL) | `csrf:<sub>` (same value) | 10 minutes (reset) |
+| **Expired** | 10 minutes without any authenticated request | Key deleted by Redis | — |
+| **Regenerated** | Another `GET /csrf/token` call | `csrf:<sub>` = `<new-uuid>` | 10 minutes |
 
 ### Key Behaviors
 
 - **One token per user**: Calling `GET /csrf/token` again overwrites the previous token in Redis. The old token immediately becomes invalid.
 - **Multi-use tokens**: A token can be used for unlimited mutating requests until it expires or is replaced.
-- **Sliding expiration**: Each successful validation resets the 30-minute TTL. An active user's token never expires.
+- **Sliding expiration**: Each successful validation or authenticated safe method request (GET/HEAD/OPTIONS) resets the 10-minute TTL via Redis EXPIRE (configurable via `CSRF_SLIDING_TTL`, default: `true`). An active user's token never expires.
 - **No grace period**: Once the Redis key expires (TTL reaches 0), the token is gone. The next mutating request will fail with 403.
 
 ---
@@ -250,7 +250,7 @@ Only the token string is stored as the Redis value. No metadata (timestamp, IP, 
 ```
 KEY:   csrf:9d82bcb3-6e96-462c-bdb9-e677080e8920
 VALUE: 550e8400-e29b-41d4-a716-446655440000
-TTL:   1800 seconds (30 minutes)
+TTL:   600 seconds (10 minutes)
 TYPE:  string
 ```
 
@@ -320,7 +320,7 @@ func (s *RedisStore) Validate(ctx context.Context, userID, token string) (bool, 
 2. **Key not found** (`redis.Nil`): Return `(false, nil)` — token invalid, no error
 3. **Redis error** (connection timeout, etc.): Return `(true, err)` — **fail-open**
 4. **Token comparison**: `crypto/subtle.ConstantTimeCompare` — timing-safe
-5. **TTL refresh**: On match, reset TTL to 30 minutes from now
+5. **TTL refresh**: On match, reset TTL to 10 minutes from now
 6. **Return result**: `(true, nil)` if valid, `(false, nil)` if mismatch
 
 ### Timing-Safe Comparison
@@ -382,18 +382,19 @@ func ExtractSub(authHeader string) string {
 Redis native key expiration handles token lifecycle. When a token is created or refreshed:
 
 ```
-SETEX csrf:<sub> 1800 <token>
+SETEX csrf:<sub> 600 <token>
 ```
 
-After 1800 seconds (30 minutes) of inactivity, Redis automatically deletes the key. No background jobs, no sweep processes, no application-level expiration checks.
+After 600 seconds (10 minutes) of inactivity, Redis automatically deletes the key. No background jobs, no sweep processes, no application-level expiration checks.
 
 ### Sliding Window Behavior
 
 ```
-Time 0:00  — User logs in, GET /csrf/token → token created, TTL = 30min
-Time 10:00 — User adds to cart (POST), CSRF validates → TTL reset to 30min from now
-Time 25:00 — User checks out (POST), CSRF validates → TTL reset to 30min from now
-Time 55:00 — No activity for 30 minutes → Redis deletes key automatically
+Time 0:00  — User logs in, GET /csrf/token → token created, TTL = 10min
+Time 5:00  — User browses catalog (GET), sliding TTL refreshes → TTL reset to 10min from now
+Time 10:00 — User adds to cart (POST), CSRF validates → TTL reset to 10min from now
+Time 15:00 — User checks out (POST), CSRF validates → TTL reset to 10min from now
+Time 25:00 — No activity for 10 minutes → Redis deletes key automatically
 Time 55:01 — User tries POST → 403 (no token in Redis)
 Time 55:02 — UI auto-retries: fetches new token, retries POST → succeeds
 ```
@@ -417,13 +418,13 @@ This means token expiration is invisible to the user in most cases. The only sce
 
 | Strategy | This Project | Django CSRF | Spring Security CSRF |
 |----------|-------------|-------------|---------------------|
-| **TTL** | 30 minutes (sliding) | Session lifetime (days/weeks) | Session lifetime |
+| **TTL** | 10 minutes (sliding) | Session lifetime (days/weeks) | Session lifetime |
 | **Refresh** | On each successful validation | On page load (new token per form) | Per-session |
 | **Multi-use** | Yes | Yes (per-session token) | Yes (per-session token) |
 | **Storage** | Redis | Database/signed cookie | HTTP session (server-side) |
 | **Auto-recovery** | UI retries on 403 | User refreshes page | User refreshes page |
 
-The 30-minute sliding TTL is more aggressive than most frameworks, which typically tie CSRF tokens to the session lifetime. This is a deliberate trade-off: shorter TTL reduces the window of exposure if a token leaks, at the cost of more frequent token generation.
+The 10-minute sliding TTL is more aggressive than most frameworks, which typically tie CSRF tokens to the session lifetime. This is a deliberate trade-off: shorter TTL reduces the window of exposure if a token leaks, at the cost of more frequent token generation. Additionally, sliding TTL now extends to authenticated safe method requests (GET/HEAD/OPTIONS), so browsing activity keeps the token alive without requiring mutations.
 
 ---
 
@@ -685,7 +686,7 @@ These Prometheus metrics allow operators to detect when fail-open is being trigg
 | Aspect | This Project | Django |
 |--------|-------------|--------|
 | Token generation | UUID v4 (122 bits) | 64-char hex (256 bits), HMAC-SHA256 signed |
-| Token storage (server) | Redis with 30min TTL | Not stored — validated via HMAC signature |
+| Token storage (server) | Redis with 10min TTL | Not stored — validated via HMAC signature |
 | Token storage (client) | In-memory JS variable | `csrftoken` cookie + hidden form field |
 | Token delivery | JSON response from API | Set-Cookie header + template tag |
 | Token submission | `X-CSRF-Token` custom header | `csrfmiddlewaretoken` POST field or `X-CSRFToken` header |
@@ -946,9 +947,9 @@ The CSRF service depends on a single Redis instance. If Redis goes down:
 
 The token is not bound to the specific URL, method, or body of the request. A valid CSRF token can be used for any mutating endpoint (POST to `/ecom/cart`, DELETE to `/ecom/cart/1`, etc.). This is standard practice — most CSRF implementations (Django, Spring Security, Rails) also use per-session/per-user tokens rather than per-request tokens.
 
-### 30-Minute TTL May Be Too Short for Idle Users
+### 10-Minute TTL and Idle Users
 
-If a user reads a long article, browses products for 30+ minutes without clicking anything, and then tries to add to cart, the CSRF token will have expired. The UI auto-retry handles this transparently, but the user may notice a brief delay while the retry occurs.
+If a user is completely idle for 10+ minutes (no page loads, no navigation) and then tries a mutating action, the CSRF token will have expired. However, the sliding TTL mechanism refreshes the token on every authenticated GET request, so normal browsing keeps the token alive. If the token does expire, the auto-regeneration feature returns a fresh token in the 403 response body, and the UI retries transparently — the user may notice only a brief delay.
 
 ### No CSRF on Service-to-Service Calls
 
@@ -980,7 +981,7 @@ Browser                Gateway (Envoy)         csrf-service         Redis       
   │                         │                      │  ConstantTime    │              │
   │                         │                      │  Compare: MATCH  │              │
   │                         │                      │                  │              │
-  │                         │                      │  EXPIRE csrf:<sub> 1800         │
+  │                         │                      │  EXPIRE csrf:<sub> 600          │
   │                         │                      │─────────────────▶│              │
   │                         │                      │                  │              │
   │                         │  200 OK              │                  │              │
@@ -1021,7 +1022,7 @@ Browser                Gateway (Envoy)         csrf-service         Redis
   │                         │─────────────────────▶│                  │
   │                         │                      │  SET csrf:<sub>  │
   │                         │                      │  <new-token>     │
-  │                         │                      │  TTL 1800        │
+  │                         │                      │  TTL 600         │
   │                         │                      │─────────────────▶│
   │  { token: <new> }       │                      │                  │
   │◀────────────────────────│                      │                  │

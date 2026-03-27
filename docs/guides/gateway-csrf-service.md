@@ -85,7 +85,7 @@ Browser --> HTTPS (TLS) --> Istio Gateway
 - **Language-agnostic:** Backends do not need any CSRF code. The gateway handles it before the request reaches the backend.
 - **Fail-open on Redis errors:** If Redis is unreachable during validation, the service returns 200 (allow). This prevents a Redis outage from taking down all write operations. CSRF is a defense-in-depth measure on top of JWT authentication.
 - **Unauthenticated requests pass through:** If no JWT is present (no `Authorization` header), mutating requests are allowed through. The backend's own JWT validation will reject them. CSRF protection is meaningful only for authenticated browser sessions.
-- **Token-per-user model:** Each user gets one active CSRF token at a time, stored in Redis with a 30-minute TTL. The TTL is refreshed on each successful validation, so active sessions do not lose their token.
+- **Token-per-user model:** Each user gets one active CSRF token at a time, stored in Redis with a 10-minute TTL. The TTL is refreshed on each successful validation and on authenticated safe method requests (sliding TTL via `CSRF_SLIDING_TTL=true`), so active sessions do not lose their token.
 
 ---
 
@@ -144,12 +144,12 @@ import (
 ```go
 const (
 	redisKeyPrefix = "csrf:"
-	tokenTTL       = 30 * time.Minute
+	tokenTTL       = 10 * time.Minute
 )
 ```
 
 - `redisKeyPrefix` — All CSRF tokens are stored with key `csrf:<userId>`. The prefix prevents collision with other Redis data (session tokens, rate limits, etc.).
-- `tokenTTL` — Tokens expire after 30 minutes of inactivity. The TTL is refreshed on each successful validation, so active sessions never lose their token.
+- `tokenTTL` — Tokens expire after 10 minutes of inactivity (configurable via `CSRF_TOKEN_TTL_MINUTES` env var, default: `"10"`). The TTL is refreshed on each successful validation and on authenticated safe method requests (sliding TTL), so active sessions never lose their token.
 
 ```go
 var (
@@ -255,7 +255,7 @@ Generates a UUIDv4 token (122 bits of randomness from `crypto/rand`). Creates a 
 	}
 ```
 
-Stores the token in Redis with key `csrf:<userId>` and a 30-minute TTL. If Redis is down, the token is still returned to the client (fail-open). The token will not validate later (since it is not in Redis), but the system does not break. The user will simply need to refresh the token once Redis recovers.
+Stores the token in Redis with key `csrf:<userId>` and a 10-minute TTL. If Redis is down, the token is still returned to the client (fail-open). The token will not validate later (since it is not in Redis), but the system does not break. The user will simply need to refresh the token once Redis recovers.
 
 ```go
 	w.Header().Set("Content-Type", "application/json")
@@ -345,7 +345,7 @@ Constant-time comparison is not necessary here (CSRF tokens are not secrets in t
 }
 ```
 
-On successful validation, refresh the token's TTL to 30 minutes. This implements a sliding window — as long as the user keeps making requests, their token stays alive. Then return 200 to tell Istio to forward the request to the backend.
+On successful validation, refresh the token's TTL to 10 minutes. This implements a sliding window — as long as the user keeps making requests, their token stays alive. Additionally, when `CSRF_SLIDING_TTL=true` (the default), authenticated safe method requests (GET/HEAD/OPTIONS) also refresh the TTL, so browsing activity alone keeps the token valid. Then return 200 to tell Istio to forward the request to the backend.
 
 ### handleHealthz — Health Check
 
@@ -761,7 +761,7 @@ Expected: One or more keys like `csrf:<user-uuid>` corresponding to the users wh
 kubectl exec -n infra deploy/redis -- redis-cli TTL "csrf:<user-uuid>"
 ```
 
-Expected: A value between 0 and 1800 (30 minutes in seconds).
+Expected: A value between 0 and 600 (10 minutes in seconds).
 
 ### Step 11: Run E2E Tests
 

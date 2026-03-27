@@ -15,6 +15,7 @@ type Config struct {
 	RedisAddr        string
 	RedisPassword    string
 	TokenTTL         time.Duration
+	SlidingTTL       bool
 	FailClosed       bool
 	AllowedOrigins   []string
 	RequireOrigin    bool
@@ -35,9 +36,9 @@ func Load() Config {
 	host := envOrDefault("CSRF_REDIS_HOST", "redis.infra.svc.cluster.local")
 	port := envOrDefault("CSRF_REDIS_PORT", "6379")
 
-	ttlMin, _ := strconv.Atoi(envOrDefault("CSRF_TOKEN_TTL_MINUTES", "30"))
+	ttlMin, _ := strconv.Atoi(envOrDefault("CSRF_TOKEN_TTL_MINUTES", "10"))
 	if ttlMin <= 0 {
-		ttlMin = 30
+		ttlMin = 10
 	}
 
 	rateLimit, _ := strconv.Atoi(envOrDefault("CSRF_RATE_LIMIT", "60"))
@@ -50,6 +51,7 @@ func Load() Config {
 		RedisAddr:        fmt.Sprintf("%s:%s", host, port),
 		RedisPassword:    envOrDefault("CSRF_REDIS_PASSWORD", ""),
 		TokenTTL:         time.Duration(ttlMin) * time.Minute,
+		SlidingTTL:       envOrDefault("CSRF_SLIDING_TTL", "true") == "true",
 		FailClosed:       envOrDefault("CSRF_FAIL_CLOSED", "false") == "true",
 		AllowedOrigins:   parseCSV(envOrDefault("CSRF_ALLOWED_ORIGINS", "https://myecom.net:30000,https://localhost:30000,https://idp.keycloak.net:30000")),
 		RequireOrigin:    envOrDefault("CSRF_REQUIRE_ORIGIN", "false") == "true",

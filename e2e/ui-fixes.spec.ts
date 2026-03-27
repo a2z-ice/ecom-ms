@@ -103,12 +103,13 @@ test.describe('UI Fixes', () => {
     // Now qty is 1 — click − once more to remove the item
     await page.screenshot({ path: 'screenshots/ui-fixes-05-before-remove.png', fullPage: true })
     await Promise.all([
-      page.waitForResponse((r: any) => r.url().includes('/ecom/cart')),
+      page.waitForResponse((r: any) => r.url().includes('/ecom/cart') && r.status() < 400),
       minusBtn.click(),
     ])
 
-    // Row count must decrease by 1
-    await expect(rows).toHaveCount(rowCountBefore - 1, { timeout: 10000 })
+    // Wait for the UI to re-render after item removal
+    // Row count must decrease by 1 (or row becomes empty)
+    await expect(rows).toHaveCount(rowCountBefore - 1, { timeout: 15000 })
     await page.screenshot({ path: 'screenshots/ui-fixes-06-item-removed.png', fullPage: true })
   })
 

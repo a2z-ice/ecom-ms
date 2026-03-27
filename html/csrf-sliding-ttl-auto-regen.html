@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CSRF Sliding TTL &amp; Auto-Regeneration &mdash; BookStore Platform</title>
+  <style>
+    :root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--accent:#3b82f6;--border:#334155;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;--cyan:#06b6d4}
+    *{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth}
+    body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
+    .container{max-width:1100px;margin:0 auto;padding:40px 24px}
+    h1{font-size:2.2rem;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,#60a5fa,#a78bfa);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    h1+p{color:var(--muted);font-size:1.05rem;margin-bottom:40px}
+    h2{font-size:1.4rem;font-weight:700;margin:48px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);color:#f1f5f9}
+    h3{font-size:1.1rem;font-weight:600;margin:24px 0 8px;color:#cbd5e1}
+    h4{font-size:0.95rem;font-weight:600;margin:16px 0 6px;color:var(--muted)}
+    p{margin-bottom:16px}
+    table{width:100%;border-collapse:collapse;margin:16px 0 24px}
+    th{background:var(--card);text-align:left;padding:10px 14px;font-size:.85rem;font-weight:600;color:var(--accent);border-bottom:2px solid var(--border)}
+    td{padding:10px 14px;font-size:.9rem;border-bottom:1px solid var(--border)}
+    tr:hover td{background:rgba(59,130,246,.05)}
+    code{background:var(--card);padding:2px 6px;border-radius:4px;font-size:.88em;color:#f59e0b}
+    pre{background:var(--card);padding:16px;border-radius:8px;overflow-x:auto;margin:12px 0 20px;border:1px solid var(--border);font-size:.82rem;line-height:1.6}
+    pre code{background:none;padding:0;color:#e2e8f0}
+    ul,ol{margin:8px 0 16px 24px}li{margin-bottom:6px}
+    .badge{display:inline-block;font-size:.75rem;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:6px;color:#fff}
+    .badge.green{background:linear-gradient(135deg,#059669,#10b981)}.badge.purple{background:linear-gradient(135deg,#7c3aed,#8b5cf6)}
+    .badge.red{background:linear-gradient(135deg,#dc2626,#ef4444)}.badge.orange{background:linear-gradient(135deg,#d97706,#f59e0b)}
+    .badge.blue{background:linear-gradient(135deg,#2563eb,#3b82f6)}.badge.cyan{background:linear-gradient(135deg,#0891b2,#06b6d4)}
+    .badges{margin-bottom:24px}
+    footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid var(--border);color:var(--muted);font-size:.85rem}
+    footer a{color:var(--accent);text-decoration:none}footer a:hover{text-decoration:underline}
+    .topnav{position:sticky;top:0;z-index:100;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+    .topnav-inner{max-width:1100px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:52px}
+    .topnav-brand{font-weight:800;font-size:1rem;color:var(--text);text-decoration:none}
+    .topnav-links{display:flex;gap:20px;align-items:center}
+    .topnav-links a{color:var(--muted);font-size:.82rem;font-weight:500;text-decoration:none;transition:color .15s}.topnav-links a:hover{color:var(--text)}.topnav-links a.highlight{color:#a78bfa}
+    .ba{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}.ba>div{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px}
+    .ba .tag{font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:4px;margin-bottom:12px;display:inline-block}
+    .ba .before .tag{background:rgba(239,68,68,.2);color:var(--red)}.ba .after .tag{background:rgba(16,185,129,.2);color:var(--green)}
+    @media(max-width:700px){.ba{grid-template-columns:1fr}}
+    .result{padding:12px 16px;border-radius:8px;margin:8px 0 16px;font-size:.9rem}
+    .result.pass{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--green)}
+    .result.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--yellow)}
+    .result.info{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:var(--accent)}
+    .result.fail{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--red)}
+    .flow{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin:20px 0;font-family:monospace;font-size:.82rem;line-height:1.8;white-space:pre;overflow-x:auto}
+    .flow .g{color:var(--green);font-weight:600}.flow .r{color:var(--red);font-weight:600}.flow .b{color:var(--accent)}.flow .y{color:var(--yellow)}.flow .c{color:var(--cyan)}
+    .step{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;font-size:.82rem;margin-right:8px;flex-shrink:0}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0}
+    .card h3{margin-top:0;color:var(--accent)}
+    .toc{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px 28px;margin:0 0 40px}
+    .toc h3{margin:0 0 12px;color:var(--accent);font-size:1rem}.toc ol{margin:0 0 0 20px}.toc li{margin-bottom:3px}
+    .toc a{color:var(--muted);text-decoration:none;font-size:.86rem;transition:color .15s}.toc a:hover{color:var(--accent)}
+    /* Timeline */
+    .timeline{position:relative;padding-left:32px;margin:20px 0 24px}
+    .timeline::before{content:'';position:absolute;left:12px;top:4px;bottom:4px;width:2px;background:var(--border)}
+    .timeline .event{position:relative;margin-bottom:20px}
+    .timeline .event::before{content:'';position:absolute;left:-24px;top:6px;width:10px;height:10px;border-radius:50%;border:2px solid var(--accent);background:var(--bg)}
+    .timeline .event.danger::before{border-color:var(--red)}.timeline .event.success::before{border-color:var(--green)}
+    .timeline .event .time{font-size:.75rem;color:var(--muted);font-weight:600}
+    .timeline .event .desc{font-size:.9rem}
+    /* Security meter */
+    .meter{display:flex;align-items:center;gap:12px;margin:12px 0}
+    .meter-bar{flex:1;height:12px;background:var(--card);border-radius:6px;overflow:hidden;border:1px solid var(--border)}
+    .meter-fill{height:100%;border-radius:6px;transition:width .5s ease}
+    .meter-label{font-size:.82rem;font-weight:600;min-width:80px}
+    /* Banner */
+    .linkedin-banner{position:relative;width:100%;background:linear-gradient(135deg,#0c1222 0%,#162044 35%,#1e1b4b 60%,#312e81 100%);overflow:hidden}
+    .linkedin-banner::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 15% 50%,rgba(59,130,246,.1) 0%,transparent 50%),radial-gradient(circle at 85% 20%,rgba(139,92,246,.12) 0%,transparent 40%);pointer-events:none}
+    .linkedin-banner::after{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
+    .banner-inner{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:52px 48px 48px;display:flex;align-items:center;gap:44px}
+    .banner-shield{flex-shrink:0;width:130px;height:150px}.banner-shield svg{width:100%;height:100%;filter:drop-shadow(0 0 24px rgba(59,130,246,.3))}
+    .banner-text{flex:1;min-width:0}
+    .banner-series{font-size:.7rem;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:rgba(167,139,250,.9);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+    .banner-series::before{content:'';width:24px;height:2px;background:linear-gradient(90deg,#a78bfa,transparent)}
+    .banner-title-text{font-size:2.1rem;font-weight:800;color:#f1f5f9;line-height:1.25;margin-bottom:10px;background:linear-gradient(135deg,#f1f5f9 0%,#cbd5e1 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .banner-desc{font-size:.95rem;color:#94a3b8;margin-bottom:22px;line-height:1.6;max-width:580px}
+    .banner-tags{display:flex;gap:8px;flex-wrap:wrap}
+    .banner-tags span{font-size:.7rem;font-weight:600;padding:5px 14px;border-radius:6px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;letter-spacing:.3px}
+    .banner-brand{position:absolute;bottom:18px;right:32px;font-size:.65rem;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(148,163,184,.35);z-index:1}
+    .banner-accent-line{height:3px;background:linear-gradient(90deg,#ef4444 0%,#3b82f6 33%,#10b981 66%,#8b5cf6 100%)}
+    .banner-node{position:absolute;border-radius:50%;z-index:1}
+    .banner-node::after{content:'';position:absolute;top:50%;left:50%;width:200%;height:200%;transform:translate(-50%,-50%);border-radius:50%;border:1px solid;opacity:.15;animation:pulse 3s ease-out infinite}
+    @keyframes pulse{0%{width:100%;height:100%;opacity:.3}100%{width:300%;height:300%;opacity:0}}
+    .banner-node-1{width:8px;height:8px;background:#ef4444;top:20%;right:15%}.banner-node-1::after{border-color:#ef4444}
+    .banner-node-2{width:6px;height:6px;background:#10b981;top:65%;right:8%}.banner-node-2::after{border-color:#10b981;animation-delay:1s}
+    .banner-node-3{width:5px;height:5px;background:#3b82f6;top:35%;right:25%}.banner-node-3::after{border-color:#3b82f6;animation-delay:2s}
+    @media(max-width:768px){.banner-inner{flex-direction:column;padding:36px 24px 32px;gap:24px;text-align:center}.banner-shield{width:90px;height:104px}.banner-title-text{font-size:1.5rem}.banner-tags{justify-content:center}.banner-node{display:none}}
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav"><div class="topnav-inner"><a href="index.html" class="topnav-brand">BookStore Platform</a><div class="topnav-links"><a href="index.html">Home</a><a href="architecture.html">Architecture</a><a href="bookstore-platform-manual.html" class="highlight">Full Manual</a></div></div></nav>
+
+<!-- Banner -->
+<div class="linkedin-banner">
+  <div class="banner-node banner-node-1"></div><div class="banner-node banner-node-2"></div><div class="banner-node banner-node-3"></div>
+  <div class="banner-inner">
+    <div class="banner-shield"><svg viewBox="0 0 130 150" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="sg" x1="65" y1="8" x2="65" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="rgba(59,130,246,.2)"/><stop offset="100%" stop-color="rgba(16,185,129,.15)"/></linearGradient><linearGradient id="ss" x1="16" y1="8" x2="114" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#10b981"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M65 14L22 36v38c0 30 18 56 43 66 25-10 43-36 43-66V36L65 14z" fill="url(#sg)" stroke="url(#ss)" stroke-width="2" filter="url(#glow)"/><text x="35" y="72" fill="#3b82f6" font-size="14" font-weight="800">TTL</text><text x="30" y="96" fill="#10b981" font-size="20" font-weight="800">10m</text></svg></div>
+    <div class="banner-text">
+      <div class="banner-series">CSRF Protection Series &bull; Enhancement #11</div>
+      <div class="banner-title-text">Sliding TTL &amp; Auto-Regeneration</div>
+      <p class="banner-desc">Reduce the attack window from 30 to 10 minutes with sliding TTL that resets on every authenticated request, plus auto-regeneration that returns a fresh token in the 403 response body &mdash; saving one network round trip.</p>
+      <div class="banner-tags"><span>10min Sliding TTL</span><span>Auto-Regeneration</span><span>Zero Round Trip</span><span>OWASP</span><span>NIST SP 800-63B</span><span>12 E2E Tests</span><span>9 Go Unit Tests</span></div>
+    </div>
+  </div>
+  <div class="banner-brand">BookStore Platform</div>
+</div>
+<div class="banner-accent-line"></div>
+
+<div class="container">
+
+<div class="badges">
+  <span class="badge green">10min Sliding TTL</span>
+  <span class="badge purple">Auto-Regeneration</span>
+  <span class="badge blue">9 Unit Tests</span>
+  <span class="badge cyan">12 E2E Tests</span>
+  <span class="badge orange">OWASP + NIST</span>
+</div>
+
+<!-- Table of Contents -->
+<div class="toc">
+  <h3>Table of Contents</h3>
+  <ol>
+    <li><a href="#problem">The Problem: 30-Minute Attack Window</a></li>
+    <li><a href="#security-analysis">Security Analysis (OWASP &amp; NIST)</a></li>
+    <li><a href="#sliding-ttl">Enhancement 1: Sliding TTL</a></li>
+    <li><a href="#auto-regen">Enhancement 2: Auto-Regeneration on 403</a></li>
+    <li><a href="#before-after">Before vs After Comparison</a></li>
+    <li><a href="#request-flows">Request Flow Diagrams</a></li>
+    <li><a href="#implementation">Implementation Details</a></li>
+    <li><a href="#config">Configuration Reference</a></li>
+    <li><a href="#ui-changes">UI Client Changes</a></li>
+    <li><a href="#testing">Test Coverage</a></li>
+    <li><a href="#manual-test">Manual Testing Guide</a></li>
+    <li><a href="#files">Files Changed</a></li>
+  </ol>
+</div>
+
+<!-- 1. Problem -->
+<h2 id="problem">1. The Problem: 30-Minute Attack Window</h2>
+
+<p>The CSRF service stores tokens in Redis with a <strong>fixed 30-minute TTL</strong>. Once generated, the token lives for 30 minutes regardless of user activity. This creates a significant security concern:</p>
+
+<div class="card">
+  <h3>Attack Scenario</h3>
+  <div class="timeline">
+    <div class="event"><div class="time">T+0:00</div><div class="desc">User logs in. CSRF token generated, stored in Redis with 30min TTL.</div></div>
+    <div class="event danger"><div class="time">T+0:05</div><div class="desc">Attacker steals the token (via XSS, log leak, or network sniffing).</div></div>
+    <div class="event danger"><div class="time">T+0:05 to T+0:30</div><div class="desc"><strong style="color:var(--red)">25-minute attack window.</strong> Attacker can use the stolen token for any mutating request.</div></div>
+    <div class="event"><div class="time">T+0:30</div><div class="desc">Token expires. Attack window closes.</div></div>
+  </div>
+</div>
+
+<p>Additionally, after a POST request consumes the single-use token, the next POST requires a <strong>3-step retry</strong>:</p>
+
+<div class="flow"><span class="r">Old flow (3 requests):</span>
+  <span class="step">1</span> POST /ecom/cart  &rarr;  <span class="r">403 Forbidden</span> (token expired/consumed)
+  <span class="step">2</span> GET  /csrf/token  &rarr;  <span class="y">200 {"token":"&lt;new-uuid&gt;"}</span>  (extra round trip)
+  <span class="step">3</span> POST /ecom/cart  &rarr;  <span class="g">200 OK</span> (retry with new token)</div>
+
+<h3>Two Problems to Solve</h3>
+<table>
+  <tr><th>Problem</th><th>Impact</th><th>Solution</th></tr>
+  <tr><td>30-minute fixed TTL</td><td>Wide attack window for stolen tokens</td><td>Sliding TTL (10 min, resets on activity)</td></tr>
+  <tr><td>Extra round trip on retry</td><td>Latency on every token expiration/consumption</td><td>Auto-regeneration in 403 response body</td></tr>
+</table>
+
+<!-- 2. Security Analysis -->
+<h2 id="security-analysis">2. Security Analysis (OWASP &amp; NIST)</h2>
+
+<h3>Attack Window Comparison</h3>
+<div class="meter">
+  <div class="meter-label" style="color:var(--red)">Before (30m)</div>
+  <div class="meter-bar"><div class="meter-fill" style="width:100%;background:linear-gradient(90deg,var(--red),#f87171)"></div></div>
+</div>
+<div class="meter">
+  <div class="meter-label" style="color:var(--green)">After (10m)</div>
+  <div class="meter-bar"><div class="meter-fill" style="width:33%;background:linear-gradient(90deg,var(--green),#34d399)"></div></div>
+</div>
+<p style="color:var(--muted);font-size:.85rem">Attack window reduced by 67% (30 min &rarr; 10 min for idle tokens).</p>
+
+<h3>Standards Alignment</h3>
+<table>
+  <tr><th>Standard</th><th>Recommendation</th><th>Our Implementation</th></tr>
+  <tr><td><strong>OWASP CSRF Prevention</strong></td><td>Tie tokens to session lifetime; per-session or per-request tokens</td><td>Single-use per-user tokens with 10min sliding TTL</td></tr>
+  <tr><td><strong>NIST SP 800-63B</strong></td><td>15-minute idle timeout for AAL2 (multi-factor)</td><td>10-minute idle TTL (more conservative)</td></tr>
+  <tr><td><strong>OWASP ASVS v4</strong></td><td>Tokens must be unique per session and short-lived</td><td>UUID v4, single-use, 10min sliding with auto-regen</td></tr>
+</table>
+
+<h3>Security Properties</h3>
+<div class="card">
+  <h3>Why This Is Safe</h3>
+  <ul>
+    <li><strong>Active users unaffected:</strong> Every GET request (page load, navigation) refreshes the TTL. Normal browsing keeps the token alive indefinitely.</li>
+    <li><strong>Idle tokens expire 3x faster:</strong> 10 min vs 30 min &mdash; significantly reduces stolen token viability.</li>
+    <li><strong>Auto-regen is CORS-safe:</strong> The 403 response body with the new token cannot be read cross-origin. Only same-origin JavaScript (our UI) can access it.</li>
+    <li><strong>Token still user-bound:</strong> New token is stored under <code>csrf:{userID}</code> &mdash; only usable with that user's JWT.</li>
+    <li><strong>Single-use remains primary defense:</strong> Tokens are consumed on first successful mutating request, regardless of TTL.</li>
+  </ul>
+</div>
+
+<!-- 3. Sliding TTL -->
+<h2 id="sliding-ttl">3. Enhancement 1: Sliding TTL</h2>
+
+<p>Every authenticated safe method request (GET, HEAD, OPTIONS) through the Istio ext_authz gateway automatically refreshes the CSRF token's TTL in Redis.</p>
+
+<div class="flow"><span class="b">Sliding TTL Flow (ext_authz safe method path):</span>
+
+  Browser &rarr; GET /ecom/books &rarr; Envoy ext_authz &rarr; csrf-service
+                                                            &darr;
+                                                    <span class="b">Is method safe? YES</span>
+                                                    <span class="b">Is JWT present? YES</span>
+                                                            &darr;
+                                                    <span class="g">Redis EXPIRE csrf:{sub} 600</span>  (fire-and-forget goroutine)
+                                                            &darr;
+                                                    <span class="g">200 OK</span> &rarr; request proceeds to backend
+
+  <span class="y">Latency impact: ZERO</span> (goroutine runs after response is sent)</div>
+
+<h3>How It Works</h3>
+<ol>
+  <li>Envoy ext_authz sends the request to csrf-service for every HTTP method</li>
+  <li>For safe methods (GET/HEAD/OPTIONS), the handler returns <code>200 OK</code> immediately</li>
+  <li><strong>New:</strong> If <code>CSRF_SLIDING_TTL=true</code> and JWT is present, a <strong>fire-and-forget goroutine</strong> runs <code>Redis EXPIRE csrf:{sub} 600</code></li>
+  <li>The <code>EXPIRE</code> command is O(1) &mdash; it just updates the key's TTL without reading the value</li>
+  <li>If the key doesn't exist (no token), EXPIRE returns 0 &mdash; a harmless no-op</li>
+</ol>
+
+<h3>Timeline Example</h3>
+<div class="timeline">
+  <div class="event success"><div class="time">T+0:00</div><div class="desc">Login &rarr; CSRF token generated. Redis: <code>csrf:user123 = uuid TTL 600s</code></div></div>
+  <div class="event success"><div class="time">T+3:00</div><div class="desc">Browse catalog (GET /ecom/books) &rarr; <strong>TTL refreshed to 600s</strong></div></div>
+  <div class="event success"><div class="time">T+5:30</div><div class="desc">Search books (GET /ecom/books/search) &rarr; <strong>TTL refreshed to 600s</strong></div></div>
+  <div class="event success"><div class="time">T+8:00</div><div class="desc">View book detail (GET /ecom/books/1) &rarr; <strong>TTL refreshed to 600s</strong></div></div>
+  <div class="event"><div class="time">T+9:00</div><div class="desc">Add to cart (POST /ecom/cart) &rarr; Token validated &amp; consumed. TTL irrelevant.</div></div>
+</div>
+<p style="color:var(--green)">As long as the user is browsing (making GET requests), the CSRF token never expires.</p>
+
+<!-- 4. Auto-Regeneration -->
+<h2 id="auto-regen">4. Enhancement 2: Auto-Regeneration on 403</h2>
+
+<p>When a mutating request fails CSRF validation but the JWT is valid, the csrf-service <strong>automatically generates a new token</strong> and includes it in the 403 response body.</p>
+
+<div class="flow"><span class="b">Auto-Regeneration Flow:</span>
+
+  Browser &rarr; POST /ecom/cart (expired/missing CSRF token) &rarr; csrf-service
+                                                                      &darr;
+                                                              <span class="r">CSRF validation fails</span>
+                                                              <span class="b">JWT valid? YES</span>
+                                                                      &darr;
+                                                              <span class="y">Generate new UUID token</span>
+                                                              <span class="y">Store in Redis: csrf:{sub} = new-uuid TTL 600s</span>
+                                                                      &darr;
+                                                              <span class="r">403 Forbidden</span>
+                                                              <span class="g">Body: {"...","token":"&lt;new-uuid&gt;"}</span>
+                                                                      &darr;
+  Browser reads token from 403 body &rarr; stores in memory &rarr; <span class="g">retries POST &rarr; 200 OK</span></div>
+
+<h3>Response Format</h3>
+<pre><code>HTTP/1.1 403 Forbidden
+Content-Type: application/json
+
+{
+  "type": "about:blank",
+  "title": "Forbidden",
+  "status": 403,
+  "detail": "Invalid or missing CSRF token",
+  "token": "d30fdd4d-82d2-44b0-a593-c9102cc718c6"    &larr; NEW: regenerated token
+}</code></pre>
+
+<div class="result info"><strong>Key insight:</strong> The <code>token</code> field is only present when the JWT is valid (authenticated user). Unauthenticated requests pass through to the backend without CSRF checks (backend handles auth).</div>
+
+<!-- 5. Before vs After -->
+<h2 id="before-after">5. Before vs After Comparison</h2>
+
+<h3>Token Lifecycle</h3>
+<div class="ba">
+  <div class="before"><div class="tag">BEFORE</div>
+    <ul>
+      <li>Fixed 30-minute TTL</li>
+      <li>No refresh on safe methods</li>
+      <li>Token expires after 30 min regardless of activity</li>
+      <li>403 retry requires separate <code>GET /csrf/token</code> call</li>
+      <li><strong>3 HTTP requests</strong> on expiry: 403 + GET + retry</li>
+    </ul>
+  </div>
+  <div class="after"><div class="tag">AFTER</div>
+    <ul>
+      <li>10-minute sliding TTL</li>
+      <li>Refreshed on every authenticated GET/HEAD/OPTIONS</li>
+      <li>Active users' tokens never expire</li>
+      <li>403 response includes new token in body</li>
+      <li><strong>2 HTTP requests</strong> on expiry: 403 (with token) + retry</li>
+    </ul>
+  </div>
+</div>
+
+<h3>Attack Window</h3>
+<div class="ba">
+  <div class="before"><div class="tag">BEFORE</div>
+    <p style="font-size:2rem;font-weight:800;color:var(--red)">30 minutes</p>
+    <p>A stolen token is valid for up to 30 minutes, regardless of whether the legitimate user is active.</p>
+  </div>
+  <div class="after"><div class="tag">AFTER</div>
+    <p style="font-size:2rem;font-weight:800;color:var(--green)">10 minutes (idle only)</p>
+    <p>A stolen token expires in 10 minutes of user inactivity. If the user is browsing, the token's TTL keeps resetting &mdash; but it's also single-use, so the first mutating request by either party consumes it.</p>
+  </div>
+</div>
+
+<h3>Server Code: ext_authz Safe Method Handler</h3>
+<div class="ba">
+  <div class="before"><div class="tag">BEFORE</div>
+<pre><code>if SafeMethods[r.Method] {
+    h.Metrics.RequestsTotal.
+        WithLabelValues("authz_safe", "ok").Inc()
+    w.WriteHeader(http.StatusOK)
+    return
+}
+// No TTL refresh. Token slowly expires.</code></pre>
+  </div>
+  <div class="after"><div class="tag">AFTER</div>
+<pre><code>if SafeMethods[r.Method] {
+    h.Metrics.RequestsTotal.
+        WithLabelValues("authz_safe", "ok").Inc()
+    if h.SlidingTTL {
+        authHeader := r.Header.Get("Authorization")
+        claims := jwt.ExtractClaims(authHeader)
+        if claims.Sub != "" {
+            go func() {
+                ctx, cancel := context.WithTimeout(
+                    context.Background(), 1*time.Second)
+                defer cancel()
+                h.Store.RefreshTTL(ctx, claims.Sub)
+            }()
+        }
+    }
+    w.WriteHeader(http.StatusOK)
+    return
+}</code></pre>
+  </div>
+</div>
+
+<h3>Server Code: CSRF Failure Handler</h3>
+<div class="ba">
+  <div class="before"><div class="tag">BEFORE</div>
+<pre><code>if csrfToken == "" {
+    writeForbidden(w,
+        "Invalid or missing CSRF token")
+    return
+}
+
+// Returns plain 403. No token.
+// Client must call GET /csrf/token separately.</code></pre>
+  </div>
+  <div class="after"><div class="tag">AFTER</div>
+<pre><code>if csrfToken == "" {
+    h.writeForbiddenWithNewToken(w, ctx,
+        claims.Sub, reqOrigin,
+        "Invalid or missing CSRF token")
+    return
+}
+
+// Returns 403 with regenerated token:
+// {"...","token":"&lt;new-uuid&gt;"}
+// Client reads token from body, retries.</code></pre>
+  </div>
+</div>
+
+<h3>UI Client: 403 Retry Logic</h3>
+<div class="ba">
+  <div class="before"><div class="tag">BEFORE</div>
+<pre><code>if (resp.status === 403 && isMutating
+    && !_csrfRetried) {
+  await fetchCsrfToken()  // Extra GET request
+  return request(url, options, true)
+}</code></pre>
+    <p style="color:var(--red)">Always makes a separate GET /csrf/token call.</p>
+  </div>
+  <div class="after"><div class="tag">AFTER</div>
+<pre><code>if (resp.status === 403 && isMutating
+    && !_csrfRetried) {
+  try {
+    const body = await resp.json()
+    if (body.token) {
+      _csrfToken = body.token  // Use inline token
+    } else {
+      await fetchCsrfToken()   // Fallback
+    }
+  } catch {
+    await fetchCsrfToken()     // Fallback
+  }
+  return request(url, options, true)
+}</code></pre>
+    <p style="color:var(--green)">Reads token from 403 body. Falls back to GET /csrf/token if not present.</p>
+  </div>
+</div>
+
+<!-- 6. Request Flows -->
+<h2 id="request-flows">6. Request Flow Diagrams</h2>
+
+<h3>Active User Flow (No Expiry)</h3>
+<div class="flow"><span class="g">Active user &mdash; token never expires:</span>
+
+  T+0:00  Login &rarr; GET /csrf/token &rarr; <span class="g">token=abc123, TTL=600s</span>
+  T+2:00  GET /ecom/books       &rarr; <span class="b">sliding TTL &rarr; TTL reset to 600s</span>
+  T+4:00  GET /ecom/books/1     &rarr; <span class="b">sliding TTL &rarr; TTL reset to 600s</span>
+  T+5:00  POST /ecom/cart       &rarr; <span class="g">200 OK</span> (token consumed)
+  T+5:01  GET /ecom/books       &rarr; <span class="b">sliding TTL &rarr; no token to refresh (no-op)</span>
+  T+7:00  POST /ecom/checkout   &rarr; <span class="r">403</span> + <span class="y">token=xyz789</span> (auto-regen)
+  T+7:01  POST /ecom/checkout   &rarr; <span class="g">200 OK</span> (retry with xyz789)</div>
+
+<h3>Idle User Returning</h3>
+<div class="flow"><span class="y">Idle user &mdash; token expires after 10 min:</span>
+
+  T+0:00   Login &rarr; token=abc123, TTL=600s
+  T+1:00   GET /ecom/books &rarr; TTL reset to 600s
+  ...      <span class="r">(user goes idle for 12 minutes)</span>
+  T+13:00  POST /ecom/cart  &rarr; <span class="r">403</span> + <span class="y">token=newtoken</span> (auto-regen!)
+  T+13:01  POST /ecom/cart  &rarr; <span class="g">200 OK</span> (retry, transparent to user)</div>
+
+<h3>Stolen Token Scenario</h3>
+<div class="flow"><span class="r">Attacker steals token while user is active:</span>
+
+  T+0:00  Legitimate user gets token=abc123
+  T+2:00  <span class="r">Attacker steals abc123</span>
+  T+3:00  User browses (GET) &rarr; TTL refreshed
+  T+5:00  <span class="g">User POSTs (add to cart) &rarr; abc123 CONSUMED (deleted from Redis)</span>
+  T+5:30  <span class="r">Attacker tries abc123 &rarr; 403 (token already consumed!)</span>
+
+  <span class="g">Single-use defense: first mutation wins, token is gone.</span>
+  <span class="y">Even if attacker is faster: they get one use, user gets auto-regen on next attempt.</span></div>
+
+<!-- 7. Implementation -->
+<h2 id="implementation">7. Implementation Details</h2>
+
+<h3>Redis Store: RefreshTTL Method</h3>
+<pre><code>// internal/store/redis.go
+
+// RefreshTTL extends the TTL of an existing token without reading its value.
+// Uses Redis EXPIRE command &mdash; O(1), does not read the value.
+// Returns nil if key doesn't exist (no token to refresh).
+func (s *RedisStore) RefreshTTL(ctx context.Context, userID string) error {
+    _, err := s.client.Expire(ctx, keyPrefix+userID, s.ttl).Result()
+    if err != nil {
+        slog.Warn("Failed to refresh CSRF token TTL", "user", userID, "error", err)
+        return err
+    }
+    return nil
+}</code></pre>
+
+<h3>Handler: writeForbiddenWithNewToken</h3>
+<pre><code>// internal/handler/authz.go
+
+func (h *Handler) writeForbiddenWithNewToken(
+    w http.ResponseWriter, ctx context.Context,
+    userID, origin, detail string,
+) {
+    newToken, err := h.Store.Generate(ctx, userID, origin)
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusForbidden)
+    if err == nil && newToken != "" {
+        fmt.Fprintf(w,
+            `{"type":"about:blank","title":"Forbidden","status":403,"detail":"%s","token":"%s"}`,
+            detail, newToken)
+        h.Metrics.RequestsTotal.WithLabelValues("authz_mutate", "regenerated").Inc()
+    } else {
+        fmt.Fprintf(w,
+            `{"type":"about:blank","title":"Forbidden","status":403,"detail":"%s"}`,
+            detail)
+    }
+}</code></pre>
+
+<h3>Prometheus Metrics</h3>
+<table>
+  <tr><th>Metric</th><th>Type</th><th>Labels</th><th>Purpose</th></tr>
+  <tr><td><code>csrf_ttl_renewals_total</code></td><td>Counter</td><td><code>result</code> (ok, error)</td><td>Sliding TTL refresh attempts on safe methods</td></tr>
+  <tr><td><code>csrf_requests_total{result="regenerated"}</code></td><td>Counter</td><td><code>method</code>, <code>result</code></td><td>Auto-regeneration events on CSRF failure</td></tr>
+</table>
+
+<!-- 8. Config -->
+<h2 id="config">8. Configuration Reference</h2>
+
+<table>
+  <tr><th>Environment Variable</th><th>Default</th><th>Description</th></tr>
+  <tr><td><code>CSRF_TOKEN_TTL_MINUTES</code></td><td><code>10</code></td><td>Token TTL in minutes (was 30). Applied on generation and sliding refresh.</td></tr>
+  <tr><td><code>CSRF_SLIDING_TTL</code></td><td><code>true</code></td><td>Enable sliding TTL refresh on authenticated safe method requests.</td></tr>
+  <tr><td><code>CSRF_REDIS_HOST</code></td><td><code>redis.infra.svc.cluster.local</code></td><td>Redis hostname</td></tr>
+  <tr><td><code>CSRF_REDIS_PORT</code></td><td><code>6379</code></td><td>Redis port</td></tr>
+  <tr><td><code>CSRF_FAIL_CLOSED</code></td><td><code>false</code></td><td>Return 503 on Redis errors (vs fail-open)</td></tr>
+</table>
+
+<h3>Kubernetes Manifest</h3>
+<pre><code># csrf-service/k8s/csrf-service.yaml
+env:
+  - name: CSRF_TOKEN_TTL_MINUTES
+    value: "10"
+  - name: CSRF_SLIDING_TTL
+    value: "true"
+envFrom:
+  - secretRef:
+      name: csrf-service-secret</code></pre>
+
+<!-- 9. UI Changes -->
+<h2 id="ui-changes">9. UI Client Changes</h2>
+
+<p>Only one file changed: <code>ui/src/api/client.ts</code>. The 403-retry block now reads the regenerated token from the response body before falling back to <code>fetchCsrfToken()</code>.</p>
+
+<pre><code>// ui/src/api/client.ts — 403 retry block
+
+if (resp.status === 403 && isMutating && !_csrfRetried) {
+  try {
+    const body = await resp.json()
+    if (body.token) {
+      _csrfToken = body.token  // Use regenerated token from 403 body
+    } else {
+      await fetchCsrfToken()   // Fallback: separate GET /csrf/token
+    }
+  } catch {
+    await fetchCsrfToken()     // Fallback: response not JSON
+  }
+  return request&lt;T&gt;(url, options, true)
+}</code></pre>
+
+<div class="result pass"><strong>Backward compatible:</strong> If the server doesn't include a <code>token</code> field (e.g., older version), the client falls back to the existing <code>fetchCsrfToken()</code> flow.</div>
+
+<!-- 10. Testing -->
+<h2 id="testing">10. Test Coverage</h2>
+
+<h3>Go Unit Tests (9 new, 28 total)</h3>
+<table>
+  <tr><th>Test</th><th>What It Verifies</th></tr>
+  <tr><td><code>TestRefreshTTL_ExistingKey</code></td><td>EXPIRE resets TTL to full duration</td></tr>
+  <tr><td><code>TestRefreshTTL_MissingKey</code></td><td>No error when key doesn't exist</td></tr>
+  <tr><td><code>TestRefreshTTL_RedisDown</code></td><td>Returns error when Redis is unreachable</td></tr>
+  <tr><td><code>TestExtAuthzCheck_SlidingTTL_RefreshesOnAuthenticatedGET</code></td><td>TTL resets after authenticated GET</td></tr>
+  <tr><td><code>TestExtAuthzCheck_SlidingTTL_NoRefreshOnUnauthenticatedGET</code></td><td>No refresh without JWT</td></tr>
+  <tr><td><code>TestExtAuthzCheck_SlidingTTL_Disabled</code></td><td>No refresh when CSRF_SLIDING_TTL=false</td></tr>
+  <tr><td><code>TestExtAuthzCheck_RegeneratesOnMissingCsrfHeader</code></td><td>403 body contains new token when CSRF header missing</td></tr>
+  <tr><td><code>TestExtAuthzCheck_RegeneratesOnExpiredToken</code></td><td>403 body contains new token when token expired</td></tr>
+  <tr><td><code>TestExtAuthzCheck_RegeneratedTokenIsValid</code></td><td>Regenerated token works on follow-up POST</td></tr>
+</table>
+
+<h3>E2E Playwright Tests (12 new)</h3>
+<table>
+  <tr><th>Suite</th><th>Test</th></tr>
+  <tr><td rowspan="3">Sliding TTL</td><td>Authenticated GET refreshes CSRF token TTL in Redis</td></tr>
+  <tr><td>Unauthenticated GET does not create or refresh token</td></tr>
+  <tr><td>Token expires after idle period exceeds TTL</td></tr>
+  <tr><td rowspan="5">Auto-regeneration</td><td>403 includes new token when CSRF header missing</td></tr>
+  <tr><td>403 includes new token when CSRF expired</td></tr>
+  <tr><td>Regenerated token is usable for next mutating request</td></tr>
+  <tr><td>Regenerated token is single-use (chain regeneration)</td></tr>
+  <tr><td>Cross-user regenerated token is tied to requesting user</td></tr>
+  <tr><td>Browser flow</td><td>Add-to-cart works after CSRF token expires (transparent retry)</td></tr>
+  <tr><td rowspan="2">Metrics</td><td>csrf_ttl_renewals_total exists after authenticated GET</td></tr>
+  <tr><td>Regenerated counter increments on auto-regeneration</td></tr>
+</table>
+
+<pre><code># Run the new tests
+cd e2e && npx playwright test csrf-sliding-ttl.spec.ts
+
+# Run all unit tests
+cd csrf-service && go test -v ./...</code></pre>
+
+<!-- 11. Manual Test -->
+<h2 id="manual-test">11. Manual Testing Guide</h2>
+
+<h3>Step 1: Get a JWT</h3>
+<pre><code>TOKEN=$(curl -sk -X POST \
+  "https://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token" \
+  -d "grant_type=password&client_id=ui-client&username=user1&password=CHANGE_ME" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")</code></pre>
+
+<h3>Step 2: Generate a CSRF Token</h3>
+<pre><code>CSRF=$(curl -sk -H "Authorization: Bearer $TOKEN" \
+  https://api.service.net:30000/csrf/token \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
+echo "CSRF token: $CSRF"</code></pre>
+
+<h3>Step 3: Verify Sliding TTL</h3>
+<pre><code># Get user sub from JWT
+SUB=$(echo $TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)['sub'])")
+
+# Check initial TTL (~600 seconds)
+kubectl exec -n infra deploy/redis -- redis-cli -a CHANGE_ME TTL "csrf:$SUB"</code></pre>
+<div class="result pass">Expected: A value between 590 and 600 (10 minutes in seconds)</div>
+
+<pre><code># Wait 3 seconds, then make an authenticated GET
+sleep 3
+curl -sk -H "Authorization: Bearer $TOKEN" https://api.service.net:30000/ecom/books > /dev/null
+
+# Check TTL again — should be back near 600 (sliding refresh!)
+sleep 1
+kubectl exec -n infra deploy/redis -- redis-cli -a CHANGE_ME TTL "csrf:$SUB"</code></pre>
+<div class="result pass">Expected: TTL back near 600 (not 596). The GET refreshed it.</div>
+
+<h3>Step 4: Test Auto-Regeneration</h3>
+<pre><code># POST without CSRF token — should get 403 with new token in body
+curl -sk -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"bookId":"00000000-0000-0000-0000-000000000001","quantity":1}' \
+  https://api.service.net:30000/ecom/cart</code></pre>
+<div class="result pass">Expected: 403 response with <code>"token":"&lt;new-uuid&gt;"</code> in the JSON body</div>
+
+<pre><code># Extract the regenerated token and use it
+REGEN=$(curl -sk -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"bookId":"00000000-0000-0000-0000-000000000001","quantity":1}' \
+  https://api.service.net:30000/ecom/cart \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
+
+# Use regenerated token — should succeed
+curl -sk -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: $REGEN" \
+  -d '{"bookId":"00000000-0000-0000-0000-000000000001","quantity":1}' \
+  https://api.service.net:30000/ecom/cart</code></pre>
+<div class="result pass">Expected: 200 OK (item added to cart using the regenerated token)</div>
+
+<!-- 12. Files -->
+<h2 id="files">12. Files Changed</h2>
+
+<table>
+  <tr><th>#</th><th>File</th><th>Change</th></tr>
+  <tr><td>1</td><td><code>csrf-service/internal/config/config.go</code></td><td>Add <code>SlidingTTL</code> field, default TTL 30&rarr;10</td></tr>
+  <tr><td>2</td><td><code>csrf-service/internal/store/redis.go</code></td><td>Add <code>RefreshTTL()</code> to interface + Redis implementation</td></tr>
+  <tr><td>3</td><td><code>csrf-service/internal/middleware/metrics.go</code></td><td>Add <code>csrf_ttl_renewals_total</code> counter</td></tr>
+  <tr><td>4</td><td><code>csrf-service/internal/handler/token.go</code></td><td>Add <code>SlidingTTL</code> to Handler struct + constructor</td></tr>
+  <tr><td>5</td><td><code>csrf-service/internal/handler/authz.go</code></td><td>Sliding TTL on safe methods + <code>writeForbiddenWithNewToken</code></td></tr>
+  <tr><td>6</td><td><code>csrf-service/main.go</code></td><td>Wire <code>SlidingTTL</code> config + startup log</td></tr>
+  <tr><td>7</td><td><code>csrf-service/k8s/csrf-service.yaml</code></td><td>Add <code>CSRF_TOKEN_TTL_MINUTES</code> and <code>CSRF_SLIDING_TTL</code> env vars</td></tr>
+  <tr><td>8</td><td><code>ui/src/api/client.ts</code></td><td>Read regenerated token from 403 response body</td></tr>
+  <tr><td>9</td><td><code>csrf-service/internal/store/redis_test.go</code></td><td>3 new RefreshTTL tests</td></tr>
+  <tr><td>10</td><td><code>csrf-service/internal/handler/handler_test.go</code></td><td>6 new tests (sliding TTL + auto-regen)</td></tr>
+  <tr><td>11</td><td><code>e2e/csrf-sliding-ttl.spec.ts</code></td><td>12 new E2E tests</td></tr>
+  <tr><td>12</td><td><code>scripts/ui-service-up.sh</code></td><td>New UI build &amp; deploy script</td></tr>
+</table>
+
+<h3>Deploy Commands</h3>
+<pre><code># Deploy CSRF service (build + test + deploy)
+bash csrf-service/scripts/csrf-service-up.sh
+
+# Deploy UI service (build + deploy)
+bash scripts/ui-service-up.sh</code></pre>
+
+<footer>
+  <p>BookStore Platform &mdash; CSRF Sliding TTL &amp; Auto-Regeneration (Session 38)</p>
+  <p><a href="csrf-security-enhancements.html">&larr; Previous: Security Enhancements</a> &nbsp;|&nbsp; <a href="index.html">Platform Overview</a></p>
+</footer>
+
+</div>
+</body>
+</html>

@@ -165,7 +165,7 @@ s.client.Expire(ctx, key, s.ttl)
 // AFTER: Delete key (single-use)
 s.client.Del(ctx, key)</code></pre>
   </div>
-  <div class="result warn"><strong>Critical:</strong> Single-use alone is not enough. If a token is stolen but the user never performs a mutation, the stolen token sits valid until TTL expires (30min). The TTL + origin binding are essential safety nets.</div>
+  <div class="result warn"><strong>Critical:</strong> Single-use alone is not enough. If a token is stolen but the user never performs a mutation, the stolen token sits valid until TTL expires (10min). The TTL + origin binding are essential safety nets.</div>
 
   <h2>Enhancement 2: Configurable Fail-Closed Mode</h2>
   <div class="step-card">
@@ -234,7 +234,7 @@ s.client.Del(ctx, key)</code></pre>
     &rarr; CSRF token validation (csrf-service)
         &rarr; Token consumed on success (single-use)
         &rarr; Token bound to origin
-        &rarr; Token expires after TTL (30min max)
+        &rarr; Token expires after TTL (10min max, sliding)
     &rarr; Rate limiting on token generation
     &rarr; Forward to backend</code></pre>
   <div class="result pass"><strong>Each layer catches a different attack vector.</strong> No single mechanism is sufficient alone. TTL is the safety net for stolen-but-unconsumed tokens.</div>
@@ -243,7 +243,8 @@ s.client.Del(ctx, key)</code></pre>
   <table>
     <tr><th>Env Var</th><th>Default</th><th>Description</th></tr>
     <tr><td><code>CSRF_FAIL_CLOSED</code></td><td><code>false</code></td><td>Return 503 on Redis errors</td></tr>
-    <tr><td><code>CSRF_TOKEN_TTL_MINUTES</code></td><td><code>30</code></td><td>Max token lifetime</td></tr>
+    <tr><td><code>CSRF_TOKEN_TTL_MINUTES</code></td><td><code>10</code></td><td>Max token lifetime (sliding TTL refreshed on safe requests)</td></tr>
+    <tr><td><code>CSRF_SLIDING_TTL</code></td><td><code>true</code></td><td>Refresh TTL on authenticated safe method requests (GET/HEAD/OPTIONS)</td></tr>
     <tr><td><code>CSRF_ALLOWED_ORIGINS</code></td><td><code>myecom,localhost</code></td><td>Allowed request origins</td></tr>
     <tr><td><code>CSRF_REQUIRE_ORIGIN</code></td><td><code>false</code></td><td>Reject if Origin+Referer missing</td></tr>
     <tr><td><code>CSRF_ALLOWED_AUDIENCES</code></td><td><code>ui-client</code></td><td>Allowed JWT audience values</td></tr>

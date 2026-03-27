@@ -47,7 +47,7 @@ func setupHandler(t *testing.T) (*Handler, *miniredis.Miniredis) {
 	rl := &ratelimit.NoopLimiter{}
 	intr := &introspect.NoopIntrospector{}
 	t.Cleanup(func() { mr.Close(); s.Close() })
-	return New(s, m, ov, rl, intr, []string{"ui-client"}, false), mr
+	return New(s, m, ov, rl, intr, []string{"ui-client"}, false, true), mr
 }
 
 func setupHandlerFailClosed(t *testing.T) (*Handler, *miniredis.Miniredis) {
@@ -63,7 +63,7 @@ func setupHandlerFailClosed(t *testing.T) (*Handler, *miniredis.Miniredis) {
 	rl := &ratelimit.NoopLimiter{}
 	intr := &introspect.NoopIntrospector{}
 	t.Cleanup(func() { mr.Close(); s.Close() })
-	return New(s, m, ov, rl, intr, []string{"ui-client"}, false), mr
+	return New(s, m, ov, rl, intr, []string{"ui-client"}, false, true), mr
 }
 
 func makeJWT(sub string) string {
@@ -126,7 +126,7 @@ func TestGenerateToken_RateLimited(t *testing.T) {
 	rl := ratelimit.NewRedisLimiter(rlClient, 3) // Allow only 3 per minute
 	intr := &introspect.NoopIntrospector{}
 	t.Cleanup(func() { mr.Close(); s.Close(); rlClient.Close() })
-	h := New(s, m, ov, rl, intr, []string{"ui-client"}, false)
+	h := New(s, m, ov, rl, intr, []string{"ui-client"}, false, true)
 
 	jwt := makeJWT("rate-user")
 	// First 3 should succeed
@@ -348,7 +348,7 @@ func TestExtAuthzCheck_AudienceValid(t *testing.T) {
 	rl := &ratelimit.NoopLimiter{}
 	t.Cleanup(func() { mr.Close(); s.Close() })
 	// ValidateAudience=true
-	h := New(s, m, ov, rl, &introspect.NoopIntrospector{}, []string{"ui-client"}, true)
+	h := New(s, m, ov, rl, &introspect.NoopIntrospector{}, []string{"ui-client"}, true, true)
 
 	mr.Set("csrf:user-av", "tok")
 	req := httptest.NewRequest("POST", "/ecom/cart", nil)
@@ -373,7 +373,7 @@ func TestExtAuthzCheck_AudienceInvalid(t *testing.T) {
 	rl := &ratelimit.NoopLimiter{}
 	t.Cleanup(func() { mr.Close(); s.Close() })
 	// ValidateAudience=true
-	h := New(s, m, ov, rl, &introspect.NoopIntrospector{}, []string{"ui-client"}, true)
+	h := New(s, m, ov, rl, &introspect.NoopIntrospector{}, []string{"ui-client"}, true, true)
 
 	req := httptest.NewRequest("POST", "/ecom/cart", nil)
 	req.Header.Set("Authorization", "Bearer "+makeJWTWithAud("user-ai", "wrong-client"))
@@ -438,7 +438,7 @@ func setupHandlerWithIntrospector(t *testing.T, intr introspect.Introspector) (*
 	ov := origin.NewValidator([]string{"https://myecom.net:30000", "https://localhost:30000"}, false)
 	rl := &ratelimit.NoopLimiter{}
 	t.Cleanup(func() { mr.Close(); s.Close() })
-	return New(s, m, ov, rl, intr, []string{"ui-client"}, false), mr
+	return New(s, m, ov, rl, intr, []string{"ui-client"}, false, true), mr
 }
 
 func TestExtAuthzCheck_IntrospectionActive(t *testing.T) {
@@ -532,6 +532,169 @@ func TestExtAuthzCheck_IntrospectionSkipped_NoAuth(t *testing.T) {
 	}
 	if mock.called != 0 {
 		t.Errorf("introspection should not be called without JWT, called %d times", mock.called)
+	}
+}
+
+// ── Sliding TTL tests ────────────────────────────────────────────────────────
+
+func TestExtAuthzCheck_SlidingTTL_RefreshesOnAuthenticatedGET(t *testing.T) {
+	h, mr := setupHandler(t)
+	// Pre-populate a token with a short TTL
+	mr.Set("csrf:ttl-user", "some-token")
+	mr.SetTTL("csrf:ttl-user", 5*time.Minute)
+
+	req := httptest.NewRequest("GET", "/ecom/books", nil)
+	req.Header.Set("Authorization", "Bearer "+makeJWT("ttl-user"))
+	w := httptest.NewRecorder()
+	h.ExtAuthzCheck(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+
+	// Wait for fire-and-forget goroutine to complete
+	time.Sleep(100 * time.Millisecond)
+
+	ttl := mr.TTL("csrf:ttl-user")
+	// After sliding refresh, TTL should be reset to full store TTL (30min in test setup)
+	if ttl < 25*time.Minute {
+		t.Errorf("expected TTL near 30min after sliding refresh, got %v", ttl)
+	}
+}
+
+func TestExtAuthzCheck_SlidingTTL_NoRefreshOnUnauthenticatedGET(t *testing.T) {
+	h, mr := setupHandler(t)
+	mr.Set("csrf:anon-user", "some-token")
+	mr.SetTTL("csrf:anon-user", 5*time.Minute)
+
+	req := httptest.NewRequest("GET", "/ecom/books", nil)
+	// No Authorization header
+	w := httptest.NewRecorder()
+	h.ExtAuthzCheck(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	ttl := mr.TTL("csrf:anon-user")
+	// TTL should NOT have been refreshed (no JWT)
+	if ttl > 5*time.Minute {
+		t.Errorf("TTL should not be refreshed without JWT, got %v", ttl)
+	}
+}
+
+func TestExtAuthzCheck_SlidingTTL_Disabled(t *testing.T) {
+	mr, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := store.NewRedisStore(mr.Addr(), "", 30*time.Minute, false)
+	reg := prometheus.NewRegistry()
+	m := middleware.NewMetricsWithRegisterer(reg)
+	ov := origin.NewValidator([]string{"https://myecom.net:30000"}, false)
+	rl := &ratelimit.NoopLimiter{}
+	intr := &introspect.NoopIntrospector{}
+	t.Cleanup(func() { mr.Close(); s.Close() })
+	// SlidingTTL = false
+	h := New(s, m, ov, rl, intr, []string{"ui-client"}, false, false)
+
+	mr.Set("csrf:disabled-user", "some-token")
+	mr.SetTTL("csrf:disabled-user", 5*time.Minute)
+
+	req := httptest.NewRequest("GET", "/ecom/books", nil)
+	req.Header.Set("Authorization", "Bearer "+makeJWT("disabled-user"))
+	w := httptest.NewRecorder()
+	h.ExtAuthzCheck(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	ttl := mr.TTL("csrf:disabled-user")
+	// TTL should NOT have been refreshed (sliding TTL disabled)
+	if ttl > 5*time.Minute {
+		t.Errorf("TTL should not be refreshed when sliding TTL is disabled, got %v", ttl)
+	}
+}
+
+// ── Auto-regeneration tests ──────────────────────────────────────────────────
+
+func TestExtAuthzCheck_RegeneratesOnMissingCsrfHeader(t *testing.T) {
+	h, _ := setupHandler(t)
+	req := httptest.NewRequest("POST", "/ecom/cart", nil)
+	req.Header.Set("Authorization", "Bearer "+makeJWT("regen-user-1"))
+	// No X-CSRF-Token header
+	w := httptest.NewRecorder()
+	h.ExtAuthzCheck(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d", w.Code)
+	}
+	var body map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	token, ok := body["token"].(string)
+	if !ok || token == "" {
+		t.Error("expected 403 response to contain a regenerated 'token' field")
+	}
+	// Verify it's a valid UUID format
+	if len(token) != 36 {
+		t.Errorf("regenerated token should be UUID format (36 chars), got %d chars: %q", len(token), token)
+	}
+}
+
+func TestExtAuthzCheck_RegeneratesOnExpiredToken(t *testing.T) {
+	h, _ := setupHandler(t)
+	// No token in Redis (simulates expiry)
+	req := httptest.NewRequest("POST", "/ecom/cart", nil)
+	req.Header.Set("Authorization", "Bearer "+makeJWT("regen-user-2"))
+	req.Header.Set("X-Csrf-Token", "expired-token-value")
+	w := httptest.NewRecorder()
+	h.ExtAuthzCheck(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d", w.Code)
+	}
+	var body map[string]interface{}
+	json.NewDecoder(w.Body).Decode(&body)
+	token, ok := body["token"].(string)
+	if !ok || token == "" {
+		t.Error("expected 403 response to contain a regenerated 'token' field")
+	}
+	if token == "expired-token-value" {
+		t.Error("regenerated token should be different from the expired one")
+	}
+}
+
+func TestExtAuthzCheck_RegeneratedTokenIsValid(t *testing.T) {
+	h, _ := setupHandler(t)
+	// Step 1: Trigger 403 with auto-regeneration
+	req1 := httptest.NewRequest("POST", "/ecom/cart", nil)
+	req1.Header.Set("Authorization", "Bearer "+makeJWT("regen-user-3"))
+	w1 := httptest.NewRecorder()
+	h.ExtAuthzCheck(w1, req1)
+
+	if w1.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", w1.Code)
+	}
+	var body map[string]interface{}
+	json.NewDecoder(w1.Body).Decode(&body)
+	newToken := body["token"].(string)
+
+	// Step 2: Use the regenerated token — should succeed
+	req2 := httptest.NewRequest("POST", "/ecom/cart", nil)
+	req2.Header.Set("Authorization", "Bearer "+makeJWT("regen-user-3"))
+	req2.Header.Set("X-Csrf-Token", newToken)
+	w2 := httptest.NewRecorder()
+	h.ExtAuthzCheck(w2, req2)
+
+	if w2.Code != http.StatusOK {
+		t.Errorf("expected 200 with regenerated token, got %d", w2.Code)
 	}
 }
 

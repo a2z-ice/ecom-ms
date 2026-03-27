@@ -278,7 +278,7 @@ import (
 var rdb *redis.Client
 var ctx = context.Background()
 
-const csrfTTL = 30 * time.Minute
+const csrfTTL = 10 * time.Minute
 const csrfPrefix = "csrf:"
 
 func main() {
@@ -439,7 +439,7 @@ func envOrDefault(key, fallback string) string {
   <p>Initializes the Redis client using environment variables (<code>CSRF_REDIS_ADDR</code>, <code>CSRF_REDIS_PASSWORD</code>). Uses Redis DB 2 to avoid collisions with other services sharing the same Redis instance. Registers three HTTP handlers on a <code>ServeMux</code> and starts the server on the configured listen address (default <code>:8080</code>). If Redis is unreachable at startup, the process exits immediately with <code>log.Fatalf</code>.</p>
 
   <h3>handleGenerateToken()</h3>
-  <p>Called by the UI to obtain a fresh CSRF token. Accepts only GET requests. Extracts the user's <code>sub</code> claim from the JWT in the <code>Authorization</code> header. Generates a new UUID v4 token, stores it in Redis under the key <code>csrf:&lt;sub&gt;</code> with a 30-minute TTL, and returns the token as JSON. Each call overwrites any existing token for that user, ensuring only one active token per user at any time.</p>
+  <p>Called by the UI to obtain a fresh CSRF token. Accepts only GET requests. Extracts the user's <code>sub</code> claim from the JWT in the <code>Authorization</code> header. Generates a new UUID v4 token, stores it in Redis under the key <code>csrf:&lt;sub&gt;</code> with a 10-minute TTL, and returns the token as JSON. Each call overwrites any existing token for that user, ensuring only one active token per user at any time.</p>
 
   <h3>handleExtAuthzCheck()</h3>
   <p>The core ext_authz handler invoked by Istio for every request entering the gateway. Reads the original HTTP method from <code>X-Original-Method</code> (set by Istio) or falls back to <code>r.Method</code>. Safe methods return 200 immediately. For mutating methods, it extracts the user identity from the JWT. If no JWT is present (unauthenticated request), it returns 200 to allow the backend to handle its own authentication. For authenticated mutating requests, it retrieves the <code>X-CSRF-Token</code> header, looks up the expected token in Redis, and compares them. Mismatches, missing tokens, or expired tokens all return 403.</p>
@@ -767,7 +767,7 @@ kubectl exec -n infra deploy/redis -- redis-cli -n 2 GET "csrf:$SUB"</code></pre
   <div class="step-card">
     <h3><span class="step-num">10</span> Verify Token TTL</h3>
     <pre><code>kubectl exec -n infra deploy/redis -- redis-cli -n 2 TTL "csrf:$SUB"</code></pre>
-    <div class="result pass">(integer) 1764 -- Approximately 29 minutes remaining (30 min TTL)</div>
+    <div class="result pass">(integer) 564 -- Approximately 9 minutes remaining (10 min TTL)</div>
   </div>
 
   <div class="step-card">

@@ -19,7 +19,7 @@ Browser
 Gateway Envoy ──[HTTP ext_authz call]──> csrf-service pod (Go, port 8080)
                                               |
                                               v
-                                         Redis (token store, 30min TTL)
+                                         Redis (token store, 10min sliding TTL)
                                               |
                                               v
                                          Response (200 OK / 403 Forbidden)

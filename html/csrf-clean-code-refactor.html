@@ -307,7 +307,7 @@
 
 <span class="keyword">func</span> <span class="func">handleGenerateToken</span>(w http.<span class="type">ResponseWriter</span>, r *http.<span class="type">Request</span>) {
     <span class="comment">// This function reaches into global state</span>
-    rdb.Set(ctx, <span class="string">"csrf:"</span>+userID, token, 30*time.Minute)
+    rdb.Set(ctx, <span class="string">"csrf:"</span>+userID, token, 10*time.Minute)
 }</code></pre>
     </div>
     <div class="after">
@@ -407,7 +407,7 @@ mux.<span class="func">HandleFunc</span>(<span class="string">"/"</span>, h.ExtA
         Port:          <span class="func">envOrDefault</span>(<span class="string">"PORT"</span>, <span class="string">"8080"</span>),
         RedisAddr:     fmt.<span class="func">Sprintf</span>(<span class="string">"%s:%s"</span>, host, port),
         RedisPassword: <span class="func">envOrDefault</span>(<span class="string">"CSRF_REDIS_PASSWORD"</span>, <span class="string">""</span>),
-        TokenTTL:      30 * time.Minute,
+        TokenTTL:      10 * time.Minute,
     }
 }
 
