@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Learn Go: Kubernetes Operator &mdash; BookStore Platform</title>
+  <style>
+    :root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--accent:#3b82f6;--border:#334155;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;--cyan:#06b6d4}
+    *{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth}
+    body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
+    .container{max-width:1100px;margin:0 auto;padding:40px 24px}
+    h1{font-size:2.2rem;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,#60a5fa,#a78bfa);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    h1+p{color:var(--muted);font-size:1.05rem;margin-bottom:40px}
+    h2{font-size:1.4rem;font-weight:700;margin:48px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);color:#f1f5f9}
+    h3{font-size:1.1rem;font-weight:600;margin:24px 0 8px;color:#cbd5e1}
+    h4{font-size:.95rem;font-weight:600;margin:16px 0 6px;color:var(--muted)}
+    p{margin-bottom:16px}
+    table{width:100%;border-collapse:collapse;margin:16px 0 24px}
+    th{background:var(--card);text-align:left;padding:10px 14px;font-size:.85rem;font-weight:600;color:var(--accent);border-bottom:2px solid var(--border)}
+    td{padding:10px 14px;font-size:.9rem;border-bottom:1px solid var(--border)}
+    tr:hover td{background:rgba(59,130,246,.05)}
+    code{background:var(--card);padding:2px 6px;border-radius:4px;font-size:.88em;color:#f59e0b}
+    pre{background:var(--card);padding:16px;border-radius:8px;overflow-x:auto;margin:12px 0 20px;border:1px solid var(--border);font-size:.8rem;line-height:1.55}
+    pre code{background:none;padding:0;color:#e2e8f0}
+    ul,ol{margin:8px 0 16px 24px}li{margin-bottom:6px}
+    .badge{display:inline-block;font-size:.75rem;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:6px;color:#fff}
+    .badge.green{background:linear-gradient(135deg,#059669,#10b981)}.badge.blue{background:linear-gradient(135deg,#2563eb,#3b82f6)}
+    .badge.orange{background:linear-gradient(135deg,#d97706,#f59e0b)}.badge.purple{background:linear-gradient(135deg,#7c3aed,#8b5cf6)}
+    .badge.cyan{background:linear-gradient(135deg,#0891b2,#06b6d4)}.badge.red{background:linear-gradient(135deg,#dc2626,#ef4444)}
+    .badges{margin-bottom:24px}
+    footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid var(--border);color:var(--muted);font-size:.85rem}
+    footer a{color:var(--accent);text-decoration:none}footer a:hover{text-decoration:underline}
+    .topnav{position:sticky;top:0;z-index:100;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+    .topnav-inner{max-width:1100px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:52px}
+    .topnav-brand{font-weight:800;font-size:1rem;color:var(--text);text-decoration:none}
+    .topnav-links{display:flex;gap:20px;align-items:center}
+    .topnav-links a{color:var(--muted);font-size:.82rem;font-weight:500;text-decoration:none;transition:color .15s}.topnav-links a:hover{color:var(--text)}.topnav-links a.highlight{color:#a78bfa}
+    .result{padding:12px 16px;border-radius:8px;margin:8px 0 16px;font-size:.9rem}
+    .result.pass{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--green)}
+    .result.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--yellow)}
+    .result.info{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:var(--accent)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0}
+    .card h3{margin-top:0;color:var(--accent)}
+    .flow{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin:20px 0;font-family:monospace;font-size:.8rem;line-height:1.8;white-space:pre;overflow-x:auto}
+    .flow .g{color:var(--green);font-weight:600}.flow .r{color:var(--red);font-weight:600}.flow .b{color:var(--accent)}.flow .y{color:var(--yellow)}
+    .toc{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px 28px;margin:0 0 40px}
+    .toc h3{margin:0 0 12px;color:var(--accent);font-size:1rem}.toc ol{margin:0 0 0 20px}.toc li{margin-bottom:3px}
+    .toc a{color:var(--muted);text-decoration:none;font-size:.86rem;transition:color .15s}.toc a:hover{color:var(--accent)}
+    .go-keyword{color:#c084fc}.go-type{color:#22d3ee}.go-string{color:#86efac}.go-comment{color:#64748b;font-style:italic}.go-func{color:#fbbf24}.go-number{color:#f87171}
+    /* Banner */
+    .linkedin-banner{position:relative;width:100%;background:linear-gradient(135deg,#0c1222 0%,#162044 35%,#1e1b4b 60%,#312e81 100%);overflow:hidden}
+    .linkedin-banner::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 15% 50%,rgba(59,130,246,.1) 0%,transparent 50%),radial-gradient(circle at 85% 20%,rgba(139,92,246,.12) 0%,transparent 40%);pointer-events:none}
+    .linkedin-banner::after{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
+    .banner-inner{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:52px 48px 48px;display:flex;align-items:center;gap:44px}
+    .banner-shield{flex-shrink:0;width:130px;height:150px}.banner-shield svg{width:100%;height:100%;filter:drop-shadow(0 0 24px rgba(139,92,246,.3))}
+    .banner-text{flex:1;min-width:0}
+    .banner-series{font-size:.7rem;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:rgba(167,139,250,.9);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+    .banner-series::before{content:'';width:24px;height:2px;background:linear-gradient(90deg,#a78bfa,transparent)}
+    .banner-title-text{font-size:2.1rem;font-weight:800;line-height:1.25;margin-bottom:10px;background:linear-gradient(135deg,#f1f5f9 0%,#cbd5e1 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .banner-desc{font-size:.95rem;color:#94a3b8;margin-bottom:22px;line-height:1.6;max-width:540px}
+    .banner-tags{display:flex;gap:8px;flex-wrap:wrap}
+    .banner-tags span{font-size:.7rem;font-weight:600;padding:5px 14px;border-radius:6px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;letter-spacing:.3px}
+    .banner-brand{position:absolute;bottom:18px;right:32px;font-size:.65rem;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(148,163,184,.35);z-index:1}
+    .banner-accent-line{height:3px;background:linear-gradient(90deg,#8b5cf6 0%,#3b82f6 50%,#10b981 100%)}
+    @media(max-width:768px){.banner-inner{flex-direction:column;padding:36px 24px 32px;gap:24px;text-align:center}.banner-shield{width:90px;height:104px}.banner-title-text{font-size:1.5rem}.banner-tags{justify-content:center}}
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav"><div class="topnav-inner"><a href="index.html" class="topnav-brand">BookStore Platform</a><div class="topnav-links"><a href="index.html">Home</a><a href="go-learning-csrf-service.html">Go: CSRF Service</a><a href="bookstore-platform-manual.html" class="highlight">Full Manual</a></div></div></nav>
+
+<div class="linkedin-banner">
+  <div class="banner-inner">
+    <div class="banner-shield"><svg viewBox="0 0 130 150" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="sg" x1="65" y1="8" x2="65" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="rgba(139,92,246,.2)"/><stop offset="100%" stop-color="rgba(59,130,246,.15)"/></linearGradient><linearGradient id="ss" x1="16" y1="8" x2="114" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#3b82f6"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M65 14L22 36v38c0 30 18 56 43 66 25-10 43-36 43-66V36L65 14z" fill="url(#sg)" stroke="url(#ss)" stroke-width="2" filter="url(#glow)"/><text x="31" y="75" fill="#8b5cf6" font-size="14" font-weight="700" font-family="monospace">K8s</text><text x="31" y="92" fill="#06b6d4" font-size="14" font-weight="700" font-family="monospace">Op.</text></svg></div>
+    <div class="banner-text">
+      <div class="banner-series">Go Learning Series &bull; Kubernetes Operator</div>
+      <div class="banner-title-text">Learn Go: Building a Kubernetes Operator</div>
+      <p class="banner-desc">A complete guide to building a production Kubernetes operator in Go: Custom Resource Definitions (CRDs), reconciliation loops, controller-runtime, cert-manager integration, SSE streaming, TokenReview authentication, Prometheus metrics, and OLM deployment</p>
+      <div class="banner-tags"><span>Go 1.25</span><span>operator-sdk</span><span>controller-runtime</span><span>CRDs</span><span>Reconciliation</span><span>SSE Streaming</span><span>cert-manager</span><span>OLM</span><span>29 E2E Tests</span></div>
+    </div>
+  </div>
+  <div class="banner-brand">BookStore Platform</div>
+</div>
+<div class="banner-accent-line"></div>
+
+<div class="container">
+
+<h1>Learn Go: Kubernetes Operator (Cert Dashboard)</h1>
+<p>Build a real Kubernetes operator from scratch: watch TLS certificates, display them in a web dashboard, and renew them with one click &mdash; all in Go.</p>
+
+<div class="badges">
+  <span class="badge purple">operator-sdk</span>
+  <span class="badge blue">controller-runtime</span>
+  <span class="badge green">CRD v1alpha1</span>
+  <span class="badge orange">cert-manager</span>
+  <span class="badge cyan">SSE Streaming</span>
+  <span class="badge red">29 E2E Tests</span>
+</div>
+
+<!-- TOC -->
+<div class="toc"><h3>Table of Contents</h3>
+<ol>
+  <li><a href="#what-operator">What Is a Kubernetes Operator?</a></li>
+  <li><a href="#what-this">What This Operator Does</a></li>
+  <li><a href="#architecture">Architecture &amp; Project Structure</a></li>
+  <li><a href="#operator-pattern">The Operator Pattern: Reconciliation Loop</a></li>
+  <li><a href="#crd">Custom Resource Definition (CRD)</a></li>
+  <li><a href="#reconciler">The Reconciler: Creating Child Resources</a></li>
+  <li><a href="#watcher">Certificate Watcher: Polling Kubernetes API</a></li>
+  <li><a href="#dashboard">Dashboard Server: Embedded Web UI</a></li>
+  <li><a href="#renewal">Certificate Renewal: SSE Streaming</a></li>
+  <li><a href="#auth">Authentication: TokenReview API</a></li>
+  <li><a href="#metrics-op">Prometheus Metrics</a></li>
+  <li><a href="#webhook">Admission Webhook Validation</a></li>
+  <li><a href="#deploy-op">Deployment: OLM &amp; Lifecycle</a></li>
+  <li><a href="#run-op">How to Build, Test &amp; Run</a></li>
+</ol></div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="what-operator">1. What Is a Kubernetes Operator?</h2>
+
+<p>A Kubernetes operator is a <strong>custom controller</strong> that extends Kubernetes to manage application-specific resources. It follows the <strong>"human operator" metaphor</strong>: just like a database administrator manages a database, a Kubernetes operator manages a resource automatically.</p>
+
+<div class="flow"><span class="b">Standard Kubernetes:</span>
+  You create a Deployment &rarr; K8s creates Pods &rarr; K8s restarts crashed Pods
+  K8s knows HOW to manage Deployments, Services, ConfigMaps (built-in resources)
+
+<span class="y">But K8s doesn't know:</span>
+  How to manage TLS certificates
+  How to display certificate status in a dashboard
+  How to renew certificates by deleting secrets
+  How to stream renewal progress via Server-Sent Events
+
+<span class="g">An Operator teaches K8s:</span>
+  You create a <span class="g">CertDashboard</span> &rarr; Operator creates Deployment + Service + RBAC
+  Operator watches cert-manager Certificates &rarr; shows status in web UI
+  User clicks Renew &rarr; Operator deletes secret &rarr; cert-manager re-issues</div>
+
+<div class="result info"><strong>The Operator Pattern in one sentence:</strong> Define your application as a Kubernetes resource (CRD), then write a controller that makes reality match the desired state.</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="what-this">2. What This Operator Does</h2>
+
+<p>The <strong>cert-dashboard-operator</strong> manages TLS certificate monitoring for the BookStore platform:</p>
+
+<div class="card">
+<h3>User creates this YAML:</h3>
+<pre><code><span class="go-keyword">apiVersion:</span> certs.bookstore.io/v1alpha1
+<span class="go-keyword">kind:</span> CertDashboard
+<span class="go-keyword">metadata:</span>
+  <span class="go-keyword">name:</span> bookstore-certs
+<span class="go-keyword">spec:</span>
+  <span class="go-keyword">nodePort:</span> <span class="go-number">32600</span>
+  <span class="go-keyword">yellowThresholdDays:</span> <span class="go-number">10</span>
+  <span class="go-keyword">redThresholdDays:</span> <span class="go-number">5</span></code></pre>
+</div>
+
+<div class="card">
+<h3>Operator automatically creates:</h3>
+<div class="flow">CertDashboard CR (what you wrote)
+<span class="b">&boxvr;&boxh;&boxh;</span> ServiceAccount          <span class="go-comment">(identity for the dashboard pod)</span>
+<span class="b">&boxvr;&boxh;&boxh;</span> ClusterRole             <span class="go-comment">(permissions to read certificates + secrets)</span>
+<span class="b">&boxvr;&boxh;&boxh;</span> ClusterRoleBinding      <span class="go-comment">(binds role to service account)</span>
+<span class="b">&boxvr;&boxh;&boxh;</span> Deployment              <span class="go-comment">(runs the dashboard web server)</span>
+<span class="b">&boxv;   &boxur;&boxh;&boxh;</span> Pod                  <span class="go-comment">(Go binary serving HTML + API)</span>
+<span class="b">&boxur;&boxh;&boxh;</span> Service (NodePort)      <span class="go-comment">(exposes dashboard on port 32600)</span></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="architecture">3. Architecture &amp; Project Structure</h2>
+
+<div class="flow">cert-dashboard-operator/
+<span class="b">&boxvr;&boxh;&boxh; cmd/</span>
+<span class="b">&boxv;   &boxvr;&boxh;&boxh; main.go</span>                   <span class="go-comment">Operator entry point (controller-runtime Manager)</span>
+<span class="b">&boxv;   &boxur;&boxh;&boxh; dashboard/main.go</span>         <span class="go-comment">Dashboard server entry point</span>
+<span class="b">&boxvr;&boxh;&boxh; api/v1alpha1/</span>
+<span class="b">&boxv;   &boxvr;&boxh;&boxh; certdashboard_types.go</span>    <span class="go-comment">CRD Go types (Spec + Status)</span>
+<span class="b">&boxv;   &boxur;&boxh;&boxh; groupversion_info.go</span>      <span class="go-comment">API group registration</span>
+<span class="b">&boxvr;&boxh;&boxh; internal/</span>
+<span class="b">&boxv;   &boxvr;&boxh;&boxh; controller/</span>
+<span class="b">&boxv;   &boxv;   &boxur;&boxh;&boxh; certdashboard_controller.go</span>  <span class="go-comment">Reconciliation loop</span>
+<span class="b">&boxv;   &boxvr;&boxh;&boxh; dashboard/</span>
+<span class="b">&boxv;   &boxv;   &boxvr;&boxh;&boxh; server.go</span>             <span class="go-comment">HTTP server + routes</span>
+<span class="b">&boxv;   &boxv;   &boxvr;&boxh;&boxh; handlers.go</span>           <span class="go-comment">API handlers (certs, renew, SSE)</span>
+<span class="b">&boxv;   &boxv;   &boxvr;&boxh;&boxh; cert_watcher.go</span>       <span class="go-comment">Polls K8s API for certificates</span>
+<span class="b">&boxv;   &boxv;   &boxvr;&boxh;&boxh; auth.go</span>               <span class="go-comment">TokenReview authentication</span>
+<span class="b">&boxv;   &boxv;   &boxvr;&boxh;&boxh; metrics.go</span>            <span class="go-comment">Prometheus metrics</span>
+<span class="b">&boxv;   &boxv;   &boxur;&boxh;&boxh; templates/</span>            <span class="go-comment">Embedded HTML/CSS/JS (Go embed.FS)</span>
+<span class="b">&boxv;   &boxur;&boxh;&boxh; webhook/</span>
+<span class="b">&boxv;       &boxur;&boxh;&boxh; certdashboard_webhook.go</span>  <span class="go-comment">Admission validation</span>
+<span class="b">&boxvr;&boxh;&boxh; config/</span>
+<span class="b">&boxv;   &boxvr;&boxh;&boxh; crd/</span>                      <span class="go-comment">Generated CRD YAML</span>
+<span class="b">&boxv;   &boxvr;&boxh;&boxh; rbac/</span>                     <span class="go-comment">Generated RBAC YAML</span>
+<span class="b">&boxv;   &boxur;&boxh;&boxh; samples/</span>                  <span class="go-comment">Example CertDashboard YAML</span>
+<span class="b">&boxvr;&boxh;&boxh; Dockerfile</span>                    <span class="go-comment">Multi-stage: operator + dashboard binaries</span>
+<span class="b">&boxvr;&boxh;&boxh; Makefile</span>                      <span class="go-comment">Build, test, deploy targets</span>
+<span class="b">&boxur;&boxh;&boxh; PROJECT</span>                       <span class="go-comment">Kubebuilder project metadata</span></div>
+
+<p>The operator has <strong>two binaries</strong> built from the same module:</p>
+<table>
+  <tr><th>Binary</th><th>Entry Point</th><th>Runs As</th><th>Purpose</th></tr>
+  <tr><td><code>manager</code></td><td><code>cmd/main.go</code></td><td>Operator Deployment</td><td>Watches CertDashboard CRs, creates child resources</td></tr>
+  <tr><td><code>dashboard</code></td><td><code>cmd/dashboard/main.go</code></td><td>Dashboard Deployment (created by operator)</td><td>Web UI + API for certificate monitoring and renewal</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="operator-pattern">4. The Operator Pattern: Reconciliation Loop</h2>
+
+<p>The core of every Kubernetes operator is the <strong>reconciliation loop</strong> &mdash; a function that runs whenever the desired state (your CRD) or actual state (child resources) changes.</p>
+
+<div class="flow"><span class="b">The Reconciliation Loop (runs forever):</span>
+
+  <span class="y">1. Event triggers reconciliation:</span>
+     &bull; User creates/updates/deletes a CertDashboard CR
+     &bull; A child Deployment/Service/ServiceAccount changes
+     &bull; Periodic resync (every 10 hours by default)
+
+  <span class="y">2. Reconciler runs:</span>
+     &bull; Read the CertDashboard CR from Kubernetes API
+     &bull; Compare desired state (spec) with actual state (child resources)
+     &bull; Create/update/delete child resources to match
+     &bull; Update CertDashboard status
+
+  <span class="y">3. Return result:</span>
+     &bull; <span class="g">ctrl.Result{}</span>              &mdash; done, wait for next event
+     &bull; <span class="y">ctrl.Result{RequeueAfter: 10s}</span> &mdash; check again in 10 seconds
+     &bull; <span class="r">ctrl.Result{}, err</span>          &mdash; error, retry with backoff
+
+  <span class="y">4. Loop repeats on next event</span></div>
+
+<pre><code><span class="go-comment">// The reconciler function signature (controller-runtime convention)</span>
+<span class="go-keyword">func</span> (r *<span class="go-type">CertDashboardReconciler</span>) <span class="go-func">Reconcile</span>(
+    ctx <span class="go-type">context.Context</span>,
+    req <span class="go-type">ctrl.Request</span>,         <span class="go-comment">// Contains: {Namespace: "cert-dashboard", Name: "bookstore-certs"}</span>
+) (<span class="go-type">ctrl.Result</span>, <span class="go-type">error</span>) {
+
+    <span class="go-comment">// 1. Fetch the CertDashboard custom resource</span>
+    dashboard := &certsv1alpha1.CertDashboard{}
+    <span class="go-keyword">if</span> err := r.Get(ctx, req.NamespacedName, dashboard); err != <span class="go-keyword">nil</span> {
+        <span class="go-keyword">return</span> ctrl.Result{}, client.IgnoreNotFound(err)  <span class="go-comment">// Deleted? That's fine.</span>
+    }
+
+    <span class="go-comment">// 2. Create child resources if they don't exist</span>
+    r.reconcileServiceAccount(ctx, dashboard)
+    r.reconcileClusterRole(ctx, dashboard)
+    r.reconcileDeployment(ctx, dashboard)
+    r.reconcileService(ctx, dashboard)
+
+    <span class="go-comment">// 3. Update status</span>
+    dashboard.Status.Ready = deploymentReady
+    dashboard.Status.URL = fmt.Sprintf(<span class="go-string">"http://localhost:%d"</span>, dashboard.Spec.NodePort)
+    r.Status().Update(ctx, dashboard)
+
+    <span class="go-keyword">return</span> ctrl.Result{}, <span class="go-keyword">nil</span>
+}</code></pre>
+
+<div class="result pass"><strong>Idempotent by design.</strong> The reconciler can run 100 times and produce the same result. If the Deployment already exists, it checks if it matches the desired spec and updates only if needed. This is the key principle of Kubernetes controllers.</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="crd">5. Custom Resource Definition (CRD)</h2>
+
+<p>A CRD extends the Kubernetes API with a new resource type. In Go, you define it as a struct with special marker comments:</p>
+
+<pre><code><span class="go-comment">// +kubebuilder:object:root=true</span>
+<span class="go-comment">// +kubebuilder:subresource:status</span>
+<span class="go-comment">// +kubebuilder:printcolumn:name="Ready",type=boolean,JSONPath=`.status.ready`</span>
+<span class="go-comment">// +kubebuilder:printcolumn:name="URL",type=string,JSONPath=`.status.url`</span>
+<span class="go-keyword">type</span> <span class="go-type">CertDashboard</span> <span class="go-keyword">struct</span> {
+    metav1.TypeMeta   <span class="go-string">`json:",inline"`</span>      <span class="go-comment">// apiVersion + kind</span>
+    metav1.ObjectMeta <span class="go-string">`json:"metadata"`</span>     <span class="go-comment">// name, namespace, labels, etc.</span>
+
+    Spec   CertDashboardSpec   <span class="go-string">`json:"spec,omitempty"`</span>    <span class="go-comment">// DESIRED state (user writes this)</span>
+    Status CertDashboardStatus <span class="go-string">`json:"status,omitempty"`</span>  <span class="go-comment">// ACTUAL state (operator writes this)</span>
+}
+
+<span class="go-keyword">type</span> <span class="go-type">CertDashboardSpec</span> <span class="go-keyword">struct</span> {
+    <span class="go-comment">// +kubebuilder:default:=32600</span>
+    <span class="go-comment">// +kubebuilder:validation:Minimum=30000</span>
+    <span class="go-comment">// +kubebuilder:validation:Maximum=32767</span>
+    NodePort           <span class="go-type">int32</span>    <span class="go-string">`json:"nodePort,omitempty"`</span>
+    YellowThresholdDays <span class="go-type">int</span>     <span class="go-string">`json:"yellowThresholdDays,omitempty"`</span>  <span class="go-comment">// Days to yellow</span>
+    RedThresholdDays    <span class="go-type">int</span>     <span class="go-string">`json:"redThresholdDays,omitempty"`</span>    <span class="go-comment">// Days to red</span>
+    Replicas           <span class="go-type">int32</span>   <span class="go-string">`json:"replicas,omitempty"`</span>
+    Image              <span class="go-type">string</span>  <span class="go-string">`json:"image,omitempty"`</span>
+    Namespaces         []<span class="go-type">string</span> <span class="go-string">`json:"namespaces,omitempty"`</span>         <span class="go-comment">// Empty = all</span>
+}
+
+<span class="go-keyword">type</span> <span class="go-type">CertDashboardStatus</span> <span class="go-keyword">struct</span> {
+    Ready      <span class="go-type">bool</span>                <span class="go-string">`json:"ready"`</span>
+    URL        <span class="go-type">string</span>              <span class="go-string">`json:"url,omitempty"`</span>
+    Conditions []metav1.Condition  <span class="go-string">`json:"conditions,omitempty"`</span>
+}</code></pre>
+
+<div class="result info"><strong><code>// +kubebuilder:...</code> comments are code generators.</strong> Kubebuilder reads these comments and generates CRD YAML, validation rules, and printer columns. They're not regular comments &mdash; they're compile-time directives. Run <code>make manifests</code> to regenerate.</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="reconciler">6. The Reconciler: Creating Child Resources</h2>
+
+<h3>How the operator creates a Deployment:</h3>
+<pre><code><span class="go-keyword">func</span> (r *<span class="go-type">CertDashboardReconciler</span>) <span class="go-func">reconcileDeployment</span>(
+    ctx <span class="go-type">context.Context</span>, cd *certsv1alpha1.CertDashboard,
+) <span class="go-type">error</span> {
+    deploy := &appsv1.Deployment{
+        ObjectMeta: metav1.ObjectMeta{
+            Name:      cd.Name,
+            Namespace: cd.Namespace,
+        },
+    }
+
+    <span class="go-comment">// CreateOrUpdate: fetch existing, or create new</span>
+    _, err := ctrl.CreateOrUpdate(ctx, r.Client, deploy, <span class="go-keyword">func</span>() <span class="go-type">error</span> {
+        <span class="go-comment">// This function is called INSIDE CreateOrUpdate.</span>
+        <span class="go-comment">// If Deployment exists: it's fetched into `deploy`, then we mutate it.</span>
+        <span class="go-comment">// If it doesn't exist: `deploy` is empty, we fill it in.</span>
+
+        deploy.Spec.Replicas = &cd.Spec.Replicas
+        deploy.Spec.Template.Spec.Containers = []corev1.Container{{
+            Name:    <span class="go-string">"dashboard"</span>,
+            Image:   cd.Spec.Image,
+            Command: []<span class="go-type">string</span>{<span class="go-string">"/dashboard"</span>},
+            Env: []corev1.EnvVar{
+                {Name: <span class="go-string">"DASHBOARD_PORT"</span>, Value: <span class="go-string">"8080"</span>},
+                {Name: <span class="go-string">"YELLOW_THRESHOLD_DAYS"</span>,
+                 Value: strconv.Itoa(cd.Spec.YellowThresholdDays)},
+            },
+        }}
+
+        <span class="go-comment">// Set owner reference: when CertDashboard is deleted, this Deployment is garbage-collected</span>
+        <span class="go-keyword">return</span> ctrl.SetControllerReference(cd, deploy, r.Scheme)
+    })
+    <span class="go-keyword">return</span> err
+}</code></pre>
+
+<div class="result pass"><strong><code>ctrl.SetControllerReference</code></strong> is the magic that ties child resources to the parent CRD. When you delete the <code>CertDashboard</code> CR, Kubernetes automatically deletes all child resources (Deployment, Service, ServiceAccount) through <strong>garbage collection</strong>.</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="watcher">7. Certificate Watcher: Polling Kubernetes API</h2>
+
+<pre><code><span class="go-comment">// The watcher polls Kubernetes every 15 seconds for cert-manager Certificates</span>
+<span class="go-keyword">func</span> (w *<span class="go-type">CertWatcher</span>) <span class="go-func">Start</span>(ctx <span class="go-type">context.Context</span>) {
+    ticker := time.NewTicker(<span class="go-number">15</span> * time.Second)
+    <span class="go-keyword">defer</span> ticker.Stop()
+    w.Refresh(ctx)                     <span class="go-comment">// Initial fetch</span>
+    <span class="go-keyword">for</span> {
+        <span class="go-keyword">select</span> {
+        <span class="go-keyword">case</span> &lt;-ctx.Done():
+            <span class="go-keyword">return</span>                     <span class="go-comment">// Context cancelled (shutdown)</span>
+        <span class="go-keyword">case</span> &lt;-ticker.C:
+            w.Refresh(ctx)             <span class="go-comment">// Poll every 15s</span>
+        }
+    }
+}</code></pre>
+
+<div class="result info"><strong>Go's <code>select</code> statement</strong> waits on multiple channels simultaneously. It blocks until one of them is ready. Here, it either receives a tick (every 15s) or a cancellation signal (shutdown). This is how Go handles concurrent event loops without callbacks or async/await.</div>
+
+<h3>How it reads certificates from the Kubernetes API:</h3>
+<pre><code><span class="go-comment">// Uses the dynamic client (unstructured) because cert-manager types</span>
+<span class="go-comment">// aren't in the standard K8s API &mdash; they're CRDs themselves</span>
+certResource := schema.GroupVersionResource{
+    Group:    <span class="go-string">"cert-manager.io"</span>,
+    Version:  <span class="go-string">"v1"</span>,
+    Resource: <span class="go-string">"certificates"</span>,
+}
+
+list, err := w.dynClient.Resource(certResource).
+    Namespace(ns).
+    List(ctx, metav1.ListOptions{})
+<span class="go-comment">// Returns an unstructured.UnstructuredList &mdash; raw JSON-like map</span>
+<span class="go-comment">// We parse each certificate into our CertInfo struct</span></code></pre>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="dashboard">8. Dashboard Server: Embedded Web UI</h2>
+
+<pre><code><span class="go-comment">// Go 1.16+ can embed files directly into the binary</span>
+<span class="go-comment">//go:embed templates/*</span>
+<span class="go-keyword">var</span> templateFS embed.FS
+
+<span class="go-comment">// The HTML, CSS, and JavaScript are compiled INTO the Go binary.</span>
+<span class="go-comment">// No external files needed at runtime. The entire dashboard is one binary.</span>
+mux.Handle(<span class="go-string">"/"</span>, http.FileServer(http.FS(templateFS)))</code></pre>
+
+<div class="result pass"><strong><code>embed.FS</code></strong> is how Go bundles static files into the binary. The <code>//go:embed templates/*</code> directive (note: no space after <code>//</code>) tells the compiler to include all files in <code>templates/</code>. At runtime, they're served from memory &mdash; no disk access.</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="renewal">9. Certificate Renewal: SSE Streaming</h2>
+
+<div class="flow"><span class="b">Renewal Flow (user clicks "Renew" button):</span>
+
+  <span class="b">1.</span> Browser: POST /api/renew {name: "bookstore-gateway-cert", namespace: "infra"}
+     Authorization: Bearer &lt;serviceaccount-token&gt;
+
+  <span class="b">2.</span> Server: validates token via <span class="y">Kubernetes TokenReview API</span>
+     &rarr; creates UUID streamId
+     &rarr; starts goroutine for async renewal
+     &rarr; returns {"streamId": "abc-123"}
+
+  <span class="b">3.</span> Browser: GET /api/sse/abc-123
+     (Server-Sent Events &mdash; long-lived HTTP connection)
+
+  <span class="b">4.</span> Goroutine: performs renewal steps, sends events through channel:
+     <span class="y">event: status\ndata: deleting-secret</span>      &rarr; delete TLS secret
+     <span class="y">event: status\ndata: waiting-issuing</span>      &rarr; cert-manager re-issues
+     <span class="y">event: status\ndata: issued</span>               &rarr; new cert issued
+     <span class="y">event: status\ndata: ready</span>                &rarr; cert mounted on gateway
+     <span class="g">event: complete\ndata: {"success": true}</span>  &rarr; done
+
+  <span class="b">5.</span> Browser: receives events in real-time, updates UI</div>
+
+<pre><code><span class="go-comment">// SSE handler: streams events to the browser</span>
+<span class="go-keyword">func</span> (s *<span class="go-type">Server</span>) <span class="go-func">handleSSE</span>(w <span class="go-type">http.ResponseWriter</span>, r *<span class="go-type">http.Request</span>) {
+    w.Header().Set(<span class="go-string">"Content-Type"</span>, <span class="go-string">"text/event-stream"</span>)    <span class="go-comment">// SSE content type</span>
+    w.Header().Set(<span class="go-string">"Cache-Control"</span>, <span class="go-string">"no-cache"</span>)             <span class="go-comment">// Don't cache events</span>
+    w.Header().Set(<span class="go-string">"Connection"</span>, <span class="go-string">"keep-alive"</span>)              <span class="go-comment">// Keep TCP open</span>
+
+    flusher, ok := w.(http.Flusher)  <span class="go-comment">// Type assertion: can we flush?</span>
+
+    <span class="go-keyword">for</span> {
+        <span class="go-keyword">select</span> {
+        <span class="go-keyword">case</span> event := &lt;-eventChan:
+            fmt.Fprintf(w, <span class="go-string">"event: %s\ndata: %s\n\n"</span>, event.Type, event.Data)
+            flusher.Flush()                    <span class="go-comment">// Push bytes to browser NOW</span>
+        <span class="go-keyword">case</span> &lt;-time.After(<span class="go-number">15</span> * time.Second):
+            fmt.Fprint(w, <span class="go-string">": keepalive\n\n"</span>)   <span class="go-comment">// Prevent connection timeout</span>
+            flusher.Flush()
+        <span class="go-keyword">case</span> &lt;-r.Context().Done():
+            <span class="go-keyword">return</span>                             <span class="go-comment">// Client disconnected</span>
+        }
+    }
+}</code></pre>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="auth">10. Authentication: TokenReview API</h2>
+
+<pre><code><span class="go-comment">// Validate a ServiceAccount token by asking the Kubernetes API server</span>
+<span class="go-keyword">func</span> <span class="go-func">validateToken</span>(ctx <span class="go-type">context.Context</span>, token <span class="go-type">string</span>) (<span class="go-type">bool</span>, <span class="go-type">error</span>) {
+    review := &authv1.TokenReview{
+        Spec: authv1.TokenReviewSpec{
+            Token: token,   <span class="go-comment">// The ServiceAccount JWT from the Authorization header</span>
+        },
+    }
+
+    <span class="go-comment">// POST to /apis/authentication.k8s.io/v1/tokenreviews</span>
+    result, err := clientset.AuthenticationV1().TokenReviews().Create(ctx, review, metav1.CreateOptions{})
+
+    <span class="go-keyword">return</span> result.Status.Authenticated, err
+    <span class="go-comment">// Authenticated=true means the token is valid and belongs to a real ServiceAccount</span>
+}</code></pre>
+
+<div class="result info"><strong>TokenReview</strong> is Kubernetes' built-in token validation. Instead of implementing JWT verification ourselves, we ask the API server to validate the token. This is the official way to authenticate users/services in Kubernetes.</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="metrics-op">11. Prometheus Metrics</h2>
+
+<table>
+  <tr><th>Metric</th><th>Type</th><th>Labels</th><th>Description</th></tr>
+  <tr><td><code>cert_dashboard_certificates_total</code></td><td>Gauge</td><td>&mdash;</td><td>Total certificates being monitored</td></tr>
+  <tr><td><code>cert_dashboard_certificate_days_remaining</code></td><td>GaugeVec</td><td>name, namespace</td><td>Days until each certificate expires</td></tr>
+  <tr><td><code>cert_dashboard_certificate_ready</code></td><td>GaugeVec</td><td>name, namespace</td><td>1 if ready, 0 if not</td></tr>
+  <tr><td><code>cert_dashboard_renewals_total</code></td><td>Counter</td><td>&mdash;</td><td>Total successful renewals</td></tr>
+  <tr><td><code>cert_dashboard_renewal_errors_total</code></td><td>Counter</td><td>&mdash;</td><td>Failed renewal attempts</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="webhook">12. Admission Webhook Validation</h2>
+
+<pre><code><span class="go-comment">// Runs BEFORE the CertDashboard CR is stored in etcd</span>
+<span class="go-keyword">func</span> (v *<span class="go-type">CertDashboardValidator</span>) <span class="go-func">validate</span>(cd *CertDashboard) <span class="go-type">error</span> {
+    <span class="go-keyword">if</span> cd.Spec.RedThresholdDays >= cd.Spec.YellowThresholdDays {
+        <span class="go-keyword">return</span> fmt.Errorf(<span class="go-string">"redThresholdDays (%d) must be &lt; yellowThresholdDays (%d)"</span>,
+            cd.Spec.RedThresholdDays, cd.Spec.YellowThresholdDays)
+    }
+    <span class="go-keyword">if</span> cd.Spec.NodePort &lt; <span class="go-number">30000</span> || cd.Spec.NodePort > <span class="go-number">32767</span> {
+        <span class="go-keyword">return</span> fmt.Errorf(<span class="go-string">"nodePort must be 30000-32767"</span>)
+    }
+    <span class="go-keyword">return</span> <span class="go-keyword">nil</span>  <span class="go-comment">// Valid</span>
+}</code></pre>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="deploy-op">13. Deployment: OLM &amp; Lifecycle</h2>
+
+<div class="flow"><span class="b">Deployment order (scripts/cert-dashboard-up.sh):</span>
+
+  <span class="b">1.</span> Install OLM (Operator Lifecycle Manager) if not present
+  <span class="b">2.</span> Build operator + dashboard Docker images
+  <span class="b">3.</span> Load images into kind cluster
+  <span class="b">4.</span> Install CRD: <span class="y">kubectl apply -f config/crd/</span>
+  <span class="b">5.</span> Deploy operator: <span class="y">kubectl apply -f config/manager/</span>
+  <span class="b">6.</span> Create CertDashboard CR: <span class="y">kubectl apply -f config/samples/</span>
+  <span class="b">7.</span> Operator reconciles: creates SA + RBAC + Deployment + Service
+  <span class="b">8.</span> Dashboard available at <span class="g">http://localhost:32600</span></div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="run-op">14. How to Build, Test &amp; Run</h2>
+
+<h3>Prerequisites</h3>
+<pre><code><span class="go-comment"># Install Go, Docker, kind, kubectl</span>
+brew install go docker kind kubectl</code></pre>
+
+<h3>Run Tests</h3>
+<pre><code>cd cert-dashboard-operator
+
+<span class="go-comment"># Run all unit tests</span>
+make test
+
+<span class="go-comment"># Or run directly with go test</span>
+go test -v ./...
+
+<span class="go-comment"># Run specific controller tests</span>
+go test -v ./internal/controller/
+
+<span class="go-comment"># Run with coverage</span>
+make test-coverage</code></pre>
+
+<h3>Build</h3>
+<pre><code><span class="go-comment"># Build both binaries</span>
+make build
+
+<span class="go-comment"># Build Docker image</span>
+docker build -t bookstore/cert-dashboard-operator:latest .
+
+<span class="go-comment"># Generate CRD YAML from Go types (run after changing types.go)</span>
+make manifests
+
+<span class="go-comment"># Generate deepcopy methods (run after changing types.go)</span>
+make generate</code></pre>
+
+<h3>Deploy to Cluster</h3>
+<pre><code><span class="go-comment"># One command: build, load, deploy, verify</span>
+bash scripts/cert-dashboard-up.sh
+
+<span class="go-comment"># Or step by step:</span>
+make docker-build
+kind load docker-image bookstore/cert-dashboard-operator:latest --name bookstore
+make install        <span class="go-comment"># Install CRDs</span>
+make deploy         <span class="go-comment"># Deploy operator</span>
+kubectl apply -f config/samples/certs_v1alpha1_certdashboard.yaml
+
+<span class="go-comment"># Verify</span>
+kubectl get certdashboard               <span class="go-comment"># Shows Ready=true, URL</span>
+kubectl get pods -n cert-dashboard      <span class="go-comment"># Operator + dashboard pods</span>
+curl http://localhost:32600/api/certs   <span class="go-comment"># Certificate list API</span>
+open http://localhost:32600             <span class="go-comment"># Web dashboard</span></code></pre>
+
+<h3>Run E2E Tests</h3>
+<pre><code><span class="go-comment"># Playwright E2E tests (29 tests)</span>
+cd e2e
+npx playwright test cert-dashboard.spec.ts
+
+<span class="go-comment"># Run specific test</span>
+npx playwright test cert-dashboard.spec.ts -g "Health endpoint returns ok"</code></pre>
+
+<h3>Development Workflow</h3>
+<pre><code><span class="go-comment"># 1. Edit CRD types (api/v1alpha1/certdashboard_types.go)</span>
+<span class="go-comment"># 2. Regenerate manifests</span>
+make manifests generate
+
+<span class="go-comment"># 3. Edit controller (internal/controller/certdashboard_controller.go)</span>
+<span class="go-comment"># 4. Run tests</span>
+go test -v ./internal/controller/
+
+<span class="go-comment"># 5. Build and redeploy</span>
+make docker-build
+kind load docker-image bookstore/cert-dashboard-operator:latest --name bookstore
+kubectl rollout restart deploy/cert-dashboard-operator -n cert-dashboard</code></pre>
+
+<footer>
+  <p>BookStore Platform &mdash; Learn Go: Kubernetes Operator<br>
+  <a href="go-learning-csrf-service.html">Go: CSRF Service</a> &bull;
+  <a href="cert-dashboard-operator.html">Cert Dashboard User Manual</a> &bull;
+  <a href="index.html">&larr; Back to Documentation Index</a></p>
+</footer>
+</div>
+</body>
+</html>

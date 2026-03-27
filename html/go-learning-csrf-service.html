@@ -103,6 +103,8 @@
   <li><a href="#go-basics">Go Basics You Need First</a></li>
   <li><a href="#architecture">Architecture: How the Pieces Fit</a></li>
   <li><a href="#project">Project Structure</a></li>
+  <li><a href="#syntax">Go Syntax Deep Dive: Receivers, Interfaces &amp; Pointers</a></li>
+  <li><a href="#network">Network Calls Under the Hood</a></li>
   <li><a href="#go-mod">go.mod &mdash; Dependency Management</a></li>
   <li><a href="#config">config.go &mdash; Environment Variables</a></li>
   <li><a href="#store">store/redis.go &mdash; Interfaces &amp; Redis</a></li>
@@ -315,6 +317,415 @@ name := <span class="go-string">"hello"</span>               <span class="go-com
     }
     <span class="go-keyword">return</span> result
 }</code></pre>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="syntax">Go Syntax Deep Dive: Receivers, Interfaces &amp; Pointers</h2>
+
+<p>Before reading the source code, you need to understand three Go concepts that confuse every beginner: <strong>method receivers</strong>, <strong>interfaces</strong>, and <strong>pointers</strong>.</p>
+
+<h3>Method Receivers: What <code>(s *RedisStore)</code> Means</h3>
+
+<p>In Go, methods are defined <strong>outside</strong> the struct, with a <strong>receiver</strong> between <code>func</code> and the method name:</p>
+
+<pre><code><span class="go-comment">//     receiver         method name    parameters               return values</span>
+<span class="go-comment">//     &darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;    &darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;      &darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;     &darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;&darr;</span>
+<span class="go-keyword">func</span> (s *<span class="go-type">RedisStore</span>) <span class="go-func">Generate</span>(ctx <span class="go-type">context.Context</span>, userID, origin <span class="go-type">string</span>) (<span class="go-type">string</span>, <span class="go-type">error</span>) {
+    <span class="go-comment">// Inside this method, "s" is the RedisStore instance (like "this" in Java or "self" in Python)</span>
+    token := uuid.New().String()
+    s.client.Set(ctx, ...)        <span class="go-comment">// Access the struct's fields via "s"</span>
+    <span class="go-keyword">return</span> token, <span class="go-keyword">nil</span>              <span class="go-comment">// Return two values: the token and no error</span>
+}</code></pre>
+
+<h4>Breaking it down piece by piece:</h4>
+<table>
+  <tr><th>Part</th><th>Meaning</th><th>Equivalent in Java/Python</th></tr>
+  <tr><td><code>func</code></td><td>Keyword: "this is a function"</td><td><code>def</code> (Python) / method declaration (Java)</td></tr>
+  <tr><td><code>(s *RedisStore)</code></td><td>This method belongs to <code>RedisStore</code>. <code>s</code> is the variable name for the instance.</td><td><code>self</code> (Python) / <code>this</code> (Java)</td></tr>
+  <tr><td><code>*</code> in <code>*RedisStore</code></td><td><strong>Pointer receiver</strong> &mdash; the method can modify the struct's fields</td><td>Always pass-by-reference in Java/Python</td></tr>
+  <tr><td><code>Generate</code></td><td>Method name (uppercase = <strong>exported</strong>, visible outside the package)</td><td><code>public</code> method</td></tr>
+  <tr><td><code>ctx context.Context</code></td><td>First parameter: a context (carries deadlines, cancellation)</td><td>Common in Go &mdash; always the first parameter</td></tr>
+  <tr><td><code>userID, origin string</code></td><td>Two string parameters (Go shorthand: shared type)</td><td><code>String userID, String origin</code></td></tr>
+  <tr><td><code>(string, error)</code></td><td><strong>Two return values</strong> &mdash; Go functions can return multiple values</td><td>Not possible in Java; use tuples in Python</td></tr>
+</table>
+
+<h4>Pointer receiver (<code>*</code>) vs Value receiver</h4>
+<pre><code><span class="go-comment">// POINTER receiver: method receives a pointer to the struct</span>
+<span class="go-comment">// Can modify the struct's fields. Used for most methods.</span>
+<span class="go-keyword">func</span> (s *<span class="go-type">RedisStore</span>) <span class="go-func">Close</span>() <span class="go-type">error</span> {
+    <span class="go-keyword">return</span> s.client.Close()   <span class="go-comment">// Can access and modify s.client</span>
+}
+
+<span class="go-comment">// VALUE receiver: method receives a COPY of the struct</span>
+<span class="go-comment">// Cannot modify the original. Used for read-only methods.</span>
+<span class="go-keyword">func</span> (c <span class="go-type">Claims</span>) <span class="go-func">IsExpired</span>() <span class="go-type">bool</span> {
+    <span class="go-keyword">return</span> time.Now().Unix() > c.Exp  <span class="go-comment">// Just reads c.Exp, doesn't modify</span>
+}
+
+<span class="go-comment">// RULE OF THUMB: Always use *pointer receivers unless you have a reason not to.</span>
+<span class="go-comment">// In this project, every method uses pointer receivers.</span></code></pre>
+
+<h3>Interfaces: How Go Does Polymorphism</h3>
+
+<p>In Java/C#, you write <code>class RedisStore implements TokenStore</code>. <strong>Go doesn't have this.</strong> In Go, if a type has all the methods an interface requires, it <strong>automatically</strong> satisfies that interface. No declaration needed.</p>
+
+<pre><code><span class="go-comment">// Step 1: Define the interface (what methods are needed)</span>
+<span class="go-keyword">type</span> <span class="go-type">TokenStore</span> <span class="go-keyword">interface</span> {
+    Generate(ctx <span class="go-type">context.Context</span>, userID, origin <span class="go-type">string</span>) (<span class="go-type">string</span>, <span class="go-type">error</span>)
+    Validate(ctx <span class="go-type">context.Context</span>, userID, token, origin <span class="go-type">string</span>) (<span class="go-type">bool</span>, <span class="go-type">error</span>)
+    Ping(ctx <span class="go-type">context.Context</span>) <span class="go-type">error</span>
+    Close() <span class="go-type">error</span>
+}
+
+<span class="go-comment">// Step 2: Define a struct with the SAME methods</span>
+<span class="go-keyword">type</span> <span class="go-type">RedisStore</span> <span class="go-keyword">struct</span> { ... }
+
+<span class="go-keyword">func</span> (s *<span class="go-type">RedisStore</span>) <span class="go-func">Generate</span>(...) (<span class="go-type">string</span>, <span class="go-type">error</span>) { ... }  <span class="go-comment">// &check;</span>
+<span class="go-keyword">func</span> (s *<span class="go-type">RedisStore</span>) <span class="go-func">Validate</span>(...) (<span class="go-type">bool</span>, <span class="go-type">error</span>)   { ... }  <span class="go-comment">// &check;</span>
+<span class="go-keyword">func</span> (s *<span class="go-type">RedisStore</span>) <span class="go-func">Ping</span>(...) <span class="go-type">error</span>              { ... }  <span class="go-comment">// &check;</span>
+<span class="go-keyword">func</span> (s *<span class="go-type">RedisStore</span>) <span class="go-func">Close</span>() <span class="go-type">error</span>                { ... }  <span class="go-comment">// &check;</span>
+
+<span class="go-comment">// &check; RedisStore now AUTOMATICALLY satisfies TokenStore.</span>
+<span class="go-comment">// No "implements" keyword needed. Go checks at compile time.</span></code></pre>
+
+<h4>Why this matters: Dependency Injection &amp; Testing</h4>
+<pre><code><span class="go-comment">// The Handler accepts the INTERFACE, not the concrete type</span>
+<span class="go-keyword">type</span> <span class="go-type">Handler</span> <span class="go-keyword">struct</span> {
+    Store <span class="go-type">TokenStore</span>     <span class="go-comment">// &larr; Interface type, NOT *RedisStore</span>
+}
+
+<span class="go-comment">// In PRODUCTION: inject a real Redis store</span>
+h := handler.New(store.NewRedisStore(...), ...)
+
+<span class="go-comment">// In TESTS: inject a fake (miniredis) store &mdash; same interface, different implementation</span>
+h := handler.New(store.NewRedisStore(miniredis.Addr(), ...), ...)</code></pre>
+
+<h4>Real examples from this project: 4 interfaces, 7 implementations</h4>
+<table>
+  <tr><th>Interface</th><th>Real Implementation</th><th>Test/Noop Implementation</th><th>File</th></tr>
+  <tr><td><code>TokenStore</code></td><td><code>RedisStore</code> (Redis)</td><td><code>RedisStore</code> (miniredis)</td><td><code>store/redis.go</code></td></tr>
+  <tr><td><code>Limiter</code></td><td><code>RedisLimiter</code></td><td><code>NoopLimiter</code> (always allows)</td><td><code>ratelimit/limiter.go</code></td></tr>
+  <tr><td><code>Introspector</code></td><td><code>KeycloakIntrospector</code></td><td><code>NoopIntrospector</code> (always active)</td><td><code>introspect/client.go</code></td></tr>
+  <tr><td><code>http.Handler</code></td><td><code>Handler.ExtAuthzCheck</code></td><td>N/A (tested via <code>httptest</code>)</td><td><code>handler/authz.go</code></td></tr>
+</table>
+
+<h4>The NoopIntrospector &mdash; simplest interface implementation possible</h4>
+<pre><code><span class="go-comment">// The interface requires one method</span>
+<span class="go-keyword">type</span> <span class="go-type">Introspector</span> <span class="go-keyword">interface</span> {
+    IsActive(ctx <span class="go-type">context.Context</span>, rawToken <span class="go-type">string</span>) (<span class="go-type">bool</span>, <span class="go-type">error</span>)
+}
+
+<span class="go-comment">// This struct has ZERO fields</span>
+<span class="go-keyword">type</span> <span class="go-type">NoopIntrospector</span> <span class="go-keyword">struct</span>{}
+
+<span class="go-comment">// One method that always returns true &mdash; satisfies the interface</span>
+<span class="go-keyword">func</span> (n *<span class="go-type">NoopIntrospector</span>) <span class="go-func">IsActive</span>(_ <span class="go-type">context.Context</span>, _ <span class="go-type">string</span>) (<span class="go-type">bool</span>, <span class="go-type">error</span>) {
+    <span class="go-keyword">return</span> <span class="go-keyword">true</span>, <span class="go-keyword">nil</span>
+}
+<span class="go-comment">//  _ means "I don't use this parameter" (Go requires all params to be used or underscored)</span></code></pre>
+
+<div class="result pass"><strong>Pattern: Noop implementations.</strong> When a feature is disabled (e.g., <code>INTROSPECT_ENABLED=false</code>), <code>main.go</code> injects a <code>NoopIntrospector</code> instead of a real one. The handler doesn't know the difference &mdash; it just calls <code>h.Introspector.IsActive()</code> which always returns <code>true</code>.</div>
+
+<h3>Multiple Return Values</h3>
+<pre><code><span class="go-comment">// Go functions can return 2+ values. The convention is: (result, error)</span>
+<span class="go-keyword">func</span> (s *<span class="go-type">RedisStore</span>) <span class="go-func">Validate</span>(...) (<span class="go-type">bool</span>, <span class="go-type">error</span>) {
+    <span class="go-keyword">return</span> <span class="go-keyword">true</span>, <span class="go-keyword">nil</span>       <span class="go-comment">// valid=true, error=nil (success)</span>
+    <span class="go-keyword">return</span> <span class="go-keyword">false</span>, <span class="go-keyword">nil</span>      <span class="go-comment">// valid=false, error=nil (invalid token, not an error)</span>
+    <span class="go-keyword">return</span> <span class="go-keyword">false</span>, err      <span class="go-comment">// valid=false, error=err (Redis failure, fail-closed)</span>
+    <span class="go-keyword">return</span> <span class="go-keyword">true</span>, err       <span class="go-comment">// valid=true, error=err (Redis failure, fail-OPEN)</span>
+}
+
+<span class="go-comment">// Calling code checks BOTH return values:</span>
+valid, err := h.Store.Validate(ctx, userID, token, origin)
+<span class="go-keyword">if</span> err != <span class="go-keyword">nil</span> {
+    <span class="go-comment">// Handle error (log it, increment metric)</span>
+}
+<span class="go-keyword">if</span> !valid {
+    <span class="go-comment">// Token is invalid &mdash; return 403</span>
+}</code></pre>
+
+<h3>Exported vs Unexported (Public vs Private)</h3>
+<pre><code><span class="go-comment">// UPPERCASE first letter = exported (public) &mdash; visible outside the package</span>
+<span class="go-keyword">func</span> <span class="go-func">Generate</span>(...)       <span class="go-comment">// &check; Other packages can call this</span>
+<span class="go-keyword">type</span> <span class="go-type">TokenStore</span>          <span class="go-comment">// &check; Other packages can use this type</span>
+<span class="go-keyword">type</span> <span class="go-type">Config</span>              <span class="go-comment">// &check; Other packages can create this struct</span>
+
+<span class="go-comment">// lowercase first letter = unexported (private) &mdash; only visible within the package</span>
+<span class="go-keyword">func</span> <span class="go-func">envOrDefault</span>(...)   <span class="go-comment">// &cross; Only config package can call this</span>
+<span class="go-keyword">func</span> <span class="go-func">writeForbidden</span>(...) <span class="go-comment">// &cross; Only handler package can call this</span>
+<span class="go-keyword">func</span> <span class="go-func">tokenHash</span>(...)      <span class="go-comment">// &cross; Only introspect package can call this</span>
+<span class="go-keyword">const</span> keyPrefix = ...    <span class="go-comment">// &cross; Only store package can read this</span></code></pre>
+
+<div class="result info"><strong>The <code>internal/</code> directory.</strong> Go has a special rule: packages under <code>internal/</code> can only be imported by code in the same module. External projects cannot import <code>github.com/bookstore/csrf-service/internal/store</code>. This enforces encapsulation at the module level.</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="network">Network Calls Under the Hood</h2>
+
+<p>This service makes <strong>4 types of network calls</strong>. Understanding how each works at the TCP/protocol level is critical for debugging production issues.</p>
+
+<h3>Network Call Map</h3>
+<div class="flow"><span class="b">csrf-service</span> makes these network calls:
+
+  <span class="y">1. Redis (TCP, port 6379)</span>        &mdash; Token CRUD, rate limiting, introspection cache
+  <span class="y">2. Keycloak (HTTP POST, port 8080)</span> &mdash; JWT introspection (RFC 7662)
+  <span class="y">3. Inbound HTTP (port 8080)</span>       &mdash; Receives ext_authz requests from Envoy
+  <span class="y">4. Prometheus scrape (port 8080)</span>  &mdash; Prometheus GETs /metrics every 15s
+
+All within the Kubernetes cluster. No external internet calls.</div>
+
+<h3>1. Redis Connection: How <code>go-redis</code> Works</h3>
+
+<pre><code><span class="go-comment">// When you create a Redis client, it does NOT connect immediately</span>
+client := redis.NewClient(&redis.Options{
+    Addr:         <span class="go-string">"redis.infra.svc.cluster.local:6379"</span>,  <span class="go-comment">// K8s DNS resolves to pod IP</span>
+    Password:     <span class="go-string">"CHANGE_ME"</span>,
+    DB:           <span class="go-number">0</span>,
+    DialTimeout:  <span class="go-number">2</span> * time.Second,   <span class="go-comment">// Max time to establish TCP connection</span>
+    ReadTimeout:  <span class="go-number">1</span> * time.Second,   <span class="go-comment">// Max time waiting for Redis response</span>
+    WriteTimeout: <span class="go-number">1</span> * time.Second,   <span class="go-comment">// Max time sending data to Redis</span>
+    PoolSize:     <span class="go-number">10</span>,                <span class="go-comment">// Keep 10 TCP connections alive</span>
+    MinIdleConns: <span class="go-number">2</span>,                 <span class="go-comment">// Always keep 2 connections ready</span>
+})</code></pre>
+
+<h4>What happens when you call <code>s.client.Set(...)</code>:</h4>
+<div class="flow"><span class="go-func">s.client.Set(ctx, "csrf:user-123", "token-uuid", 30*time.Minute)</span>
+
+Under the hood:
+  <span class="b">1.</span> go-redis checks the <span class="y">connection pool</span> for an idle TCP connection
+     &bull; Pool has idle connection? <span class="g">&rarr; Reuse it (no TCP handshake)</span>
+     &bull; Pool empty? <span class="y">&rarr; Dial new TCP connection to redis:6379</span>
+     &bull; Pool full (10 connections)? <span class="r">&rarr; Wait until one is returned</span>
+
+  <span class="b">2.</span> Sends Redis protocol (RESP) over TCP:
+     <span class="go-string">*4\r\n$3\r\nSET\r\n$14\r\ncsrf:user-123\r\n$36\r\n550e8400-...\r\n$2\r\nEX\r\n$4\r\n1800\r\n</span>
+     (This is the Redis wire protocol &mdash; plain text over TCP)
+
+  <span class="b">3.</span> Waits for response:
+     <span class="go-string">+OK\r\n</span>
+
+  <span class="b">4.</span> Returns connection to pool (ready for next call)
+
+  <span class="b">5.</span> If <span class="y">ctx</span> deadline exceeded at any point <span class="r">&rarr; cancel, return error</span></div>
+
+<div class="result info"><strong>Connection pooling</strong> is why Redis calls are fast (~0.1ms). The TCP connection (3-way handshake, TLS if configured) is established once and reused for thousands of commands. The <code>PoolSize: 10</code> means up to 10 concurrent Redis commands can execute in parallel.</div>
+
+<h4>What happens when Redis is down:</h4>
+<pre><code>stored, err := s.client.Get(ctx, keyPrefix+userID).Result()
+<span class="go-comment">// err = "dial tcp redis.infra.svc:6379: connect: connection refused"</span>
+<span class="go-comment">//</span>
+<span class="go-comment">// The client tried to:</span>
+<span class="go-comment">//   1. Get a connection from the pool &rarr; all dead</span>
+<span class="go-comment">//   2. Dial a new TCP connection &rarr; TCP SYN sent, no SYN-ACK received</span>
+<span class="go-comment">//   3. Wait DialTimeout (2s) &rarr; timeout</span>
+<span class="go-comment">//   4. Retry (go-redis retries 3 times by default) &rarr; all fail</span>
+<span class="go-comment">//   5. Return error</span>
+<span class="go-comment">//</span>
+<span class="go-comment">// Then our code decides: fail-open (return true) or fail-closed (return false)</span>
+<span class="go-keyword">if</span> s.failClosed {
+    <span class="go-keyword">return</span> <span class="go-keyword">false</span>, err   <span class="go-comment">// Block the request</span>
+}
+<span class="go-keyword">return</span> <span class="go-keyword">true</span>, err      <span class="go-comment">// Allow the request through</span></code></pre>
+
+<h3>2. Keycloak Introspection: How <code>net/http</code> Client Works</h3>
+
+<pre><code><span class="go-comment">// Create an HTTP client with a 3-second timeout</span>
+httpClient := &http.Client{
+    Timeout: <span class="go-number">3</span> * time.Second,  <span class="go-comment">// Covers DNS + TCP + TLS + request + response</span>
+}</code></pre>
+
+<h4>What happens when you call <code>k.callKeycloak(ctx, rawToken)</code>:</h4>
+<div class="flow"><span class="go-func">k.callKeycloak(ctx, rawToken)</span>
+
+Under the hood:
+  <span class="b">1.</span> Build the HTTP request:
+     POST http://keycloak.identity.svc.cluster.local:8080/realms/bookstore/protocol/openid-connect/token/introspect
+     Content-Type: application/x-www-form-urlencoded
+     Authorization: Basic base64(client_id:client_secret)
+     Body: token=eyJhbGc...&token_type_hint=access_token
+
+  <span class="b">2.</span> <span class="y">DNS resolution</span> (inside Kubernetes):
+     keycloak.identity.svc.cluster.local
+       &rarr; CoreDNS query &rarr; resolves to Keycloak pod IP (e.g., 10.244.1.50)
+     (Cached by Go's net.Resolver for ~30s)
+
+  <span class="b">3.</span> <span class="y">TCP handshake</span> (3-way):
+     csrf-service &rarr; SYN &rarr; keycloak:8080
+     keycloak:8080 &rarr; SYN-ACK &rarr; csrf-service
+     csrf-service &rarr; ACK &rarr; keycloak:8080
+     (~0.1ms within cluster)
+
+  <span class="b">4.</span> <span class="y">HTTP request</span> sent over TCP connection:
+     POST /realms/bookstore/.../token/introspect HTTP/1.1
+
+  <span class="b">5.</span> <span class="y">Keycloak processes</span>:
+     &bull; Validates client credentials (Basic Auth)
+     &bull; Decodes the JWT
+     &bull; Checks user status in database
+     &bull; Returns: {"active": true} or {"active": false}
+     (~5-15ms within cluster)
+
+  <span class="b">6.</span> <span class="y">Go parses response</span>:
+     json.NewDecoder(resp.Body).Decode(&result)
+     &bull; result.Active = true or false
+
+  <span class="b">7.</span> <span class="y">Cache in Redis</span>:
+     SET introspect:a1b2c3d4e5f6g7h8 "1" EX 15
+     (TTL = 15 seconds)
+
+  <span class="b">8.</span> Next call for same token:
+     Redis GET &rarr; cache hit &rarr; <span class="g">skip Keycloak entirely (~0.1ms)</span></div>
+
+<h4>The code line by line:</h4>
+<pre><code><span class="go-keyword">func</span> (k *<span class="go-type">KeycloakIntrospector</span>) <span class="go-func">callKeycloak</span>(ctx <span class="go-type">context.Context</span>, rawToken <span class="go-type">string</span>) (<span class="go-type">bool</span>, <span class="go-type">error</span>) {
+    <span class="go-comment">// Build form data (URL-encoded body, not JSON)</span>
+    form := url.Values{
+        <span class="go-string">"token"</span>:           {rawToken},
+        <span class="go-string">"token_type_hint"</span>: {<span class="go-string">"access_token"</span>},
+    }
+
+    <span class="go-comment">// Create HTTP request with context (carries deadline from ctx)</span>
+    req, err := http.NewRequestWithContext(ctx, <span class="go-string">"POST"</span>, k.introspectURL,
+        strings.NewReader(form.Encode()))
+    <span class="go-comment">// form.Encode() = "token=eyJhbGc...&token_type_hint=access_token"</span>
+    <span class="go-comment">// strings.NewReader() wraps the string as an io.Reader (required by NewRequest)</span>
+
+    req.Header.Set(<span class="go-string">"Content-Type"</span>, <span class="go-string">"application/x-www-form-urlencoded"</span>)
+    req.SetBasicAuth(k.clientID, k.clientSecret)
+    <span class="go-comment">// SetBasicAuth adds header: Authorization: Basic base64("csrf-introspect:secret")</span>
+
+    <span class="go-comment">// Execute the HTTP call (DNS + TCP + send + receive)</span>
+    resp, err := k.httpClient.Do(req)
+    <span class="go-comment">// If ctx deadline expires during the call, Do() returns immediately with err</span>
+
+    <span class="go-keyword">defer</span> resp.Body.Close()
+    <span class="go-comment">// defer = "run this when the function returns" (Go's cleanup mechanism)</span>
+    <span class="go-comment">// resp.Body is an io.ReadCloser &mdash; MUST be closed to release TCP connection</span>
+    <span class="go-comment">// If you forget Close(), the TCP connection leaks and the pool fills up</span>
+
+    <span class="go-comment">// Parse JSON response</span>
+    <span class="go-keyword">var</span> result <span class="go-keyword">struct</span> {
+        Active <span class="go-type">bool</span> <span class="go-string">`json:"active"`</span>   <span class="go-comment">// Struct tag: maps JSON "active" to Go field</span>
+    }
+    json.NewDecoder(resp.Body).Decode(&result)
+    <span class="go-comment">// NewDecoder streams from Body (doesn't read all into memory first)</span>
+    <span class="go-comment">// &result = pointer to result (Decode needs to modify it)</span>
+
+    <span class="go-keyword">return</span> result.Active, <span class="go-keyword">nil</span>
+}</code></pre>
+
+<h3>3. Inbound HTTP: How ext_authz Requests Arrive</h3>
+
+<div class="flow">How a browser request reaches <span class="b">csrf-service</span>:
+
+  <span class="b">Browser</span> sends HTTPS request:
+    POST https://api.service.net:30000/ecom/cart
+    Authorization: Bearer eyJhbGc...
+    X-CSRF-Token: 550e8400-...
+
+  <span class="y">Kind NodePort (30000)</span> &rarr; forwards to Istio Gateway pod
+
+  <span class="y">Istio Gateway (Envoy)</span>:
+    1. TLS termination (decrypts HTTPS &rarr; plain HTTP internally)
+    2. JWT signature validation (RequestAuthentication CRD)
+    3. Sees AuthorizationPolicy CUSTOM action for csrf-ext-authz
+    4. Makes <span class="r">internal HTTP call</span> to csrf-service:
+
+       <span class="go-comment">// Envoy sends this to csrf-service:8080 (cluster-internal)</span>
+       POST http://csrf-service.infra.svc.cluster.local:8080/
+       Headers forwarded:
+         :method = POST                    <span class="go-comment">// Original method</span>
+         :path = /ecom/cart                <span class="go-comment">// Original path</span>
+         authorization = Bearer eyJhbGc... <span class="go-comment">// From includeRequestHeadersInCheck</span>
+         x-csrf-token = 550e8400-...      <span class="go-comment">// From includeRequestHeadersInCheck</span>
+         origin = https://myecom.net:30000 <span class="go-comment">// From includeRequestHeadersInCheck</span>
+         referer = https://myecom.net:...  <span class="go-comment">// From includeRequestHeadersInCheck</span>
+
+  <span class="b">csrf-service</span> Go HTTP server:
+    1. http.ServeMux matches "/" route &rarr; h.ExtAuthzCheck
+    2. Runs all 6 security checks
+    3. Returns <span class="g">200 OK</span> (allow) or <span class="r">403 Forbidden</span> (deny)
+
+  <span class="y">Envoy</span> reads csrf-service response:
+    200 &rarr; forwards original request to backend (ecom-service)
+    403 &rarr; returns 403 to browser (request never reaches backend)</div>
+
+<h4>How Go's HTTP server handles this:</h4>
+<pre><code><span class="go-comment">// In main.go:</span>
+srv := &http.Server{
+    Addr:         <span class="go-string">":8080"</span>,         <span class="go-comment">// Listen on all interfaces, port 8080</span>
+    Handler:      mux,             <span class="go-comment">// Route requests to our handlers</span>
+    ReadTimeout:  <span class="go-number">5</span> * time.Second,  <span class="go-comment">// Max time to read entire request</span>
+    WriteTimeout: <span class="go-number">10</span> * time.Second, <span class="go-comment">// Max time to write response</span>
+    IdleTimeout:  <span class="go-number">60</span> * time.Second, <span class="go-comment">// Keep-alive timeout for idle connections</span>
+}
+
+<span class="go-keyword">go</span> <span class="go-keyword">func</span>() {
+    srv.ListenAndServe()  <span class="go-comment">// Blocks forever, handling requests</span>
+}()
+<span class="go-comment">//</span>
+<span class="go-comment">// Under the hood, ListenAndServe():</span>
+<span class="go-comment">//   1. Calls net.Listen("tcp", ":8080") &mdash; binds to port, starts accepting</span>
+<span class="go-comment">//   2. For each incoming TCP connection:</span>
+<span class="go-comment">//      a. Spawns a NEW goroutine (lightweight thread, ~2KB stack)</span>
+<span class="go-comment">//      b. Reads HTTP request from the connection</span>
+<span class="go-comment">//      c. Calls mux.ServeHTTP(w, r) to route to the right handler</span>
+<span class="go-comment">//      d. Handler writes response to w (http.ResponseWriter)</span>
+<span class="go-comment">//      e. Connection kept alive for next request (HTTP keep-alive)</span>
+<span class="go-comment">//</span>
+<span class="go-comment">// KEY INSIGHT: Each request runs in its own goroutine.</span>
+<span class="go-comment">// Go can handle 10,000+ concurrent requests because goroutines are cheap.</span>
+<span class="go-comment">// (Java threads: ~1MB stack each. Go goroutines: ~2KB stack each.)</span></code></pre>
+
+<h3>4. Context: How Timeouts and Cancellation Propagate</h3>
+
+<p>Every network call in this service accepts a <code>context.Context</code> as its first parameter. Context carries <strong>deadlines</strong> and <strong>cancellation signals</strong> across API boundaries.</p>
+
+<pre><code><span class="go-comment">// Create a context that expires in 2 seconds</span>
+ctx, cancel := context.WithTimeout(r.Context(), <span class="go-number">2</span>*time.Second)
+<span class="go-keyword">defer</span> cancel()  <span class="go-comment">// Always call cancel to release resources</span>
+
+<span class="go-comment">// Pass ctx to Redis call</span>
+valid, err := h.Store.Validate(ctx, userID, token, origin)
+<span class="go-comment">//</span>
+<span class="go-comment">// If 2 seconds pass before Redis responds:</span>
+<span class="go-comment">//   &bull; ctx.Done() channel closes</span>
+<span class="go-comment">//   &bull; go-redis detects the closed context</span>
+<span class="go-comment">//   &bull; Cancels the in-flight TCP read/write</span>
+<span class="go-comment">//   &bull; Returns err = "context deadline exceeded"</span>
+<span class="go-comment">//</span>
+<span class="go-comment">// WHY THIS MATTERS:</span>
+<span class="go-comment">// Without context, a slow Redis call could block the goroutine forever.</span>
+<span class="go-comment">// With context, we guarantee every network call completes within 2s.</span>
+<span class="go-comment">// This prevents a single slow dependency from crashing the entire service.</span></code></pre>
+
+<h4>Context inheritance chain in a single request:</h4>
+<div class="flow">Envoy sends request &rarr; Go creates <span class="b">r.Context()</span> (base context)
+  &boxur;&rarr; <span class="y">context.WithTimeout(r.Context(), 3s)</span> &mdash; introspection timeout
+       &boxur;&rarr; passed to <span class="go-func">k.Introspector.IsActive(intrCtx, token)</span>
+            &boxur;&rarr; passed to <span class="go-func">k.redis.Get(intrCtx, cacheKey)</span> &mdash; Redis cache check
+            &boxur;&rarr; passed to <span class="go-func">k.httpClient.Do(req)</span> &mdash; Keycloak HTTP call
+
+  &boxur;&rarr; <span class="y">context.WithTimeout(r.Context(), 2s)</span> &mdash; CSRF validation timeout
+       &boxur;&rarr; passed to <span class="go-func">h.Store.Validate(ctx, ...)</span> &mdash; Redis token check
+
+If Envoy <span class="r">cancels</span> the request (e.g., client disconnected):
+  r.Context().Done() closes &rarr; ALL child contexts cancel &rarr; ALL in-flight
+  Redis/HTTP calls abort immediately. No wasted work.</div>
+
+<div class="result pass"><strong>Go's context is like a tree of deadlines.</strong> When a parent context cancels, all children cancel too. This is how Go prevents resource leaks in microservices &mdash; every goroutine and every network call has a bounded lifetime.</div>
+
+<h3>Summary: All Network Calls in csrf-service</h3>
+
+<table>
+  <tr><th>Call</th><th>Protocol</th><th>Destination</th><th>Timeout</th><th>Connection Reuse</th><th>When</th></tr>
+  <tr><td>Redis SET (token generate)</td><td>TCP/RESP</td><td><code>redis.infra.svc:6379</code></td><td>2s (ctx)</td><td>Pool of 10</td><td>GET /csrf/token</td></tr>
+  <tr><td>Redis GET (token validate)</td><td>TCP/RESP</td><td><code>redis.infra.svc:6379</code></td><td>2s (ctx)</td><td>Pool of 10</td><td>Every mutation</td></tr>
+  <tr><td>Redis DEL (token consume)</td><td>TCP/RESP</td><td><code>redis.infra.svc:6379</code></td><td>2s (ctx)</td><td>Pool of 10</td><td>Successful validation</td></tr>
+  <tr><td>Redis INCR (rate limit)</td><td>TCP/RESP</td><td><code>redis.infra.svc:6379</code></td><td>2s (ctx)</td><td>Separate client</td><td>GET /csrf/token</td></tr>
+  <tr><td>Redis GET/SET (introspect cache)</td><td>TCP/RESP</td><td><code>redis.infra.svc:6379</code></td><td>3s (ctx)</td><td>Shared client</td><td>Every mutation</td></tr>
+  <tr><td>Keycloak POST (introspect)</td><td>HTTP/1.1</td><td><code>keycloak.identity.svc:8080</code></td><td>3s (client)</td><td>HTTP keep-alive</td><td>Cache miss only</td></tr>
+  <tr><td>Inbound (ext_authz)</td><td>HTTP/1.1</td><td>Listen on <code>:8080</code></td><td>5s read / 10s write</td><td>Keep-alive 60s</td><td>Every request</td></tr>
+  <tr><td>Prometheus scrape</td><td>HTTP/1.1</td><td>Listen on <code>:8080/metrics</code></td><td>N/A</td><td>Keep-alive</td><td>Every 15s</td></tr>
+</table>
 
 <!-- ═══════════════════════════════════════════════════ -->
 <h2 id="store">7. <code>store/redis.go</code> &mdash; Interfaces &amp; Redis</h2>
@@ -618,22 +1029,105 @@ CMD ["./csrf-service"]</code></pre>
 <!-- ═══════════════════════════════════════════════════ -->
 <h2 id="run">18. How to Build &amp; Run</h2>
 
-<pre><code><span class="go-comment"># Run tests (no external dependencies needed)</span>
-cd csrf-service
+<h3>Prerequisites</h3>
+<pre><code><span class="go-comment"># Install Go (macOS)</span>
+brew install go
+
+<span class="go-comment"># Verify installation</span>
+go version     <span class="go-comment"># go1.25.5 darwin/arm64</span>
+
+<span class="go-comment"># Go downloads dependencies automatically on first build/test</span>
+<span class="go-comment"># No separate "install" step needed (unlike npm install or mvn install)</span></code></pre>
+
+<h3>Run All Tests</h3>
+<pre><code>cd csrf-service
+
+<span class="go-comment"># Run ALL tests across ALL packages (the most important command)</span>
+go test ./...
+
+<span class="go-comment"># Run with verbose output (see each test name + PASS/FAIL)</span>
 go test -v ./...
 
-<span class="go-comment"># Build Docker image</span>
+<span class="go-comment"># Run tests for a SINGLE package</span>
+go test -v ./internal/store/
+go test -v ./internal/handler/
+go test -v ./internal/jwt/
+go test -v ./internal/origin/
+go test -v ./internal/ratelimit/
+go test -v ./internal/introspect/
+
+<span class="go-comment"># Run a SINGLE test by name (regex match)</span>
+go test -v -run TestValidate_SingleUse ./internal/store/
+go test -v -run TestExtAuthzCheck_OriginRejected ./internal/handler/
+go test -v -run TestIsActive_CacheHit ./internal/introspect/
+
+<span class="go-comment"># Run tests with race detector (finds concurrency bugs)</span>
+go test -race ./...
+
+<span class="go-comment"># Run tests with coverage report</span>
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out     <span class="go-comment"># Opens browser with line-by-line coverage</span>
+
+<span class="go-comment"># Count total tests</span>
+go test -v ./... 2>&1 | grep -c "^--- PASS"   <span class="go-comment"># 68</span></code></pre>
+
+<div class="result info"><strong>No external services needed.</strong> All 68 tests use <code>miniredis</code> (in-memory Redis) and <code>httptest</code> (mock HTTP server). You can run them offline, on a plane, without Docker or Kubernetes.</div>
+
+<h3>Build &amp; Run Locally (without Docker)</h3>
+<pre><code><span class="go-comment"># Build the binary</span>
+cd csrf-service
+go build -o csrf-service .
+
+<span class="go-comment"># The binary is a single file (~15MB), statically linked</span>
+ls -lh csrf-service   <span class="go-comment"># -rwxr-xr-x 15M csrf-service</span>
+
+<span class="go-comment"># Run it (needs Redis running locally)</span>
+CSRF_REDIS_HOST=localhost CSRF_REDIS_PORT=6379 PORT=8080 ./csrf-service
+
+<span class="go-comment"># Or run without building (Go compiles and runs in one step)</span>
+go run .
+
+<span class="go-comment"># Test the running service</span>
+curl http://localhost:8080/livez           <span class="go-comment"># {"status":"ok"}</span>
+curl http://localhost:8080/healthz         <span class="go-comment"># {"status":"ok"} (if Redis running)</span>
+curl http://localhost:8080/metrics         <span class="go-comment"># Prometheus metrics</span></code></pre>
+
+<h3>Build Docker Image &amp; Deploy to Kubernetes</h3>
+<pre><code><span class="go-comment"># Build Docker image (multi-stage: ~10MB final image)</span>
 docker build -t bookstore/csrf-service:latest .
 
 <span class="go-comment"># Load into kind cluster</span>
 kind load docker-image bookstore/csrf-service:latest --name bookstore
 
-<span class="go-comment"># Deploy to Kubernetes</span>
+<span class="go-comment"># Deploy (builds, tests, loads, deploys, registers ext_authz)</span>
 bash scripts/csrf-service-up.sh
 
-<span class="go-comment"># Check it's running</span>
-kubectl get pods -n infra -l app=csrf-service
-kubectl logs -n infra deploy/csrf-service --tail=5</code></pre>
+<span class="go-comment"># Verify deployment</span>
+kubectl get pods -n infra -l app=csrf-service    <span class="go-comment"># 2 pods Running</span>
+kubectl logs -n infra deploy/csrf-service --tail=5
+
+<span class="go-comment"># Quick smoke test</span>
+curl -sk https://api.service.net:30000/ecom/books | head -c 100   <span class="go-comment"># GET passes through</span></code></pre>
+
+<h3>Common Go Development Commands</h3>
+<pre><code><span class="go-comment"># Format all Go files (Go's built-in formatter &mdash; non-negotiable style)</span>
+gofmt -w .
+
+<span class="go-comment"># Check for issues without running (faster than go test)</span>
+go vet ./...
+
+<span class="go-comment"># Download/update dependencies</span>
+go mod download    <span class="go-comment"># Fetch all dependencies</span>
+go mod tidy        <span class="go-comment"># Remove unused, add missing</span>
+
+<span class="go-comment"># See which packages would be affected by a change</span>
+go list ./...      <span class="go-comment"># List all packages in the module</span>
+
+<span class="go-comment"># Cross-compile for Linux (for Docker/Kubernetes)</span>
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o csrf-service .
+<span class="go-comment"># CGO_ENABLED=0: pure Go binary (no C dependencies)</span>
+<span class="go-comment"># GOOS=linux: target operating system</span>
+<span class="go-comment"># GOARCH=amd64: target CPU architecture</span></code></pre>
 
 <footer>
   <p>BookStore Platform &mdash; Learn Go: CSRF Service Complete Walkthrough<br>
