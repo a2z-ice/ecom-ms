@@ -622,6 +622,10 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
       <h3>CDC Pipeline Hardening</h3>
       <p>Production-grade CDC improvements: Flink restart resilience, Kafka idempotency, consumer lag monitoring, Prometheus metrics, and alert rules.</p>
     </a>
+    <a href="cdc-superset-stability-guide.html" class="doc-card">
+      <h3>CDC &amp; Superset Stability Guide</h3>
+      <p>Root cause analysis of 6 recurring test failures: Flink jobs disappearing after restarts, Superset empty dashboards. Self-healing recovery that auto-resubmits the pipeline before every test run.</p>
+    </a>
     <a href="schema-registry.html" class="doc-card">
       <h3>Schema Registry Guide</h3>
       <p>Confluent Schema Registry with JSON Schemas for all 6 CDC and application Kafka topics. Versioning, BACKWARD compatibility, and manual testing guide.</p>
@@ -669,6 +673,10 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
     <a href="csrf-jwt-introspection.html" class="doc-card" style="border-color: #06b6d4; border-width: 2px;">
       <h3>JWT Introspection on Mutations</h3>
       <p>Real-time token validation via Keycloak RFC 7662: catches disabled users, terminated sessions, and revoked tokens within 15 seconds. Redis-cached, fail-open, mutations-only. Access token TTL reduced from 30min to 5min. 68 Go unit tests.</p>
+    </a>
+    <a href="csrf-sliding-ttl-auto-regen.html" class="doc-card" style="border-color: #10b981; border-width: 2px;">
+      <h3>Sliding TTL &amp; Auto-Regeneration</h3>
+      <p>Attack window reduced from 30 to 10 minutes with sliding TTL that resets on every authenticated request. Auto-regeneration returns a fresh token in the 403 response body, saving one network round trip. 9 Go unit tests, 12 E2E tests. OWASP &amp; NIST SP 800-63B aligned.</p>
     </a>
     <a href="csrf-extauthz-vs-wasm.html" class="doc-card" style="border-color: var(--accent);">
       <h3>ext_authz vs Wasm Plugin Analysis</h3>

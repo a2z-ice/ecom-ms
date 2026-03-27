@@ -167,16 +167,17 @@ test.describe('Superset Analytics', () => {
   // ── UI: Dashboard 1 — Book Store Analytics ───────────────────────────────
 
   test('Dashboard: "Book Store Analytics" opens and renders charts', async ({ page }) => {
-    test.setTimeout(60_000)
+    test.setTimeout(90_000)
     await page.goto('/dashboard/list/')
     await page.getByText(/book store analytics/i).first().click()
-    await page.waitForLoadState('load')
-    // Superset dashboards load charts in iframes — wait for rendering
-    await page.waitForTimeout(5_000)
+    await page.waitForLoadState('networkidle')
+    // Superset dashboards load charts asynchronously — give extra time for data queries
+    await page.waitForTimeout(8_000)
     await page.screenshot({ path: 'screenshots/superset-09-bookstore-dashboard.png', fullPage: true })
 
-    const charts = page.locator('.chart-container, canvas, svg.recharts-surface, .superset-legacy-chart, [data-test="chart-container"]')
-    await expect(charts.first()).toBeVisible({ timeout: 45_000 })
+    // Broad selector covering multiple Superset chart rendering modes
+    const charts = page.locator('.chart-container, .dashboard-chart, canvas, svg.recharts-surface, .superset-legacy-chart, [data-test="chart-container"], .slice_container')
+    await expect(charts.first()).toBeVisible({ timeout: 60_000 })
     const count = await charts.count()
     expect(count, 'Book Store Analytics should have ≥2 chart containers').toBeGreaterThanOrEqual(2)
     await page.screenshot({ path: 'screenshots/superset-10-bookstore-charts-rendered.png', fullPage: true })

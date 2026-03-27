@@ -58,4 +58,92 @@ export default function globalSetup() {
   }
 
   console.log('[global-setup] Database reset complete.')
+
+  // ── Flink CDC Pipeline Health Check ──────────────────────────────────
+  // If Flink streaming jobs are missing (e.g., after Docker restart),
+  // auto-resubmit them by deleting the old Job and re-applying.
+  ensureFlinkJobsRunning()
+}
+
+function ensureFlinkJobsRunning() {
+  const FLINK_URL = 'http://localhost:32200'
+  const REQUIRED_JOBS = 4
+
+  try {
+    // Check how many Flink jobs are RUNNING
+    const jobsResp = execFileSync('curl', ['-sf', '--max-time', '5', `${FLINK_URL}/jobs`], {
+      encoding: 'utf-8',
+      timeout: 10_000,
+    })
+    const jobs = JSON.parse(jobsResp)
+    const running = (jobs.jobs || []).filter((j: any) => j.status === 'RUNNING')
+
+    if (running.length >= REQUIRED_JOBS) {
+      console.log(`[global-setup] ✓ Flink CDC pipeline healthy (${running.length}/${REQUIRED_JOBS} jobs RUNNING)`)
+      return
+    }
+
+    console.log(`[global-setup] ⚠ Only ${running.length}/${REQUIRED_JOBS} Flink jobs RUNNING — resubmitting pipeline...`)
+  } catch {
+    console.log('[global-setup] ⚠ Flink unreachable — attempting pipeline resubmission...')
+  }
+
+  // Delete old Job (if exists) and re-apply
+  try {
+    execFileSync('kubectl', ['delete', 'job', 'flink-sql-runner', '-n', 'analytics', '--ignore-not-found'], {
+      encoding: 'utf-8',
+      timeout: 30_000,
+    })
+    execFileSync('kubectl', ['apply', '-f', 'infra/flink/flink-sql-runner.yaml'], {
+      encoding: 'utf-8',
+      timeout: 15_000,
+    })
+    console.log('[global-setup] Flink SQL runner job resubmitted. Waiting for completion...')
+
+    // Wait up to 90 seconds for the Job to complete
+    execFileSync('kubectl', [
+      'wait', '--for=condition=complete', 'job/flink-sql-runner', '-n', 'analytics', '--timeout=90s',
+    ], { encoding: 'utf-8', timeout: 100_000 })
+
+    // Verify jobs are running
+    const verifyResp = execFileSync('curl', ['-sf', '--max-time', '5', 'http://localhost:32200/jobs'], {
+      encoding: 'utf-8',
+      timeout: 10_000,
+    })
+    const verifyJobs = JSON.parse(verifyResp)
+    const nowRunning = (verifyJobs.jobs || []).filter((j: any) => j.status === 'RUNNING')
+    console.log(`[global-setup] ✓ Flink pipeline resubmitted (${nowRunning.length}/${REQUIRED_JOBS} jobs RUNNING)`)
+
+    // Wait for initial CDC data to flow through (Debezium snapshot → Kafka → Flink → analytics DB)
+    console.log('[global-setup] Waiting for CDC data to propagate to analytics DB...')
+    waitForAnalyticsData()
+  } catch (e) {
+    console.warn('[global-setup] ⚠ Flink pipeline resubmission failed:', (e as Error).message)
+    console.warn('[global-setup]   CDC-dependent tests may fail. Run: kubectl delete job flink-sql-runner -n analytics && kubectl apply -f infra/flink/flink-sql-runner.yaml')
+  }
+}
+
+/** Poll analytics DB until dim_books has data (Flink CDC snapshot complete). */
+function waitForAnalyticsData() {
+  const analyticsPod = getCnpgPrimaryPod('analytics', 'analytics-db') || 'deploy/analytics-db'
+  const maxAttempts = 12 // 12 * 5s = 60s
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const result = execFileSync('kubectl', [
+        'exec', '-n', 'analytics', analyticsPod, '--',
+        'psql', '-U', 'postgres', '-d', 'analyticsdb', '-t', '-c',
+        'SELECT count(*) FROM dim_books;',
+      ], { encoding: 'utf-8', timeout: 10_000 }).trim()
+      const count = parseInt(result, 10)
+      if (count > 0) {
+        console.log(`[global-setup] ✓ Analytics data available (${count} books in dim_books)`)
+        return
+      }
+    } catch { /* ignore */ }
+    if (i < maxAttempts - 1) {
+      console.log(`[global-setup]   Waiting for analytics data... (${i + 1}/${maxAttempts})`)
+      execFileSync('sleep', ['5'])
+    }
+  }
+  console.warn('[global-setup] ⚠ Analytics data not yet available — CDC/Superset tests may be affected')
 }
