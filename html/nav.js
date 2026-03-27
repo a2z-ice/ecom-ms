@@ -15,20 +15,30 @@
       title: 'Home',
       links: [
         { label: 'Platform Overview', href: 'index.html' },
-        { label: 'Quick Start Guide', href: 'quick-start.html', highlight: true },
+        { label: 'Quick Start Guide', href: 'quick-start.html', highlight: true }
+      ]
+    },
+    {
+      title: 'AWS (EKS)',
+      links: [
         { label: 'Deploy to AWS (EKS)', href: 'deploy-aws.html' },
-        { label: 'Deploy to Azure (AKS)', href: 'deploy-azure.html' },
         { label: 'Single-AZ: AWS EKS', href: 'single-az-eks.html', highlight: true },
-        { label: 'Single-AZ: Azure AKS', href: 'single-az-aks.html', highlight: true },
         { label: 'HA Multi-AZ: AWS EKS', href: 'ha-multi-az-aws.html' },
-        { label: 'HA Multi-AZ: Azure AKS', href: 'ha-multi-az-azure.html' },
         { label: 'Visual: AWS Terraform', href: 'terraform-visual-aws.html' },
-        { label: 'Visual: Azure Terraform', href: 'terraform-visual-azure.html' },
         { label: 'Learn EKS (A to Z)', href: 'knowledge-eks.html', highlight: true },
-        { label: 'Learn AKS (A to Z)', href: 'knowledge-aks.html', highlight: true },
         { label: 'Hardening: AWS EKS', href: 'production-hardening-aws.html' },
+        { label: 'Before/After: AWS', href: 'hardening-visual-aws.html' }
+      ]
+    },
+    {
+      title: 'Azure (AKS)',
+      links: [
+        { label: 'Deploy to Azure (AKS)', href: 'deploy-azure.html' },
+        { label: 'Single-AZ: Azure AKS', href: 'single-az-aks.html', highlight: true },
+        { label: 'HA Multi-AZ: Azure AKS', href: 'ha-multi-az-azure.html' },
+        { label: 'Visual: Azure Terraform', href: 'terraform-visual-azure.html' },
+        { label: 'Learn AKS (A to Z)', href: 'knowledge-aks.html', highlight: true },
         { label: 'Hardening: Azure AKS', href: 'production-hardening-azure.html' },
-        { label: 'Before/After: AWS', href: 'hardening-visual-aws.html' },
         { label: 'Before/After: Azure', href: 'hardening-visual-azure.html' }
       ]
     },
