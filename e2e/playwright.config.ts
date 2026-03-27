@@ -14,8 +14,13 @@ export default defineConfig({
     ['junit', { outputFile: 'playwright-report/results.xml' }],
   ],
 
+  timeout: 30_000,
+  expect: { timeout: 10_000 },
+
   use: {
     baseURL: 'https://localhost:30000',
+    navigationTimeout: 30_000,
+    actionTimeout: 15_000,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

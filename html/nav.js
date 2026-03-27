@@ -62,7 +62,8 @@
         { label: '\u2465 Clean Code Refactor', href: 'csrf-clean-code-refactor.html' },
         { label: '\u2466 Architecture Deep Dive', href: 'csrf-architecture-deep-dive.html', highlight: true },
         { label: '\u2467 Security Enhancements', href: 'csrf-security-enhancements.html', highlight: true },
-        { label: '\u2468 Before vs After (8 Fixes)', href: 'csrf-before-after-comparison.html', highlight: true }
+        { label: '\u2468 Before vs After (8 Fixes)', href: 'csrf-before-after-comparison.html', highlight: true },
+        { label: '\u2469 JWT Introspection', href: 'csrf-jwt-introspection.html', highlight: true }
       ]
     },
     {

@@ -47,4 +47,7 @@
   Bottom line: With JWT in Authorization headers and tokens in memory-only storage, the CSRF service is architecturally redundant.
   The JWT is your CSRF protection — it's a non-ambient credential that requires explicit JavaScript to attach. The CSRF layer adds
   operational cost without solving a problem that actually exists in the current design.
-                   
+
+  Further csrf service enhanchment needed. For any mutation called like post/put/patch/delete will do the the jwt token validation from identity server to makesure the user still have the previlage to do the mutation operation like user role might change or user might block and hence we do not that any way of identifing user status unless jwt token expires but the user might be blocked by the admin or change the permission. with this will will be ensureing the jwt token is valid for performing doing any mutation operation and we do not need this for get operation since this will be a performance impact and we can allow the user to access get for the jwt token to expire. Please do the best anasysis from industry practics and make a proper judgement 
+
+  get csrf token after every mutation(post/put/patch/delete) operation

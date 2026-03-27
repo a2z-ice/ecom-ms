@@ -3,7 +3,9 @@ package handler
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/bookstore/csrf-service/internal/jwt"
@@ -66,6 +68,40 @@ func (h *Handler) ExtAuthzCheck(w http.ResponseWriter, r *http.Request) {
 			h.Metrics.AnomalyTotal.WithLabelValues("bad_audience").Inc()
 			writeForbidden(w, "JWT audience not allowed")
 			return
+		}
+	}
+
+	// JWT introspection — verify token is still active (user not disabled/revoked)
+	if h.Introspector != nil {
+		intrCtx, intrCancel := context.WithTimeout(r.Context(), 3*time.Second)
+		rawToken := strings.TrimPrefix(authHeader, "Bearer ")
+		intrStart := time.Now()
+		active, intrErr := h.Introspector.IsActive(intrCtx, rawToken)
+		intrCancel()
+		if intrErr != nil {
+			h.Metrics.IntrospectDuration.WithLabelValues("keycloak").Observe(time.Since(intrStart).Seconds())
+			h.Metrics.IntrospectTotal.WithLabelValues("error").Inc()
+			slog.Warn("Introspection error", "error", intrErr)
+			if !active {
+				h.Metrics.RequestsTotal.WithLabelValues("authz_mutate", "introspect_error").Inc()
+				writeServiceUnavailable(w)
+				return
+			}
+			// Fail-open: continue
+		} else if !active {
+			h.Metrics.IntrospectDuration.WithLabelValues("keycloak").Observe(time.Since(intrStart).Seconds())
+			h.Metrics.IntrospectTotal.WithLabelValues("inactive").Inc()
+			h.Metrics.RequestsTotal.WithLabelValues("authz_mutate", "token_revoked").Inc()
+			h.Metrics.AnomalyTotal.WithLabelValues("revoked_token").Inc()
+			writeForbidden(w, "Token is no longer valid")
+			return
+		} else {
+			source := "keycloak"
+			if time.Since(intrStart) < 2*time.Millisecond {
+				source = "cache"
+			}
+			h.Metrics.IntrospectDuration.WithLabelValues(source).Observe(time.Since(intrStart).Seconds())
+			h.Metrics.IntrospectTotal.WithLabelValues("active").Inc()
 		}
 	}
 

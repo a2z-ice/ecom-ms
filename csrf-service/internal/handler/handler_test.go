@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +13,7 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/bookstore/csrf-service/internal/introspect"
 	"github.com/bookstore/csrf-service/internal/middleware"
 	"github.com/bookstore/csrf-service/internal/origin"
 	"github.com/bookstore/csrf-service/internal/ratelimit"
@@ -18,6 +21,18 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"
 )
+
+// mockIntrospector for testing introspection behavior
+type mockIntrospector struct {
+	active bool
+	err    error
+	called int
+}
+
+func (m *mockIntrospector) IsActive(_ context.Context, _ string) (bool, error) {
+	m.called++
+	return m.active, m.err
+}
 
 func setupHandler(t *testing.T) (*Handler, *miniredis.Miniredis) {
 	t.Helper()
@@ -30,8 +45,9 @@ func setupHandler(t *testing.T) (*Handler, *miniredis.Miniredis) {
 	m := middleware.NewMetricsWithRegisterer(reg)
 	ov := origin.NewValidator([]string{"https://myecom.net:30000", "https://localhost:30000"}, false)
 	rl := &ratelimit.NoopLimiter{}
+	intr := &introspect.NoopIntrospector{}
 	t.Cleanup(func() { mr.Close(); s.Close() })
-	return New(s, m, ov, rl, []string{"ui-client"}, false), mr
+	return New(s, m, ov, rl, intr, []string{"ui-client"}, false), mr
 }
 
 func setupHandlerFailClosed(t *testing.T) (*Handler, *miniredis.Miniredis) {
@@ -45,8 +61,9 @@ func setupHandlerFailClosed(t *testing.T) (*Handler, *miniredis.Miniredis) {
 	m := middleware.NewMetricsWithRegisterer(reg)
 	ov := origin.NewValidator([]string{"https://myecom.net:30000"}, false)
 	rl := &ratelimit.NoopLimiter{}
+	intr := &introspect.NoopIntrospector{}
 	t.Cleanup(func() { mr.Close(); s.Close() })
-	return New(s, m, ov, rl, []string{"ui-client"}, false), mr
+	return New(s, m, ov, rl, intr, []string{"ui-client"}, false), mr
 }
 
 func makeJWT(sub string) string {
@@ -107,8 +124,9 @@ func TestGenerateToken_RateLimited(t *testing.T) {
 	// Create a Redis client for rate limiter pointing to same miniredis
 	rlClient := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	rl := ratelimit.NewRedisLimiter(rlClient, 3) // Allow only 3 per minute
+	intr := &introspect.NoopIntrospector{}
 	t.Cleanup(func() { mr.Close(); s.Close(); rlClient.Close() })
-	h := New(s, m, ov, rl, []string{"ui-client"}, false)
+	h := New(s, m, ov, rl, intr, []string{"ui-client"}, false)
 
 	jwt := makeJWT("rate-user")
 	// First 3 should succeed
@@ -330,7 +348,7 @@ func TestExtAuthzCheck_AudienceValid(t *testing.T) {
 	rl := &ratelimit.NoopLimiter{}
 	t.Cleanup(func() { mr.Close(); s.Close() })
 	// ValidateAudience=true
-	h := New(s, m, ov, rl, []string{"ui-client"}, true)
+	h := New(s, m, ov, rl, &introspect.NoopIntrospector{}, []string{"ui-client"}, true)
 
 	mr.Set("csrf:user-av", "tok")
 	req := httptest.NewRequest("POST", "/ecom/cart", nil)
@@ -355,7 +373,7 @@ func TestExtAuthzCheck_AudienceInvalid(t *testing.T) {
 	rl := &ratelimit.NoopLimiter{}
 	t.Cleanup(func() { mr.Close(); s.Close() })
 	// ValidateAudience=true
-	h := New(s, m, ov, rl, []string{"ui-client"}, true)
+	h := New(s, m, ov, rl, &introspect.NoopIntrospector{}, []string{"ui-client"}, true)
 
 	req := httptest.NewRequest("POST", "/ecom/cart", nil)
 	req.Header.Set("Authorization", "Bearer "+makeJWTWithAud("user-ai", "wrong-client"))
@@ -403,6 +421,117 @@ func TestLivez(t *testing.T) {
 	h.Livez(w, req)
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+// ── Introspection tests ─────────────────────────────────────────────────────
+
+func setupHandlerWithIntrospector(t *testing.T, intr introspect.Introspector) (*Handler, *miniredis.Miniredis) {
+	t.Helper()
+	mr, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := store.NewRedisStore(mr.Addr(), "", 30*time.Minute, false)
+	reg := prometheus.NewRegistry()
+	m := middleware.NewMetricsWithRegisterer(reg)
+	ov := origin.NewValidator([]string{"https://myecom.net:30000", "https://localhost:30000"}, false)
+	rl := &ratelimit.NoopLimiter{}
+	t.Cleanup(func() { mr.Close(); s.Close() })
+	return New(s, m, ov, rl, intr, []string{"ui-client"}, false), mr
+}
+
+func TestExtAuthzCheck_IntrospectionActive(t *testing.T) {
+	mock := &mockIntrospector{active: true}
+	h, mr := setupHandlerWithIntrospector(t, mock)
+	mr.Set("csrf:user-ia", "tok")
+	req := httptest.NewRequest("POST", "/ecom/cart", nil)
+	req.Header.Set("Authorization", "Bearer "+makeJWT("user-ia"))
+	req.Header.Set("X-Csrf-Token", "tok")
+	w := httptest.NewRecorder()
+	h.ExtAuthzCheck(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for active token, got %d", w.Code)
+	}
+	if mock.called != 1 {
+		t.Errorf("expected 1 introspection call, got %d", mock.called)
+	}
+}
+
+func TestExtAuthzCheck_IntrospectionInactive(t *testing.T) {
+	mock := &mockIntrospector{active: false}
+	h, mr := setupHandlerWithIntrospector(t, mock)
+	mr.Set("csrf:user-ii", "tok")
+	req := httptest.NewRequest("POST", "/ecom/cart", nil)
+	req.Header.Set("Authorization", "Bearer "+makeJWT("user-ii"))
+	req.Header.Set("X-Csrf-Token", "tok")
+	w := httptest.NewRecorder()
+	h.ExtAuthzCheck(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403 for inactive token, got %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "no longer valid") {
+		t.Errorf("expected 'no longer valid' in body, got %q", w.Body.String())
+	}
+	// CSRF token should NOT be consumed (introspection rejected before CSRF check)
+	if !mr.Exists("csrf:user-ii") {
+		t.Error("CSRF token should not be consumed when introspection rejects")
+	}
+}
+
+func TestExtAuthzCheck_IntrospectionError_FailOpen(t *testing.T) {
+	mock := &mockIntrospector{active: true, err: errors.New("keycloak down")}
+	h, mr := setupHandlerWithIntrospector(t, mock)
+	mr.Set("csrf:user-ifo", "tok")
+	req := httptest.NewRequest("POST", "/ecom/cart", nil)
+	req.Header.Set("Authorization", "Bearer "+makeJWT("user-ifo"))
+	req.Header.Set("X-Csrf-Token", "tok")
+	w := httptest.NewRecorder()
+	h.ExtAuthzCheck(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 (fail-open on introspection error), got %d", w.Code)
+	}
+}
+
+func TestExtAuthzCheck_IntrospectionError_FailClosed(t *testing.T) {
+	mock := &mockIntrospector{active: false, err: errors.New("keycloak down")}
+	h, _ := setupHandlerWithIntrospector(t, mock)
+	req := httptest.NewRequest("POST", "/ecom/cart", nil)
+	req.Header.Set("Authorization", "Bearer "+makeJWT("user-ifc"))
+	req.Header.Set("X-Csrf-Token", "tok")
+	w := httptest.NewRecorder()
+	h.ExtAuthzCheck(w, req)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("expected 503 (fail-closed on introspection error), got %d", w.Code)
+	}
+}
+
+func TestExtAuthzCheck_IntrospectionSkipped_SafeMethod(t *testing.T) {
+	mock := &mockIntrospector{active: true}
+	h, _ := setupHandlerWithIntrospector(t, mock)
+	req := httptest.NewRequest("GET", "/ecom/books", nil)
+	w := httptest.NewRecorder()
+	h.ExtAuthzCheck(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for GET, got %d", w.Code)
+	}
+	if mock.called != 0 {
+		t.Errorf("introspection should not be called for GET, called %d times", mock.called)
+	}
+}
+
+func TestExtAuthzCheck_IntrospectionSkipped_NoAuth(t *testing.T) {
+	mock := &mockIntrospector{active: true}
+	h, _ := setupHandlerWithIntrospector(t, mock)
+	req := httptest.NewRequest("POST", "/ecom/cart", nil)
+	// No Authorization header
+	w := httptest.NewRecorder()
+	h.ExtAuthzCheck(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 (pass-through for no auth), got %d", w.Code)
+	}
+	if mock.called != 0 {
+		t.Errorf("introspection should not be called without JWT, called %d times", mock.called)
 	}
 }
 

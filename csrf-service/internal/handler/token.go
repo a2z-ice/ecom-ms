@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/bookstore/csrf-service/internal/introspect"
 	"github.com/bookstore/csrf-service/internal/jwt"
 	"github.com/bookstore/csrf-service/internal/middleware"
 	"github.com/bookstore/csrf-service/internal/origin"
@@ -21,17 +22,19 @@ type Handler struct {
 	Metrics          *middleware.Metrics
 	Origin           *origin.Validator
 	RateLimiter      ratelimit.Limiter
+	Introspector     introspect.Introspector
 	AllowedAudiences []string
 	ValidateAudience bool
 }
 
 // New creates a Handler with injected dependencies.
-func New(s store.TokenStore, m *middleware.Metrics, ov *origin.Validator, rl ratelimit.Limiter, allowedAud []string, validateAud bool) *Handler {
+func New(s store.TokenStore, m *middleware.Metrics, ov *origin.Validator, rl ratelimit.Limiter, intr introspect.Introspector, allowedAud []string, validateAud bool) *Handler {
 	return &Handler{
 		Store:            s,
 		Metrics:          m,
 		Origin:           ov,
 		RateLimiter:      rl,
+		Introspector:     intr,
 		AllowedAudiences: allowedAud,
 		ValidateAudience: validateAud,
 	}

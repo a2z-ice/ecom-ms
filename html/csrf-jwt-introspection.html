@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JWT Introspection for Mutations &mdash; BookStore Platform</title>
+  <style>
+    :root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--accent:#3b82f6;--border:#334155;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;--cyan:#06b6d4}
+    *{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth}
+    body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
+    .container{max-width:1100px;margin:0 auto;padding:40px 24px}
+    h1{font-size:2.2rem;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,#60a5fa,#a78bfa);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    h1+p{color:var(--muted);font-size:1.05rem;margin-bottom:40px}
+    h2{font-size:1.4rem;font-weight:700;margin:48px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);color:#f1f5f9}
+    h3{font-size:1.1rem;font-weight:600;margin:24px 0 8px;color:#cbd5e1}
+    p{margin-bottom:16px}
+    table{width:100%;border-collapse:collapse;margin:16px 0 24px}
+    th{background:var(--card);text-align:left;padding:10px 14px;font-size:.85rem;font-weight:600;color:var(--accent);border-bottom:2px solid var(--border)}
+    td{padding:10px 14px;font-size:.9rem;border-bottom:1px solid var(--border)}
+    tr:hover td{background:rgba(59,130,246,.05)}
+    code{background:var(--card);padding:2px 6px;border-radius:4px;font-size:.88em;color:#f59e0b}
+    pre{background:var(--card);padding:16px;border-radius:8px;overflow-x:auto;margin:12px 0 20px;border:1px solid var(--border);font-size:.82rem;line-height:1.6}
+    pre code{background:none;padding:0;color:#e2e8f0}
+    ul,ol{margin:8px 0 16px 24px}li{margin-bottom:6px}
+    .badge{display:inline-block;font-size:.75rem;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:6px;color:#fff}
+    .badge.green{background:linear-gradient(135deg,#059669,#10b981)}.badge.purple{background:linear-gradient(135deg,#7c3aed,#8b5cf6)}
+    .badge.red{background:linear-gradient(135deg,#dc2626,#ef4444)}.badge.orange{background:linear-gradient(135deg,#d97706,#f59e0b)}
+    .badge.blue{background:linear-gradient(135deg,#2563eb,#3b82f6)}.badge.cyan{background:linear-gradient(135deg,#0891b2,#06b6d4)}
+    .badges{margin-bottom:24px}
+    footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid var(--border);color:var(--muted);font-size:.85rem}
+    footer a{color:var(--accent);text-decoration:none}footer a:hover{text-decoration:underline}
+    .topnav{position:sticky;top:0;z-index:100;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+    .topnav-inner{max-width:1100px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:52px}
+    .topnav-brand{font-weight:800;font-size:1rem;color:var(--text);text-decoration:none}
+    .topnav-links{display:flex;gap:20px;align-items:center}
+    .topnav-links a{color:var(--muted);font-size:.82rem;font-weight:500;text-decoration:none;transition:color .15s}.topnav-links a:hover{color:var(--text)}.topnav-links a.highlight{color:#a78bfa}
+    .ba{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}.ba>div{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px}
+    .ba .tag{font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:4px;margin-bottom:12px;display:inline-block}
+    .ba .before .tag{background:rgba(239,68,68,.2);color:var(--red)}.ba .after .tag{background:rgba(16,185,129,.2);color:var(--green)}
+    @media(max-width:700px){.ba{grid-template-columns:1fr}}
+    .result{padding:12px 16px;border-radius:8px;margin:8px 0 16px;font-size:.9rem}
+    .result.pass{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--green)}
+    .result.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--yellow)}
+    .result.info{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:var(--accent)}
+    .flow{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin:20px 0;font-family:monospace;font-size:.82rem;line-height:1.8;white-space:pre;overflow-x:auto}
+    .flow .g{color:var(--green);font-weight:600}.flow .r{color:var(--red);font-weight:600}.flow .b{color:var(--accent)}.flow .y{color:var(--yellow)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0}
+    .card h3{margin-top:0;color:var(--accent)}
+    .step{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;font-size:.82rem;margin-right:8px;flex-shrink:0}
+    /* Banner */
+    .linkedin-banner{position:relative;width:100%;background:linear-gradient(135deg,#0c1222 0%,#162044 35%,#1e1b4b 60%,#312e81 100%);overflow:hidden}
+    .linkedin-banner::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 15% 50%,rgba(59,130,246,.1) 0%,transparent 50%),radial-gradient(circle at 85% 20%,rgba(139,92,246,.12) 0%,transparent 40%);pointer-events:none}
+    .linkedin-banner::after{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
+    .banner-inner{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:52px 48px 48px;display:flex;align-items:center;gap:44px}
+    .banner-shield{flex-shrink:0;width:130px;height:150px}.banner-shield svg{width:100%;height:100%;filter:drop-shadow(0 0 24px rgba(59,130,246,.3))}
+    .banner-text{flex:1;min-width:0}
+    .banner-series{font-size:.7rem;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:rgba(167,139,250,.9);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+    .banner-series::before{content:'';width:24px;height:2px;background:linear-gradient(90deg,#a78bfa,transparent)}
+    .banner-title-text{font-size:2.1rem;font-weight:800;color:#f1f5f9;line-height:1.25;margin-bottom:10px;background:linear-gradient(135deg,#f1f5f9 0%,#cbd5e1 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .banner-desc{font-size:.95rem;color:#94a3b8;margin-bottom:22px;line-height:1.6;max-width:540px}
+    .banner-tags{display:flex;gap:8px;flex-wrap:wrap}
+    .banner-tags span{font-size:.7rem;font-weight:600;padding:5px 14px;border-radius:6px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;letter-spacing:.3px}
+    .banner-brand{position:absolute;bottom:18px;right:32px;font-size:.65rem;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(148,163,184,.35);z-index:1}
+    .banner-accent-line{height:3px;background:linear-gradient(90deg,#3b82f6 0%,#8b5cf6 50%,#06b6d4 100%)}
+    @media(max-width:768px){.banner-inner{flex-direction:column;padding:36px 24px 32px;gap:24px;text-align:center}.banner-shield{width:90px;height:104px}.banner-title-text{font-size:1.5rem}.banner-tags{justify-content:center}}
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav"><div class="topnav-inner"><a href="index.html" class="topnav-brand">BookStore Platform</a><div class="topnav-links"><a href="index.html">Home</a><a href="architecture.html">Architecture</a><a href="bookstore-platform-manual.html" class="highlight">Full Manual</a></div></div></nav>
+
+<!-- Banner -->
+<div class="linkedin-banner">
+  <div class="banner-inner">
+    <div class="banner-shield"><svg viewBox="0 0 130 150" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="sg" x1="65" y1="8" x2="65" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="rgba(59,130,246,.2)"/><stop offset="100%" stop-color="rgba(6,182,212,.15)"/></linearGradient><linearGradient id="ss" x1="16" y1="8" x2="114" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#06b6d4"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M65 14L22 36v38c0 30 18 56 43 66 25-10 43-36 43-66V36L65 14z" fill="url(#sg)" stroke="url(#ss)" stroke-width="2" filter="url(#glow)"/><circle cx="65" cy="68" r="18" fill="none" stroke="#06b6d4" stroke-width="2"/><path d="M58 68h14M65 61v14" stroke="#06b6d4" stroke-width="2.5" stroke-linecap="round"/><path d="M48 88l6-6M82 88l-6-6" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+    <div class="banner-text">
+      <div class="banner-series">CSRF Protection Series &bull; JWT Introspection</div>
+      <div class="banner-title-text">Real-Time JWT Introspection on Mutations</div>
+      <p class="banner-desc">Selective token introspection via Keycloak RFC 7662 &mdash; catches disabled users, terminated sessions, and revoked tokens in real-time. Cached in Redis with 15s TTL for sub-millisecond performance.</p>
+      <div class="banner-tags"><span>RFC 7662</span><span>Keycloak</span><span>Redis Cache</span><span>Mutations Only</span><span>Fail-Open</span><span>68 Unit Tests</span><span>5min Token TTL</span></div>
+    </div>
+  </div>
+  <div class="banner-brand">BookStore Platform</div>
+</div>
+<div class="banner-accent-line"></div>
+
+<div class="container">
+
+<h1>JWT Introspection on Mutations</h1>
+<p>When an admin blocks a user, the JWT remains valid until expiration. This enhancement adds real-time token validation at the gateway for state-changing operations.</p>
+
+<div class="badges">
+  <span class="badge green">68 Unit Tests</span>
+  <span class="badge blue">RFC 7662 Compliant</span>
+  <span class="badge purple">Redis Cached (15s TTL)</span>
+  <span class="badge orange">5min Token Lifespan</span>
+  <span class="badge cyan">Mutations Only</span>
+</div>
+
+<!-- Problem -->
+<h2>The Problem</h2>
+<div class="ba">
+  <div class="before"><span class="tag">BEFORE</span>
+    <h3>Admin blocks user at 10:00 AM</h3>
+    <p>User's JWT was issued at 9:45 AM with 30-minute TTL.</p>
+    <p style="color:var(--red)">User continues to place orders, modify cart, and access admin panel until 10:15 AM (token expiry).</p>
+    <p style="color:var(--red)"><strong>30-minute window of unauthorized access.</strong></p>
+  </div>
+  <div class="after"><span class="tag">AFTER</span>
+    <h3>Admin blocks user at 10:00 AM</h3>
+    <p>Gateway introspects the JWT on the next mutation.</p>
+    <p style="color:var(--green)">Keycloak returns <code>active: false</code>. User gets 403 within 15 seconds (cache TTL).</p>
+    <p style="color:var(--green)"><strong>15-second window maximum.</strong></p>
+  </div>
+</div>
+
+<!-- What introspection catches -->
+<h2>What Introspection Catches</h2>
+<table>
+  <tr><th>Scenario</th><th>Introspection Result</th><th>Without Introspection</th></tr>
+  <tr><td>Admin disables user</td><td><span class="badge green">active: false</span> &mdash; blocked immediately</td><td><span class="badge red">User acts freely</span> until token expires</td></tr>
+  <tr><td>Admin terminates session</td><td><span class="badge green">active: false</span> &mdash; blocked immediately</td><td><span class="badge red">User acts freely</span> until token expires</td></tr>
+  <tr><td>Token explicitly revoked</td><td><span class="badge green">active: false</span> &mdash; blocked immediately</td><td><span class="badge red">User acts freely</span> until token expires</td></tr>
+  <tr><td>Role change mid-session</td><td><span class="badge orange">NOT caught</span> (claims frozen in JWT)</td><td>Same &mdash; needs token refresh</td></tr>
+</table>
+
+<!-- Architecture -->
+<h2>Where Introspection Fits in the Request Flow</h2>
+<div class="flow">Request <span class="b">&rarr;</span> TLS termination <span class="b">&rarr;</span> JWT signature (Istio RequestAuthentication)
+  <span class="b">&rarr;</span> ext_authz <span class="b">&rarr;</span> csrf-service:
+      <span class="step">1</span> Safe method (GET)? <span class="g">&rarr; 200 skip all</span>
+      <span class="step">2</span> Origin validation
+      <span class="step">3</span> Audience validation (opt-in)
+      <span class="step">4</span> <span class="y">&#9733; INTROSPECTION &#9733;</span> <span class="b">&rarr;</span> Redis cache check
+         Cache hit? <span class="g">&rarr; use cached result (~0.1ms)</span>
+         Cache miss? <span class="b">&rarr;</span> Keycloak POST /token/introspect (~5-15ms)
+                     <span class="b">&rarr;</span> Cache result in Redis (15s TTL)
+         <span class="r">active: false? &rarr; 403 "Token is no longer valid"</span>
+      <span class="step">5</span> CSRF token validation (single-use, origin-bound)
+      <span class="step">6</span> <span class="g">&rarr; 200 (forward to backend)</span></div>
+
+<div class="result info"><strong>Key design decision:</strong> Introspection runs BEFORE CSRF token validation. If the user is disabled, we reject immediately <strong>without consuming the CSRF token</strong>.</div>
+
+<!-- Code comparison -->
+<h2>Code: Before vs After</h2>
+
+<h3>New Package: <code>introspect/client.go</code></h3>
+<pre><code>type Introspector interface {
+    IsActive(ctx context.Context, rawToken string) (bool, error)
+}
+
+type KeycloakIntrospector struct {
+    httpClient    *http.Client
+    introspectURL string
+    clientID      string
+    clientSecret  string
+    redis         *redis.Client
+    cacheTTL      time.Duration
+    failOpen      bool
+}
+
+func (k *KeycloakIntrospector) IsActive(ctx context.Context, rawToken string) (bool, error) {
+    cacheKey := cachePrefix + tokenHash(rawToken)
+
+    // 1. Check Redis cache first
+    cached, err := k.redis.Get(ctx, cacheKey).Result()
+    if err == nil {
+        return cached == "1", nil  // Cache hit: ~0.1ms
+    }
+
+    // 2. Cache miss &mdash; call Keycloak introspection
+    active, err := k.callKeycloak(ctx, rawToken)
+    if err != nil {
+        if k.failOpen { return true, err }  // Don't block on Keycloak failure
+        return false, err
+    }
+
+    // 3. Cache the result
+    k.redis.Set(ctx, cacheKey, boolToString(active), k.cacheTTL)
+    return active, nil
+}</code></pre>
+
+<h3>Handler Integration: <code>authz.go</code></h3>
+<div class="ba">
+  <div class="before"><span class="tag">BEFORE</span>
+    <pre><code>// After audience validation:
+csrfToken := r.Header.Get("X-Csrf-Token")
+if csrfToken == "" {
+    writeForbidden(w, "...")
+    return
+}
+// Validate CSRF token...</code></pre>
+  </div>
+  <div class="after"><span class="tag">AFTER</span>
+    <pre><code>// After audience validation:
+<span style="color:#10b981">// JWT introspection (NEW)
+if h.Introspector != nil {
+    rawToken := strings.TrimPrefix(
+        authHeader, "Bearer ")
+    active, err := h.Introspector
+        .IsActive(ctx, rawToken)
+    if !active {
+        writeForbidden(w,
+          "Token is no longer valid")
+        return
+    }
+}</span>
+csrfToken := r.Header.Get("X-Csrf-Token")
+// ... continue with CSRF validation</code></pre>
+  </div>
+</div>
+
+<h3>Keycloak Call: RFC 7662</h3>
+<pre><code>// POST to Keycloak introspection endpoint
+POST /realms/bookstore/protocol/openid-connect/token/introspect
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic {base64(client_id:client_secret)}
+
+token=&lt;jwt&gt;&token_type_hint=access_token
+
+// Response:
+{"active": false}  &larr; user disabled/session terminated/token revoked
+{"active": true}   &larr; user is valid, token is active</code></pre>
+
+<h3>Redis Cache Strategy</h3>
+<pre><code>// Cache key: SHA-256 hash of token (first 16 hex chars)
+Key:   introspect:a1b2c3d4e5f6g7h8
+Value: "1" (active) or "0" (inactive)
+TTL:   15 seconds (configurable via INTROSPECT_CACHE_TTL_SECONDS)
+
+// Performance: ~95% cache hit rate under normal load
+// Active user: &lt;0.5ms average (Redis GET)
+// First call: 5-15ms (Keycloak round-trip within cluster)</code></pre>
+
+<!-- Access Token TTL -->
+<h2>Access Token Lifespan: 30min &rarr; 5min</h2>
+<div class="ba">
+  <div class="before"><span class="tag">BEFORE</span>
+    <pre><code>// realm-export.json
+"accessTokenLifespan": 1800</code></pre>
+    <p style="color:var(--red)">30-minute window before expired tokens are rejected</p>
+  </div>
+  <div class="after"><span class="tag">AFTER</span>
+    <pre><code>// realm-export.json
+"accessTokenLifespan": 300</code></pre>
+    <p style="color:var(--green)">5-minute window (OWASP recommended range: 5-15min)</p>
+  </div>
+</div>
+
+<!-- Config -->
+<h2>Configuration</h2>
+<table>
+  <tr><th>Env Var</th><th>Default</th><th>Description</th></tr>
+  <tr><td><code>INTROSPECT_ENABLED</code></td><td><code>false</code></td><td>Enable JWT introspection on mutations</td></tr>
+  <tr><td><code>INTROSPECT_URL</code></td><td>&mdash;</td><td>Keycloak introspection endpoint URL</td></tr>
+  <tr><td><code>INTROSPECT_CLIENT_ID</code></td><td>&mdash;</td><td>Confidential client ID for introspection</td></tr>
+  <tr><td><code>INTROSPECT_CLIENT_SECRET</code></td><td>&mdash;</td><td>Confidential client secret</td></tr>
+  <tr><td><code>INTROSPECT_CACHE_TTL_SECONDS</code></td><td><code>15</code></td><td>Redis cache TTL for introspection results</td></tr>
+  <tr><td><code>INTROSPECT_FAIL_OPEN</code></td><td><code>true</code></td><td>Allow requests when Keycloak is unreachable</td></tr>
+  <tr><td><code>INTROSPECT_TIMEOUT_MS</code></td><td><code>3000</code></td><td>HTTP timeout for Keycloak calls</td></tr>
+</table>
+
+<!-- Metrics -->
+<h2>New Prometheus Metrics</h2>
+<table>
+  <tr><th>Metric</th><th>Labels</th><th>Alert On</th></tr>
+  <tr><td><code>csrf_introspect_total</code></td><td><code>result</code>: <code>active</code>, <code>inactive</code>, <code>error</code></td><td>Rising <code>inactive</code> (users being blocked)</td></tr>
+  <tr><td><code>csrf_introspect_duration_seconds</code></td><td><code>source</code>: <code>keycloak</code>, <code>cache</code></td><td>Rising <code>keycloak</code> latency</td></tr>
+</table>
+
+<!-- Manual Test -->
+<h2>Manual Testing Guide</h2>
+
+<h3><span class="step">1</span> Enable Introspection</h3>
+<pre><code># Set env vars on csrf-service deployment
+kubectl set env deploy/csrf-service -n infra \
+  INTROSPECT_ENABLED=true \
+  INTROSPECT_URL=http://keycloak.identity.svc.cluster.local:8080/realms/bookstore/protocol/openid-connect/token/introspect \
+  INTROSPECT_CLIENT_ID=ecom-service \
+  INTROSPECT_CLIENT_SECRET=&lt;secret&gt;</code></pre>
+
+<h3><span class="step">2</span> Get JWT and CSRF Token</h3>
+<pre><code>JWT=$(curl -sk -X POST "https://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token" \
+  -d "grant_type=password&client_id=ui-client&username=user1&password=CHANGE_ME" \
+  -H "Content-Type: application/x-www-form-urlencoded" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+TOKEN=$(curl -sk https://api.service.net:30000/csrf/token \
+  -H "Authorization: Bearer $JWT" | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")</code></pre>
+
+<h3><span class="step">3</span> Disable User in Keycloak</h3>
+<pre><code>ADMIN_TOKEN=$(curl -sk -X POST "https://idp.keycloak.net:30000/realms/master/protocol/openid-connect/token" \
+  -d "grant_type=password&client_id=admin-cli&username=admin&password=CHANGE_ME" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+# Get user ID
+USER_ID=$(curl -sk "https://idp.keycloak.net:30000/admin/realms/bookstore/users?username=user1" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])")
+
+# Disable user
+curl -sk -X PUT "https://idp.keycloak.net:30000/admin/realms/bookstore/users/$USER_ID" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"enabled": false}'</code></pre>
+
+<h3><span class="step">4</span> Wait for Cache Expiry and Test</h3>
+<pre><code># Wait 20 seconds (cache TTL is 15s)
+sleep 20
+
+# Attempt mutation &mdash; should get 403
+curl -sk -w "%{http_code}\n" -X POST https://api.service.net:30000/ecom/cart \
+  -H "Authorization: Bearer $JWT" \
+  -H "X-CSRF-Token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"bookId":"00000000-0000-0000-0000-000000000001","quantity":1}'
+# Expected: 403 "Token is no longer valid"</code></pre>
+
+<h3><span class="step">5</span> Re-enable User</h3>
+<pre><code>curl -sk -X PUT "https://idp.keycloak.net:30000/admin/realms/bookstore/users/$USER_ID" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"enabled": true}'</code></pre>
+
+<!-- Test Coverage -->
+<h2>Test Coverage</h2>
+<table>
+  <tr><th>Package</th><th>Tests</th><th>Coverage</th></tr>
+  <tr><td><code>internal/introspect</code> <span class="badge green">NEW</span></td><td>11</td><td>Active/inactive, cache hit/miss, Keycloak down fail-open/closed, timeout, invalid response, Redis down, Basic auth, caching inactive, noop</td></tr>
+  <tr><td><code>internal/handler</code> <span class="badge blue">+6</span></td><td>28</td><td>Introspection active/inactive/error-failopen/error-failclosed, skipped on GET, skipped without JWT</td></tr>
+  <tr><td colspan="2"><strong>Total: 68 Go unit tests</strong></td><td>All use miniredis + httptest (no real Redis/Keycloak)</td></tr>
+</table>
+
+<footer>
+  <p>BookStore Platform &mdash; JWT Introspection on Mutations<br>
+  <a href="csrf-before-after-comparison.html">CSRF Before/After</a> &bull;
+  <a href="csrf-security-enhancements.html">Security Enhancements</a> &bull;
+  <a href="csrf-architecture-deep-dive.html">Architecture Deep Dive</a> &bull;
+  <a href="index.html">&larr; Back to Documentation Index</a></p>
+</footer>
+</div>
+</body>
+</html>

@@ -13,6 +13,7 @@ import (
 
 	"github.com/bookstore/csrf-service/internal/config"
 	"github.com/bookstore/csrf-service/internal/handler"
+	"github.com/bookstore/csrf-service/internal/introspect"
 	"github.com/bookstore/csrf-service/internal/middleware"
 	"github.com/bookstore/csrf-service/internal/origin"
 	"github.com/bookstore/csrf-service/internal/ratelimit"
@@ -38,7 +39,28 @@ func main() {
 	})
 	rateLimiter := ratelimit.NewRedisLimiter(redisClient, cfg.RateLimitPerMin)
 
-	h := handler.New(tokenStore, metrics, originValidator, rateLimiter,
+	// Initialize introspector
+	var introspector introspect.Introspector
+	if cfg.IntrospectEnabled && cfg.IntrospectURL != "" {
+		introspector = introspect.NewKeycloakIntrospector(
+			cfg.IntrospectURL,
+			cfg.IntrospectClientID,
+			cfg.IntrospectClientSecret,
+			redisClient,
+			cfg.IntrospectCacheTTL,
+			cfg.IntrospectFailOpen,
+			cfg.IntrospectTimeout,
+		)
+		slog.Info("JWT introspection enabled",
+			"url", cfg.IntrospectURL,
+			"cacheTTL", cfg.IntrospectCacheTTL,
+			"failOpen", cfg.IntrospectFailOpen,
+		)
+	} else {
+		introspector = &introspect.NoopIntrospector{}
+	}
+
+	h := handler.New(tokenStore, metrics, originValidator, rateLimiter, introspector,
 		cfg.AllowedAudiences, cfg.ValidateAudience)
 
 	// Verify Redis connectivity

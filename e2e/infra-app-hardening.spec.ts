@@ -218,11 +218,18 @@ test.describe('Idempotent Checkout', () => {
       ignoreHTTPSErrors: true,
     })
 
+    // Fetch fresh CSRF token (previous one was consumed by the cart POST — single-use tokens)
+    const csrfResp2 = await request.get(`https://api.service.net:30000/csrf/token`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      ignoreHTTPSErrors: true,
+    })
+    const csrfToken2 = (await csrfResp2.json()).token
+
     const idempotencyKey = `test-idempotency-${Date.now()}`
 
-    // First checkout
+    // First checkout (with fresh CSRF token)
     const res1 = await request.post(`${ECOM_API}/checkout`, {
-      headers: { ...headers, 'Idempotency-Key': idempotencyKey },
+      headers: { ...headers, 'X-CSRF-Token': csrfToken2, 'Idempotency-Key': idempotencyKey },
       ignoreHTTPSErrors: true,
     })
 
@@ -234,9 +241,16 @@ test.describe('Idempotent Checkout', () => {
 
     const order1 = await res1.json()
 
-    // Second checkout with same key — should return same order
+    // Fetch another fresh CSRF token for the second checkout
+    const csrfResp3 = await request.get(`https://api.service.net:30000/csrf/token`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      ignoreHTTPSErrors: true,
+    })
+    const csrfToken3 = (await csrfResp3.json()).token
+
+    // Second checkout with same idempotency key — should return same order
     const res2 = await request.post(`${ECOM_API}/checkout`, {
-      headers: { ...headers, 'Idempotency-Key': idempotencyKey },
+      headers: { ...headers, 'X-CSRF-Token': csrfToken3, 'Idempotency-Key': idempotencyKey },
       ignoreHTTPSErrors: true,
     })
     expect(res2.status()).toBe(200)

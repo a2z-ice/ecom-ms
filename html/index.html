@@ -658,6 +658,10 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
       <h3>CSRF Before vs After (Complete Comparison)</h3>
       <p>Side-by-side code comparison for all 8 enhancements. Visual request flow diagrams, defense layering chart, and step-by-step manual testing guide with curl commands for every scenario: single-use, origin binding, rate limiting, fail-closed, audience validation, and open redirect fix.</p>
     </a>
+    <a href="csrf-jwt-introspection.html" class="doc-card" style="border-color: #06b6d4; border-width: 2px;">
+      <h3>JWT Introspection on Mutations</h3>
+      <p>Real-time token validation via Keycloak RFC 7662: catches disabled users, terminated sessions, and revoked tokens within 15 seconds. Redis-cached, fail-open, mutations-only. Access token TTL reduced from 30min to 5min. 68 Go unit tests.</p>
+    </a>
     <a href="csrf-extauthz-vs-wasm.html" class="doc-card" style="border-color: var(--accent);">
       <h3>ext_authz vs Wasm Plugin Analysis</h3>
       <p>Deep comparison: ext_authz Go microservice (8.8/10) vs Istio Wasm plugin (6.3/10). Security, resilience, traffic handling, maintenance, Redis integration, industry patterns, and weighted scorecard.</p>

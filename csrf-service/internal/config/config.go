@@ -20,7 +20,14 @@ type Config struct {
 	RequireOrigin    bool
 	AllowedAudiences []string
 	ValidateAudience bool
-	RateLimitPerMin  int
+	RateLimitPerMin        int
+	IntrospectEnabled      bool
+	IntrospectURL          string
+	IntrospectClientID     string
+	IntrospectClientSecret string
+	IntrospectCacheTTL     time.Duration
+	IntrospectFailOpen     bool
+	IntrospectTimeout      time.Duration
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -48,8 +55,24 @@ func Load() Config {
 		RequireOrigin:    envOrDefault("CSRF_REQUIRE_ORIGIN", "false") == "true",
 		AllowedAudiences: parseCSV(envOrDefault("CSRF_ALLOWED_AUDIENCES", "ui-client")),
 		ValidateAudience: envOrDefault("CSRF_VALIDATE_AUDIENCE", "false") == "true",
-		RateLimitPerMin:  rateLimit,
+		RateLimitPerMin:        rateLimit,
+		IntrospectEnabled:      envOrDefault("INTROSPECT_ENABLED", "false") == "true",
+		IntrospectURL:          envOrDefault("INTROSPECT_URL", ""),
+		IntrospectClientID:     envOrDefault("INTROSPECT_CLIENT_ID", ""),
+		IntrospectClientSecret: envOrDefault("INTROSPECT_CLIENT_SECRET", ""),
+		IntrospectCacheTTL:     time.Duration(envInt("INTROSPECT_CACHE_TTL_SECONDS", 15)) * time.Second,
+		IntrospectFailOpen:     envOrDefault("INTROSPECT_FAIL_OPEN", "true") == "true",
+		IntrospectTimeout:      time.Duration(envInt("INTROSPECT_TIMEOUT_MS", 3000)) * time.Millisecond,
 	}
+}
+
+func envInt(key string, defaultVal int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return defaultVal
 }
 
 func envOrDefault(key, defaultVal string) string {
