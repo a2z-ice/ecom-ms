@@ -646,6 +646,22 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
       <h3>CSRF Clean Code Refactor (Go Guide)</h3>
       <p>From 290-line monolith to clean architecture. Go import system tutorial, dependency injection, interface pattern, internal packages. A learning resource for Go beginners with line-by-line code explanations.</p>
     </a>
+    <a href="csrf-architecture-deep-dive.html" class="doc-card" style="border-color: #06b6d4; border-width: 2px;">
+      <h3>CSRF Architecture Deep Dive</h3>
+      <p>Is CSRF a real threat with Bearer tokens? Comprehensive analysis: token generation (UUID v4, 122-bit entropy), Redis storage, timing-safe validation, Istio ext_authz flow, sliding TTL, fail-open design, OWASP compliance, and comparison with Django/Spring Security.</p>
+    </a>
+    <a href="csrf-security-enhancements.html" class="doc-card" style="border-color: #10b981; border-width: 2px;">
+      <h3>CSRF Security Enhancements (8 Fixes)</h3>
+      <p>Single-use tokens, origin binding, configurable fail-closed, per-user rate limiting, JWT audience validation, open redirect fix, HSTS headers, anomaly detection. 49 tests, all backward-compatible. Based on OWASP, NIST SP 800-63B, and industry practices.</p>
+    </a>
+    <a href="csrf-before-after-comparison.html" class="doc-card" style="border-color: #ef4444; border-width: 2px;">
+      <h3>CSRF Before vs After (Complete Comparison)</h3>
+      <p>Side-by-side code comparison for all 8 enhancements. Visual request flow diagrams, defense layering chart, and step-by-step manual testing guide with curl commands for every scenario: single-use, origin binding, rate limiting, fail-closed, audience validation, and open redirect fix.</p>
+    </a>
+    <a href="csrf-jwt-introspection.html" class="doc-card" style="border-color: #06b6d4; border-width: 2px;">
+      <h3>JWT Introspection on Mutations</h3>
+      <p>Real-time token validation via Keycloak RFC 7662: catches disabled users, terminated sessions, and revoked tokens within 15 seconds. Redis-cached, fail-open, mutations-only. Access token TTL reduced from 30min to 5min. 68 Go unit tests.</p>
+    </a>
     <a href="csrf-extauthz-vs-wasm.html" class="doc-card" style="border-color: var(--accent);">
       <h3>ext_authz vs Wasm Plugin Analysis</h3>
       <p>Deep comparison: ext_authz Go microservice (8.8/10) vs Istio Wasm plugin (6.3/10). Security, resilience, traffic handling, maintenance, Redis integration, industry patterns, and weighted scorecard.</p>

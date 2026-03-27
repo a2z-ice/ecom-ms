@@ -59,7 +59,11 @@
         { label: '\u2462 ext_authz vs Wasm', href: 'csrf-extauthz-vs-wasm.html' },
         { label: '\u2463 Production Audit', href: 'csrf-production-readiness.html' },
         { label: '\u2464 Production Enhancement', href: 'csrf-production-enhancement.html' },
-        { label: '\u2465 Clean Code Refactor', href: 'csrf-clean-code-refactor.html' }
+        { label: '\u2465 Clean Code Refactor', href: 'csrf-clean-code-refactor.html' },
+        { label: '\u2466 Architecture Deep Dive', href: 'csrf-architecture-deep-dive.html', highlight: true },
+        { label: '\u2467 Security Enhancements', href: 'csrf-security-enhancements.html', highlight: true },
+        { label: '\u2468 Before vs After (8 Fixes)', href: 'csrf-before-after-comparison.html', highlight: true },
+        { label: '\u2469 JWT Introspection', href: 'csrf-jwt-introspection.html', highlight: true }
       ]
     },
     {

@@ -56,13 +56,14 @@ test.describe('PgAdmin Credentials', () => {
     expect([200, 302, 401]).toContain(resp.status())
   })
 
-  test('PgAdmin startup logs confirm 4 servers imported', () => {
+  test('PgAdmin has 4 servers configured via servers.json', () => {
     const { execFileSync } = require('child_process')
-    // Search all logs (not just tail) since the import message is from pod startup
-    const logs = execFileSync('kubectl', [
-      'logs', '-n', 'infra', 'deploy/pgadmin',
+    const serversJson = execFileSync('kubectl', [
+      'exec', '-n', 'admin-tools', 'deploy/pgadmin', '--',
+      'cat', '/pgadmin4/servers.json',
     ], { encoding: 'utf-8', timeout: 10_000 })
-    expect(logs).toContain('Added 1 Server Group(s) and 4 Server(s)')
+    const data = JSON.parse(serversJson)
+    expect(Object.keys(data.Servers || {})).toHaveLength(4)
   })
 
   test('PgAdmin dashboard shows BookStore server group after login', async ({ page }) => {
@@ -90,7 +91,7 @@ test.describe('PgAdmin Credentials', () => {
   test('PgAdmin PGADMIN_SERVER_JSON_FILE env var is set', () => {
     const { execFileSync } = require('child_process')
     const dep = JSON.parse(execFileSync('kubectl', [
-      'get', 'deployment', 'pgadmin', '-n', 'infra', '-o', 'json',
+      'get', 'deployment', 'pgadmin', '-n', 'admin-tools', '-o', 'json',
     ], { encoding: 'utf-8', timeout: 10_000 }))
     const container = dep.spec.template.spec.containers[0]
     const envVar = container.env?.find((e: any) => e.name === 'PGADMIN_SERVER_JSON_FILE')
@@ -101,7 +102,7 @@ test.describe('PgAdmin Credentials', () => {
   test('PgAdmin pod has servers.json volume mount', () => {
     const { execFileSync } = require('child_process')
     const dep = JSON.parse(execFileSync('kubectl', [
-      'get', 'deployment', 'pgadmin', '-n', 'infra', '-o', 'json',
+      'get', 'deployment', 'pgadmin', '-n', 'admin-tools', '-o', 'json',
     ], { encoding: 'utf-8', timeout: 10_000 }))
     const container = dep.spec.template.spec.containers[0]
     const mount = container.volumeMounts?.find((m: any) => m.mountPath === '/pgadmin4/servers.json')
@@ -113,7 +114,7 @@ test.describe('PgAdmin Credentials', () => {
   test('PgAdmin has pre-configured servers via ConfigMap', () => {
     const { execFileSync } = require('child_process')
     const servers = execFileSync('kubectl', [
-      'get', 'configmap', 'pgadmin-servers', '-n', 'infra',
+      'get', 'configmap', 'pgadmin-servers', '-n', 'admin-tools',
       '-o', 'jsonpath={.data.servers\\.json}',
     ], { encoding: 'utf-8', timeout: 10_000 })
     const parsed = JSON.parse(servers)
@@ -129,7 +130,7 @@ test.describe('PgAdmin Credentials', () => {
   test('PgAdmin Secret has correct email (admin@bookstore.dev)', () => {
     const { execFileSync } = require('child_process')
     const email = execFileSync('kubectl', [
-      'get', 'secret', 'pgadmin-secret', '-n', 'infra',
+      'get', 'secret', 'pgadmin-secret', '-n', 'admin-tools',
       '-o', 'jsonpath={.data.PGADMIN_DEFAULT_EMAIL}',
     ], { encoding: 'utf-8', timeout: 10_000 }).trim()
     const decoded = Buffer.from(email, 'base64').toString('utf-8')

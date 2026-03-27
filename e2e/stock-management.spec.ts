@@ -158,8 +158,14 @@ test.describe('Stock Management', () => {
     await page.goto('/')
     await expect(page.getByText('In Stock').first()).toBeVisible({ timeout: 10000 })
     const addBtn = page.getByRole('button', { name: /add to cart/i }).first()
-    await addBtn.click()
-    await expect(addBtn).not.toHaveText(/adding/i, { timeout: 5000 })
+    await expect(addBtn).toBeEnabled()
+
+    // Wait for the POST /cart response (handles CSRF auto-retry)
+    const [cartResp] = await Promise.all([
+      page.waitForResponse((r: any) => r.url().includes('/ecom/cart') && r.request().method() === 'POST'),
+      addBtn.click(),
+    ])
+    expect(cartResp.status()).toBeLessThan(400)
 
     await page.goto('/cart')
     await expect(page.getByRole('heading', { name: /your cart/i })).toBeVisible()
