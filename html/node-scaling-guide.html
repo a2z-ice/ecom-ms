@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Node Group Scaling Guide &mdash; BookStore Platform</title>
+  <style>
+    :root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--accent:#3b82f6;--border:#334155;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;--cyan:#06b6d4}
+    *{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth}
+    body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
+    .container{max-width:1100px;margin:0 auto;padding:40px 24px}
+    h1{font-size:2.2rem;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,#60a5fa,#a78bfa);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    h1+p{color:var(--muted);font-size:1.05rem;margin-bottom:40px}
+    h2{font-size:1.4rem;font-weight:700;margin:48px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);color:#f1f5f9}
+    h3{font-size:1.1rem;font-weight:600;margin:24px 0 8px;color:#cbd5e1}
+    h4{font-size:.95rem;font-weight:600;margin:16px 0 6px;color:var(--muted)}
+    p{margin-bottom:16px}
+    table{width:100%;border-collapse:collapse;margin:16px 0 24px}
+    th{background:var(--card);text-align:left;padding:10px 14px;font-size:.85rem;font-weight:600;color:var(--accent);border-bottom:2px solid var(--border)}
+    td{padding:10px 14px;font-size:.9rem;border-bottom:1px solid var(--border)}
+    tr:hover td{background:rgba(59,130,246,.05)}
+    code{background:var(--card);padding:2px 6px;border-radius:4px;font-size:.88em;color:#f59e0b}
+    pre{background:var(--card);padding:16px;border-radius:8px;overflow-x:auto;margin:12px 0 20px;border:1px solid var(--border);font-size:.82rem;line-height:1.6}
+    pre code{background:none;padding:0;color:#e2e8f0}
+    ul,ol{margin:8px 0 16px 24px}li{margin-bottom:6px}
+    .badge{display:inline-block;font-size:.75rem;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:6px;color:#fff}
+    .badge.green{background:linear-gradient(135deg,#059669,#10b981)}.badge.blue{background:linear-gradient(135deg,#2563eb,#3b82f6)}
+    .badge.orange{background:linear-gradient(135deg,#d97706,#f59e0b)}.badge.purple{background:linear-gradient(135deg,#7c3aed,#8b5cf6)}
+    .badge.cyan{background:linear-gradient(135deg,#0891b2,#06b6d4)}.badge.red{background:linear-gradient(135deg,#dc2626,#ef4444)}
+    .badges{margin-bottom:24px}
+    footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid var(--border);color:var(--muted);font-size:.85rem}
+    footer a{color:var(--accent);text-decoration:none}footer a:hover{text-decoration:underline}
+    .topnav{position:sticky;top:0;z-index:100;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+    .topnav-inner{max-width:1100px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:52px}
+    .topnav-brand{font-weight:800;font-size:1rem;color:var(--text);text-decoration:none}
+    .topnav-links{display:flex;gap:20px;align-items:center}
+    .topnav-links a{color:var(--muted);font-size:.82rem;font-weight:500;text-decoration:none;transition:color .15s}.topnav-links a:hover{color:var(--text)}.topnav-links a.highlight{color:#a78bfa}
+    .result{padding:12px 16px;border-radius:8px;margin:8px 0 16px;font-size:.9rem}
+    .result.pass{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--green)}
+    .result.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--yellow)}
+    .result.info{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:var(--accent)}
+    .result.fail{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--red)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0}
+    .card h3{margin-top:0;color:var(--accent)}
+    .flow{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin:20px 0;font-family:monospace;font-size:.82rem;line-height:1.8;white-space:pre;overflow-x:auto}
+    .flow .g{color:var(--green);font-weight:600}.flow .r{color:var(--red);font-weight:600}.flow .b{color:var(--accent)}.flow .y{color:var(--yellow)}
+    .step{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;font-size:.82rem;margin-right:8px;flex-shrink:0}
+    .ba{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}.ba>div{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px}
+    .ba .tag{font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:4px;margin-bottom:12px;display:inline-block}
+    .ba .before .tag{background:rgba(239,68,68,.2);color:var(--red)}.ba .after .tag{background:rgba(16,185,129,.2);color:var(--green)}
+    @media(max-width:700px){.ba{grid-template-columns:1fr}}
+    /* Banner */
+    .linkedin-banner{position:relative;width:100%;background:linear-gradient(135deg,#0c1222 0%,#162044 35%,#1e1b4b 60%,#312e81 100%);overflow:hidden}
+    .linkedin-banner::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 15% 50%,rgba(59,130,246,.1) 0%,transparent 50%),radial-gradient(circle at 85% 20%,rgba(139,92,246,.12) 0%,transparent 40%);pointer-events:none}
+    .linkedin-banner::after{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
+    .banner-inner{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:52px 48px 48px;display:flex;align-items:center;gap:44px}
+    .banner-shield{flex-shrink:0;width:130px;height:150px}.banner-shield svg{width:100%;height:100%;filter:drop-shadow(0 0 24px rgba(59,130,246,.3))}
+    .banner-text{flex:1;min-width:0}
+    .banner-series{font-size:.7rem;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:rgba(167,139,250,.9);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+    .banner-series::before{content:'';width:24px;height:2px;background:linear-gradient(90deg,#a78bfa,transparent)}
+    .banner-title-text{font-size:2.1rem;font-weight:800;line-height:1.25;margin-bottom:10px;background:linear-gradient(135deg,#f1f5f9 0%,#cbd5e1 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .banner-desc{font-size:.95rem;color:#94a3b8;margin-bottom:22px;line-height:1.6;max-width:540px}
+    .banner-tags{display:flex;gap:8px;flex-wrap:wrap}
+    .banner-tags span{font-size:.7rem;font-weight:600;padding:5px 14px;border-radius:6px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;letter-spacing:.3px}
+    .banner-brand{position:absolute;bottom:18px;right:32px;font-size:.65rem;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(148,163,184,.35);z-index:1}
+    .banner-accent-line{height:3px;background:linear-gradient(90deg,#f59e0b 0%,#3b82f6 50%,#10b981 100%)}
+    @media(max-width:768px){.banner-inner{flex-direction:column;padding:36px 24px 32px;gap:24px;text-align:center}.banner-shield{width:90px;height:104px}.banner-title-text{font-size:1.5rem}.banner-tags{justify-content:center}}
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav"><div class="topnav-inner"><a href="index.html" class="topnav-brand">BookStore Platform</a><div class="topnav-links"><a href="index.html">Home</a><a href="architecture.html">Architecture</a><a href="bookstore-platform-manual.html" class="highlight">Full Manual</a></div></div></nav>
+
+<div class="linkedin-banner">
+  <div class="banner-inner">
+    <div class="banner-shield"><svg viewBox="0 0 130 150" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="sg" x1="65" y1="8" x2="65" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="rgba(245,158,11,.2)"/><stop offset="100%" stop-color="rgba(59,130,246,.15)"/></linearGradient><linearGradient id="ss" x1="16" y1="8" x2="114" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#3b82f6"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M65 14L22 36v38c0 30 18 56 43 66 25-10 43-36 43-66V36L65 14z" fill="url(#sg)" stroke="url(#ss)" stroke-width="2" filter="url(#glow)"/><text x="42" y="82" fill="#f59e0b" font-size="36" font-weight="800">5</text><text x="62" y="82" fill="#64748b" font-size="20">&rarr;</text><text x="72" y="82" fill="#10b981" font-size="36" font-weight="800">N</text></svg></div>
+    <div class="banner-text">
+      <div class="banner-series">Cloud Operations &bull; Node Group Scaling</div>
+      <div class="banner-title-text">Node Group Scaling Guide</div>
+      <p class="banner-desc">How to scale beyond your initial max node count in EKS and AKS &mdash; zero-downtime operations, industry best practices, Cluster Autoscaler vs Karpenter, and when to add new node groups vs resize existing ones</p>
+      <div class="banner-tags"><span>EKS</span><span>AKS</span><span>Zero Downtime</span><span>Cluster Autoscaler</span><span>Karpenter</span><span>Spot + On-Demand</span><span>Terraform</span></div>
+    </div>
+  </div>
+  <div class="banner-brand">BookStore Platform</div>
+</div>
+<div class="banner-accent-line"></div>
+
+<div class="container">
+
+<h1>Node Group Scaling Guide</h1>
+<p>Your cluster started with <code>max_size = 5</code>. Now you need more. Here's exactly what to do &mdash; and what NOT to do.</p>
+
+<div class="badges">
+  <span class="badge green">Zero Downtime</span>
+  <span class="badge blue">EKS + AKS</span>
+  <span class="badge orange">Terraform + CLI</span>
+  <span class="badge purple">Industry Best Practice</span>
+</div>
+
+<div class="result pass"><strong>Key fact:</strong> Increasing <code>max_size</code> on an existing node group is a <strong>non-disruptive, zero-downtime operation</strong> in both EKS and AKS. No pods are restarted. No traffic is interrupted. You're just telling the autoscaler it's allowed to provision more nodes.</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<h2>The 3-Tier Scaling Strategy (Industry Standard)</h2>
+
+<p>Production Kubernetes clusters scale in three tiers. Always try the cheapest/fastest tier first:</p>
+
+<div class="flow"><span class="step">1</span> <span class="b">Scale Pods (HPA)</span>           &mdash; Free, instant, within existing nodes
+   Pod CPU &gt; 70%? HPA adds replicas. No new nodes needed.
+   &darr; If all nodes are full (pods stuck in Pending)...
+
+<span class="step">2</span> <span class="y">Scale Nodes (update max_size)</span> &mdash; Zero-downtime config change
+   Increase max_size from 5 &rarr; 10. Autoscaler provisions new nodes.
+   &darr; If workloads need different instance types...
+
+<span class="step">3</span> <span class="g">Add New Node Groups</span>          &mdash; For specialized workloads
+   GPU nodes for ML, high-memory for databases, Spot for batch jobs.
+   Runs alongside existing node groups.</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<h2>Tier 2: Scale Existing Node Groups</h2>
+
+<h3>When to Do This</h3>
+<ul>
+  <li>Pods are in <code>Pending</code> state (no available nodes with enough resources)</li>
+  <li><code>kubectl get events</code> shows <code>FailedScheduling: Insufficient cpu/memory</code></li>
+  <li>Cluster Autoscaler logs show <code>max node group size reached</code></li>
+</ul>
+
+<h3>AWS EKS &mdash; Three Options</h3>
+
+<div class="card">
+<h3>Option A: AWS CLI (immediate, no Terraform)</h3>
+<pre><code># Check current scaling config
+aws eks describe-nodegroup \
+  --cluster-name bookstore \
+  --nodegroup-name bookstore-app-nodes \
+  --query 'nodegroup.scalingConfig'
+
+# Update max_size from 5 to 10 (zero downtime)
+aws eks update-nodegroup-config \
+  --cluster-name bookstore \
+  --nodegroup-name bookstore-app-nodes \
+  --scaling-config minSize=2,maxSize=10,desiredSize=5
+
+# Verify
+aws eks describe-nodegroup \
+  --cluster-name bookstore \
+  --nodegroup-name bookstore-app-nodes \
+  --query 'nodegroup.scalingConfig'</code></pre>
+<div class="result info">This takes effect immediately. The autoscaler can now provision up to 10 nodes. No pods restart.</div>
+</div>
+
+<div class="card">
+<h3>Option B: Terraform (recommended for GitOps)</h3>
+<pre><code># variables.tf &mdash; change the default
+variable "app_node_max" {
+  description = "Maximum nodes in app node group"
+  type        = number
+  default     = 10   # was 5
+}
+
+# Apply
+terraform plan -var="app_node_max=10"
+terraform apply -var="app_node_max=10"</code></pre>
+<div class="result pass"><strong>Best practice:</strong> Always update Terraform so your infrastructure-as-code matches reality. CLI changes create drift.</div>
+</div>
+
+<div class="card">
+<h3>Option C: eksctl (if using eksctl-managed clusters)</h3>
+<pre><code>eksctl scale nodegroup \
+  --cluster bookstore \
+  --name bookstore-app-nodes \
+  --nodes-max 10</code></pre>
+</div>
+
+<h3>Azure AKS &mdash; Three Options</h3>
+
+<div class="card">
+<h3>Option A: Azure CLI (immediate)</h3>
+<pre><code># Check current config
+az aks nodepool show \
+  --resource-group bookstore-rg \
+  --cluster-name bookstore \
+  --name apppool \
+  --query '{minCount:minCount, maxCount:maxCount, count:count}'
+
+# Update max_count from 5 to 10
+az aks nodepool update \
+  --resource-group bookstore-rg \
+  --cluster-name bookstore \
+  --name apppool \
+  --max-count 10
+
+# Verify
+az aks nodepool show \
+  --resource-group bookstore-rg \
+  --cluster-name bookstore \
+  --name apppool \
+  --query '{minCount:minCount, maxCount:maxCount}'</code></pre>
+</div>
+
+<div class="card">
+<h3>Option B: Terraform (recommended)</h3>
+<pre><code># variables.tf
+variable "app_node_max_count" {
+  description = "Maximum nodes in app pool (autoscaler)"
+  type        = number
+  default     = 10   # was 5
+}
+
+terraform apply -var="app_node_max_count=10"</code></pre>
+</div>
+
+<div class="card">
+<h3>Option C: Azure Portal (GUI)</h3>
+<ol>
+  <li>Navigate to your AKS cluster &rarr; <strong>Node pools</strong></li>
+  <li>Click the node pool &rarr; <strong>Scale</strong></li>
+  <li>Update <strong>Maximum node count</strong> to 10</li>
+  <li>Click <strong>Apply</strong></li>
+</ol>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<h2>Tier 3: Add New Node Groups (Specialized Workloads)</h2>
+
+<p>When you need <strong>different instance types</strong> alongside existing nodes:</p>
+
+<table>
+  <tr><th>Workload</th><th>EKS Instance</th><th>AKS VM Size</th><th>Why</th></tr>
+  <tr><td>General app services</td><td><code>m7g.large</code></td><td><code>Standard_D4as_v5</code></td><td>Balanced CPU/memory</td></tr>
+  <tr><td>Kafka / Flink (memory)</td><td><code>r7g.xlarge</code></td><td><code>Standard_E4as_v5</code></td><td>High memory for streaming</td></tr>
+  <tr><td>Batch / CDC processing</td><td><code>c7g.large</code> (Spot)</td><td><code>Standard_F4s_v2</code> (Spot)</td><td>CPU-intensive, interruptible</td></tr>
+  <tr><td>PostgreSQL (CNPG)</td><td><code>r7g.large</code></td><td><code>Standard_E4s_v5</code></td><td>Memory + fast I/O</td></tr>
+</table>
+
+<h3>EKS: Add a New Managed Node Group</h3>
+<pre><code># Terraform
+resource "aws_eks_node_group" "kafka_nodes" {
+  cluster_name    = aws_eks_cluster.main.name
+  node_group_name = "bookstore-kafka-nodes"
+  node_role_arn   = aws_iam_role.node.arn
+  subnet_ids      = var.private_subnet_ids
+
+  instance_types = ["r7g.xlarge"]
+
+  scaling_config {
+    desired_size = 2
+    min_size     = 2
+    max_size     = 4
+  }
+
+  labels = {
+    "workload" = "streaming"
+  }
+
+  taint {
+    key    = "workload"
+    value  = "streaming"
+    effect = "NO_SCHEDULE"
+  }
+}</code></pre>
+
+<h3>AKS: Add a New Node Pool</h3>
+<pre><code># Terraform
+resource "azurerm_kubernetes_cluster_node_pool" "kafka" {
+  name                  = "kafkapool"
+  kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
+  vm_size              = "Standard_E4as_v5"
+  zones                = ["1", "2", "3"]
+
+  min_count            = 2
+  max_count            = 4
+  enable_auto_scaling  = true
+
+  node_labels = {
+    "workload" = "streaming"
+  }
+
+  node_taints = ["workload=streaming:NoSchedule"]
+}</code></pre>
+
+<h3>Deploy to the New Node Group</h3>
+<pre><code># Add nodeSelector + tolerations to your Kafka deployment
+spec:
+  nodeSelector:
+    workload: streaming
+  tolerations:
+    - key: "workload"
+      operator: "Equal"
+      value: "streaming"
+      effect: "NoSchedule"</code></pre>
+
+<!-- ══════════════════════════════════════════════ -->
+<h2>Cluster Autoscaler vs Karpenter</h2>
+
+<table>
+  <tr><th>Feature</th><th>Cluster Autoscaler</th><th>Karpenter</th></tr>
+  <tr><td>How it works</td><td>Adjusts ASG/VMSS desired count</td><td>Provisions individual EC2 instances directly</td></tr>
+  <tr><td>Cloud support</td><td>EKS + AKS + GKE</td><td><strong>EKS only</strong> (AKS: preview as AKS Karpenter Provider)</td></tr>
+  <tr><td>Instance type flexibility</td><td>One type per node group</td><td>Mixes types per NodePool (e.g., m7g + c7g + r7g)</td></tr>
+  <tr><td>Scale-up speed</td><td>30-60 seconds</td><td><strong>10-20 seconds</strong></td></tr>
+  <tr><td>Spot + On-Demand mix</td><td>Separate node groups</td><td>Single NodePool with capacity-type weights</td></tr>
+  <tr><td>Zone awareness</td><td>Via ASG AZ config</td><td>Native <code>topologySpreadConstraints</code></td></tr>
+  <tr><td>Right-sizing</td><td>No (fixed instance type)</td><td>Yes (chooses optimal type per pod requirements)</td></tr>
+  <tr><td>Setup complexity</td><td>Low (Helm chart)</td><td>Medium (CRDs + IAM)</td></tr>
+  <tr><td>Maturity</td><td>Stable (5+ years)</td><td>Stable (graduated 2024)</td></tr>
+</table>
+
+<div class="result info"><strong>Recommendation:</strong> Use <strong>Cluster Autoscaler</strong> for AKS (only option) and for simple EKS setups. Use <strong>Karpenter</strong> for EKS when you need fast scaling, Spot/On-Demand mixing, or multi-instance-type flexibility.</div>
+
+<h3>Install Cluster Autoscaler (EKS)</h3>
+<pre><code>helm repo add autoscaler https://kubernetes.github.io/autoscaler
+helm install cluster-autoscaler autoscaler/cluster-autoscaler \
+  --namespace kube-system \
+  --set autoDiscovery.clusterName=bookstore \
+  --set awsRegion=us-east-1 \
+  --set rbac.create=true \
+  --set rbac.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=arn:aws:iam::ACCOUNT:role/cluster-autoscaler</code></pre>
+
+<h3>Install Cluster Autoscaler (AKS)</h3>
+<div class="result pass"><strong>AKS has the autoscaler built in.</strong> Just set <code>enable_auto_scaling = true</code> on your node pool. No separate installation needed.</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<h2>Production Decision Matrix</h2>
+
+<p>Use this to decide whether to resize, add a node group, or change autoscaler:</p>
+
+<table>
+  <tr><th>Scenario</th><th>Action</th><th>Command</th></tr>
+  <tr><td>More of the same workload (traffic spike)</td><td>Increase <code>max_size</code></td><td>Tier 2: <code>aws eks update-nodegroup-config</code> or <code>az aks nodepool update</code></td></tr>
+  <tr><td>New service needs different instance type</td><td>Add new node group</td><td>Tier 3: Terraform + nodeSelector + tolerations</td></tr>
+  <tr><td>Pods Pending but autoscaler doesn't scale</td><td>Check autoscaler logs + max_size</td><td><code>kubectl logs -n kube-system deploy/cluster-autoscaler</code></td></tr>
+  <tr><td>Scaling too slow (&gt;60s)</td><td>Switch to Karpenter (EKS)</td><td>Karpenter NodePool CRD</td></tr>
+  <tr><td>Cost optimization</td><td>Add Spot node group + On-Demand fallback</td><td>Tri-group strategy (see production hardening guides)</td></tr>
+  <tr><td>Multi-AZ HA</td><td>Ensure <code>min_size &ge; AZ count</code></td><td>3 AZs &rarr; <code>min_size=3</code></td></tr>
+  <tr><td>Database workloads (CNPG)</td><td>Dedicated node group with local NVMe</td><td><code>i3en.large</code> / <code>Standard_L8s_v3</code></td></tr>
+</table>
+
+<!-- ══════════════════════════════════════════════ -->
+<h2>What NOT to Do</h2>
+
+<div class="result fail"><strong>Never delete and recreate a node group to change max_size.</strong> This drains all pods, causes downtime, and is completely unnecessary. Just update the scaling config.</div>
+
+<div class="result fail"><strong>Never set <code>desired_size = max_size</code> permanently.</strong> This disables autoscaling down, wasting money on idle nodes. Let the autoscaler manage desired count.</div>
+
+<div class="result warn"><strong>Don't scale nodes without checking pod resource requests.</strong> If pods request 4 CPU but only use 0.5 CPU, adding nodes won't help &mdash; you're wasting capacity. Right-size pod requests first.</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<h2>Monitoring: How to Know When to Scale</h2>
+
+<pre><code># Check for Pending pods (need more nodes)
+kubectl get pods -A --field-selector=status.phase=Pending
+
+# Check node resource utilization
+kubectl top nodes
+
+# Check autoscaler status (EKS)
+kubectl -n kube-system logs deploy/cluster-autoscaler --tail=20 | grep -i "scale"
+
+# Check node group current vs max
+aws eks describe-nodegroup --cluster-name bookstore --nodegroup-name bookstore-app-nodes \
+  --query 'nodegroup.scalingConfig'
+
+# AKS equivalent
+az aks nodepool show --resource-group bookstore-rg --cluster-name bookstore \
+  --name apppool --query '{count:count, minCount:minCount, maxCount:maxCount}'</code></pre>
+
+<!-- ══════════════════════════════════════════════ -->
+<h2>Current BookStore Node Configuration</h2>
+
+<table>
+  <tr><th>Deployment Guide</th><th>System Nodes</th><th>App Nodes (Min/Max)</th><th>Strategy</th></tr>
+  <tr><td><a href="single-az-eks.html">Single-AZ EKS</a></td><td>2&ndash;3</td><td>2&ndash;4</td><td>Cost-optimized, single AZ</td></tr>
+  <tr><td><a href="single-az-aks.html">Single-AZ AKS</a></td><td>Fixed 2</td><td>Fixed 2 (Spot)</td><td>Budget ($77/mo)</td></tr>
+  <tr><td><a href="ha-multi-az-aws.html">HA Multi-AZ EKS</a></td><td>2&ndash;4</td><td>3&ndash;9</td><td>1 node per AZ minimum</td></tr>
+  <tr><td><a href="ha-multi-az-azure.html">HA Multi-AZ AKS</a></td><td>2&ndash;3</td><td>3&ndash;9</td><td>Zone-balanced autoscaling</td></tr>
+  <tr><td><a href="production-hardening-aws.html">Prod Hardening EKS</a></td><td>2&ndash;3</td><td>2&ndash;8 Spot + 0&ndash;4 On-Demand</td><td>Tri-group with fallback</td></tr>
+  <tr><td><a href="production-hardening-azure.html">Prod Hardening AKS</a></td><td>Auto</td><td>2&ndash;8 Spot + 0&ndash;4 On-Demand</td><td>Tri-pool with fallback</td></tr>
+</table>
+
+<footer>
+  <p>BookStore Platform &mdash; Node Group Scaling Guide<br>
+  <a href="deploy-aws.html">Deploy to AWS</a> &bull;
+  <a href="deploy-azure.html">Deploy to Azure</a> &bull;
+  <a href="index.html">&larr; Back to Documentation Index</a></p>
+</footer>
+</div>
+</body>
+</html>
