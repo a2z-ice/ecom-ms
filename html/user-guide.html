@@ -129,9 +129,21 @@
 
   <div class="step">
     <h3><span class="step-number">3</span>Trust the Self-Signed CA</h3>
-    <p>All gateway endpoints use HTTPS with a self-signed CA managed by cert-manager. To avoid browser warnings:</p>
-    <pre><code>bash scripts/trust-ca.sh --install</code></pre>
-    <p>This extracts the CA certificate from the cluster and adds it to the macOS Keychain. For curl commands, use the <code>-sk</code> flag.</p>
+    <p>All gateway endpoints use HTTPS with a self-signed CA managed by cert-manager. Without trusting the CA, browsers show "Your connection is not private".</p>
+    <p><strong>macOS:</strong></p>
+    <pre><code>bash scripts/trust-ca.sh --install
+# Then quit and reopen Chrome</code></pre>
+    <p><strong>Ubuntu/Debian:</strong></p>
+    <pre><code>bash scripts/trust-ca.sh
+sudo cp certs/bookstore-ca.crt /usr/local/share/ca-certificates/bookstore-ca.crt
+sudo update-ca-certificates</code></pre>
+    <p><strong>RHEL/CentOS:</strong></p>
+    <pre><code>bash scripts/trust-ca.sh
+sudo cp certs/bookstore-ca.crt /etc/pki/ca-trust/source/anchors/bookstore-ca.crt
+sudo update-ca-trust extract</code></pre>
+    <p><strong>Windows (Admin PowerShell):</strong></p>
+    <pre><code>Import-Certificate -FilePath .\certs\bookstore-ca.crt -CertStoreLocation Cert:\LocalMachine\Root</code></pre>
+    <p>For detailed instructions (install, verify, revert, troubleshooting), see <a href="browser-ca-trust.html" style="color:var(--accent)">Browser CA Trust Guide</a>. For curl commands, use the <code>-sk</code> flag.</p>
   </div>
 
   <div class="step">

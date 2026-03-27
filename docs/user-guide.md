@@ -48,15 +48,38 @@ For a completely clean start (destroys existing cluster and data):
 bash scripts/up.sh --fresh
 ```
 
-### 3. Trust the TLS Certificate (macOS)
+### 3. Trust the TLS Certificate
 
-The platform uses a self-signed CA for HTTPS. To avoid browser warnings, install the CA certificate into your macOS Keychain:
+The platform uses a self-signed CA for HTTPS. Without trusting the CA, browsers show "Your connection is not private" (`ERR_CERT_AUTHORITY_INVALID`).
 
+**macOS:**
 ```bash
 bash scripts/trust-ca.sh --install
+# Then quit and reopen Chrome
 ```
 
-Alternatively, when using `curl`, always pass the `-sk` flag to skip certificate verification:
+**Ubuntu/Debian:**
+```bash
+bash scripts/trust-ca.sh
+sudo cp certs/bookstore-ca.crt /usr/local/share/ca-certificates/bookstore-ca.crt
+sudo update-ca-certificates
+```
+
+**RHEL/CentOS/Fedora:**
+```bash
+bash scripts/trust-ca.sh
+sudo cp certs/bookstore-ca.crt /etc/pki/ca-trust/source/anchors/bookstore-ca.crt
+sudo update-ca-trust extract
+```
+
+**Windows (Admin PowerShell):**
+```powershell
+Import-Certificate -FilePath .\certs\bookstore-ca.crt -CertStoreLocation Cert:\LocalMachine\Root
+```
+
+For detailed instructions (install, verify, revert, troubleshooting), see [Browser CA Trust Guide](guides/browser-ca-trust.md).
+
+Alternatively, when using `curl`, pass the `-sk` flag to skip certificate verification:
 
 ```bash
 curl -sk https://api.service.net:30000/ecom/books
