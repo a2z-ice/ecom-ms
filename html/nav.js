@@ -72,7 +72,8 @@
         { label: 'Inline Python Scripts', href: 'inline-python-scripts.html' },
         { label: 'PgAdmin Connectivity Fix', href: 'pgadmin-connectivity-fix.html' },
         { label: 'PgAdmin Security Review', href: 'pgadmin-security-review.html' },
-        { label: 'External DB (Aurora) Guide', href: 'external-database-mtls-guide.html' }
+        { label: 'External DB (Aurora) Guide', href: 'external-database-mtls-guide.html' },
+        { label: 'Browser CA Trust Guide', href: 'browser-ca-trust.html', highlight: true }
       ]
     },
     {
