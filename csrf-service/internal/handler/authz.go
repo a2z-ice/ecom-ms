@@ -24,6 +24,22 @@ func (h *Handler) ExtAuthzCheck(w http.ResponseWriter, r *http.Request) {
 
 	if SafeMethods[r.Method] {
 		h.Metrics.RequestsTotal.WithLabelValues("authz_safe", "ok").Inc()
+		// Sliding TTL: refresh token lifetime on authenticated safe requests
+		if h.SlidingTTL {
+			authHeader := r.Header.Get("Authorization")
+			claims := jwt.ExtractClaims(authHeader)
+			if claims.Sub != "" {
+				go func() {
+					ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+					defer cancel()
+					if err := h.Store.RefreshTTL(ctx, claims.Sub); err != nil {
+						h.Metrics.TTLRenewalsTotal.WithLabelValues("error").Inc()
+					} else {
+						h.Metrics.TTLRenewalsTotal.WithLabelValues("ok").Inc()
+					}
+				}()
+			}
+		}
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -106,16 +122,16 @@ func (h *Handler) ExtAuthzCheck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	csrfToken := r.Header.Get("X-Csrf-Token")
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	reqOrigin := r.Header.Get("Origin")
+
 	if csrfToken == "" {
 		h.Metrics.RequestsTotal.WithLabelValues("authz_mutate", "missing_token").Inc()
-		writeForbidden(w, "Invalid or missing CSRF token")
+		h.writeForbiddenWithNewToken(w, ctx, claims.Sub, reqOrigin, "Invalid or missing CSRF token")
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-	defer cancel()
-
-	reqOrigin := r.Header.Get("Origin")
 	valid, err := h.Store.Validate(ctx, claims.Sub, csrfToken, reqOrigin)
 	if err != nil {
 		h.Metrics.RedisErrorsTotal.Inc()
@@ -134,12 +150,30 @@ func (h *Handler) ExtAuthzCheck(w http.ResponseWriter, r *http.Request) {
 	if !valid {
 		h.Metrics.RequestsTotal.WithLabelValues("authz_mutate", "invalid_token").Inc()
 		h.Metrics.AnomalyTotal.WithLabelValues("cross_user_token").Inc()
-		writeForbidden(w, "Invalid or missing CSRF token")
+		h.writeForbiddenWithNewToken(w, ctx, claims.Sub, reqOrigin, "Invalid or missing CSRF token")
 		return
 	}
 
 	h.Metrics.RequestsTotal.WithLabelValues("authz_mutate", "ok").Inc()
 	w.WriteHeader(http.StatusOK)
+}
+
+// writeForbiddenWithNewToken returns a 403 response with a regenerated CSRF token
+// in the response body. This allows the UI to read the new token and retry immediately
+// without making a separate GET /csrf/token call.
+func (h *Handler) writeForbiddenWithNewToken(w http.ResponseWriter, ctx context.Context, userID, origin, detail string) {
+	newToken, err := h.Store.Generate(ctx, userID, origin)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusForbidden)
+	if err == nil && newToken != "" {
+		fmt.Fprintf(w, `{"type":"about:blank","title":"Forbidden","status":403,"detail":"%s","token":"%s"}`, detail, newToken)
+		h.Metrics.RequestsTotal.WithLabelValues("authz_mutate", "regenerated").Inc()
+	} else {
+		fmt.Fprintf(w, `{"type":"about:blank","title":"Forbidden","status":403,"detail":"%s"}`, detail)
+		if err != nil {
+			h.Metrics.RedisErrorsTotal.Inc()
+		}
+	}
 }
 
 func writeForbidden(w http.ResponseWriter, detail string) {

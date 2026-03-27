@@ -25,10 +25,11 @@ type Handler struct {
 	Introspector     introspect.Introspector
 	AllowedAudiences []string
 	ValidateAudience bool
+	SlidingTTL       bool
 }
 
 // New creates a Handler with injected dependencies.
-func New(s store.TokenStore, m *middleware.Metrics, ov *origin.Validator, rl ratelimit.Limiter, intr introspect.Introspector, allowedAud []string, validateAud bool) *Handler {
+func New(s store.TokenStore, m *middleware.Metrics, ov *origin.Validator, rl ratelimit.Limiter, intr introspect.Introspector, allowedAud []string, validateAud bool, slidingTTL bool) *Handler {
 	return &Handler{
 		Store:            s,
 		Metrics:          m,
@@ -37,6 +38,7 @@ func New(s store.TokenStore, m *middleware.Metrics, ov *origin.Validator, rl rat
 		Introspector:     intr,
 		AllowedAudiences: allowedAud,
 		ValidateAudience: validateAud,
+		SlidingTTL:       slidingTTL,
 	}
 }
 

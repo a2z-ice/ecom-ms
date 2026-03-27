@@ -133,8 +133,8 @@
 
 <table>
   <tr><th>Aspect</th><th><span class="badge red">Before</span></th><th><span class="badge green">After</span></th></tr>
-  <tr><td>Token lifetime</td><td>Multi-use, 30min sliding TTL (extends on each use)</td><td><strong>Single-use</strong> &mdash; consumed on first mutation</td></tr>
-  <tr><td>Token replay</td><td>Stolen token replayed unlimited times for 30min+</td><td>Stolen token works <strong>exactly once</strong></td></tr>
+  <tr><td>Token lifetime</td><td>Multi-use, 30min sliding TTL (extends on each use)</td><td><strong>Single-use</strong> &mdash; consumed on first mutation; 10min sliding TTL refreshed on safe requests</td></tr>
+  <tr><td>Token replay</td><td>Stolen token replayed unlimited times for 30min+</td><td>Stolen token works <strong>exactly once</strong>; auto-regen on 403 saves a round trip</td></tr>
   <tr><td>Origin validation</td><td>None &mdash; any origin accepted</td><td>Allowed list + Referer fallback + "null" handling</td></tr>
   <tr><td>Token binding</td><td>Bound to user only (<code>csrf:&lt;sub&gt;</code>)</td><td>Bound to user <strong>+ origin</strong> (<code>token|origin</code>)</td></tr>
   <tr><td>Failure mode</td><td>Hardcoded fail-open (Redis DDoS = bypass)</td><td><strong>Configurable</strong> fail-open or fail-closed</td></tr>
@@ -163,7 +163,7 @@ if valid {
         keyPrefix+userID, s.ttl)
 }
 return valid, nil</code></pre>
-    <p style="color:var(--red);font-size:.85rem">Token stays in Redis. Can be used again and again. TTL resets to 30min on every use.</p>
+    <p style="color:var(--red);font-size:.85rem">Token stays in Redis. Can be used again and again. TTL resets to 10min on every safe-method request (sliding TTL).</p>
   </div>
   <div class="after"><span class="tag">AFTER</span>
     <h4>store/redis.go &mdash; Validate()</h4>
@@ -469,7 +469,7 @@ csrf_request_duration_seconds
 &boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;
 Attacker uses from wrong origin     <span class="g">&rarr; Origin binding blocks (403)</span>
 User already used token             <span class="g">&rarr; Single-use blocks (consumed)</span>
-User hasn't used it yet             <span class="y">&rarr; TTL expires (30min max)</span>
+User hasn't used it yet             <span class="y">&rarr; TTL expires (10min max)</span>
 Attacker spams token generation     <span class="g">&rarr; Rate limiting (60/min)</span>
 JWT from wrong Keycloak client      <span class="g">&rarr; Audience validation (403)</span>
 Redirect to attacker's site         <span class="g">&rarr; Origin whitelist blocks</span>
@@ -616,7 +616,8 @@ kill %1 2>/dev/null</code></pre>
 <table>
   <tr><th>Env Var</th><th>Default</th><th>Description</th></tr>
   <tr><td><code>CSRF_FAIL_CLOSED</code></td><td><code>false</code></td><td>Return 503 on Redis errors instead of fail-open</td></tr>
-  <tr><td><code>CSRF_TOKEN_TTL_MINUTES</code></td><td><code>30</code></td><td>Max token lifetime (consumed earlier via single-use)</td></tr>
+  <tr><td><code>CSRF_TOKEN_TTL_MINUTES</code></td><td><code>10</code></td><td>Max token lifetime (consumed earlier via single-use)</td></tr>
+  <tr><td><code>CSRF_SLIDING_TTL</code></td><td><code>true</code></td><td>Refresh TTL on authenticated safe-method requests (GET/HEAD/OPTIONS)</td></tr>
   <tr><td><code>CSRF_ALLOWED_ORIGINS</code></td><td><code>myecom.net,localhost,idp.keycloak.net</code></td><td>Comma-separated allowed origins</td></tr>
   <tr><td><code>CSRF_REQUIRE_ORIGIN</code></td><td><code>false</code></td><td>Reject if Origin AND Referer both missing</td></tr>
   <tr><td><code>CSRF_ALLOWED_AUDIENCES</code></td><td><code>ui-client</code></td><td>Allowed JWT audience values</td></tr>

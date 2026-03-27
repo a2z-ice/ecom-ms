@@ -48,6 +48,11 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
+          env:
+            - name: CSRF_TOKEN_TTL_MINUTES
+              value: "10"
+            - name: CSRF_SLIDING_TTL
+              value: "true"
           envFrom:
             - secretRef:
                 name: csrf-service-secret

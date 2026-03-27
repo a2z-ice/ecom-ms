@@ -545,7 +545,7 @@ func TestRedisErrorHandling(t *testing.T) { ... }
   <div class="before-after">
     <div class="before">
       <div class="label-tag">BEFORE</div>
-      <pre><code>rdb.Expire(ctx, "csrf:"+userID, 30*time.Minute)
+      <pre><code>rdb.Expire(ctx, "csrf:"+userID, 10*time.Minute)
 // Error ignored -- silent failure</code></pre>
     </div>
     <div class="after">

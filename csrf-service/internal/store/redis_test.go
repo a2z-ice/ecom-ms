@@ -229,3 +229,42 @@ func TestPing_Down(t *testing.T) {
 		t.Error("expected error when Redis is down")
 	}
 }
+
+// ── RefreshTTL tests ─────────────────────────────────────────────────────────
+
+func TestRefreshTTL_ExistingKey(t *testing.T) {
+	s, mr := setupTestStore(t)
+	// Store a token with TTL
+	mr.Set("csrf:user-ttl", "test-token")
+	mr.SetTTL("csrf:user-ttl", 5*time.Minute)
+
+	// Refresh TTL — should reset to full 30 minutes
+	err := s.RefreshTTL(context.Background(), "user-ttl")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ttl := mr.TTL("csrf:user-ttl")
+	// After refresh, TTL should be close to the store's configured TTL (30min)
+	if ttl < 25*time.Minute {
+		t.Errorf("expected TTL near 30min after refresh, got %v", ttl)
+	}
+}
+
+func TestRefreshTTL_MissingKey(t *testing.T) {
+	s, _ := setupTestStore(t)
+	// Key does not exist — should not error
+	err := s.RefreshTTL(context.Background(), "nonexistent-user")
+	if err != nil {
+		t.Errorf("expected no error for missing key, got %v", err)
+	}
+}
+
+func TestRefreshTTL_RedisDown(t *testing.T) {
+	s, mr := setupTestStore(t)
+	mr.Close()
+	err := s.RefreshTTL(context.Background(), "user-down")
+	if err == nil {
+		t.Error("expected error when Redis is down")
+	}
+}

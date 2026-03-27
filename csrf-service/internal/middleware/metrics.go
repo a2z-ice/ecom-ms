@@ -17,6 +17,7 @@ type Metrics struct {
 	RateLimitTotal     *prometheus.CounterVec
 	IntrospectTotal    *prometheus.CounterVec
 	IntrospectDuration *prometheus.HistogramVec
+	TTLRenewalsTotal   *prometheus.CounterVec
 }
 
 // NewMetrics creates and registers Prometheus metrics with the default registry.
@@ -69,10 +70,15 @@ func NewMetricsWithRegisterer(reg prometheus.Registerer) *Metrics {
 			Help:    "JWT introspection latency",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.5, 1.0},
 		}, []string{"source"}),
+
+		TTLRenewalsTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "csrf_ttl_renewals_total",
+			Help: "CSRF token TTL renewal attempts on authenticated safe method requests",
+		}, []string{"result"}),
 	}
 	reg.MustRegister(m.RequestsTotal, m.RedisErrorsTotal, m.RequestDuration,
 		m.AnomalyTotal, m.OriginChecksTotal, m.RateLimitTotal,
-		m.IntrospectTotal, m.IntrospectDuration)
+		m.IntrospectTotal, m.IntrospectDuration, m.TTLRenewalsTotal)
 	return m
 }
 

@@ -128,7 +128,7 @@
     <div class="banner-text">
       <div class="banner-series">CSRF Protection Series &bull; Part 2 of 6</div>
       <div class="banner-title-text">Redis-Backed CSRF Token Store</div>
-      <p class="banner-desc">Defense-in-depth token management with Redis-stored CSRF tokens, 30-minute TTL rotation, and fail-open resilience patterns</p>
+      <p class="banner-desc">Defense-in-depth token management with Redis-stored CSRF tokens, 10-minute sliding TTL, and fail-open resilience patterns</p>
       <div class="banner-tags">
         <span>Redis</span>
         <span>Token Store</span>
@@ -151,7 +151,7 @@
   <div class="badges">
     <span class="badge green">430+ E2E Tests Passing</span>
     <span class="badge purple">Redis-Backed</span>
-    <span class="badge orange">30min TTL + Auto-Refresh</span>
+    <span class="badge orange">10min Sliding TTL + Auto-Regen</span>
     <span class="badge red">Fail-Open on Redis Errors</span>
   </div>
 
@@ -207,7 +207,7 @@
     <span class="label">User Login</span> <span class="arrow">&rarr;</span> <code>GET /ecom/csrf-token</code> (JWT required) <span class="arrow">&rarr;</span> Token stored in Redis &amp; returned<br>
     <span class="label">User Action</span> <span class="arrow">&rarr;</span> <code>POST/PUT/DELETE</code> with <code>X-CSRF-Token</code> header <span class="arrow">&rarr;</span> CsrfValidationFilter<br>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="arrow">&rarr;</span> Redis lookup: <code>csrf:{userId}</code> <span class="arrow">&rarr;</span> compare token<br>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="label">Match?</span> <span class="arrow">&rarr;</span> Allow request (refresh TTL to 30min)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="label">Match?</span> <span class="arrow">&rarr;</span> Allow request (sliding TTL refreshes to 10min on safe methods)<br>
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="fail">No match?</span> <span class="arrow">&rarr;</span> <span class="fail">403 Forbidden</span>
   </div>
 
@@ -240,7 +240,7 @@
   <table>
     <tr><th>Aspect</th><th>Status After</th></tr>
     <tr><td>CSRF protection</td><td>Enabled &mdash; custom Redis-backed filter</td></tr>
-    <tr><td>Redis key format</td><td><code>csrf:{userId}</code> with 30min TTL</td></tr>
+    <tr><td>Redis key format</td><td><code>csrf:{userId}</code> with 10min sliding TTL</td></tr>
     <tr><td>X-CSRF-Token header</td><td>Sent on all POST/PUT/DELETE/PATCH</td></tr>
     <tr><td>CSRF endpoint</td><td><code>GET /ecom/csrf-token</code> (JWT required)</td></tr>
     <tr><td>Mutating requests</td><td>JWT + CSRF token required</td></tr>
@@ -258,7 +258,7 @@
   <pre><code>@Service
 public class CsrfTokenService {
     private static final String KEY_PREFIX = "csrf:";
-    private static final Duration TOKEN_TTL = Duration.ofMinutes(30);
+    private static final Duration TOKEN_TTL = Duration.ofMinutes(10);
 
     public String generateToken(String userId) {
         String token = UUID.randomUUID().toString();
@@ -315,7 +315,7 @@ public class CsrfTokenController {
   <table>
     <tr><th>Scenario</th><th>Behavior</th></tr>
     <tr><td>User clicks button before CSRF token fetched</td><td>403 returned &rarr; auto-retry fetches token &rarr; request succeeds</td></tr>
-    <tr><td>Token expires after 30min idle</td><td>Same 403-retry mechanism</td></tr>
+    <tr><td>Token expires after 10min idle</td><td>Same 403-retry mechanism</td></tr>
     <tr><td>Redis is unavailable</td><td>Fail-open: request allowed with warning log</td></tr>
     <tr><td>Unauthenticated mutating request</td><td>CSRF filter passes through; Spring Security returns 401</td></tr>
     <tr><td>GET requests</td><td>Always exempt from CSRF</td></tr>
@@ -401,7 +401,7 @@ echo "CSRF token: $CSRF"</code></pre>
   <div class="step-card">
     <h3><span class="step-num">9</span>Verify Token TTL in Redis</h3>
     <pre><code>kubectl exec -n infra deploy/redis -- redis-cli -a CHANGE_ME TTL 'csrf:&lt;user-id&gt;'</code></pre>
-    <div class="result pass">Expected: Value between 0 and 1800 (30 minutes in seconds)</div>
+    <div class="result pass">Expected: Value between 0 and 600 (10 minutes in seconds)</div>
   </div>
 
   <div class="step-card">

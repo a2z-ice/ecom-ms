@@ -291,13 +291,13 @@ The `Expire` call on Redis keys was silently swallowing errors. If TTL setting f
 
 **Before:**
 ```go
-rdb.Expire(ctx, "csrf:"+userID, 30*time.Minute)
+rdb.Expire(ctx, "csrf:"+userID, 10*time.Minute)
 // Error ignored -- silent failure
 ```
 
 **After:**
 ```go
-if err := rdb.Expire(ctx, "csrf:"+userID, 30*time.Minute).Err(); err != nil {
+if err := rdb.Expire(ctx, "csrf:"+userID, 10*time.Minute).Err(); err != nil {
     log.Printf("WARN: failed to set TTL on csrf:%s: %v", userID, err)
     redisErrorsTotal.Inc()
 }

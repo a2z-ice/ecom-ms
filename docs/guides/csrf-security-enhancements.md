@@ -14,7 +14,7 @@ These enhancements repurpose that position to solve **real** security problems.
 
 ## Enhancement 1: Single-Use CSRF Tokens
 
-**Problem:** Multi-use tokens with sliding TTL. A stolen token could be replayed unlimited times for 30 minutes, with each use extending the TTL.
+**Problem:** Multi-use tokens with sliding TTL. A stolen token could be replayed unlimited times for 10 minutes, with each use extending the TTL.
 
 **Solution:** Tokens are consumed (deleted from Redis) after the first successful mutating request.
 
@@ -31,7 +31,7 @@ if (resp.status === 403 && isMutating && !_csrfRetried) {
 }
 ```
 
-**Important:** Single-use alone is not enough. If a token is stolen but the user never performs a mutation, the stolen token remains valid until TTL expires. The TTL (30min default) is the safety net. Combined with origin binding, the attacker also needs to match the exact origin.
+**Important:** Single-use alone is not enough. If a token is stolen but the user never performs a mutation, the stolen token remains valid until TTL expires. The TTL (10min default) is the safety net. Combined with origin binding, the attacker also needs to match the exact origin.
 
 ---
 
@@ -142,7 +142,8 @@ if (resp.status === 403 && isMutating && !_csrfRetried) {
 | Env Var | Default | Description |
 |---------|---------|-------------|
 | `CSRF_FAIL_CLOSED` | `false` | Return 503 (not fail-open) on Redis errors |
-| `CSRF_TOKEN_TTL_MINUTES` | `30` | Max token lifetime (consumed earlier via single-use) |
+| `CSRF_TOKEN_TTL_MINUTES` | `10` | Max token lifetime (consumed earlier via single-use) |
+| `CSRF_SLIDING_TTL` | `true` | Refresh TTL on authenticated safe method requests (GET/HEAD/OPTIONS) |
 | `CSRF_ALLOWED_ORIGINS` | `https://myecom.net:30000,https://localhost:30000` | Allowed request origins |
 | `CSRF_REQUIRE_ORIGIN` | `false` | Reject if Origin AND Referer both missing |
 | `CSRF_ALLOWED_AUDIENCES` | `ui-client` | Allowed JWT audience values |
@@ -160,7 +161,7 @@ Request → TLS termination → JWT validation (Istio)
     → CSRF token validation (csrf-service)
         → Token consumed on success (single-use)
         → Token bound to origin
-        → Token expires after TTL (30min max)
+        → Token expires after TTL (10min max)
     → Rate limiting on token generation
     → Forward to backend
 ```

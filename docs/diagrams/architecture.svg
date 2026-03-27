@@ -254,7 +254,7 @@
     <rect x="1160" y="316" width="230" height="72" rx="10" fill="url(#nodeRed)" filter="url(#glowRed)"/>
     <text x="1275" y="344" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Redis</text>
     <text x="1275" y="362" text-anchor="middle" fill="#fecaca" font-size="10">CSRF Tokens | Rate Limit</text>
-    <text x="1275" y="377" text-anchor="middle" fill="#fca5a5" font-size="9">30min TTL | Fail-Open</text>
+    <text x="1275" y="377" text-anchor="middle" fill="#fca5a5" font-size="9">10min sliding TTL | Fail-Open</text>
   </g>
 
   <!-- ══════════════════════════════════════════════════════════════ -->

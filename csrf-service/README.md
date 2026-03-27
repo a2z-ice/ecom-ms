@@ -76,7 +76,7 @@ kubectl rollout status deploy/csrf-service -n infra --timeout=60s
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/csrf/token` | JWT required | Generate a CSRF token (stored in Redis, 30min TTL) |
+| `GET` | `/csrf/token` | JWT required | Generate a CSRF token (stored in Redis, 10min sliding TTL) |
 | `GET` | `/healthz` | None | Readiness probe (checks Redis connectivity) |
 | `GET` | `/livez` | None | Liveness probe (always returns 200) |
 | `GET` | `/metrics` | None | Prometheus metrics |

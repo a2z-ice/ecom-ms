@@ -267,7 +267,9 @@ Superset → Analytics DB
 
 - Gateway-level CSRF protection via Istio ext_authz (`CUSTOM` AuthorizationPolicy)
 - Endpoints: `GET /csrf/token` (JWT required, generates token), `/healthz`, `/livez`, `/metrics`
-- Redis-backed token store (UUID v4, 30min TTL, timing-safe comparison)
+- Redis-backed token store (UUID v4, 10min sliding TTL, timing-safe comparison)
+- **Sliding TTL**: Token TTL refreshed on every authenticated safe method (GET/HEAD/OPTIONS) via Redis `EXPIRE` (fire-and-forget goroutine, zero latency). Configured via `CSRF_SLIDING_TTL` env var (default: `true`)
+- **Auto-regeneration**: When CSRF validation fails but JWT is valid, a new token is generated and returned in the 403 response body (`{"...","token":"<uuid>"}`). The UI reads it directly and retries, saving one round trip vs. a separate `GET /csrf/token` call
 - JWT: base64 decode only (Istio verifies signatures upstream)
 - Fail-open on Redis errors (JWT remains primary defense)
 - Istio integration: `extensionProvider` in mesh config → `AuthorizationPolicy` CUSTOM action → csrf-service
@@ -301,7 +303,7 @@ These must be maintained across all services:
 - All external gateway traffic served over HTTPS (TLS terminated at Istio Gateway, cert-manager managed)
 - All inter-service traffic encrypted via Istio mTLS
 - JWT validation in every backend service (never trust the UI's claims)
-- CSRF tokens validated at gateway level via csrf-service (Istio ext_authz); tokens stored in Redis with 30min TTL
+- CSRF tokens validated at gateway level via csrf-service (Istio ext_authz); tokens stored in Redis with 10min sliding TTL (refreshed on every authenticated request); auto-regenerated in 403 response body on expiry
 - Containers run as non-root
 - Secrets via Kubernetes Secrets only
 - All configs via environment variables (15-Factor: no hardcoded config)
@@ -440,7 +442,7 @@ CMD ["<entrypoint>"]
 - OIDC library: `oidc-client-ts`; `UserManager` configured with PKCE (`response_type: 'code'`)
 - Token storage: `UserManager` configured with `userStore: new WebStorageStateStore({ store: new InMemoryWebStorage() })`
 - API calls: always attach `Authorization: Bearer <access_token>` from in-memory `User` object; never read from storage
-- CSRF: fetch CSRF token from gateway-level csrf-service (`GET /csrf/token`) on app load, store in React state, send as `X-CSRF-Token` header on mutating requests; validated at gateway via Istio ext_authz before reaching backend services
+- CSRF: fetch CSRF token from gateway-level csrf-service (`GET /csrf/token`) on app load, store in React state, send as `X-CSRF-Token` header on mutating requests; validated at gateway via Istio ext_authz before reaching backend services. On 403, reads regenerated token from response body (auto-regeneration) and retries; falls back to `fetchCsrfToken()` if body has no token
 - Nginx config: serve SPA with `try_files $uri /index.html`; set security headers (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Content-Security-Policy`)
 
 ### Go (csrf-service/) Patterns
@@ -552,6 +554,7 @@ All `scripts/` files must be idempotent (safe to run multiple times):
 - `backup.sh` — timestamped backup of all 4 CNPG databases + Kafka consumer offsets + Keycloak realm
 - `restore.sh <timestamp>` — restore from backup; `--yes` to skip confirmation
 - `csrf-service-up.sh` — build, test, and deploy csrf-service to kind cluster
+- `ui-service-up.sh` — build (TypeScript + Vite), Docker build with VITE_ args, load to kind, rollout restart
 - `cert-dashboard-up.sh` — build and deploy cert-dashboard operator (OLM + CRD + operator + CR)
 
 ---

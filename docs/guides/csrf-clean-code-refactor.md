@@ -150,7 +150,7 @@ var rdb *redis.Client
 
 func handleGenerateToken(w http.ResponseWriter, r *http.Request) {
     // This function reaches into global state
-    rdb.Set(ctx, "csrf:"+userID, token, 30*time.Minute)
+    rdb.Set(ctx, "csrf:"+userID, token, 10*time.Minute)
 }
 ```
 
@@ -266,7 +266,7 @@ func Load() Config {
         Port:          envOrDefault("PORT", "8080"),
         RedisAddr:     fmt.Sprintf("%s:%s", host, port),
         RedisPassword: envOrDefault("CSRF_REDIS_PASSWORD", ""),
-        TokenTTL:      30 * time.Minute,
+        TokenTTL:      10 * time.Minute,
     }
 }
 
@@ -431,7 +431,7 @@ func (s *RedisStore) Validate(ctx context.Context, userID, token string) (bool, 
 
 Two security-critical details:
 1. **`subtle.ConstantTimeCompare`** prevents timing attacks. A naive `stored == token` comparison leaks information about how many leading bytes match, because it short-circuits on the first mismatch. Constant-time comparison always takes the same time regardless of how similar the inputs are.
-2. **TTL refresh on valid token**: When a valid token is used, its TTL is refreshed to the full 30 minutes. This means active users do not need to re-fetch tokens while they are actively using the application.
+2. **TTL refresh on valid token**: When a valid token is used, its TTL is refreshed to the full 10 minutes. Additionally, when sliding TTL is enabled (`CSRF_SLIDING_TTL=true`, the default), authenticated safe method requests (GET/HEAD/OPTIONS) also refresh the TTL via Redis EXPIRE. This means active users do not need to re-fetch tokens while they are actively using the application.
 
 ### handler/token.go
 
@@ -726,7 +726,7 @@ func setupTestStore(t *testing.T) (*RedisStore, *miniredis.Miniredis) {
     if err != nil {
         t.Fatal(err)
     }
-    s := NewRedisStore(mr.Addr(), "", 30*time.Minute)
+    s := NewRedisStore(mr.Addr(), "", 10*time.Minute)
     t.Cleanup(func() { mr.Close(); s.Close() })
     return s, mr
 }
@@ -746,7 +746,7 @@ func setupHandler(t *testing.T) (*Handler, *miniredis.Miniredis) {
     if err != nil {
         t.Fatal(err)
     }
-    s := store.NewRedisStore(mr.Addr(), "", 30*time.Minute)
+    s := store.NewRedisStore(mr.Addr(), "", 10*time.Minute)
     // Use a separate Prometheus registry per test to avoid duplicate registration panics
     reg := prometheus.NewRegistry()
     m := middleware.NewMetricsWithRegisterer(reg)

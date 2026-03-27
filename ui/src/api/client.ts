@@ -55,9 +55,20 @@ async function request<T>(
 
   const resp = await fetch(url, { ...options, headers })
 
-  // Auto-retry on 403 for mutating requests — CSRF token may have expired
+  // Auto-retry on 403 for mutating requests — CSRF token may have expired.
+  // The csrf-service auto-regenerates a new token and includes it in the 403
+  // response body, saving one round trip vs. a separate GET /csrf/token call.
   if (resp.status === 403 && isMutating && !_csrfRetried) {
-    await fetchCsrfToken()
+    try {
+      const body = await resp.json()
+      if (body.token) {
+        _csrfToken = body.token
+      } else {
+        await fetchCsrfToken()
+      }
+    } catch {
+      await fetchCsrfToken()
+    }
     return request<T>(url, options, true)
   }
 
