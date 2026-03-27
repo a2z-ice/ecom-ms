@@ -50,7 +50,8 @@
         { label: 'Technical Reference Manual', href: 'bookstore-platform-manual.html', highlight: true },
         { label: 'User Guide', href: 'user-guide.html' },
         { label: 'Architecture Deep Dive', href: 'architecture.html' },
-        { label: 'Enhancement Report', href: 'comprehensive-platform-enhancements.html' }
+        { label: 'Enhancement Report', href: 'comprehensive-platform-enhancements.html' },
+        { label: 'Learn Go: CSRF Service', href: 'go-learning-csrf-service.html', highlight: true }
       ]
     },
     {
