@@ -50,8 +50,14 @@
         { label: 'Technical Reference Manual', href: 'bookstore-platform-manual.html', highlight: true },
         { label: 'User Guide', href: 'user-guide.html' },
         { label: 'Architecture Deep Dive', href: 'architecture.html' },
-        { label: 'Enhancement Report', href: 'comprehensive-platform-enhancements.html' },
-        { label: 'Learn Go: CSRF Service', href: 'go-learning-csrf-service.html', highlight: true }
+        { label: 'Enhancement Report', href: 'comprehensive-platform-enhancements.html' }
+      ]
+    },
+    {
+      title: 'Go Learning',
+      links: [
+        { label: 'Learn Go: CSRF Service', href: 'go-learning-csrf-service.html', highlight: true },
+        { label: 'Learn Go: K8s Operator', href: 'go-learning-k8s-operator.html', highlight: true }
       ]
     },
     {
