@@ -18,6 +18,13 @@ type Metrics struct {
 	IntrospectTotal    *prometheus.CounterVec
 	IntrospectDuration *prometheus.HistogramVec
 	TTLRenewalsTotal   *prometheus.CounterVec
+	// Session 30: Hybrid HMAC metrics
+	HMACOpsTotal       *prometheus.CounterVec
+	CuckooOpsTotal     *prometheus.CounterVec
+	XORMaskTotal       *prometheus.CounterVec
+	KeyRotationsTotal  prometheus.Counter
+	L3FallbackTotal    *prometheus.CounterVec
+	TokenFormatTotal   *prometheus.CounterVec
 }
 
 // NewMetrics creates and registers Prometheus metrics with the default registry.
@@ -75,10 +82,42 @@ func NewMetricsWithRegisterer(reg prometheus.Registerer) *Metrics {
 			Name: "csrf_ttl_renewals_total",
 			Help: "CSRF token TTL renewal attempts on authenticated safe method requests",
 		}, []string{"result"}),
+
+		HMACOpsTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "csrf_hmac_operations_total",
+			Help: "HMAC token operations by type and result",
+		}, []string{"op", "result"}),
+
+		CuckooOpsTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "csrf_cuckoo_operations_total",
+			Help: "Cuckoo filter operations by type and tier",
+		}, []string{"op", "tier"}),
+
+		XORMaskTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "csrf_xor_mask_total",
+			Help: "XOR BREACH masking operations",
+		}, []string{"op"}),
+
+		KeyRotationsTotal: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "csrf_key_rotations_total",
+			Help: "HMAC key rotation events",
+		}),
+
+		L3FallbackTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "csrf_l3_redis_fallback_total",
+			Help: "L3 Redis Cuckoo lookup results",
+		}, []string{"result"}),
+
+		TokenFormatTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "csrf_token_format_total",
+			Help: "Token format detection during validation",
+		}, []string{"format"}),
 	}
 	reg.MustRegister(m.RequestsTotal, m.RedisErrorsTotal, m.RequestDuration,
 		m.AnomalyTotal, m.OriginChecksTotal, m.RateLimitTotal,
-		m.IntrospectTotal, m.IntrospectDuration, m.TTLRenewalsTotal)
+		m.IntrospectTotal, m.IntrospectDuration, m.TTLRenewalsTotal,
+		m.HMACOpsTotal, m.CuckooOpsTotal, m.XORMaskTotal,
+		m.KeyRotationsTotal, m.L3FallbackTotal, m.TokenFormatTotal)
 	return m
 }
 

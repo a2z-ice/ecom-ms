@@ -396,10 +396,13 @@ test.describe('CSRF Service — Token Security', () => {
     expect(token1).not.toBe(token2)
   })
 
-  test('token is UUID v4 format (36 chars with hyphens)', async ({ request }) => {
+  test('token is HMAC format (XOR-masked, longer than UUID)', async ({ request }) => {
     const jwt = await getToken(request)
     const token = await getCsrfToken(request, jwt)
-    expect(token).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+    // HMAC tokens are XOR-masked Base64URL — much longer than 36-char UUIDs
+    expect(token.length).toBeGreaterThan(100)
+    // Should be valid Base64URL characters only
+    expect(token).toMatch(/^[A-Za-z0-9_-]+$/)
   })
 
   test('different users get different CSRF tokens', async ({ request }) => {

@@ -58,31 +58,19 @@ function redisCli(...args: string[]): string {
 
 test.describe('CSRF Sliding TTL — Token renewal on activity', () => {
 
-  test('authenticated GET request refreshes CSRF token TTL in Redis', async ({ request }) => {
+  test('authenticated GET request passes through without error (TTL embedded in HMAC token)', async ({ request }) => {
     const jwt = await getToken(request)
-    const sub = getSubFromJwt(jwt)
     await getCsrfToken(request, jwt)
 
-    // Wait 3 seconds so TTL decreases noticeably
-    await new Promise(r => setTimeout(r, 3000))
+    // In HMAC mode, TTL is embedded in the token's `iat` field — no Redis key needed.
+    // This test verifies that authenticated GET requests pass through the ext_authz check
+    // and that the service handles the sliding TTL no-op gracefully.
 
-    // Check TTL after waiting — should have decreased by ~3s
-    const ttlBefore = parseInt(redisCli('TTL', `csrf:${sub}`), 10)
-    expect(ttlBefore).toBeGreaterThan(0)
-    expect(ttlBefore).toBeLessThanOrEqual(597) // Should have dropped by at least 3s from 600
-
-    // Make an authenticated GET — should trigger sliding TTL refresh
+    // Make an authenticated GET — should pass through ext_authz
     const resp = await request.get(`${ECOM_BASE}/books`, {
       headers: { Authorization: `Bearer ${jwt}` },
     })
     expect(resp.status()).toBe(200)
-
-    // Wait for fire-and-forget goroutine
-    await new Promise(r => setTimeout(r, 1000))
-
-    // TTL should be refreshed back to full 600s
-    const ttlAfter = parseInt(redisCli('TTL', `csrf:${sub}`), 10)
-    expect(ttlAfter).toBeGreaterThan(ttlBefore) // TTL increased after refresh
   })
 
   test('unauthenticated GET does not create or refresh CSRF token', async ({ request }) => {
@@ -95,17 +83,12 @@ test.describe('CSRF Sliding TTL — Token renewal on activity', () => {
     // but this validates the safe-method path doesn't error)
   })
 
-  test('CSRF token expires after idle period exceeds TTL', async ({ request }) => {
+  test('CSRF token is single-use — second POST with same token returns 403', async ({ request }) => {
     const jwt = await getToken(request)
-    const sub = getSubFromJwt(jwt)
     const csrf = await getCsrfToken(request, jwt)
 
-    // Simulate expiry by setting a very short TTL
-    redisCli('EXPIRE', `csrf:${sub}`, '1')
-    await new Promise(r => setTimeout(r, 2000))
-
-    // Attempt POST with the old CSRF token — should fail (token expired)
-    const resp = await request.post(`${ECOM_BASE}/cart`, {
+    // First use — should succeed
+    const resp1 = await request.post(`${ECOM_BASE}/cart`, {
       headers: {
         Authorization: `Bearer ${jwt}`,
         'Content-Type': 'application/json',
@@ -113,7 +96,18 @@ test.describe('CSRF Sliding TTL — Token renewal on activity', () => {
       },
       data: { bookId: BOOK_ID, quantity: 1 },
     })
-    expect(resp.status()).toBe(403)
+    expect(resp1.status()).toBe(200)
+
+    // Second use — should fail (single-use via Cuckoo filter)
+    const resp2 = await request.post(`${ECOM_BASE}/cart`, {
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrf,
+      },
+      data: { bookId: BOOK_ID, quantity: 1 },
+    })
+    expect(resp2.status()).toBe(403)
   })
 })
 
@@ -139,19 +133,26 @@ test.describe('CSRF Auto-regeneration — New token in 403 response', () => {
     const body = await resp.json()
     expect(body.token).toBeTruthy()
     expect(typeof body.token).toBe('string')
-    // Verify UUID v4 format
-    expect(body.token).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+    // Verify HMAC XOR-masked format (Base64URL, much longer than UUID)
+    expect(body.token.length).toBeGreaterThan(100)
+    expect(body.token).toMatch(/^[A-Za-z0-9_-]+$/)
   })
 
-  test('403 response includes new token when CSRF is expired but JWT is valid', async ({ request }) => {
+  test('403 response includes new token when CSRF token is already consumed', async ({ request }) => {
     const jwt = await getToken(request)
-    const sub = getSubFromJwt(jwt)
     const oldCsrf = await getCsrfToken(request, jwt)
 
-    // Delete the csrf key from Redis to simulate expiry
-    redisCli('DEL', `csrf:${sub}`)
+    // Consume the token by using it once
+    await request.post(`${ECOM_BASE}/cart`, {
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': oldCsrf,
+      },
+      data: { bookId: BOOK_ID, quantity: 1 },
+    })
 
-    // POST with the old (now expired) CSRF token
+    // POST with the consumed CSRF token
     const resp = await request.post(`${ECOM_BASE}/cart`, {
       headers: {
         Authorization: `Bearer ${jwt}`,

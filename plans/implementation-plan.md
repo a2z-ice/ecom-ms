@@ -1014,6 +1014,40 @@ With HTTPS everywhere (cert-manager TLS on port 30000), `crypto.subtle` is alway
 
 ---
 
+## Session 30 — CSRF Service: Hybrid HMAC + Cuckoo Filter (Stateless High-Performance)
+
+**Goal:** Re-architect csrf-service from fully Redis-dependent stateful model to hybrid HMAC + Cuckoo filter architecture: 1000x faster token generation, 600x faster validation, Redis-optional resilience, BREACH protection via XOR masking, Cuckoo filter for deterministic single-use enforcement. Full backward compatibility with legacy UUID tokens during rolling upgrade.
+
+### Deliverables
+
+- `internal/token/hmac.go` + `keyring.go` + `mask.go` — HMAC-SHA256 token engine with key rotation and XOR BREACH masking
+- `internal/cuckoo/filter.go` + `rolling.go` — Cuckoo filter with rolling window for single-use enforcement (supports delete, 0.01% FP rate)
+- `internal/store/hybrid.go` — L1 in-memory Cuckoo + L2 HMAC verify + L3 Redis Cuckoo (cross-pod dedup)
+- `internal/ratelimit/local.go` — In-memory token bucket rate limiter (Redis-free)
+- Updated handlers: XOR mask/unmask on token responses/requests, backward compat UUID detection
+- New env vars: `CSRF_MODE` (redis/hmac/hybrid), `CSRF_HMAC_KEY`, `CSRF_XOR_MASKING`, `CSRF_CUCKOO_CAPACITY`
+- New Prometheus metrics: `csrf_hmac_operations_total`, `csrf_cuckoo_operations_total`, `csrf_xor_mask_total`, `csrf_key_rotations_total`
+- 100+ Go unit tests (up from 19), 70+ E2E tests (3 new spec files: `csrf-hmac.spec.ts`, `csrf-breach.spec.ts`, `csrf-migration.spec.ts`)
+
+### Acceptance Criteria
+
+- [ ] HMAC tokens unforgeable — tampered/truncated tokens rejected
+- [ ] Tokens user-bound, origin-bound, TTL-enforced, single-use (Cuckoo filter)
+- [ ] XOR BREACH masking: every response returns different byte sequence
+- [ ] Token generation: 0 Redis ops; validation: 0-1 Redis ops
+- [ ] Redis completely down → generation + validation + auto-regen still work
+- [ ] Legacy UUID tokens validate via Redis fallback (backward compat)
+- [ ] `CSRF_MODE=redis` restores exact current behavior (escape hatch)
+- [ ] Key rotation: previous key valid during grace period
+- [ ] `go test -v ./...` — 100+ tests, 0 failures
+- [ ] E2E: all 5 CSRF spec files pass (existing adapted + 3 new)
+
+### Status: `[ ]` pending
+
+Full plan: `plans/session-30-csrf-hmac-hybrid.md`
+
+---
+
 ## Cross-Session Rules
 
 These apply to every session:

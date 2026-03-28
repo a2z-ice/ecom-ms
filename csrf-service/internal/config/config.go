@@ -29,6 +29,14 @@ type Config struct {
 	IntrospectCacheTTL     time.Duration
 	IntrospectFailOpen     bool
 	IntrospectTimeout      time.Duration
+
+	// Hybrid HMAC mode (Session 30)
+	Mode             string        // "redis" (legacy), "hmac" (stateless), "hybrid" (recommended)
+	HMACKey          string        // Base64-encoded 256-bit key (from CSRF_HMAC_KEY)
+	KeyRotateHours   int           // Auto-rotate interval (default: 24)
+	XORMasking       bool          // Enable BREACH XOR masking (default: true)
+	CuckooCapacity   uint          // Cuckoo filter capacity (default: 1000000)
+	RateLimitMode    string        // "redis" or "local" (default: "local")
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -45,6 +53,8 @@ func Load() Config {
 	if rateLimit <= 0 {
 		rateLimit = 10
 	}
+
+	cuckooCapacity := envInt("CSRF_CUCKOO_CAPACITY", 1000000)
 
 	return Config{
 		Port:             envOrDefault("PORT", "8080"),
@@ -65,6 +75,13 @@ func Load() Config {
 		IntrospectCacheTTL:     time.Duration(envInt("INTROSPECT_CACHE_TTL_SECONDS", 15)) * time.Second,
 		IntrospectFailOpen:     envOrDefault("INTROSPECT_FAIL_OPEN", "true") == "true",
 		IntrospectTimeout:      time.Duration(envInt("INTROSPECT_TIMEOUT_MS", 3000)) * time.Millisecond,
+
+		Mode:           envOrDefault("CSRF_MODE", "hybrid"),
+		HMACKey:        envOrDefault("CSRF_HMAC_KEY", ""),
+		KeyRotateHours: envInt("CSRF_KEY_ROTATE_HOURS", 24),
+		XORMasking:     envOrDefault("CSRF_XOR_MASKING", "true") == "true",
+		CuckooCapacity: uint(cuckooCapacity),
+		RateLimitMode:  envOrDefault("CSRF_RATELIMIT_MODE", "local"),
 	}
 }
 
