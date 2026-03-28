@@ -686,6 +686,10 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
       <h3>HMAC Hybrid Architecture (NEW)</h3>
       <p>Stateless CSRF with HMAC-SHA256 tokens, Cuckoo filter single-use enforcement, and XOR BREACH masking. 1000x faster generation, 600x faster validation, Redis-optional resilience. 162 unit tests, 44 E2E tests. Full before/after comparison.</p>
     </a>
+    <a href="cuckoo-filter-architecture.html" class="doc-card" style="border-color: #06b6d4; border-width: 2px;">
+      <h3>Cuckoo Filter Architecture</h3>
+      <p>Deep dive into probabilistic single-use token enforcement: how Cuckoo filters work, why they beat Bloom filters, the three-tier L1/L2/L3 validation architecture, complete UI-to-Go-to-Istio traffic flow, security analysis at every layer, rolling window expiration, attack scenarios, memory sizing, and Prometheus observability.</p>
+    </a>
     <a href="csrf-extauthz-vs-wasm.html" class="doc-card" style="border-color: var(--accent);">
       <h3>ext_authz vs Wasm Plugin Analysis</h3>
       <p>Deep comparison: ext_authz Go microservice (8.8/10) vs Istio Wasm plugin (6.3/10). Security, resilience, traffic handling, maintenance, Redis integration, industry patterns, and weighted scorecard.</p>

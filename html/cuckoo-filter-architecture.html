@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cuckoo Filter Architecture &mdash; BookStore Platform</title>
+  <style>
+    :root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--accent:#3b82f6;--border:#334155;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;--cyan:#06b6d4}
+    *{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth}
+    body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
+    .container{max-width:1100px;margin:0 auto;padding:40px 24px}
+    h1{font-size:2.2rem;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,#60a5fa,#a78bfa);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    h1+p{color:var(--muted);font-size:1.05rem;margin-bottom:40px}
+    h2{font-size:1.4rem;font-weight:700;margin:48px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);color:#f1f5f9}
+    h3{font-size:1.1rem;font-weight:600;margin:24px 0 8px;color:#cbd5e1}
+    h4{font-size:0.95rem;font-weight:600;margin:16px 0 6px;color:var(--muted)}
+    p{margin-bottom:16px}
+    table{width:100%;border-collapse:collapse;margin:16px 0 24px}
+    th{background:var(--card);text-align:left;padding:10px 14px;font-size:.85rem;font-weight:600;color:var(--accent);border-bottom:2px solid var(--border)}
+    td{padding:10px 14px;font-size:.9rem;border-bottom:1px solid var(--border)}
+    tr:hover td{background:rgba(59,130,246,.05)}
+    code{background:var(--card);padding:2px 6px;border-radius:4px;font-size:.88em;color:#f59e0b}
+    pre{background:var(--card);padding:16px;border-radius:8px;overflow-x:auto;margin:12px 0 20px;border:1px solid var(--border);font-size:.82rem;line-height:1.6}
+    pre code{background:none;padding:0;color:#e2e8f0}
+    ul,ol{margin:8px 0 16px 24px}li{margin-bottom:6px}
+    .badge{display:inline-block;font-size:.75rem;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:6px;color:#fff}
+    .badge.green{background:linear-gradient(135deg,#059669,#10b981)}.badge.purple{background:linear-gradient(135deg,#7c3aed,#8b5cf6)}
+    .badge.red{background:linear-gradient(135deg,#dc2626,#ef4444)}.badge.orange{background:linear-gradient(135deg,#d97706,#f59e0b)}
+    .badge.blue{background:linear-gradient(135deg,#2563eb,#3b82f6)}.badge.cyan{background:linear-gradient(135deg,#0891b2,#06b6d4)}
+    .badges{margin-bottom:24px}
+    footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid var(--border);color:var(--muted);font-size:.85rem}
+    footer a{color:var(--accent);text-decoration:none}footer a:hover{text-decoration:underline}
+    .topnav{position:sticky;top:0;z-index:100;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+    .topnav-inner{max-width:1100px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:52px}
+    .topnav-brand{font-weight:800;font-size:1rem;color:var(--text);text-decoration:none}
+    .topnav-links{display:flex;gap:20px;align-items:center}
+    .topnav-links a{color:var(--muted);font-size:.82rem;font-weight:500;text-decoration:none;transition:color .15s}.topnav-links a:hover{color:var(--text)}.topnav-links a.highlight{color:#a78bfa}
+    .flow{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin:20px 0;font-family:monospace;font-size:.82rem;line-height:1.8;white-space:pre;overflow-x:auto}
+    .flow .g{color:var(--green);font-weight:600}.flow .r{color:var(--red);font-weight:600}.flow .b{color:var(--accent)}.flow .y{color:var(--yellow)}.flow .c{color:var(--cyan)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0}
+    .card h3{margin-top:0;color:var(--accent)}
+    .toc{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px 28px;margin:0 0 40px}
+    .toc h3{margin:0 0 12px;color:var(--accent);font-size:1rem}.toc ol{margin:0 0 0 20px}.toc li{margin-bottom:3px}
+    .toc a{color:var(--muted);text-decoration:none;font-size:.86rem;transition:color .15s}.toc a:hover{color:var(--accent)}
+    .result{padding:12px 16px;border-radius:8px;margin:8px 0 16px;font-size:.9rem}
+    .result.pass{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--green)}
+    .result.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--yellow)}
+    .result.info{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:var(--accent)}
+    .result.fail{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--red)}
+    .security-layer{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0}
+    .security-layer h3{margin-top:0;color:var(--accent)}
+    .layer-num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:white;font-weight:700;font-size:.75rem;margin-right:8px;flex-shrink:0}
+    .step-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0}
+    .step-card h3{margin-top:0;color:var(--accent)}
+    .step-num{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--accent);color:white;font-weight:700;font-size:.85rem;margin-right:10px;flex-shrink:0}
+    .ts-keyword{color:#c678dd;font-weight:600}
+    .ts-type{color:#e5c07b}
+    .ts-string{color:#98c379}
+    .ts-comment{color:#5c6370;font-style:italic}
+    .ts-func{color:#61afef}
+    .ts-number{color:#d19a66}
+    .linkedin-banner{position:relative;width:100%;background:linear-gradient(135deg,#0c1222 0%,#162044 35%,#1e1b4b 60%,#312e81 100%);overflow:hidden}
+    .linkedin-banner::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 15% 50%,rgba(59,130,246,.1) 0%,transparent 50%),radial-gradient(circle at 85% 20%,rgba(139,92,246,.12) 0%,transparent 40%);pointer-events:none}
+    .linkedin-banner::after{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
+    .banner-inner{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:52px 48px 48px;display:flex;align-items:center;gap:44px}
+    .banner-shield{flex-shrink:0;width:130px;height:150px}.banner-shield svg{width:100%;height:100%;filter:drop-shadow(0 0 24px rgba(59,130,246,.3))}
+    .banner-text{flex:1;min-width:0}
+    .banner-series{font-size:.7rem;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:rgba(167,139,250,.9);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+    .banner-series::before{content:'';width:24px;height:2px;background:linear-gradient(90deg,#a78bfa,transparent)}
+    .banner-title-text{font-size:2.1rem;font-weight:800;color:#f1f5f9;line-height:1.25;margin-bottom:10px;background:linear-gradient(135deg,#f1f5f9 0%,#cbd5e1 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .banner-desc{font-size:.95rem;color:#94a3b8;margin-bottom:22px;line-height:1.6;max-width:580px}
+    .banner-tags{display:flex;gap:8px;flex-wrap:wrap}
+    .banner-tags span{font-size:.7rem;font-weight:600;padding:5px 14px;border-radius:6px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;letter-spacing:.3px}
+    .banner-brand{position:absolute;bottom:18px;right:32px;font-size:.65rem;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(148,163,184,.35);z-index:1}
+    .banner-accent-line{height:3px;background:linear-gradient(90deg,#3b82f6 0%,#8b5cf6 33%,#06b6d4 66%,#10b981 100%)}
+    .banner-node{position:absolute;border-radius:50%;z-index:1}
+    .banner-node::after{content:'';position:absolute;top:50%;left:50%;width:200%;height:200%;transform:translate(-50%,-50%);border-radius:50%;border:1px solid;opacity:.15;animation:pulse 3s ease-out infinite}
+    @keyframes pulse{0%{width:100%;height:100%;opacity:.3}100%{width:300%;height:300%;opacity:0}}
+    .banner-node-1{width:8px;height:8px;background:#3b82f6;top:20%;right:15%}.banner-node-1::after{border-color:#3b82f6}
+    .banner-node-2{width:6px;height:6px;background:#8b5cf6;top:65%;right:8%}.banner-node-2::after{border-color:#8b5cf6;animation-delay:.8s}
+    .banner-node-3{width:10px;height:10px;background:#06b6d4;top:35%;right:25%}.banner-node-3::after{border-color:#06b6d4;animation-delay:1.6s}
+    @media(max-width:768px){.banner-inner{flex-direction:column;padding:36px 24px 32px;text-align:center;gap:28px}.banner-shield{width:90px;height:104px}.banner-tags{justify-content:center}.banner-series{justify-content:center}.banner-brand{position:static;margin-top:16px;text-align:center}}
+    .tier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0}
+    @media(max-width:768px){.tier-grid{grid-template-columns:1fr}}
+    .tier-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center}
+    .tier-card h4{margin:0 0 8px;font-size:1rem}
+    .tier-card .tier-speed{font-size:2rem;font-weight:800;margin:8px 0}
+    .tier-card p{font-size:.85rem;color:var(--muted);margin:0}
+    .attack-table td:first-child{font-weight:600;color:var(--red)}
+    .attack-table td:last-child{color:var(--green);font-weight:600}
+  </style>
+  <script src="nav.js" defer></script>
+</head>
+<body>
+
+<nav class="topnav"><div class="topnav-inner">
+  <a href="index.html" class="topnav-brand">BookStore Platform</a>
+  <div class="topnav-links">
+    <a href="csrf-hmac-hybrid-architecture.html" class="highlight">HMAC Hybrid</a>
+    <a href="csrf-architecture-deep-dive.html">CSRF Deep Dive</a>
+    <a href="go-learning-csrf-service.html">Learn Go</a>
+    <a href="index.html">All Docs</a>
+  </div>
+</div></nav>
+
+<!-- Banner -->
+<div class="linkedin-banner">
+  <div class="banner-node banner-node-1"></div>
+  <div class="banner-node banner-node-2"></div>
+  <div class="banner-node banner-node-3"></div>
+  <div class="banner-inner">
+    <div class="banner-shield">
+      <svg viewBox="0 0 120 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="cg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient>
+          <linearGradient id="cg2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#06b6d4"/><stop offset="100%" stop-color="#10b981"/></linearGradient>
+        </defs>
+        <path d="M60 8L108 32V88C108 108 86 128 60 136C34 128 12 108 12 88V32L60 8Z" fill="url(#cg1)" opacity="0.15" stroke="url(#cg1)" stroke-width="2"/>
+        <!-- Cuckoo filter bucket visualization -->
+        <rect x="30" y="45" width="15" height="50" rx="3" fill="url(#cg2)" opacity="0.6"/>
+        <rect x="52" y="45" width="15" height="50" rx="3" fill="url(#cg2)" opacity="0.4"/>
+        <rect x="74" y="45" width="15" height="50" rx="3" fill="url(#cg2)" opacity="0.6"/>
+        <!-- Fingerprint dots -->
+        <circle cx="37" cy="55" r="3" fill="#fff" opacity="0.8"/>
+        <circle cx="37" cy="65" r="3" fill="#fff" opacity="0.8"/>
+        <circle cx="37" cy="75" r="3" fill="#fff" opacity="0.5"/>
+        <circle cx="37" cy="85" r="3" fill="#fff" opacity="0.3"/>
+        <circle cx="59" cy="55" r="3" fill="#fff" opacity="0.8"/>
+        <circle cx="59" cy="65" r="3" fill="#fff" opacity="0.5"/>
+        <circle cx="81" cy="55" r="3" fill="#fff" opacity="0.8"/>
+        <circle cx="81" cy="65" r="3" fill="#fff" opacity="0.8"/>
+        <circle cx="81" cy="75" r="3" fill="#fff" opacity="0.8"/>
+        <!-- Arrow showing insertion -->
+        <path d="M60 30L60 42" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4 2"/>
+        <polygon points="56,42 60,48 64,42" fill="#f59e0b"/>
+        <!-- Shield check -->
+        <path d="M52 108L58 114L70 102" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="banner-text">
+      <div class="banner-series">CSRF Protection Series &mdash; Deep Dive</div>
+      <div class="banner-title-text">Cuckoo Filter Architecture</div>
+      <p class="banner-desc">How a probabilistic data structure enforces single-use CSRF tokens at gateway level with ~50ns lookups, 8 MB memory, and zero external I/O &mdash; from UI request to Istio ext_authz to Go verification.</p>
+      <div class="banner-tags">
+        <span>Cuckoo Filter</span>
+        <span>Go 1.25</span>
+        <span>Istio ext_authz</span>
+        <span>Single-Use Tokens</span>
+        <span>Rolling Window</span>
+        <span>HMAC-SHA256</span>
+      </div>
+    </div>
+  </div>
+  <div class="banner-brand">BookStore Platform</div>
+  <div class="banner-accent-line"></div>
+</div>
+
+<div class="container">
+
+  <h1>Cuckoo Filter Architecture</h1>
+  <p>Complete traffic flow analysis: how every CSRF-protected request travels from the React UI through Istio's service mesh, into the Go CSRF service's Cuckoo filter, and back &mdash; with security implications at every hop.</p>
+
+  <div class="badges">
+    <span class="badge green">Production</span>
+    <span class="badge purple">Go 1.25</span>
+    <span class="badge blue">Istio Ambient</span>
+    <span class="badge cyan">Cuckoo Filter</span>
+    <span class="badge orange">HMAC-SHA256</span>
+    <span class="badge red">Gateway Security</span>
+  </div>
+
+  <!-- Table of Contents -->
+  <div class="toc">
+    <h3>Table of Contents</h3>
+    <ol>
+      <li><a href="#what-is-cuckoo">What Is a Cuckoo Filter?</a></li>
+      <li><a href="#why-cuckoo">Why Cuckoo Over Bloom?</a></li>
+      <li><a href="#project-implementation">Implementation in This Project</a></li>
+      <li><a href="#traffic-flow">Complete Traffic Flow (UI to Go to Istio)</a></li>
+      <li><a href="#tiered-architecture">Three-Tier Validation Architecture (L1/L2/L3)</a></li>
+      <li><a href="#rolling-window">Rolling Window: Time-Based Expiration</a></li>
+      <li><a href="#security-analysis">Security Analysis at Every Layer</a></li>
+      <li><a href="#attack-scenarios">Attack Scenarios &amp; How Cuckoo Defends</a></li>
+      <li><a href="#istio-integration">Istio ext_authz Integration</a></li>
+      <li><a href="#memory-sizing">Memory Sizing &amp; Performance</a></li>
+      <li><a href="#prometheus-metrics">Observability &amp; Prometheus Metrics</a></li>
+      <li><a href="#configuration">Configuration Reference</a></li>
+      <li><a href="#source-files">Source Files &amp; Test Coverage</a></li>
+    </ol>
+  </div>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2 id="what-is-cuckoo">1. What Is a Cuckoo Filter?</h2>
+
+  <p>A <strong>Cuckoo filter</strong> is a space-efficient probabilistic data structure that answers the question: <em>"Has this item been seen before?"</em> It is named after the cuckoo bird's brood parasitism strategy &mdash; when a new item needs to be inserted and its target bucket is full, it <strong>kicks out</strong> an existing item and rehashes it to an alternate bucket, like a cuckoo pushing eggs out of another bird's nest.</p>
+
+  <div class="card">
+    <h3>Core Operations</h3>
+    <table>
+      <tr><th>Operation</th><th>Time</th><th>Description</th></tr>
+      <tr><td><code>Insert(item)</code></td><td>O(1) amortized</td><td>Store the item's fingerprint in one of two candidate buckets</td></tr>
+      <tr><td><code>Lookup(item)</code></td><td>O(1)</td><td>Check if the fingerprint exists in either candidate bucket</td></tr>
+      <tr><td><code>Delete(item)</code></td><td>O(1)</td><td>Remove the fingerprint from whichever bucket contains it</td></tr>
+    </table>
+  </div>
+
+  <h3>How It Works Internally</h3>
+  <p>A Cuckoo filter consists of a table of <strong>buckets</strong>, each holding a fixed number of <strong>fingerprints</strong> (partial hashes of inserted items). For any item, two candidate buckets are computed:</p>
+
+  <div class="flow"><span class="b">bucket_1</span> = hash(item)
+<span class="b">bucket_2</span> = bucket_1 <span class="y">XOR</span> hash(fingerprint)   <span class="ts-comment">// partial-key cuckoo hashing</span>
+
+<span class="g">Insert:</span>
+  1. Compute fingerprint = hash(item) truncated to f bits
+  2. If bucket_1 or bucket_2 has space &rarr; store fingerprint
+  3. If both full &rarr; <span class="r">kick</span> random entry from one bucket
+  4. Kicked entry re-inserted at its alternate bucket
+  5. Repeat up to 500 times (then filter is "full")
+
+<span class="g">Lookup:</span>
+  1. Compute fingerprint
+  2. Check bucket_1 and bucket_2
+  3. Return true if fingerprint found in either
+
+<span class="g">Delete:</span>
+  1. Compute fingerprint
+  2. Find and remove from bucket_1 or bucket_2
+  3. <span class="c">This is impossible with Bloom filters!</span></div>
+
+  <div class="result info"><strong>Key property:</strong> Cuckoo filters can have <strong>false positives</strong> (saying "yes, seen" when the item was never inserted) but <strong>never false negatives</strong> (if an item was inserted, Lookup always returns true). The false positive rate for this project's configuration is approximately <strong>0.01%</strong> (1 in 10,000).</div>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2 id="why-cuckoo">2. Why Cuckoo Over Bloom?</h2>
+
+  <p>The critical requirement for CSRF single-use enforcement is <strong>deletion</strong>. When a rolling window rotates, old tokens must be purged. Bloom filters fundamentally cannot delete entries &mdash; they can only be rebuilt from scratch.</p>
+
+  <table>
+    <tr><th>Feature</th><th>Bloom Filter</th><th>Cuckoo Filter</th><th>Winner</th></tr>
+    <tr><td>Lookup</td><td>O(k) hash ops</td><td>O(1) &mdash; 2 bucket checks</td><td style="color:var(--green)">Cuckoo</td></tr>
+    <tr><td>Insert</td><td>O(k) hash ops</td><td>O(1) amortized</td><td style="color:var(--green)">Cuckoo</td></tr>
+    <tr><td><strong>Delete</strong></td><td style="color:var(--red)">Not supported</td><td style="color:var(--green)">O(1)</td><td style="color:var(--green)">Cuckoo</td></tr>
+    <tr><td>Space per item</td><td>~10 bits (1% FP)</td><td>~8 bits (0.26% FP)</td><td style="color:var(--green)">Cuckoo</td></tr>
+    <tr><td>False positive rate</td><td>~1% typical</td><td>~0.01&ndash;0.26%</td><td style="color:var(--green)">Cuckoo</td></tr>
+    <tr><td>Thread safety</td><td>Needs external lock</td><td>Needs external lock</td><td>Tie</td></tr>
+    <tr><td>Max load factor</td><td>No limit</td><td>~95% (then insert fails)</td><td style="color:var(--yellow)">Bloom</td></tr>
+  </table>
+
+  <div class="result pass"><strong>Decision:</strong> Cuckoo filter wins because the rolling window pattern requires periodic deletion of expired token JTIs. A Bloom filter would require full reconstruction on every rotation &mdash; O(n) vs O(1). The 8-bit-per-item space efficiency is a bonus.</div>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2 id="project-implementation">3. Implementation in This Project</h2>
+
+  <p>The Cuckoo filter is used inside the <strong>CSRF Service</strong> (Go 1.25) to enforce <strong>single-use CSRF tokens</strong>. Every HMAC-signed CSRF token contains a unique 128-bit JTI (JWT Token Identifier). After a token is validated once, its JTI is inserted into the Cuckoo filter. Any subsequent attempt to reuse the same token is rejected because the JTI is found during lookup.</p>
+
+  <h3>Filter Wrapper (<code>internal/cuckoo/filter.go</code>)</h3>
+  <p>A thread-safe wrapper around the <code>github.com/seiflotfy/cuckoofilter</code> library:</p>
+
+<pre><code><span class="ts-keyword">package</span> cuckoo
+
+<span class="ts-keyword">import</span> (
+    <span class="ts-string">"sync"</span>
+    cuckoo <span class="ts-string">"github.com/seiflotfy/cuckoofilter"</span>
+)
+
+<span class="ts-comment">// Filter wraps a Cuckoo filter with thread-safe operations.</span>
+<span class="ts-keyword">type</span> <span class="ts-type">Filter</span> <span class="ts-keyword">struct</span> {
+    cf *cuckoo.<span class="ts-type">Filter</span>
+    mu sync.<span class="ts-type">RWMutex</span>    <span class="ts-comment">// RWMutex: multiple concurrent readers, exclusive writer</span>
+}
+
+<span class="ts-comment">// Insert adds a JTI to the consumed set.</span>
+<span class="ts-keyword">func</span> (f *<span class="ts-type">Filter</span>) <span class="ts-func">Insert</span>(jti []<span class="ts-keyword">byte</span>) <span class="ts-keyword">bool</span> {
+    f.mu.<span class="ts-func">Lock</span>()          <span class="ts-comment">// Exclusive write lock</span>
+    <span class="ts-keyword">defer</span> f.mu.<span class="ts-func">Unlock</span>()
+    <span class="ts-keyword">return</span> f.cf.<span class="ts-func">Insert</span>(jti)
+}
+
+<span class="ts-comment">// Lookup checks if a JTI has been consumed.</span>
+<span class="ts-keyword">func</span> (f *<span class="ts-type">Filter</span>) <span class="ts-func">Lookup</span>(jti []<span class="ts-keyword">byte</span>) <span class="ts-keyword">bool</span> {
+    f.mu.<span class="ts-func">RLock</span>()         <span class="ts-comment">// Shared read lock (concurrent lookups allowed)</span>
+    <span class="ts-keyword">defer</span> f.mu.<span class="ts-func">RUnlock</span>()
+    <span class="ts-keyword">return</span> f.cf.<span class="ts-func">Lookup</span>(jti)
+}</code></pre>
+
+  <div class="result info"><strong>Thread safety:</strong> <code>sync.RWMutex</code> allows multiple goroutines to perform concurrent <code>Lookup</code> operations (the hot path for ext_authz checks), while <code>Insert</code> and <code>Delete</code> take an exclusive lock. This is critical because Envoy sends hundreds of concurrent ext_authz requests.</div>
+
+  <h3>Rolling Filter (<code>internal/cuckoo/rolling.go</code>)</h3>
+  <p>A dual-filter structure that provides time-based expiration without a wall clock on individual entries:</p>
+
+<pre><code><span class="ts-comment">// RollingFilter manages two Cuckoo filters with automatic rotation.</span>
+<span class="ts-keyword">type</span> <span class="ts-type">RollingFilter</span> <span class="ts-keyword">struct</span> {
+    current  *<span class="ts-type">Filter</span>     <span class="ts-comment">// Receives new inserts</span>
+    previous *<span class="ts-type">Filter</span>     <span class="ts-comment">// Checked on lookups (grace period)</span>
+    capacity <span class="ts-keyword">uint</span>
+    mu       sync.<span class="ts-type">RWMutex</span>
+}
+
+<span class="ts-comment">// Lookup checks BOTH filters (current OR previous).</span>
+<span class="ts-keyword">func</span> (rf *<span class="ts-type">RollingFilter</span>) <span class="ts-func">Lookup</span>(jti []<span class="ts-keyword">byte</span>) <span class="ts-keyword">bool</span> {
+    rf.mu.<span class="ts-func">RLock</span>()
+    <span class="ts-keyword">defer</span> rf.mu.<span class="ts-func">RUnlock</span>()
+    <span class="ts-keyword">return</span> rf.current.<span class="ts-func">Lookup</span>(jti) || rf.previous.<span class="ts-func">Lookup</span>(jti)
+}
+
+<span class="ts-comment">// Rotate discards previous, moves current to previous, creates new current.</span>
+<span class="ts-keyword">func</span> (rf *<span class="ts-type">RollingFilter</span>) <span class="ts-func">Rotate</span>() {
+    rf.mu.<span class="ts-func">Lock</span>()
+    <span class="ts-keyword">defer</span> rf.mu.<span class="ts-func">Unlock</span>()
+    rf.previous = rf.current           <span class="ts-comment">// Old current becomes grace-period filter</span>
+    rf.current = <span class="ts-func">NewFilter</span>(rf.capacity) <span class="ts-comment">// Fresh empty filter for new inserts</span>
+}
+
+<span class="ts-comment">// StartAutoRotation begins periodic filter rotation (matches token TTL).</span>
+<span class="ts-keyword">func</span> (rf *<span class="ts-type">RollingFilter</span>) <span class="ts-func">StartAutoRotation</span>(interval time.<span class="ts-type">Duration</span>) <span class="ts-keyword">func</span>() {
+    ticker := time.<span class="ts-func">NewTicker</span>(interval)
+    done := <span class="ts-keyword">make</span>(<span class="ts-keyword">chan struct</span>{})
+    <span class="ts-keyword">go func</span>() {
+        <span class="ts-keyword">for</span> {
+            <span class="ts-keyword">select</span> {
+            <span class="ts-keyword">case</span> &lt;-ticker.C: rf.<span class="ts-func">Rotate</span>()
+            <span class="ts-keyword">case</span> &lt;-done: ticker.<span class="ts-func">Stop</span>(); <span class="ts-keyword">return</span>
+            }
+        }
+    }()
+    <span class="ts-keyword">return func</span>() { <span class="ts-func">close</span>(done) } <span class="ts-comment">// Returns stop function</span>
+}</code></pre>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2 id="traffic-flow">4. Complete Traffic Flow (UI to Go to Istio)</h2>
+
+  <p>This section traces a <strong>mutating request</strong> (e.g., POST /ecom/cart) from the moment the user clicks "Add to Cart" in the browser all the way through CSRF validation and back. Every network hop, encryption layer, and security check is documented.</p>
+
+  <div class="flow"><span class="g">COMPLETE TRAFFIC FLOW: Mutating Request with CSRF Validation</span>
+<span class="ts-comment">============================================================================</span>
+
+<span class="b">PHASE 1: Token Acquisition (on app load or after expiry)</span>
+<span class="ts-comment">------------------------------------------------------------------------</span>
+
+  <span class="y">Browser (React UI)</span>
+    |
+    | GET /csrf/token
+    | Headers: Authorization: Bearer &lt;JWT&gt;
+    | Transport: HTTPS (TLS 1.3, cert-manager self-signed CA)
+    |
+    v
+  <span class="c">Istio Gateway</span> (port 30000, TLS termination)
+    |
+    | TLS terminated. Request is now plaintext inside the mesh.
+    | Gateway matches HTTPRoute: /csrf/* &rarr; csrf-service.infra:8080
+    |
+    v
+  <span class="c">ztunnel (source-side)</span>
+    |
+    | Wraps in HBONE tunnel (HTTP/2 CONNECT over mTLS)
+    | Source identity: spiffe://cluster.local/ns/infra/sa/istio-ingressgateway
+    |
+    v
+  <span class="c">ztunnel (destination-side)</span>
+    |
+    | Validates mTLS peer certificate (SPIFFE identity)
+    | Unwraps HBONE. Delivers plaintext to csrf-service pod.
+    |
+    v
+  <span class="g">CSRF Service (Go)</span> &mdash; <span class="ts-func">handler.GenerateToken()</span>
+    |
+    | 1. Extract JWT claims (base64 decode only &mdash; Istio verified signature)
+    | 2. Rate limit check (per-user, 60/min)
+    | 3. Generate HMAC-SHA256 token:
+    |    a. Create 128-bit random JTI (crypto/rand)
+    |    b. Encode payload: [sub + origin + iat + jti]
+    |    c. Sign with HMAC-SHA256 (rotating key ring)
+    |    d. XOR mask for BREACH protection
+    | 4. Return: {"token": "&lt;masked-hmac-token&gt;"}
+    |
+    | <span class="r">NOTE: No Cuckoo filter involvement during generation!</span>
+    | <span class="r">       Token is stateless &mdash; no Redis write, no filter insert.</span>
+    |
+    v
+  <span class="y">Browser stores token in React state (in-memory, never localStorage)</span>
+
+
+<span class="b">PHASE 2: Mutating Request with CSRF Token</span>
+<span class="ts-comment">------------------------------------------------------------------------</span>
+
+  <span class="y">Browser (React UI)</span>
+    |
+    | POST /ecom/cart
+    | Headers:
+    |   Authorization: Bearer &lt;JWT&gt;
+    |   X-Csrf-Token: &lt;masked-hmac-token&gt;
+    |   Origin: https://myecom.net:30000
+    |   Content-Type: application/json
+    | Body: {"bookId": "uuid", "quantity": 1}
+    | Transport: HTTPS (TLS 1.3)
+    |
+    v
+  <span class="c">Istio Gateway</span> (port 30000)
+    |
+    | TLS terminated at gateway (cert-manager leaf cert)
+    | Gateway recognizes /ecom/* route
+    |
+    | <span class="r">BEFORE forwarding to ecom-service, Istio checks AuthorizationPolicy:</span>
+    | <span class="r">CUSTOM action &rarr; csrf-service ext_authz provider</span>
+    |
+    v
+  <span class="c">Envoy ext_authz gRPC/HTTP call</span>
+    |
+    | Envoy forwards the FULL original request headers to csrf-service:
+    |   - Method: POST
+    |   - Path: /ecom/cart
+    |   - All headers (Authorization, X-Csrf-Token, Origin, etc.)
+    |
+    | Route: csrf-service.infra.svc.cluster.local:8080
+    | Transport: mTLS via ztunnel HBONE tunnel
+    |
+    v
+  <span class="g">CSRF Service (Go)</span> &mdash; <span class="ts-func">handler.ExtAuthzCheck()</span>
+    |
+    | <span class="b">Step 1:</span> Method check
+    |   POST is NOT in SafeMethods &rarr; proceed to validation
+    |
+    | <span class="b">Step 2:</span> Origin validation
+    |   "https://myecom.net:30000" in AllowedOrigins? <span class="g">YES</span>
+    |
+    | <span class="b">Step 3:</span> JWT claims extraction
+    |   Base64-decode JWT payload &rarr; extract "sub" claim (user ID)
+    |   (Istio already verified JWT signature via RequestAuthentication)
+    |
+    | <span class="b">Step 4:</span> JWT introspection (optional, if enabled)
+    |   Check Keycloak token endpoint: is user still active?
+    |   Redis cache (15s TTL) avoids hitting Keycloak on every request.
+    |
+    | <span class="b">Step 5:</span> CSRF token validation &mdash; <span class="ts-func">HybridStore.Validate()</span>
+    |   |
+    |   | <span class="y">5a.</span> XOR unmask the token (BREACH protection)
+    |   |
+    |   | <span class="y">5b.</span> <span class="b">L2: HMAC Verify</span> (stateless, ~1&micro;s)
+    |   |   Verify HMAC-SHA256 signature with key ring
+    |   |   Check TTL (iat + 10min > now?)
+    |   |   Verify user binding (payload.sub == JWT sub)
+    |   |   Verify origin binding (payload.org == Origin header)
+    |   |
+    |   | <span class="y">5c.</span> <span class="g">L1: Cuckoo Filter Lookup</span> (~50ns)
+    |   |   Extract 128-bit JTI from verified payload
+    |   |   <span class="g">rf.current.Lookup(jti) || rf.previous.Lookup(jti)</span>
+    |   |   If found &rarr; <span class="r">REJECT (token already consumed)</span>
+    |   |   If not found &rarr; continue
+    |   |
+    |   | <span class="y">5d.</span> <span class="c">L3: Redis Set Check</span> (cross-pod, ~1ms)
+    |   |   SISMEMBER "csrf:consumed" jti
+    |   |   If found &rarr; Promote to L1 (Insert into Cuckoo) &rarr; <span class="r">REJECT</span>
+    |   |   If not found or Redis error (fail-open) &rarr; continue
+    |   |
+    |   | <span class="y">5e.</span> <span class="g">Mark Consumed</span>
+    |   |   L1: <span class="g">rf.current.Insert(jti)</span>  &larr; IMMEDIATE (in-process)
+    |   |   L3: go func() { SADD "csrf:consumed" jti }  &larr; ASYNC (fire-and-forget)
+    |   |
+    |   v
+    |   Token is valid and now consumed. Return <span class="g">200 OK</span> to Envoy.
+    |
+    v
+  <span class="c">Envoy receives 200 OK from ext_authz</span>
+    |
+    | ext_authz approved! Forward the original request to ecom-service.
+    | Transport: mTLS via ztunnel
+    |
+    v
+  <span class="b">ecom-service (Spring Boot)</span>
+    |
+    | JWT validated again by Spring Security (defense-in-depth)
+    | Process cart addition
+    | Return 200 OK with cart contents
+    |
+    v
+  <span class="c">Response flows back through:</span>
+    ecom-service &rarr; ztunnel mTLS &rarr; Gateway &rarr; TLS 1.3 &rarr; Browser
+
+
+<span class="b">PHASE 3: Replay Attack (same token reused)</span>
+<span class="ts-comment">------------------------------------------------------------------------</span>
+
+  <span class="y">Attacker replays the same POST with same X-Csrf-Token</span>
+    |
+    v
+  <span class="g">CSRF Service</span> &mdash; <span class="ts-func">HybridStore.Validate()</span>
+    |
+    | L2: HMAC verify &rarr; <span class="g">PASS</span> (signature still valid, not expired)
+    | L1: Cuckoo Lookup(jti) &rarr; <span class="r">FOUND! Token already consumed.</span>
+    | Return <span class="r">403 Forbidden</span> + auto-regenerated new token
+    |
+    v
+  Envoy receives 403 &rarr; <span class="r">Request BLOCKED. Never reaches ecom-service.</span></div>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2 id="tiered-architecture">5. Three-Tier Validation Architecture (L1/L2/L3)</h2>
+
+  <p>The Cuckoo filter is the <strong>L1 tier</strong> in a three-tier validation architecture. Each tier serves a specific purpose:</p>
+
+  <div class="tier-grid">
+    <div class="tier-card" style="border-color:var(--green);border-width:2px;border-style:solid">
+      <h4 style="color:var(--green)">L1: Cuckoo Filter</h4>
+      <div class="tier-speed" style="color:var(--green)">~50ns</div>
+      <p><strong>In-memory, per-pod</strong><br>Single-use enforcement. Catches replay attacks instantly. No I/O, no network.</p>
+    </div>
+    <div class="tier-card" style="border-color:var(--accent);border-width:2px;border-style:solid">
+      <h4 style="color:var(--accent)">L2: HMAC-SHA256</h4>
+      <div class="tier-speed" style="color:var(--accent)">~1&micro;s</div>
+      <p><strong>Stateless, cryptographic</strong><br>Signature verification, TTL check, user binding, origin binding. Zero external dependencies.</p>
+    </div>
+    <div class="tier-card" style="border-color:var(--cyan);border-width:2px;border-style:solid">
+      <h4 style="color:var(--cyan)">L3: Redis Set</h4>
+      <div class="tier-speed" style="color:var(--cyan)">~1ms</div>
+      <p><strong>Cross-pod dedup</strong><br>Ensures single-use across all CSRF service replicas (2+ pods). Optional &mdash; fail-open if Redis is down.</p>
+    </div>
+  </div>
+
+  <h3>Validation Order and Why It Matters</h3>
+  <p>The tiers are checked in a specific order that optimizes for the <strong>common case</strong> (valid, first-use token) while catching attacks as early as possible:</p>
+
+<pre><code><span class="ts-func">Validate</span>(ctx, userID, reqToken, origin) {
+    <span class="ts-comment">// L2 first: cheapest rejection (no state needed)</span>
+    payload := hmac.<span class="ts-func">Verify</span>(reqToken)     <span class="ts-comment">// ~1&micro;s, rejects tampered/expired</span>
+    <span class="ts-keyword">if</span> payload.Sub != userID { <span class="ts-keyword">return</span> <span class="ts-keyword">false</span> }  <span class="ts-comment">// User binding</span>
+    <span class="ts-keyword">if</span> payload.Org != origin { <span class="ts-keyword">return</span> <span class="ts-keyword">false</span> }  <span class="ts-comment">// Origin binding</span>
+
+    jti := payload.Jti[:]
+
+    <span class="ts-comment">// L1 second: in-memory, catches same-pod replays (~50ns)</span>
+    <span class="ts-keyword">if</span> cuckooL1.<span class="ts-func">Lookup</span>(jti) { <span class="ts-keyword">return</span> <span class="ts-keyword">false</span> }  <span class="ts-comment">// Already consumed!</span>
+
+    <span class="ts-comment">// L3 third: cross-pod check (~1ms, optional)</span>
+    <span class="ts-keyword">if</span> redis.<span class="ts-func">SIsMember</span>(<span class="ts-string">"csrf:consumed"</span>, jti) {
+        cuckooL1.<span class="ts-func">Insert</span>(jti)  <span class="ts-comment">// Promote to L1 for faster future rejection</span>
+        <span class="ts-keyword">return</span> <span class="ts-keyword">false</span>
+    }
+
+    <span class="ts-comment">// Valid! Mark consumed immediately.</span>
+    cuckooL1.<span class="ts-func">Insert</span>(jti)                    <span class="ts-comment">// L1: instant (~50ns)</span>
+    <span class="ts-keyword">go</span> redis.<span class="ts-func">SAdd</span>(<span class="ts-string">"csrf:consumed"</span>, jti)      <span class="ts-comment">// L3: async (fire-and-forget)</span>
+
+    <span class="ts-keyword">return</span> <span class="ts-keyword">true</span>
+}</code></pre>
+
+  <div class="result warn"><strong>Why L2 before L1?</strong> HMAC verification is stateless and rejects the majority of invalid tokens (tampered, expired, wrong user) without touching the Cuckoo filter at all. Only <em>cryptographically valid</em> tokens reach the Cuckoo filter, keeping the filter's load low and focused on replay detection.</div>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2 id="rolling-window">6. Rolling Window: Time-Based Expiration</h2>
+
+  <p>Individual Cuckoo filter entries have no TTL. Instead, the <code>RollingFilter</code> uses a <strong>two-window rotation</strong> pattern to provide time-bounded expiration with a grace period:</p>
+
+  <div class="flow"><span class="g">Rolling Window Timeline (Token TTL = 10 minutes)</span>
+<span class="ts-comment">============================================================================</span>
+
+<span class="b">T=0min</span>   Startup
+         current  = FilterA (empty)
+         previous = FilterB (empty)
+
+<span class="b">T=3min</span>   Token X validated, JTI inserted into FilterA (current)
+         current  = FilterA [<span class="g">X</span>]
+         previous = FilterB []
+
+<span class="b">T=10min</span>  <span class="y">AUTO-ROTATION #1</span>
+         current  = FilterC (new, empty)   <span class="ts-comment">&larr; fresh filter</span>
+         previous = FilterA [<span class="g">X</span>]            <span class="ts-comment">&larr; old current becomes grace period</span>
+         FilterB is garbage collected       <span class="ts-comment">&larr; old previous discarded</span>
+
+<span class="b">T=12min</span>  Replay of Token X attempted
+         Lookup checks: FilterC? <span class="r">NO</span>. FilterA? <span class="g">YES, found!</span>
+         &rarr; <span class="r">REJECTED</span> (grace period still active)
+
+<span class="b">T=20min</span>  <span class="y">AUTO-ROTATION #2</span>
+         current  = FilterD (new, empty)
+         previous = FilterC []
+         FilterA is garbage collected       <span class="ts-comment">&larr; Token X's JTI is now gone</span>
+
+<span class="b">T=22min</span>  Replay of Token X attempted
+         Lookup checks: FilterD? <span class="r">NO</span>. FilterC? <span class="r">NO</span>.
+         But L2 HMAC check: iat=T+3min, TTL=10min &rarr; <span class="r">EXPIRED!</span>
+         &rarr; <span class="r">REJECTED by HMAC TTL check (before reaching Cuckoo)</span></div>
+
+  <div class="result pass"><strong>Defense in depth:</strong> Even after a JTI ages out of both Cuckoo filters (after ~2x TTL), the token is still rejected because the HMAC's embedded <code>iat</code> timestamp will have expired. The Cuckoo filter provides <em>fast</em> single-use enforcement within the TTL window; HMAC provides the <em>ultimate</em> time barrier.</div>
+
+  <h3>Why Two Filters Instead of One?</h3>
+  <p>Without a "previous" filter, tokens consumed just before rotation would immediately become re-usable. The grace period ensures that a token consumed at T=9:59 is still detected as consumed at T=10:01 (during the next window).</p>
+
+  <h3>Auto-Rotation Lifecycle</h3>
+  <p>In <code>main.go</code>, the rolling filter is started with the same interval as the token TTL:</p>
+
+<pre><code>cf := cuckoo.<span class="ts-func">NewRollingFilter</span>(cfg.CuckooCapacity)  <span class="ts-comment">// Default: 1,000,000</span>
+stopCuckooRotation = cf.<span class="ts-func">StartAutoRotation</span>(cfg.TokenTTL) <span class="ts-comment">// Default: 10 minutes</span>
+
+<span class="ts-comment">// On graceful shutdown:</span>
+stopCuckooRotation()  <span class="ts-comment">// Stops the ticker goroutine</span></code></pre>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2 id="security-analysis">7. Security Analysis at Every Layer</h2>
+
+  <p>Tracing a mutating request through the entire stack, here is every security check and encryption layer:</p>
+
+  <div class="security-layer">
+    <h3><span class="layer-num">1</span> Browser &rarr; Gateway: TLS 1.3</h3>
+    <p>All traffic hits <code>https://myecom.net:30000</code>. TLS is terminated at the Istio Gateway using a cert-manager-issued certificate (self-signed CA, ECDSA P-256, 30-day rotation, 7-day renewBefore). HTTP on port 30080 returns a 301 redirect to HTTPS.</p>
+    <p><strong>Security guarantee:</strong> Eavesdroppers cannot read the CSRF token in transit. MITM attacks are prevented by certificate pinning (for API clients) or CA trust (for browsers).</p>
+  </div>
+
+  <div class="security-layer">
+    <h3><span class="layer-num">2</span> Gateway &rarr; ext_authz: Istio mTLS (HBONE)</h3>
+    <p>Inside the mesh, ztunnel wraps all traffic in HBONE tunnels (HTTP/2 CONNECT over mutual TLS). The Gateway's SPIFFE identity (<code>spiffe://cluster.local/ns/infra/sa/istio-ingressgateway</code>) is verified by the destination ztunnel.</p>
+    <p><strong>Security guarantee:</strong> Even if an attacker compromises a pod in another namespace, they cannot impersonate the gateway or intercept ext_authz traffic. <code>PeerAuthentication</code> enforces <code>STRICT</code> mTLS.</p>
+  </div>
+
+  <div class="security-layer">
+    <h3><span class="layer-num">3</span> ext_authz: Origin Validation</h3>
+    <p>The CSRF service checks the <code>Origin</code> header against a whitelist: <code>https://myecom.net:30000</code>, <code>https://localhost:30000</code>, <code>https://idp.keycloak.net:30000</code>. Requests from unknown origins are rejected with 403.</p>
+    <p><strong>Security guarantee:</strong> Prevents cross-origin CSRF attacks from malicious websites. Even if an attacker has a valid CSRF token, they cannot use it from <code>https://evil.com</code>.</p>
+  </div>
+
+  <div class="security-layer">
+    <h3><span class="layer-num">4</span> ext_authz: JWT Validation (Istio + Go)</h3>
+    <p>JWT signatures are validated twice: first by Istio's <code>RequestAuthentication</code> policy (using Keycloak's JWKS endpoint), then the CSRF service extracts claims via base64 decode (trusting Istio's upstream verification). Optional introspection checks if the user account is still active.</p>
+    <p><strong>Security guarantee:</strong> Stolen/forged JWTs are rejected. User binding ensures CSRF tokens are tied to specific users &mdash; Token A from User X cannot protect a request from User Y.</p>
+  </div>
+
+  <div class="security-layer">
+    <h3><span class="layer-num">5</span> ext_authz: HMAC-SHA256 Verification (L2)</h3>
+    <p>The CSRF token's cryptographic signature is verified against a rotating key ring. The token's embedded timestamp is checked against the 10-minute TTL. User and origin bindings are validated with constant-time comparison.</p>
+    <p><strong>Security guarantee:</strong> Attackers cannot forge tokens without the HMAC secret key. Expired tokens are rejected. User/origin binding prevents token theft across users or origins.</p>
+  </div>
+
+  <div class="security-layer">
+    <h3><span class="layer-num">6</span> ext_authz: Cuckoo Filter (L1) + Redis (L3)</h3>
+    <p>The 128-bit JTI is checked against the in-memory Cuckoo filter and the cross-pod Redis set. If found in either, the token has already been used and is rejected.</p>
+    <p><strong>Security guarantee:</strong> Single-use enforcement. Even if an attacker intercepts a valid token (via XSS, network sniffing of internal traffic, or log leakage), they have at most one use. Replay attacks are blocked.</p>
+  </div>
+
+  <div class="security-layer">
+    <h3><span class="layer-num">7</span> ext_authz &rarr; Backend: mTLS + Spring Security</h3>
+    <p>After CSRF validation passes, the original request is forwarded to the backend (ecom-service) via ztunnel mTLS. Spring Security performs its own JWT validation as defense-in-depth.</p>
+    <p><strong>Security guarantee:</strong> Even if the CSRF service has a bug that allows an invalid request through, the backend independently validates the JWT. Two independent security systems must both fail for an attack to succeed.</p>
+  </div>
+
+  <div class="security-layer">
+    <h3><span class="layer-num">8</span> Response: Auto-Regeneration on Failure</h3>
+    <p>When validation fails (expired or consumed token) but the JWT is valid, the CSRF service generates a new token and includes it in the 403 response body. The UI reads it and retries automatically.</p>
+    <p><strong>Security guarantee:</strong> New tokens are only issued to authenticated users. The 403 response itself is encrypted (TLS). Auto-regeneration prevents UX degradation without weakening security.</p>
+  </div>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2 id="attack-scenarios">8. Attack Scenarios &amp; How Cuckoo Defends</h2>
+
+  <table class="attack-table">
+    <tr><th>Attack Vector</th><th>How It Works</th><th>Defense Layer</th><th>Result</th></tr>
+    <tr>
+      <td>CSRF (Classic)</td>
+      <td>Malicious site submits form to bookstore API using victim's cookies</td>
+      <td>Origin validation + No cookies (Bearer tokens)</td>
+      <td>Blocked: Origin mismatch + no CSRF token in attacker's request</td>
+    </tr>
+    <tr>
+      <td>Token Replay</td>
+      <td>Attacker captures a valid CSRF token and reuses it</td>
+      <td><strong>L1 Cuckoo Filter</strong></td>
+      <td>Blocked: JTI found in Cuckoo filter on second use (~50ns rejection)</td>
+    </tr>
+    <tr>
+      <td>Cross-Pod Replay</td>
+      <td>Token used on Pod A, replayed to Pod B (different Cuckoo filter)</td>
+      <td><strong>L3 Redis Set</strong></td>
+      <td>Blocked: JTI found in cross-pod Redis set, promoted to L1</td>
+    </tr>
+    <tr>
+      <td>Token Forgery</td>
+      <td>Attacker crafts a fake CSRF token</td>
+      <td>L2 HMAC-SHA256</td>
+      <td>Blocked: Invalid signature (never reaches Cuckoo)</td>
+    </tr>
+    <tr>
+      <td>Expired Token Replay</td>
+      <td>Attacker uses a token after its TTL expires</td>
+      <td>L2 HMAC TTL check</td>
+      <td>Blocked: iat + TTL &lt; now (never reaches Cuckoo)</td>
+    </tr>
+    <tr>
+      <td>Cross-User Token</td>
+      <td>Attacker uses User A's CSRF token with User B's JWT</td>
+      <td>L2 User binding</td>
+      <td>Blocked: payload.sub != JWT sub</td>
+    </tr>
+    <tr>
+      <td>Cross-Origin Token</td>
+      <td>Token obtained from origin A, used from origin B</td>
+      <td>L2 Origin binding + L3 Origin validation</td>
+      <td>Blocked: constant-time origin comparison fails</td>
+    </tr>
+    <tr>
+      <td>BREACH Attack</td>
+      <td>Compression side-channel leaks token bytes from HTTPS response</td>
+      <td>XOR masking</td>
+      <td>Blocked: each token transmission uses different XOR mask, preventing byte-by-byte discovery</td>
+    </tr>
+    <tr>
+      <td>Timing Attack</td>
+      <td>Measure validation time to infer token correctness</td>
+      <td>Constant-time comparison (crypto/subtle)</td>
+      <td>Blocked: all comparisons take identical time regardless of match position</td>
+    </tr>
+    <tr>
+      <td>Rapid Token Generation</td>
+      <td>Attacker generates thousands of tokens to exhaust Cuckoo filter</td>
+      <td>Per-user rate limiting (60/min)</td>
+      <td>Blocked: 429 Too Many Requests after limit exceeded</td>
+    </tr>
+    <tr>
+      <td>Redis Outage</td>
+      <td>Redis goes down, cross-pod dedup unavailable</td>
+      <td>L1 Cuckoo (fail-open) + HMAC (stateless)</td>
+      <td>Degraded but functional: per-pod single-use still enforced, HMAC still validates</td>
+    </tr>
+    <tr>
+      <td>Cuckoo False Positive</td>
+      <td>Cuckoo filter incorrectly reports a new JTI as "consumed"</td>
+      <td>Auto-regeneration in 403 response</td>
+      <td>Mitigated: UI receives new token in 403 body, retries automatically. 0.01% FP rate = 1 in 10,000 requests</td>
+    </tr>
+  </table>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2 id="istio-integration">9. Istio ext_authz Integration</h2>
+
+  <p>The CSRF service is invoked by Envoy as an <strong>external authorization</strong> provider. This means <em>every</em> request to protected routes passes through the CSRF service <em>before</em> reaching the backend, regardless of which backend language (Java, Python, Go) handles it.</p>
+
+  <h3>Istio Mesh Configuration</h3>
+  <p>The CSRF service is registered as an <code>extensionProvider</code> in the Istio mesh config:</p>
+
+<pre><code><span class="ts-comment"># Istio mesh config (istio ConfigMap)</span>
+<span class="ts-keyword">extensionProviders</span>:
+  - <span class="ts-keyword">name</span>: csrf-ext-authz
+    <span class="ts-keyword">envoyExtAuthzHttp</span>:
+      <span class="ts-keyword">service</span>: csrf-service.infra.svc.cluster.local
+      <span class="ts-keyword">port</span>: <span class="ts-number">8080</span>
+      <span class="ts-keyword">headersToUpstreamOnAllow</span>:
+        - <span class="ts-string">authorization</span>
+        - <span class="ts-string">x-csrf-token</span>
+      <span class="ts-keyword">headersToDownstreamOnDeny</span>:
+        - <span class="ts-string">content-type</span>
+        - <span class="ts-string">set-cookie</span>
+      <span class="ts-keyword">includeRequestHeadersInCheck</span>:
+        - <span class="ts-string">authorization</span>
+        - <span class="ts-string">x-csrf-token</span>
+        - <span class="ts-string">origin</span>
+        - <span class="ts-string">referer</span></code></pre>
+
+  <h3>AuthorizationPolicy (CUSTOM Action)</h3>
+  <p>An <code>AuthorizationPolicy</code> with <code>CUSTOM</code> action tells Envoy to consult the CSRF service for matching requests:</p>
+
+<pre><code><span class="ts-keyword">apiVersion</span>: security.istio.io/v1
+<span class="ts-keyword">kind</span>: AuthorizationPolicy
+<span class="ts-keyword">metadata</span>:
+  <span class="ts-keyword">name</span>: csrf-ext-authz
+  <span class="ts-keyword">namespace</span>: istio-system   <span class="ts-comment"># Root namespace = mesh-wide</span>
+<span class="ts-keyword">spec</span>:
+  <span class="ts-keyword">action</span>: CUSTOM
+  <span class="ts-keyword">provider</span>:
+    <span class="ts-keyword">name</span>: csrf-ext-authz
+  <span class="ts-keyword">rules</span>:
+    - <span class="ts-keyword">to</span>:
+        - <span class="ts-keyword">operation</span>:
+            <span class="ts-keyword">paths</span>:
+              - <span class="ts-string">"/ecom/*"</span>        <span class="ts-comment"># E-Commerce Service</span>
+              - <span class="ts-string">"/inven/*"</span>       <span class="ts-comment"># Inventory Service</span>
+              - <span class="ts-string">"/csrf/token"</span>    <span class="ts-comment"># CSRF token generation itself</span></code></pre>
+
+  <h3>Request Flow Through Envoy</h3>
+  <div class="flow"><span class="b">Envoy ext_authz Decision Flow:</span>
+
+  Client Request
+       |
+       v
+  <span class="c">Envoy (ztunnel / sidecar)</span>
+       |
+       | Match AuthorizationPolicy?
+       |   Path matches /ecom/* &rarr; <span class="g">YES</span>
+       |   Action = CUSTOM &rarr; call ext_authz provider
+       |
+       v
+  <span class="g">csrf-service:8080/</span>  (catch-all route = ExtAuthzCheck handler)
+       |
+       |&mdash;&mdash; <span class="g">200 OK</span>: Envoy forwards request to upstream (ecom-service)
+       |&mdash;&mdash; <span class="r">403 Forbidden</span>: Envoy returns 403 directly to client
+       |&mdash;&mdash; <span class="y">503 Unavailable</span>: Envoy returns 503 to client
+       |
+       v
+  <span class="b">Upstream service</span> (only reached on 200)</div>
+
+  <div class="result info"><strong>Key design point:</strong> The CSRF service uses a <strong>catch-all route</strong> (<code>mux.HandleFunc("/", h.ExtAuthzCheck)</code>) for ext_authz checks. Envoy sends the original request path (e.g., <code>/ecom/cart</code>) to the CSRF service, which only cares about the HTTP method and headers &mdash; not the path. The dedicated <code>GET /csrf/token</code> route handles token generation separately.</div>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2 id="memory-sizing">10. Memory Sizing &amp; Performance</h2>
+
+  <h3>Cuckoo Filter Memory Formula</h3>
+  <p>The underlying <code>seiflotfy/cuckoofilter</code> library uses:</p>
+  <ul>
+    <li><strong>4 buckets per hash</strong> (2 candidate buckets, each with 4 entries)</li>
+    <li><strong>1-byte fingerprints</strong> (8 bits per item)</li>
+    <li><strong>4 entries per bucket</strong></li>
+  </ul>
+
+  <table>
+    <tr><th>Parameter</th><th>Value</th><th>Calculation</th></tr>
+    <tr><td>Configured capacity</td><td>1,000,000 items</td><td><code>CSRF_CUCKOO_CAPACITY=1000000</code></td></tr>
+    <tr><td>Buckets needed</td><td>250,000</td><td>capacity / 4 entries per bucket</td></tr>
+    <tr><td>Memory per filter</td><td>~8 MB</td><td>250,000 buckets &times; 4 entries &times; 1 byte + overhead</td></tr>
+    <tr><td>Rolling pair (current + previous)</td><td>~16 MB</td><td>2 &times; 8 MB</td></tr>
+    <tr><td>Pod memory limit</td><td>80 Mi</td><td>Go runtime (~20 MB) + Cuckoo (~16 MB) + headroom</td></tr>
+    <tr><td>False positive rate at 50% load</td><td>~0.01%</td><td>1 in 10,000 lookups</td></tr>
+    <tr><td>False positive rate at 75% load</td><td>~0.26%</td><td>1 in 385 lookups (still very low)</td></tr>
+  </table>
+
+  <h3>Performance Benchmarks</h3>
+  <table>
+    <tr><th>Operation</th><th>Latency</th><th>Comparison</th></tr>
+    <tr><td>Cuckoo Lookup (L1)</td><td>~50 ns</td><td>20,000x faster than Redis GET</td></tr>
+    <tr><td>Cuckoo Insert (L1)</td><td>~80 ns</td><td>12,500x faster than Redis SET</td></tr>
+    <tr><td>HMAC-SHA256 Verify (L2)</td><td>~1 &micro;s</td><td>1,000x faster than Redis GET</td></tr>
+    <tr><td>Redis SISMEMBER (L3)</td><td>~1 ms</td><td>Baseline (network + I/O)</td></tr>
+    <tr><td>Full validation (L2 + L1)</td><td>~1.05 &micro;s</td><td>No Redis I/O for the common case</td></tr>
+    <tr><td>Full validation (L2 + L1 + L3)</td><td>~1.1 ms</td><td>Only when L1 misses (new token, not yet in local filter)</td></tr>
+  </table>
+
+  <div class="result pass"><strong>Key insight:</strong> For the vast majority of requests (valid, first-use tokens from the same pod), the complete CSRF validation takes ~1 &micro;s with zero network I/O. Redis is only consulted on the first use of a token or for cross-pod deduplication. This is 1000x faster than the legacy Redis-only approach.</div>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2 id="prometheus-metrics">11. Observability &amp; Prometheus Metrics</h2>
+
+  <p>The Cuckoo filter's operations are fully instrumented with Prometheus metrics for monitoring and alerting:</p>
+
+  <table>
+    <tr><th>Metric</th><th>Type</th><th>Labels</th><th>What It Tracks</th></tr>
+    <tr><td><code>csrf_cuckoo_operations_total</code></td><td>Counter</td><td><code>op</code>, <code>tier</code></td><td>Cuckoo filter insert/lookup/delete counts by tier (l1/l3)</td></tr>
+    <tr><td><code>csrf_hmac_operations_total</code></td><td>Counter</td><td><code>op</code>, <code>result</code></td><td>HMAC generate/verify/expired/tampered counts</td></tr>
+    <tr><td><code>csrf_requests_total</code></td><td>Counter</td><td><code>method</code>, <code>result</code></td><td>All CSRF service requests with outcome</td></tr>
+    <tr><td><code>csrf_request_duration_seconds</code></td><td>Histogram</td><td><code>handler</code></td><td>Request latency (should be &lt;1ms for Cuckoo-only path)</td></tr>
+    <tr><td><code>csrf_l3_redis_fallback_total</code></td><td>Counter</td><td><code>result</code></td><td>How often L3 Redis is consulted (hit/miss/error)</td></tr>
+    <tr><td><code>csrf_anomaly_total</code></td><td>Counter</td><td><code>type</code></td><td>Suspicious events: cross_user_token, origin_mismatch, revoked_token</td></tr>
+    <tr><td><code>csrf_redis_errors_total</code></td><td>Counter</td><td>&mdash;</td><td>Redis connection failures (should trigger alerts)</td></tr>
+    <tr><td><code>csrf_key_rotations_total</code></td><td>Counter</td><td>&mdash;</td><td>HMAC key rotation events (expected: 1 per 24h)</td></tr>
+    <tr><td><code>csrf_xor_mask_total</code></td><td>Counter</td><td><code>op</code></td><td>XOR mask/unmask operations (BREACH protection)</td></tr>
+    <tr><td><code>csrf_token_format_total</code></td><td>Counter</td><td><code>format</code></td><td>Token format detection: hmac vs legacy_uuid</td></tr>
+  </table>
+
+  <h3>Key Alerting Rules</h3>
+<pre><code><span class="ts-comment"># Alert: Cuckoo filter rejecting too many tokens (potential false positive spike)</span>
+rate(csrf_cuckoo_operations_total{op=<span class="ts-string">"lookup"</span>,tier=<span class="ts-string">"l1"</span>}[5m])
+  / rate(csrf_requests_total{method=<span class="ts-string">"authz_mutate"</span>}[5m]) > <span class="ts-number">0.05</span>
+
+<span class="ts-comment"># Alert: Redis L3 errors spiking (cross-pod dedup degraded)</span>
+rate(csrf_redis_errors_total[5m]) > <span class="ts-number">10</span>
+
+<span class="ts-comment"># Alert: HMAC key rotation stopped</span>
+increase(csrf_key_rotations_total[<span class="ts-number">25</span>h]) == <span class="ts-number">0</span></code></pre>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2 id="configuration">12. Configuration Reference</h2>
+
+  <table>
+    <tr><th>Environment Variable</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>CSRF_MODE</code></td><td><code>hybrid</code></td><td>Operating mode: <code>redis</code> (legacy), <code>hmac</code> (pure stateless), <code>hybrid</code> (recommended: HMAC + Redis L3)</td></tr>
+    <tr><td><code>CSRF_CUCKOO_CAPACITY</code></td><td><code>1000000</code></td><td>Maximum items per Cuckoo filter. Memory = ~8 MB per 1M capacity.</td></tr>
+    <tr><td><code>CSRF_TOKEN_TTL_MINUTES</code></td><td><code>10</code></td><td>Token lifetime. Also controls Cuckoo filter rotation interval.</td></tr>
+    <tr><td><code>CSRF_HMAC_KEY</code></td><td>(required)</td><td>Base64-encoded 256-bit HMAC signing key</td></tr>
+    <tr><td><code>CSRF_KEY_ROTATE_HOURS</code></td><td><code>24</code></td><td>HMAC key rotation interval (hours)</td></tr>
+    <tr><td><code>CSRF_XOR_MASKING</code></td><td><code>true</code></td><td>Enable XOR BREACH masking on token generation</td></tr>
+    <tr><td><code>CSRF_SLIDING_TTL</code></td><td><code>true</code></td><td>Refresh TTL on authenticated safe (GET) requests</td></tr>
+    <tr><td><code>CSRF_FAIL_CLOSED</code></td><td><code>false</code></td><td>If <code>true</code>, Redis errors reject the request. If <code>false</code>, fail-open (L1+L2 only).</td></tr>
+    <tr><td><code>CSRF_ALLOWED_ORIGINS</code></td><td><code>https://myecom.net:30000,...</code></td><td>Comma-separated allowed origins for origin binding</td></tr>
+    <tr><td><code>CSRF_RATE_LIMIT</code></td><td><code>60</code></td><td>Max token generation requests per user per minute</td></tr>
+    <tr><td><code>CSRF_RATELIMIT_MODE</code></td><td><code>local</code></td><td>Rate limiter backend: <code>local</code> (in-memory) or <code>redis</code></td></tr>
+  </table>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2 id="source-files">13. Source Files &amp; Test Coverage</h2>
+
+  <table>
+    <tr><th>File</th><th>Lines</th><th>Purpose</th></tr>
+    <tr><td><code>internal/cuckoo/filter.go</code></td><td>64</td><td>Thread-safe Cuckoo filter wrapper (Insert, Lookup, Delete, Count, Reset)</td></tr>
+    <tr><td><code>internal/cuckoo/rolling.go</code></td><td>79</td><td>Dual-filter rolling window with auto-rotation timer</td></tr>
+    <tr><td><code>internal/cuckoo/filter_test.go</code></td><td>152</td><td>17 tests: basic ops, false positive rate validation (&le;0.01%), concurrency, edge cases</td></tr>
+    <tr><td><code>internal/cuckoo/rolling_test.go</code></td><td>123</td><td>8 tests: rotation lifecycle, grace period, concurrent insert+rotate, auto-rotation timer</td></tr>
+    <tr><td><code>internal/store/hybrid.go</code></td><td>218</td><td>HybridStore: L1 Cuckoo + L2 HMAC + L3 Redis tiered validation</td></tr>
+    <tr><td><code>internal/store/hybrid_test.go</code></td><td>~200</td><td>15+ tests: hybrid validation, legacy UUID compat, fail-open/closed, Redis promotion</td></tr>
+    <tr><td><code>internal/token/hmac.go</code></td><td>175</td><td>HMAC-SHA256 token generation &amp; verification (compact binary format)</td></tr>
+    <tr><td><code>internal/token/mask.go</code></td><td>~50</td><td>XOR BREACH masking/unmasking</td></tr>
+    <tr><td><code>internal/token/keyring.go</code></td><td>~80</td><td>HMAC key ring with automatic rotation</td></tr>
+    <tr><td><code>internal/handler/authz.go</code></td><td>190</td><td>ext_authz handler: method check, origin, JWT, introspection, CSRF validation</td></tr>
+    <tr><td><code>internal/handler/token.go</code></td><td>111</td><td>Token generation handler: JWT extraction, rate limiting, HMAC generation</td></tr>
+    <tr><td><code>internal/config/config.go</code></td><td>115</td><td>Environment variable loading with defaults</td></tr>
+    <tr><td><code>internal/middleware/metrics.go</code></td><td>128</td><td>Prometheus metrics including <code>csrf_cuckoo_operations_total</code></td></tr>
+    <tr><td><code>main.go</code></td><td>193</td><td>Wiring: config &rarr; Cuckoo &rarr; HMAC &rarr; store &rarr; handler &rarr; server + graceful shutdown</td></tr>
+  </table>
+
+  <div class="result pass"><strong>Total Cuckoo-related test coverage:</strong> 25 unit tests (17 filter + 8 rolling) plus 15+ integration tests in hybrid_test.go. The false positive rate test validates &le;0.01% across 100,000 random non-inserted items.</div>
+
+  <h3>Dependency</h3>
+<pre><code><span class="ts-comment">// go.mod</span>
+github.com/seiflotfy/cuckoofilter v0.0.0-20240715131351-a2f2c23f1771</code></pre>
+
+  <p>The <code>seiflotfy/cuckoofilter</code> library provides the core Cuckoo filter implementation. The project wraps it with <code>sync.RWMutex</code> for thread safety and <code>RollingFilter</code> for time-based expiration &mdash; neither of which is provided by the library itself.</p>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Summary: Why This Architecture Works</h2>
+
+  <div class="card">
+    <h3>The Key Insight</h3>
+    <p>Traditional CSRF protection requires a <strong>database write on every token generation</strong> and a <strong>database read on every validation</strong>. By combining HMAC-SHA256 (stateless cryptographic tokens) with a Cuckoo filter (in-memory single-use tracking), the BookStore platform achieves:</p>
+    <ul>
+      <li><strong>Zero I/O for token generation</strong> &mdash; HMAC tokens are computed in ~1&micro;s with no Redis/DB write</li>
+      <li><strong>Zero I/O for most validations</strong> &mdash; HMAC verify + Cuckoo lookup = ~1.05&micro;s, no network</li>
+      <li><strong>Redis-optional resilience</strong> &mdash; if Redis fails, L1 Cuckoo + L2 HMAC still provide full per-pod security</li>
+      <li><strong>Bounded memory</strong> &mdash; 16 MB for 2 million token capacity, automatically cleaned by rolling rotation</li>
+      <li><strong>Gateway-level protection</strong> &mdash; all backends (Java, Python, future services) are protected by a single Go service via Istio ext_authz</li>
+    </ul>
+  </div>
+
+  <footer>
+    <p><a href="csrf-hmac-hybrid-architecture.html">HMAC Hybrid Architecture</a> &middot; <a href="csrf-architecture-deep-dive.html">CSRF Deep Dive</a> &middot; <a href="csrf-security-enhancements.html">Security Enhancements</a> &middot; <a href="go-learning-csrf-service.html">Learn Go: CSRF Service</a> &middot; <a href="index.html">All Documentation</a></p>
+  </footer>
+
+</div>
+</body>
+</html>

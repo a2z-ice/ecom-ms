@@ -91,7 +91,8 @@
         { label: '\u2468 Before vs After (8 Fixes)', href: 'csrf-before-after-comparison.html', highlight: true },
         { label: '\u2469 JWT Introspection', href: 'csrf-jwt-introspection.html', highlight: true },
         { label: '\u246A Sliding TTL & Auto-Regen', href: 'csrf-sliding-ttl-auto-regen.html', highlight: true },
-        { label: '\u246B HMAC Hybrid Architecture', href: 'csrf-hmac-hybrid-architecture.html', highlight: true }
+        { label: '\u246B HMAC Hybrid Architecture', href: 'csrf-hmac-hybrid-architecture.html', highlight: true },
+        { label: '\u246C Cuckoo Filter Architecture', href: 'cuckoo-filter-architecture.html', highlight: true }
       ]
     },
     {
