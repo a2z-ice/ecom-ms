@@ -398,12 +398,13 @@ add_header Content-Security-Policy
   </div>
   <div class="after"><span class="tag">AFTER</span>
     <h4>CallbackPage.tsx</h4>
-    <pre><code>const ALLOWED = new Set([
-  'https://localhost:30000',
-  'https://myecom.net:30000',
-])
-if (isAbsolute
-  && ALLOWED.has(new URL(url).origin)){
+    <pre><code>const isAllowedRedirect = (url) => {
+  try {
+    return new URL(url).origin
+      === window.location.origin
+  } catch { return false }
+}
+if (isAbsolute && isAllowedRedirect(url)){
   window.location.href = ...
 }</code></pre>
     <h4>nginx/default.conf</h4>

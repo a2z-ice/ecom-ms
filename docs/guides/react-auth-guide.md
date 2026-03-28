@@ -445,9 +445,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 ```typescript
   const login = useCallback((returnPath?: string) => {
+    // PKCE (S256) requires crypto.subtle, available only in secure contexts.
+    // With HTTPS everywhere (cert-manager), this fallback should never trigger.
+    // Kept as defense-in-depth for edge cases.
     if (typeof crypto === 'undefined' || !crypto.subtle) {
       window.location.href =
-        `https://localhost:30000/login?return=${encodeURIComponent(window.location.href)}`
+        `${window.location.origin}/login?return=${encodeURIComponent(window.location.href)}`
       return
     }
 
@@ -460,7 +463,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 **Lines 66-82**: The login function with PKCE security check.
 
-- **Lines 72-76**: PKCE requires `crypto.subtle` (the Web Crypto API). This API is only available in "secure contexts" (HTTPS or localhost). If it's missing, the app redirects to `https://localhost:30000/login` (which is always a secure context) and passes the current URL as a return parameter. After authentication completes at localhost, the token is relayed back via URL hash (see Section 18).
+- **Lines 72-76**: PKCE requires `crypto.subtle` (the Web Crypto API). This API is only available in "secure contexts" (HTTPS or localhost). With HTTPS everywhere (cert-manager TLS), `crypto.subtle` is always available and this fallback should never trigger. If it does, the app redirects to `${window.location.origin}/login` (the current origin) and passes the current URL as a return parameter. No hardcoded URLs are used — the redirect dynamically derives the origin.
 - **Line 78**: Computes the return path — either the explicitly provided path or the current page URL. This allows the user to be sent back to where they were before login.
 - **Line 79**: `signinRedirect()` triggers the full OIDC Authorization Code Flow:
   1. Generates a PKCE `code_verifier` and `code_challenge`
@@ -751,12 +754,8 @@ export default function CallbackPage() {
         // Cross-origin return: relay the auth token via URL hash
         const isAbsolute = returnUrl.startsWith('http://') || returnUrl.startsWith('https://')
         const isAllowedRedirect = (url: string): boolean => {
-          const ALLOWED_ORIGINS = new Set([
-            'https://localhost:30000',
-            'https://myecom.net:30000',
-          ])
           try {
-            return ALLOWED_ORIGINS.has(new URL(url).origin)
+            return new URL(url).origin === window.location.origin
           } catch {
             return false
           }
@@ -773,7 +772,7 @@ export default function CallbackPage() {
 
 **Lines 50-72**: Navigation after successful login.
 
-- **Cross-origin relay** (lines 65-67): If the return URL is an absolute URL from an allowed origin, the user session is encoded and appended as a URL hash fragment (`#auth=...`). The destination origin's `AuthContext` will read and restore this session. The hash fragment is never sent to the server (HTTP spec), making this a safe client-side-only relay.
+- **Origin-safe redirect** (lines 65-67): If the return URL is an absolute URL matching the current origin, the user session is encoded and appended as a URL hash fragment (`#auth=...`). The origin check uses `window.location.origin` dynamically — no hardcoded allowed-origins list. The hash fragment is never sent to the server (HTTP spec), making this a safe client-side-only relay.
 - **Cart redirect** (lines 68-69): If there were guest cart items and no specific return URL, redirect to `/cart` so the user can see their merged cart.
 - **Normal redirect** (lines 70-71): Navigate to the saved return path.
 
@@ -1895,56 +1894,27 @@ This means:
 
 ---
 
-## 18. Cross-Origin Authentication Relay
+## 18. Cross-Origin Authentication Relay (Legacy — Now Inactive)
 
-### The Problem
+> **Note:** With HTTPS everywhere (cert-manager TLS on port 30000), `crypto.subtle` is always available on all origins. The cross-origin relay mechanism described below is retained as defense-in-depth but should never trigger in normal operation.
+
+### Background
 
 The app can be accessed from two origins:
 - `https://localhost:30000` — always a "secure context" (crypto.subtle available)
 - `https://myecom.net:30000` — resolved via `/etc/hosts` to 127.0.0.1
 
-PKCE requires `crypto.subtle`, which is only available in secure contexts. Most browsers treat `https://*` as secure, but some strict environments might not recognize `myecom.net` as secure despite HTTPS.
+PKCE requires `crypto.subtle`, which is only available in secure contexts. Since all traffic is now HTTPS, both origins are secure contexts and PKCE works directly on both.
 
-### The Solution
+### Defense-in-Depth Fallback
 
-```
-    https://myecom.net:30000           https://localhost:30000         Keycloak
-              │                                  │                        │
-              │ 1. User clicks Login             │                        │
-              │    crypto.subtle missing?         │                        │
-              │                                  │                        │
-              │ 2. Redirect to localhost          │                        │
-              │    /login?return=https://myecom.. │                        │
-              ├─────────────────────────────────►│                        │
-              │                                  │                        │
-              │                                  │ 3. signinRedirect      │
-              │                                  │    (PKCE works here)   │
-              │                                  ├───────────────────────►│
-              │                                  │                        │
-              │                                  │ 4. Auth + callback     │
-              │                                  │◄───────────────────────┤
-              │                                  │                        │
-              │                                  │ 5. Process tokens      │
-              │                                  │    Fetch CSRF token    │
-              │                                  │    Merge guest cart    │
-              │                                  │                        │
-              │ 6. Redirect back with token      │                        │
-              │    in URL hash:                  │                        │
-              │    https://myecom.net:30000/      │                        │
-              │    #auth=<encoded-user>           │                        │
-              │◄─────────────────────────────────┤                        │
-              │                                  │                        │
-              │ 7. AuthContext reads hash         │                        │
-              │    Restores user session          │                        │
-              │    Clears hash from URL           │                        │
-              │                                  │                        │
-```
+If `crypto.subtle` is somehow unavailable, the login function redirects to `${window.location.origin}/login?return=<current-url>` (dynamically derived, no hardcoded URLs). The `CallbackPage` validates redirect targets by comparing against `window.location.origin` — no hardcoded allowlist.
 
 ### Security Measures
 
 1. **URL hash is never sent to servers** — the `#` fragment is client-side only per the HTTP specification.
 2. **Hash is cleared immediately** — `window.history.replaceState()` removes it from the URL and browser history.
-3. **Origin allowlist** — only `https://localhost:30000` and `https://myecom.net:30000` are allowed relay targets.
+3. **Dynamic origin check** — redirect targets are validated against `window.location.origin` (no hardcoded allowlist).
 4. **Token expires** — even if the hash is somehow captured, the tokens have short lifetimes.
 
 ---

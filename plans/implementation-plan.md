@@ -462,7 +462,7 @@ npx playwright test cdc.spec.ts
 
 ### Deliverables
 
-- `ui/src/auth/AuthContext.tsx` — `login(returnPath?)` now accepts optional return path and handles non-secure-context hosts by redirecting to `localhost:30000/login?return=<path>`
+- `ui/src/auth/AuthContext.tsx` — `login(returnPath?)` now accepts optional return path and handles non-secure-context hosts by redirecting to `${window.location.origin}/login?return=<path>` (dynamically derived, no hardcoded URLs)
 - `ui/src/pages/LoginPage.tsx` — NEW: served at `/login?return=<path>`, always runs at localhost (secure context), triggers OIDC redirect
 - `ui/src/pages/CallbackPage.tsx` — reads `user.state.returnUrl` and navigates to original page after auth (with guest cart merge logic preserved)
 - `ui/src/components/ProtectedRoute.tsx` — NEW: route guard that calls `login()` with current path if unauthenticated, shows loading state
@@ -486,7 +486,7 @@ kubectl rollout restart deployment/ui-service -n ecom
 
 ### Acceptance Criteria
 
-- [x] Click Login at `myecom.net:30000` → redirects to `localhost:30000/login?return=/` → Keycloak (no silent fail)
+- [x] Click Login at `myecom.net:30000` → PKCE works directly (HTTPS, crypto.subtle available) → Keycloak (no silent fail)
 - [x] Click Login at `localhost:30000/search?q=tolkien` → returns to `/search?q=tolkien` after auth
 - [x] Page refresh when already logged in → no Login button flash (shows `...` during check)
 - [x] Navigate to `/order-confirmation` without auth → redirects to login, returns after auth
@@ -834,13 +834,13 @@ cd e2e && npm run test
 - `e2e/admin.spec.ts` — Keycloak admin console tests (8 tests)
 - `e2e/auth.spec.ts` — myecom.net login redirect tests (2 tests), logout test updated
 
-### myecom.net redirect design (cross-origin auth relay)
+### myecom.net redirect design (cross-origin auth relay — now inactive with HTTPS)
 
-When a user starts login at `http://myecom.net:30000` (non-secure context, no `crypto.subtle`):
-1. `login()` in AuthContext redirects to `http://localhost:30000/login?return=<full-myecom-url>`
-2. PKCE flow runs at localhost (secure context) → Keycloak → `localhost:30000/callback`
-3. `CallbackPage.tsx` detects absolute `returnUrl` → relays token via URL hash: `myecom.net:30000/#auth=<encoded-user>`
-4. At `myecom.net:30000`, `AuthContext.useEffect` detects `#auth=` hash → `User.fromStorageString()` → `userManager.storeUser()` → hash cleared → user logged in
+With HTTPS everywhere (cert-manager TLS on port 30000), `crypto.subtle` is always available on all origins, so the cross-origin relay is never triggered. The defense-in-depth fallback uses `${window.location.origin}` (no hardcoded URLs):
+1. `login()` in AuthContext checks `crypto.subtle` — if absent, redirects to `${window.location.origin}/login?return=<url>`
+2. `CallbackPage.tsx` validates redirect targets dynamically against `window.location.origin` (no hardcoded allowlist)
+3. If `returnUrl` is absolute and matches current origin → relay via URL hash `#auth=<encoded-user>`
+4. `AuthContext.useEffect` detects `#auth=` hash → `User.fromStorageString()` → `userManager.storeUser()` → hash cleared → user logged in
 
 ---
 

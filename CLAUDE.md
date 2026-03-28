@@ -580,7 +580,7 @@ Mutable runtime state (pod status, session history, verification checklist, next
 Key implementation facts that affect patterns:
 - Flink SQL uses plain `json` format (NOT `debezium-json`). `WHERE after IS NOT NULL` skips deletes/tombstones.
 - Admin panel: `admin1`/`CHANGE_ME` (customer+admin roles), ecom `/admin/books` + `/admin/orders`, inventory `/admin/stock`
-- OIDC: dynamic `redirect_uri = ${window.location.origin}/callback`, `crypto.subtle` check for PKCE fallback
+- OIDC: dynamic `redirect_uri = ${window.location.origin}/callback`, `crypto.subtle` check for PKCE fallback (uses `window.location.origin`, no hardcoded URLs)
 - Superset working viz types: `echarts_timeseries_bar`, `echarts_timeseries_line`, `pie`, `table`, `big_number_total` (NOT `echarts_bar`/`echarts_pie`)
 
 ---

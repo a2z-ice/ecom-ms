@@ -357,28 +357,30 @@ const returnUrl = state?.returnUrl || '/'
 navigate(returnUrl)  // → navigates back to /cart
 ```
 
-### 6.3 Cross-Origin Relay (myecom.net → localhost)
+### 6.3 Cross-Origin Relay (Legacy — Now Inactive)
 
-Some configurations require PKCE at `localhost:30000` even when the user started at `myecom.net:30000`. The relay works via URL hash:
+> **Note:** With HTTPS everywhere (cert-manager TLS on port 30000), `crypto.subtle` is always available on all origins. The cross-origin relay described below is retained as defense-in-depth but should never trigger in normal operation.
+
+If `crypto.subtle` were unavailable, the fallback redirects to `${window.location.origin}/login?return=<current-url>` (dynamically derived, no hardcoded URLs):
 
 ```
-1. User at myecom.net:30000, crypto.subtle absent
-   login() → redirect to http://localhost:30000/login?return=http://myecom.net:30000/cart
+1. User at any origin, crypto.subtle absent (should not happen with HTTPS)
+   login() → redirect to ${window.location.origin}/login?return=<current-url>
 
-2. LoginPage at localhost:30000:
-   signinRedirect({ state: { returnUrl: "http://myecom.net:30000/cart" } })
+2. LoginPage at same origin:
+   signinRedirect({ state: { returnUrl: "<original-url>" } })
 
-3. After token exchange at localhost:30000/callback:
-   returnUrl is absolute → relay via hash
-   window.location.href = "http://myecom.net:30000/cart#auth=<base64-encoded-user>"
+3. After token exchange at /callback:
+   returnUrl is absolute + matches window.location.origin → relay via hash
+   window.location.href = "<original-url>#auth=<base64-encoded-user>"
 
-4. myecom.net:30000 loads AuthContext:
+4. AuthContext loads:
    sees #auth= in URL hash
    User.fromStorageString(decoded) → restore user
    window.history.replaceState(null, '', '/cart')  // clear hash immediately
 ```
 
-> **Note:** In practice, Chrome treats `http://myecom.net:30000` as a secure context (the hostname resolves to `127.0.0.1` via `/etc/hosts` — loopback). Chrome's secure context check operates on the resolved IP, not the hostname, so `crypto.subtle` IS available and this relay path is not triggered. It remains as a fallback for strict non-secure contexts.
+The `CallbackPage` validates redirect targets dynamically against `window.location.origin` — no hardcoded allowlist is maintained.
 
 ---
 
