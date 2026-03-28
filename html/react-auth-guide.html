@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Learn React: Authentication, Authorization &amp; Security &mdash; BookStore Platform</title>
+  <style>
+    :root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--accent:#3b82f6;--border:#334155;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;--cyan:#06b6d4}
+    *{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth}
+    body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
+    .container{max-width:1100px;margin:0 auto;padding:40px 24px}
+    h1{font-size:2.2rem;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,#60a5fa,#a78bfa);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    h1+p{color:var(--muted);font-size:1.05rem;margin-bottom:40px}
+    h2{font-size:1.4rem;font-weight:700;margin:48px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);color:#f1f5f9}
+    h3{font-size:1.1rem;font-weight:600;margin:24px 0 8px;color:#cbd5e1}
+    h4{font-size:.95rem;font-weight:600;margin:16px 0 6px;color:var(--muted)}
+    p{margin-bottom:16px}
+    table{width:100%;border-collapse:collapse;margin:16px 0 24px}
+    th{background:var(--card);text-align:left;padding:10px 14px;font-size:.85rem;font-weight:600;color:var(--accent);border-bottom:2px solid var(--border)}
+    td{padding:10px 14px;font-size:.9rem;border-bottom:1px solid var(--border)}
+    tr:hover td{background:rgba(59,130,246,.05)}
+    code{background:var(--card);padding:2px 6px;border-radius:4px;font-size:.88em;color:#f59e0b}
+    pre{background:var(--card);padding:16px;border-radius:8px;overflow-x:auto;margin:12px 0 20px;border:1px solid var(--border);font-size:.8rem;line-height:1.55}
+    pre code{background:none;padding:0;color:#e2e8f0}
+    ul,ol{margin:8px 0 16px 24px}li{margin-bottom:6px}
+    .badge{display:inline-block;font-size:.75rem;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:6px;color:#fff}
+    .badge.green{background:linear-gradient(135deg,#059669,#10b981)}.badge.blue{background:linear-gradient(135deg,#2563eb,#3b82f6)}
+    .badge.orange{background:linear-gradient(135deg,#d97706,#f59e0b)}.badge.purple{background:linear-gradient(135deg,#7c3aed,#8b5cf6)}
+    .badge.cyan{background:linear-gradient(135deg,#0891b2,#06b6d4)}.badge.red{background:linear-gradient(135deg,#dc2626,#ef4444)}
+    .badges{margin-bottom:24px}
+    footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid var(--border);color:var(--muted);font-size:.85rem}
+    footer a{color:var(--accent);text-decoration:none}footer a:hover{text-decoration:underline}
+    .topnav{position:sticky;top:0;z-index:100;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+    .topnav-inner{max-width:1100px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:52px}
+    .topnav-brand{font-weight:800;font-size:1rem;color:var(--text);text-decoration:none}
+    .topnav-links{display:flex;gap:20px;align-items:center}
+    .topnav-links a{color:var(--muted);font-size:.82rem;font-weight:500;text-decoration:none;transition:color .15s}.topnav-links a:hover{color:var(--text)}.topnav-links a.highlight{color:#a78bfa}
+    .result{padding:12px 16px;border-radius:8px;margin:8px 0 16px;font-size:.9rem}
+    .result.pass{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--green)}
+    .result.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--yellow)}
+    .result.info{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:var(--accent)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0}
+    .card h3{margin-top:0;color:var(--accent)}
+    .flow{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin:20px 0;font-family:monospace;font-size:.8rem;line-height:1.8;white-space:pre;overflow-x:auto}
+    .flow .g{color:var(--green);font-weight:600}.flow .r{color:var(--red);font-weight:600}.flow .b{color:var(--accent)}.flow .y{color:var(--yellow)}.flow .c{color:var(--cyan)}
+    .toc{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px 28px;margin:0 0 40px}
+    .toc h3{margin:0 0 12px;color:var(--accent);font-size:1rem}.toc ol{margin:0 0 0 20px}.toc li{margin-bottom:3px}
+    .toc a{color:var(--muted);text-decoration:none;font-size:.86rem;transition:color .15s}.toc a:hover{color:var(--accent)}
+    .ts-keyword{color:#c084fc}.ts-type{color:#22d3ee}.ts-string{color:#86efac}.ts-comment{color:#64748b;font-style:italic}.ts-func{color:#fbbf24}.ts-number{color:#f87171}
+    .linkedin-banner{position:relative;width:100%;background:linear-gradient(135deg,#0c1222 0%,#162044 35%,#1e1b4b 60%,#312e81 100%);overflow:hidden}
+    .linkedin-banner::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 15% 50%,rgba(59,130,246,.1) 0%,transparent 50%),radial-gradient(circle at 85% 20%,rgba(139,92,246,.12) 0%,transparent 40%);pointer-events:none}
+    .linkedin-banner::after{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
+    .banner-inner{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:52px 48px 48px;display:flex;align-items:center;gap:44px}
+    .banner-shield{flex-shrink:0;width:130px;height:150px}.banner-shield svg{width:100%;height:100%;filter:drop-shadow(0 0 24px rgba(59,130,246,.3))}
+    .banner-text{flex:1;min-width:0}
+    .banner-series{font-size:.7rem;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:rgba(167,139,250,.9);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+    .banner-series::before{content:'';width:24px;height:2px;background:linear-gradient(90deg,#a78bfa,transparent)}
+    .banner-title-text{font-size:2.1rem;font-weight:800;line-height:1.25;margin-bottom:10px;background:linear-gradient(135deg,#f1f5f9 0%,#cbd5e1 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .banner-desc{font-size:.95rem;color:#94a3b8;margin-bottom:22px;line-height:1.6;max-width:580px}
+    .banner-tags{display:flex;gap:8px;flex-wrap:wrap}
+    .banner-tags span{font-size:.7rem;font-weight:600;padding:5px 14px;border-radius:6px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;letter-spacing:.3px}
+    .banner-brand{position:absolute;bottom:18px;right:32px;font-size:.65rem;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(148,163,184,.35);z-index:1}
+    .banner-accent-line{height:3px;background:linear-gradient(90deg,#06b6d4 0%,#3b82f6 33%,#8b5cf6 66%,#10b981 100%)}
+    @media(max-width:768px){.banner-inner{flex-direction:column;padding:36px 24px 32px;gap:24px;text-align:center}.banner-shield{width:90px;height:104px}.banner-title-text{font-size:1.5rem}.banner-tags{justify-content:center}}
+    .checklist{list-style:none;margin-left:0;padding-left:0}.checklist li{padding:6px 0 6px 28px;position:relative}.checklist li::before{content:'\2610';position:absolute;left:0;color:var(--accent);font-size:1.1em}
+    .security-layer{display:flex;align-items:center;gap:12px;padding:8px 16px;border-left:3px solid var(--accent);margin:6px 0;font-size:.9rem}
+    .security-layer .layer-num{font-weight:700;color:var(--accent);min-width:20px}
+    a{color:var(--accent)}a:hover{color:#60a5fa}
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav"><div class="topnav-inner"><a href="index.html" class="topnav-brand">BookStore Platform</a><div class="topnav-links"><a href="index.html">Home</a><a href="architecture.html">Architecture</a><a href="bookstore-platform-manual.html" class="highlight">Full Manual</a></div></div></nav>
+
+<div class="linkedin-banner">
+  <div class="banner-inner">
+    <div class="banner-shield"><svg viewBox="0 0 130 150" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="sg" x1="65" y1="8" x2="65" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="rgba(6,182,212,.2)"/><stop offset="100%" stop-color="rgba(139,92,246,.15)"/></linearGradient><linearGradient id="ss" x1="16" y1="8" x2="114" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M65 14L22 36v38c0 30 18 56 43 66 25-10 43-36 43-66V36L65 14z" fill="url(#sg)" stroke="url(#ss)" stroke-width="2" filter="url(#glow)"/><text x="22" y="80" fill="#60a5fa" font-size="24" font-weight="800" font-family="monospace">React</text><text x="30" y="105" fill="#a78bfa" font-size="18" font-weight="600" font-family="monospace">Auth</text></svg></div>
+    <div class="banner-text">
+      <div class="banner-series">React Learning Series &bull; Complete Authentication Guide</div>
+      <div class="banner-title-text">Learn React Security by Building a Production E-Commerce App</div>
+      <p class="banner-desc">A line-by-line guide to OAuth2/OIDC, JWT handling, CSRF protection, secure API architecture, TypeScript generics, Promises, and advanced React patterns &mdash; from beginner to expert</p>
+      <div class="banner-tags"><span>React 19</span><span>TypeScript</span><span>OAuth2 PKCE</span><span>JWT/JWKS</span><span>CSRF Protection</span><span>oidc-client-ts</span><span>Keycloak</span><span>14 Source Files</span><span>24 Sections</span></div>
+    </div>
+  </div>
+  <div class="banner-brand">BookStore Platform</div>
+</div>
+<div class="banner-accent-line"></div>
+
+<div class="container">
+
+<h1>React Authentication, Authorization &amp; Security</h1>
+<p>From Zero to Production &mdash; Learn OAuth2 / OIDC, JWT handling, CSRF protection, and secure API architecture in React by walking through a real production codebase line by line.</p>
+
+<div class="badges">
+  <span class="badge blue">React 19.2</span>
+  <span class="badge purple">TypeScript</span>
+  <span class="badge green">OAuth2 + PKCE</span>
+  <span class="badge cyan">Keycloak OIDC</span>
+  <span class="badge orange">CSRF Gateway</span>
+  <span class="badge red">JWT Security</span>
+</div>
+
+<!-- ═══════════════════════════════════════════ TOC ═══════════════════════════════════════════ -->
+<div class="toc">
+  <h3>Table of Contents</h3>
+  <ol>
+    <li><a href="#arch">Architecture Overview</a></li>
+    <li><a href="#oauth2">OAuth2 &amp; OpenID Connect Fundamentals</a></li>
+    <li><a href="#oidc-config">OIDC Configuration (<code>oidcConfig.ts</code>)</a></li>
+    <li><a href="#auth-context">Authentication Context (<code>AuthContext.tsx</code>)</a></li>
+    <li><a href="#login-flow">The Login Flow &mdash; Step by Step</a></li>
+    <li><a href="#callback">The Callback Page (<code>CallbackPage.tsx</code>)</a></li>
+    <li><a href="#silent-renew">Silent Token Renewal</a></li>
+    <li><a href="#logout">The Logout Flow</a></li>
+    <li><a href="#jwt">JWT Decoding &amp; Role Extraction</a></li>
+    <li><a href="#guards">Route Protection (<code>ProtectedRoute</code> &amp; <code>AdminRoute</code>)</a></li>
+    <li><a href="#csrf">CSRF Token Management</a></li>
+    <li><a href="#api-client">The API Client (<code>client.ts</code>)</a></li>
+    <li><a href="#domain-apis">Domain API Modules</a></li>
+    <li><a href="#wiring">Application Wiring (<code>App.tsx</code> &amp; <code>main.tsx</code>)</a></li>
+    <li><a href="#guest-cart">Guest Cart &amp; Cart Merge on Login</a></li>
+    <li><a href="#navbar">Navigation &amp; Conditional UI</a></li>
+    <li><a href="#token-security">Token Storage Security Model</a></li>
+    <li><a href="#cross-origin">Cross-Origin Authentication Relay</a></li>
+    <li><a href="#data-flow">Complete Data Flow Diagrams</a></li>
+    <li><a href="#generics">TypeScript Generics &mdash; The <code>&lt;T&gt;</code> Syntax</a></li>
+    <li><a href="#promises">Promises &amp; Async/Await Deep Dive</a></li>
+    <li><a href="#spread">Spread &amp; Destructuring &mdash; The <code>...</code> Syntax</a></li>
+    <li><a href="#react-patterns">Advanced React Patterns</a></li>
+    <li><a href="#summary">Summary &amp; Security Checklist</a></li>
+  </ol>
+</div>
+
+<!-- ═══════════════════════════════════════════ 1. ARCHITECTURE ═══════════════════════════════════════════ -->
+<h2 id="arch">1. Architecture Overview</h2>
+<p>This React application is part of a microservices e-commerce platform. The security architecture spans multiple layers:</p>
+
+<div class="flow">                    <span class="b">+------------------+</span>
+                    |   <span class="c">React SPA</span>      |   (ui/)
+                    |   Port 30000     |
+                    <span class="b">+--------+---------+</span>
+                             |
+                    HTTPS (TLS terminated at Istio Gateway)
+                             |
+              +--------------+--------------+
+              |                             |
+    <span class="g">+---------v----------+</span>     <span class="y">+------------v-----------+</span>
+    | <span class="g">Keycloak (IdP)</span>     |     | <span class="y">Istio ext_authz</span>        |
+    | OIDC / OAuth2      |     | CSRF Validation        |
+    | Port 30000         |     | (csrf-service, Go)     |
+    <span class="g">+--------------------+</span>     <span class="y">+------------------------+</span>
+                                        |
+              +-------------------------+------------------------+
+              |                                                  |
+    <span class="b">+---------v----------+</span>                          <span class="c">+------------v-----------+</span>
+    | <span class="b">E-Commerce Service</span> |    mTLS (Istio)          | <span class="c">Inventory Service</span>      |
+    | Spring Boot 4.0    | -----------------------> | FastAPI (Python)       |
+    | /ecom/*            |                          | /inven/*               |
+    <span class="b">+--------------------+</span>                          <span class="c">+------------------------+</span></div>
+
+<h3>Security Layers</h3>
+<table>
+  <tr><th>Layer</th><th>Technology</th><th>Purpose</th></tr>
+  <tr><td><strong>Authentication</strong></td><td>Keycloak + OIDC PKCE</td><td>Verify user identity</td></tr>
+  <tr><td><strong>Authorization</strong></td><td>JWT roles + React route guards</td><td>Control access to features</td></tr>
+  <tr><td><strong>Transport</strong></td><td>HTTPS + Istio mTLS</td><td>Encrypt all traffic</td></tr>
+  <tr><td><strong>CSRF Protection</strong></td><td>Gateway-level csrf-service</td><td>Prevent cross-site request forgery</td></tr>
+  <tr><td><strong>Token Storage</strong></td><td>In-memory + sessionStorage</td><td>Prevent token theft via XSS</td></tr>
+</table>
+
+<h3>Source File Map</h3>
+<pre><code>ui/src/
+  auth/
+    oidcConfig.ts        &larr; OIDC UserManager configuration
+    AuthContext.tsx       &larr; React Context for auth state + login/logout
+  api/
+    client.ts            &larr; HTTP client with JWT + CSRF headers
+    books.ts             &larr; Book catalog &amp; stock API
+    cart.ts              &larr; Shopping cart API
+    admin.ts             &larr; Admin CRUD APIs
+  components/
+    ProtectedRoute.tsx   &larr; Route guard: requires authentication
+    AdminRoute.tsx       &larr; Route guard: requires admin role
+    NavBar.tsx           &larr; Navigation with auth-aware UI
+  hooks/
+    useGuestCart.ts      &larr; Guest cart in localStorage
+  pages/
+    LoginPage.tsx        &larr; Initiates OIDC redirect
+    CallbackPage.tsx     &larr; Handles OIDC callback + cart merge
+    CatalogPage.tsx      &larr; Book listing (public)
+    CartPage.tsx         &larr; Shopping cart (guest + auth)
+    admin/               &larr; Admin pages (code-split, lazy loaded)
+  App.tsx                &larr; Root component with routing
+  main.tsx               &larr; Application entry point</code></pre>
+
+<!-- ═══════════════════════════════════════════ 2. OAUTH2 ═══════════════════════════════════════════ -->
+<h2 id="oauth2">2. OAuth2 &amp; OpenID Connect Fundamentals</h2>
+
+<h3>What is OAuth2?</h3>
+<p>OAuth2 is an <strong>authorization framework</strong> that lets a user grant a third-party application limited access to their resources without sharing their password.</p>
+
+<table>
+  <tr><th>Actor</th><th>In Our App</th><th>Role</th></tr>
+  <tr><td><strong>Resource Owner</strong></td><td>The user (customer/admin)</td><td>Owns the data</td></tr>
+  <tr><td><strong>Client</strong></td><td>React SPA (<code>ui-client</code>)</td><td>Wants access to user's data</td></tr>
+  <tr><td><strong>Authorization Server</strong></td><td>Keycloak</td><td>Issues tokens after authentication</td></tr>
+  <tr><td><strong>Resource Server</strong></td><td>ecom-service, inventory-service</td><td>Protects APIs, validates tokens</td></tr>
+</table>
+
+<h3>What is OpenID Connect (OIDC)?</h3>
+<p>OIDC is an <strong>identity layer</strong> built on top of OAuth2. While OAuth2 only handles authorization ("can this app access my data?"), OIDC adds authentication ("who is this user?"). It introduces the <strong>ID Token</strong> (JWT with user claims), <strong>UserInfo Endpoint</strong>, and <strong>Discovery Document</strong> (<code>.well-known/openid-configuration</code>).</p>
+
+<h3>Authorization Code Flow with PKCE</h3>
+<p>This app uses the most secure OAuth2 flow for SPAs: <strong>Authorization Code Flow with Proof Key for Code Exchange (PKCE)</strong>.</p>
+
+<div class="flow"><span class="b">Step 1: Generate PKCE Challenge</span>
+  React SPA generates: <span class="g">code_verifier</span> (random string)
+              computes: <span class="g">code_challenge</span> = SHA256(code_verifier)
+
+<span class="b">Step 2: Authorization Request</span>
+  GET /realms/bookstore/protocol/openid-connect/auth
+    ?response_type=<span class="y">code</span>
+    &amp;client_id=<span class="y">ui-client</span>
+    &amp;redirect_uri=<span class="y">https://localhost:30000/callback</span>
+    &amp;scope=<span class="y">openid profile email roles</span>
+    &amp;code_challenge=<span class="g">&lt;hash&gt;</span>
+    &amp;code_challenge_method=<span class="g">S256</span>
+
+  Keycloak shows login form &rarr; user authenticates
+  Redirects to: <span class="c">/callback?code=&lt;authorization_code&gt;</span>
+
+<span class="b">Step 3: Token Exchange</span> (in browser via oidc-client-ts)
+  POST /realms/bookstore/protocol/openid-connect/token
+    grant_type=<span class="y">authorization_code</span>
+    &amp;code=<span class="c">&lt;authorization_code&gt;</span>
+    &amp;code_verifier=<span class="g">&lt;original_random_string&gt;</span>
+    &amp;redirect_uri=https://localhost:30000/callback
+    &amp;client_id=ui-client
+
+  Keycloak verifies: SHA256(code_verifier) == code_challenge
+  Returns: { <span class="g">access_token</span>, <span class="g">id_token</span>, <span class="g">refresh_token</span> }</div>
+
+<div class="result info"><strong>Why PKCE?</strong> Without PKCE, an attacker who intercepts the authorization code could exchange it for tokens. PKCE ensures only the original requester (who knows the <code>code_verifier</code>) can complete the exchange.</div>
+
+<h3>JWTs (JSON Web Tokens)</h3>
+<pre><code>header.payload.signature
+  |       |        |
+  |       |        +-- Cryptographic signature (verified by backend services)
+  |       +-- Claims: { sub, email, roles, exp, iss, ... }
+  +-- Algorithm info: { alg: "RS256", typ: "JWT" }</code></pre>
+
+<p><strong>Important</strong>: The React app decodes the payload (for UI decisions like showing admin links) but <strong>never verifies the signature</strong>. Signature verification happens server-side &mdash; the backend services use Keycloak's JWKS (JSON Web Key Set) endpoint to verify every token.</p>
+
+<!-- ═══════════════════════════════════════════ 3. OIDC CONFIG ═══════════════════════════════════════════ -->
+<h2 id="oidc-config">3. OIDC Configuration (<code>oidcConfig.ts</code>)</h2>
+<p>This file configures the <code>UserManager</code> from the <code>oidc-client-ts</code> library &mdash; the engine that drives the entire OIDC flow.</p>
+
+<pre><code><span class="ts-comment">// File: ui/src/auth/oidcConfig.ts</span>
+
+<span class="ts-keyword">import</span> { <span class="ts-type">UserManager</span>, <span class="ts-type">WebStorageStateStore</span> } <span class="ts-keyword">from</span> <span class="ts-string">'oidc-client-ts'</span>
+
+<span class="ts-comment">// All config from Vite env vars (injected at build time via ConfigMap in k8s)</span>
+<span class="ts-keyword">const</span> AUTHORITY = <span class="ts-keyword">import</span>.meta.env.VITE_KEYCLOAK_AUTHORITY
+<span class="ts-keyword">const</span> CLIENT_ID = <span class="ts-keyword">import</span>.meta.env.VITE_KEYCLOAK_CLIENT_ID
+
+<span class="ts-comment">// redirect_uri derived from current origin so callback returns to same host</span>
+<span class="ts-keyword">const</span> REDIRECT_URI = <span class="ts-string">`${window.location.origin}/callback`</span>
+
+<span class="ts-keyword">export const</span> <span class="ts-func">userManager</span> = <span class="ts-keyword">new</span> <span class="ts-type">UserManager</span>({
+  authority: AUTHORITY,         <span class="ts-comment">// Keycloak realm URL</span>
+  client_id: CLIENT_ID,         <span class="ts-comment">// OAuth2 client identifier</span>
+  redirect_uri: REDIRECT_URI,   <span class="ts-comment">// Where Keycloak sends user after auth</span>
+  response_type: <span class="ts-string">'code'</span>,        <span class="ts-comment">// Authorization Code Flow (not 'token')</span>
+  scope: <span class="ts-string">'openid profile email roles'</span>,
+
+  <span class="ts-comment">// PKCE enabled by default when response_type is 'code'</span>
+
+  <span class="ts-comment">// Tokens in sessionStorage -- cleared on tab close (never localStorage)</span>
+  userStore: <span class="ts-keyword">new</span> <span class="ts-type">WebStorageStateStore</span>({ store: window.sessionStorage }),
+
+  <span class="ts-comment">// Silent token refresh via hidden iframe</span>
+  automaticSilentRenew: <span class="ts-keyword">true</span>,
+  silent_redirect_uri: <span class="ts-string">`${window.location.origin}/silent-renew.html`</span>,
+
+  <span class="ts-comment">// Load user info from ID token claims (not userinfo endpoint)</span>
+  loadUserInfo: <span class="ts-keyword">false</span>,
+})</code></pre>
+
+<h3>Line-by-Line Breakdown</h3>
+<ul>
+  <li><code>import.meta.env.VITE_*</code> &mdash; Vite's way of exposing environment variables. Only <code>VITE_</code> prefixed vars reach client code (security measure)</li>
+  <li><code>window.location.origin</code> &mdash; returns <code>https://myecom.net:30000</code> or <code>https://localhost:30000</code>. Dynamic origin means no hardcoded URLs</li>
+  <li><code>response_type: 'code'</code> &mdash; selects Authorization Code Flow. The alternative <code>'token'</code> (Implicit Flow) is deprecated</li>
+  <li><code>scope: 'openid profile email roles'</code> &mdash; <code>openid</code> is required for OIDC; <code>roles</code> is a custom scope mapped in Keycloak</li>
+  <li><code>sessionStorage</code> &mdash; data cleared when tab closes; not shared between tabs. Limits XSS exposure</li>
+  <li><code>automaticSilentRenew: true</code> &mdash; refreshes access token before expiry via hidden iframe</li>
+  <li><code>loadUserInfo: false</code> &mdash; user claims read from ID token directly (saves one network request)</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════ 4. AUTH CONTEXT ═══════════════════════════════════════════ -->
+<h2 id="auth-context">4. Authentication Context (<code>AuthContext.tsx</code>)</h2>
+<p>The <code>AuthContext</code> is the central nervous system of authentication in the React app. It provides auth state and methods to every component via React Context.</p>
+
+<h3>Interface Definition</h3>
+<pre><code><span class="ts-keyword">interface</span> <span class="ts-type">AuthContextValue</span> {
+  user: <span class="ts-type">User</span> | <span class="ts-keyword">null</span>              <span class="ts-comment">// Authenticated user, or null</span>
+  isLoading: <span class="ts-type">boolean</span>             <span class="ts-comment">// True during initial auth check</span>
+  isAdmin: <span class="ts-type">boolean</span>               <span class="ts-comment">// Derived from JWT claims</span>
+  login: (returnPath?: <span class="ts-type">string</span>) =&gt; <span class="ts-keyword">void</span>   <span class="ts-comment">// Initiates OIDC login</span>
+  logout: () =&gt; <span class="ts-type">Promise</span>&lt;<span class="ts-keyword">void</span>&gt;    <span class="ts-comment">// Ends session</span>
+  getAccessToken: () =&gt; <span class="ts-type">string</span> | <span class="ts-keyword">null</span>   <span class="ts-comment">// Raw JWT for API calls</span>
+}</code></pre>
+
+<h3>Login Method</h3>
+<pre><code><span class="ts-keyword">const</span> <span class="ts-func">login</span> = <span class="ts-func">useCallback</span>((returnPath?: <span class="ts-type">string</span>) =&gt; {
+  <span class="ts-comment">// PKCE requires crypto.subtle (Web Crypto API)</span>
+  <span class="ts-comment">// Only available in "secure contexts" (HTTPS or localhost)</span>
+  <span class="ts-keyword">if</span> (<span class="ts-keyword">typeof</span> crypto === <span class="ts-string">'undefined'</span> || !crypto.subtle) {
+    <span class="ts-comment">// Redirect to localhost (always secure) for PKCE</span>
+    window.location.href =
+      <span class="ts-string">`https://localhost:30000/login?return=${encodeURIComponent(window.location.href)}`</span>
+    <span class="ts-keyword">return</span>
+  }
+
+  <span class="ts-keyword">const</span> resolvedPath = returnPath ?? (window.location.pathname + window.location.search)
+  userManager.<span class="ts-func">signinRedirect</span>({ state: { returnUrl: resolvedPath } })
+}, [])</code></pre>
+
+<h3>Logout Method (Back-Channel)</h3>
+<pre><code><span class="ts-keyword">const</span> <span class="ts-func">logout</span> = <span class="ts-func">useCallback</span>(<span class="ts-keyword">async</span> () =&gt; {
+  <span class="ts-keyword">const</span> currentUser = <span class="ts-keyword">await</span> userManager.<span class="ts-func">getUser</span>()
+
+  <span class="ts-keyword">if</span> (currentUser?.refresh_token) {
+    <span class="ts-keyword">const</span> authority = userManager.settings.authority
+    <span class="ts-keyword">try</span> {
+      <span class="ts-keyword">await</span> <span class="ts-func">fetch</span>(<span class="ts-string">`${authority}/protocol/openid-connect/logout`</span>, {
+        method: <span class="ts-string">'POST'</span>,
+        headers: { <span class="ts-string">'Content-Type'</span>: <span class="ts-string">'application/x-www-form-urlencoded'</span> },
+        body: <span class="ts-keyword">new</span> <span class="ts-type">URLSearchParams</span>({
+          client_id: userManager.settings.client_id,
+          refresh_token: currentUser.refresh_token,
+        }),
+      })
+    } <span class="ts-keyword">catch</span> {
+      <span class="ts-comment">// Best-effort: clear local state even if Keycloak unreachable</span>
+    }
+  }
+
+  <span class="ts-keyword">await</span> userManager.<span class="ts-func">removeUser</span>()  <span class="ts-comment">// Clear sessionStorage</span>
+  <span class="ts-func">setUser</span>(<span class="ts-keyword">null</span>)                   <span class="ts-comment">// Clear React state</span>
+  window.location.href = window.location.origin + <span class="ts-string">'/'</span>
+}, [])</code></pre>
+
+<h3>Admin Role Detection</h3>
+<pre><code><span class="ts-keyword">const</span> isAdmin = (() =&gt; {
+  <span class="ts-keyword">if</span> (!user?.access_token) <span class="ts-keyword">return false</span>
+  <span class="ts-keyword">try</span> {
+    <span class="ts-keyword">const</span> payload = JSON.<span class="ts-func">parse</span>(<span class="ts-func">atob</span>(user.access_token.<span class="ts-func">split</span>(<span class="ts-string">'.'</span>)[<span class="ts-number">1</span>]))
+    <span class="ts-comment">//   split('.')[1] = JWT payload   atob() = base64 decode</span>
+    <span class="ts-keyword">const</span> roles: <span class="ts-type">string</span>[] = payload.roles ?? []
+    <span class="ts-keyword">return</span> roles.<span class="ts-func">includes</span>(<span class="ts-string">'admin'</span>)
+  } <span class="ts-keyword">catch</span> {
+    <span class="ts-keyword">return false</span>
+  }
+})()</code></pre>
+
+<div class="result warn"><strong>Important</strong>: This is a UI-only check. The backend services independently validate the JWT and enforce authorization. Even if someone modified the client-side <code>isAdmin</code> flag, API calls would still be rejected by the server.</div>
+
+<!-- ═══════════════════════════════════════════ 5. LOGIN FLOW ═══════════════════════════════════════════ -->
+<h2 id="login-flow">5. The Login Flow &mdash; Step by Step</h2>
+
+<div class="flow">    <span class="b">User</span>                <span class="c">React App</span>              <span class="g">Keycloak</span>
+     |                     |                      |
+     |  clicks "Login"     |                      |
+     |--------------------&gt;|                      |
+     |                     |                      |
+     |                     | 1. Check crypto.subtle
+     |                     | 2. Generate PKCE pair
+     |                     | 3. Store in sessionStorage
+     |                     |                      |
+     |                     | 4. Redirect to        |
+     |                     |    /auth?code_challenge=...
+     |                     |---------------------&gt;|
+     |                     |                      |
+     |                     |     5. Login form     |
+     |  enters credentials |&lt;---------------------|
+     |--------------------------------------------&gt;|
+     |                     |                      |
+     |                     |     6. Validate creds |
+     |                     |        Generate code  |
+     |                     |                      |
+     |                     | 7. Redirect to        |
+     |                     |    /callback?code=... |
+     |                     |&lt;---------------------|
+     |                     |                      |
+     |                     | 8. Exchange code+verifier for tokens
+     |                     |---------------------&gt;|
+     |                     |                      |
+     |                     | 9. { <span class="g">access_token</span>, <span class="g">id_token</span>, <span class="g">refresh_token</span> }
+     |                     |&lt;---------------------|
+     |                     |                      |
+     |                     | 10. Fetch CSRF token
+     |                     | 11. Merge guest cart
+     |                     | 12. Navigate to return URL
+     |                     |                      |
+     |  Authenticated UI   |                      |
+     |&lt;--------------------|                      |</div>
+
+<p>Login can be triggered from three places:</p>
+<ol>
+  <li><strong>NavBar "Login" button</strong> &rarr; calls <code>login()</code> with no arguments</li>
+  <li><strong>ProtectedRoute</strong> &rarr; calls <code>login(currentPath)</code> when unauthenticated user visits a protected page</li>
+  <li><strong>AdminRoute</strong> &rarr; calls <code>login('/admin')</code> when unauthenticated user visits admin page</li>
+</ol>
+
+<!-- ═══════════════════════════════════════════ 6. CALLBACK ═══════════════════════════════════════════ -->
+<h2 id="callback">6. The Callback Page (<code>CallbackPage.tsx</code>)</h2>
+<p>The most complex component in the auth flow. It handles OIDC callback, CSRF token acquisition, guest cart merging, and cross-origin relay.</p>
+
+<pre><code><span class="ts-keyword">export default function</span> <span class="ts-func">CallbackPage</span>() {
+  <span class="ts-keyword">const</span> navigate = <span class="ts-func">useNavigate</span>()
+
+  <span class="ts-func">useEffect</span>(() =&gt; {
+    userManager.<span class="ts-func">signinRedirectCallback</span>()   <span class="ts-comment">// Exchange code for tokens</span>
+      .<span class="ts-func">then</span>(<span class="ts-keyword">async</span> (user) =&gt; {
+        <span class="ts-keyword">const</span> state = user.state <span class="ts-keyword">as</span> { returnUrl?: <span class="ts-type">string</span> }
+        <span class="ts-keyword">const</span> returnUrl = state?.returnUrl || <span class="ts-string">'/'</span>
+
+        <span class="ts-comment">// 1. Fetch CSRF token before any mutations</span>
+        <span class="ts-keyword">let</span> csrfToken: <span class="ts-type">string</span> | <span class="ts-keyword">null</span> = <span class="ts-keyword">null</span>
+        <span class="ts-keyword">const</span> csrfResp = <span class="ts-keyword">await</span> <span class="ts-func">fetch</span>(<span class="ts-string">'/csrf/token'</span>, {
+          headers: { Authorization: <span class="ts-string">`Bearer ${user.access_token}`</span> },
+        })
+        <span class="ts-keyword">if</span> (csrfResp.ok) {
+          csrfToken = (<span class="ts-keyword">await</span> csrfResp.<span class="ts-func">json</span>()).token
+          <span class="ts-func">setCsrfToken</span>(csrfToken)
+        }
+
+        <span class="ts-comment">// 2. Merge guest cart to server cart</span>
+        <span class="ts-keyword">const</span> pending = <span class="ts-func">getGuestCart</span>()
+        <span class="ts-keyword">if</span> (pending.length &gt; <span class="ts-number">0</span>) {
+          <span class="ts-keyword">await</span> Promise.<span class="ts-func">allSettled</span>(         <span class="ts-comment">// allSettled, not all!</span>
+            pending.<span class="ts-func">map</span>(item =&gt;
+              <span class="ts-func">fetch</span>(<span class="ts-string">'/ecom/cart'</span>, {
+                method: <span class="ts-string">'POST'</span>,
+                headers: {
+                  <span class="ts-string">'Content-Type'</span>: <span class="ts-string">'application/json'</span>,
+                  <span class="ts-string">'Authorization'</span>: <span class="ts-string">`Bearer ${user.access_token}`</span>,
+                  ...(csrfToken ? { <span class="ts-string">'X-CSRF-Token'</span>: csrfToken } : {}),
+                },
+                body: JSON.<span class="ts-func">stringify</span>({ bookId: item.bookId, quantity: item.quantity }),
+              })
+            )
+          )
+          <span class="ts-func">clearGuestCart</span>()
+        }
+
+        <span class="ts-comment">// 3. Navigate to return URL or cart</span>
+        <span class="ts-func">navigate</span>(pending.length &gt; <span class="ts-number">0</span> &amp;&amp; returnUrl === <span class="ts-string">'/'</span> ? <span class="ts-string">'/cart'</span> : returnUrl)
+      })
+  }, [navigate])</code></pre>
+
+<!-- ═══════════════════════════════════════════ 7. SILENT RENEW ═══════════════════════════════════════════ -->
+<h2 id="silent-renew">7. Silent Token Renewal</h2>
+<p>Access tokens have a limited lifetime (typically 5 minutes). Silent renewal refreshes them automatically without user interaction.</p>
+
+<div class="flow">    <span class="b">React App (main frame)</span>        <span class="c">Hidden IFrame</span>            <span class="g">Keycloak</span>
+           |                           |                         |
+           |  Token expires in 60s     |                         |
+           |  (oidc-client-ts timer)   |                         |
+           |                           |                         |
+           |  Creates hidden &lt;iframe&gt;  |                         |
+           |  src = /auth?prompt=none  |                         |
+           |--------------------------&gt;|                         |
+           |                           |  GET /auth?prompt=none  |
+           |                           |------------------------&gt;|
+           |                           |                         |
+           |                           |  User has active SSO    |
+           |                           |  Redirect with new code |
+           |                           |&lt;------------------------|
+           |                           |                         |
+           |  IFrame posts URL back    |                         |
+           |  via <span class="y">postMessage</span>          |                         |
+           |&lt;--------------------------|                         |
+           |                           |                         |
+           |  Exchange code for tokens |                         |
+           |------------------------------------------------&gt;   |
+           |  <span class="g">New tokens received</span>     |                         |
+           |  React state updated      |                         |</div>
+
+<h3>The Silent Renew Page</h3>
+<pre><code><span class="ts-comment">&lt;!-- File: ui/public/silent-renew.html --&gt;</span>
+&lt;script&gt;
+  <span class="ts-comment">// Pass the authorization response URL back to the parent frame.</span>
+  <span class="ts-comment">// oidc-client-ts IFrameWindow expects: { url: string } via postMessage.</span>
+  parent.<span class="ts-func">postMessage</span>({ url: location.href }, location.origin);
+&lt;/script&gt;</code></pre>
+
+<!-- ═══════════════════════════════════════════ 8. LOGOUT ═══════════════════════════════════════════ -->
+<h2 id="logout">8. The Logout Flow</h2>
+
+<div class="flow">    <span class="b">User</span>        <span class="c">React App</span>                 <span class="g">Keycloak</span>
+     |              |                         |
+     |  "Logout"    |                         |
+     |-------------&gt;|                         |
+     |              |                         |
+     |              | 1. Get refresh_token    |
+     |              |                         |
+     |              | 2. POST /logout         |
+     |              |    client_id + refresh   |
+     |              |------------------------&gt;|
+     |              |                         |
+     |              |    200 OK               |
+     |              |&lt;------------------------|
+     |              |                         |
+     |              | 3. removeUser()         |
+     |              | 4. setUser(null)        |
+     |              | 5. Redirect to /        |
+     |              |                         |
+     |  Home (out)  |                         |
+     |&lt;-------------|                         |</div>
+
+<div class="result info"><strong>Why back-channel logout?</strong> Avoids visible redirect to Keycloak UI. Direct POST terminates the SSO session server-side while local state is cleared instantly.</div>
+
+<!-- ═══════════════════════════════════════════ 9. JWT ═══════════════════════════════════════════ -->
+<h2 id="jwt">9. JWT Decoding &amp; Role Extraction</h2>
+
+<h3>What's Inside a JWT?</h3>
+<pre><code>{
+  <span class="ts-string">"exp"</span>: <span class="ts-number">1711234567</span>,
+  <span class="ts-string">"iss"</span>: <span class="ts-string">"https://idp.keycloak.net:30000/realms/bookstore"</span>,
+  <span class="ts-string">"sub"</span>: <span class="ts-string">"9d82bcb3-6e96-462c-bdb9-e677080e8920"</span>,
+  <span class="ts-string">"azp"</span>: <span class="ts-string">"ui-client"</span>,
+  <span class="ts-string">"scope"</span>: <span class="ts-string">"openid profile email roles"</span>,
+  <span class="ts-string">"email"</span>: <span class="ts-string">"user1@bookstore.com"</span>,
+  <span class="ts-string">"roles"</span>: [<span class="ts-string">"customer"</span>, <span class="ts-string">"admin"</span>]
+}</code></pre>
+
+<h3>Client-Side Decoding (3 Steps)</h3>
+<pre><code><span class="ts-keyword">const</span> payload = JSON.<span class="ts-func">parse</span>(<span class="ts-func">atob</span>(user.access_token.<span class="ts-func">split</span>(<span class="ts-string">'.'</span>)[<span class="ts-number">1</span>]))
+<span class="ts-comment">//                                              ^^^^^^^^^^^</span>
+<span class="ts-comment">// Step 1: split('.')[1] = extract payload (middle part of JWT)</span>
+<span class="ts-comment">// Step 2: atob(...) = Base64-decode to JSON string</span>
+<span class="ts-comment">// Step 3: JSON.parse(...) = parse to JavaScript object</span></code></pre>
+
+<h3>How JWKS Verification Works (Server-Side Only)</h3>
+<div class="flow">    <span class="b">API Request</span>         <span class="c">Backend Service</span>          <span class="g">Keycloak</span>
+         |                   |                          |
+         |  Bearer &lt;jwt&gt;     |                          |
+         |------------------&gt;|                          |
+         |                   |                          |
+         |                   | 1. Decode JWT header     |
+         |                   |    kid: "key-id-123"     |
+         |                   |                          |
+         |                   | 2. Fetch JWKS (cached)   |
+         |                   |    GET /certs             |
+         |                   |-------------------------&gt;|
+         |                   |                          |
+         |                   |    { keys: [{ kid, n, e }] }
+         |                   |&lt;-------------------------|
+         |                   |                          |
+         |                   | 3. Verify signature      |
+         |                   | 4. Check exp, iss, aud   |
+         |                   |                          |
+         |  <span class="g">200 OK</span> / <span class="r">401</span>      |                          |
+         |&lt;------------------|                          |</div>
+
+<!-- ═══════════════════════════════════════════ 10. ROUTE GUARDS ═══════════════════════════════════════════ -->
+<h2 id="guards">10. Route Protection</h2>
+
+<h3>ProtectedRoute &mdash; Requires Authentication</h3>
+<pre><code><span class="ts-keyword">export default function</span> <span class="ts-func">ProtectedRoute</span>({ children }: { children: <span class="ts-type">React.ReactNode</span> }) {
+  <span class="ts-keyword">const</span> { user, isLoading, login } = <span class="ts-func">useAuth</span>()
+  <span class="ts-keyword">const</span> location = <span class="ts-func">useLocation</span>()
+
+  <span class="ts-func">useEffect</span>(() =&gt; {
+    <span class="ts-keyword">if</span> (!isLoading &amp;&amp; !user) {
+      <span class="ts-func">login</span>(location.pathname + location.search)  <span class="ts-comment">// Save where to return</span>
+    }
+  }, [isLoading, user, login, location])
+
+  <span class="ts-keyword">if</span> (isLoading || !user) {
+    <span class="ts-keyword">return</span> &lt;div&gt;Redirecting to login...&lt;/div&gt;
+  }
+  <span class="ts-keyword">return</span> &lt;&gt;{children}&lt;/&gt;
+}</code></pre>
+
+<h3>AdminRoute &mdash; Requires Admin Role</h3>
+<pre><code><span class="ts-keyword">export default function</span> <span class="ts-func">AdminRoute</span>({ children }: { children: <span class="ts-type">React.ReactNode</span> }) {
+  <span class="ts-keyword">const</span> { user, isLoading, isAdmin, login } = <span class="ts-func">useAuth</span>()
+
+  <span class="ts-keyword">if</span> (isLoading) <span class="ts-keyword">return</span> &lt;div&gt;Loading...&lt;/div&gt;
+
+  <span class="ts-keyword">if</span> (!user) { <span class="ts-func">login</span>(<span class="ts-string">'/admin'</span>); <span class="ts-keyword">return null</span> }
+
+  <span class="ts-keyword">if</span> (!isAdmin) <span class="ts-keyword">return</span> &lt;div&gt;<span class="ts-r">Access Denied</span>&lt;/div&gt;
+
+  <span class="ts-keyword">return</span> &lt;&gt;{children}&lt;/&gt;
+}</code></pre>
+
+<table>
+  <tr><th>State</th><th>ProtectedRoute</th><th>AdminRoute</th></tr>
+  <tr><td>Loading</td><td>Shows "Redirecting..."</td><td>Shows "Loading..."</td></tr>
+  <tr><td>Not authenticated</td><td>Triggers login redirect</td><td>Triggers login redirect</td></tr>
+  <tr><td>Authenticated, not admin</td><td>Renders children</td><td>Shows "Access Denied"</td></tr>
+  <tr><td>Admin</td><td>Renders children</td><td>Renders children</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════ 11. CSRF ═══════════════════════════════════════════ -->
+<h2 id="csrf">11. CSRF Token Management</h2>
+
+<h3>What is CSRF?</h3>
+<p>Cross-Site Request Forgery is an attack where a malicious website tricks the user's browser into making unwanted requests. The CSRF token proves the request originated from our UI, not a malicious site.</p>
+
+<div class="flow">    <span class="c">React App</span>              <span class="y">Istio Gateway</span>           <span class="g">CSRF Service (Go)</span>
+         |                      |                        |
+         |  GET /csrf/token     |                        |
+         |  (JWT in header)     |                        |
+         |---------------------&gt;|                        |
+         |                      |  Generate UUID token   |
+         |                      |  Store in Redis (10min)|
+         |  { token: "uuid" }   |                        |
+         |&lt;---------------------|                        |
+         |                      |                        |
+         |  POST /ecom/cart     |                        |
+         |  X-CSRF-Token: uuid  |                        |
+         |  Authorization: JWT  |                        |
+         |---------------------&gt;|                        |
+         |                      |  ext_authz check       |
+         |                      |  <span class="g">Validate in Redis</span>     |
+         |                      |  (timing-safe compare) |
+         |                      |                        |
+         |                      |  Token valid &rarr; forward to backend</div>
+
+<h3>CSRF Auto-Retry on 403</h3>
+<p>When a CSRF token expires, the csrf-service includes a <strong>new token</strong> in the 403 response body. The API client reads it and retries immediately &mdash; saving a round trip:</p>
+<pre><code><span class="ts-keyword">if</span> (resp.status === <span class="ts-number">403</span> &amp;&amp; isMutating &amp;&amp; !_csrfRetried) {
+  <span class="ts-keyword">try</span> {
+    <span class="ts-keyword">const</span> body = <span class="ts-keyword">await</span> resp.<span class="ts-func">json</span>()
+    <span class="ts-keyword">if</span> (body.token) {
+      _csrfToken = body.token           <span class="ts-comment">// Use auto-regenerated token</span>
+    } <span class="ts-keyword">else</span> {
+      <span class="ts-keyword">await</span> <span class="ts-func">fetchCsrfToken</span>()            <span class="ts-comment">// Fallback: fetch fresh token</span>
+    }
+  } <span class="ts-keyword">catch</span> {
+    <span class="ts-keyword">await</span> <span class="ts-func">fetchCsrfToken</span>()              <span class="ts-comment">// JSON parse failed</span>
+  }
+  <span class="ts-keyword">return</span> <span class="ts-func">request</span>&lt;<span class="ts-type">T</span>&gt;(url, options, <span class="ts-keyword">true</span>)  <span class="ts-comment">// Retry once</span>
+}</code></pre>
+
+<!-- ═══════════════════════════════════════════ 12. API CLIENT ═══════════════════════════════════════════ -->
+<h2 id="api-client">12. The API Client (<code>client.ts</code>)</h2>
+
+<pre><code><span class="ts-comment">// Module-level state (not React state -- persists across renders)</span>
+<span class="ts-keyword">let</span> _getToken: (() =&gt; <span class="ts-type">string</span> | <span class="ts-keyword">null</span>) | <span class="ts-keyword">null</span> = <span class="ts-keyword">null</span>
+<span class="ts-keyword">let</span> _csrfToken: <span class="ts-type">string</span> | <span class="ts-keyword">null</span> = <span class="ts-keyword">null</span>
+
+<span class="ts-keyword">const</span> MUTATING_METHODS = <span class="ts-keyword">new</span> <span class="ts-type">Set</span>([<span class="ts-string">'POST'</span>, <span class="ts-string">'PUT'</span>, <span class="ts-string">'DELETE'</span>, <span class="ts-string">'PATCH'</span>])
+
+<span class="ts-keyword">async function</span> <span class="ts-func">request</span>&lt;<span class="ts-type">T</span>&gt;(
+  url: <span class="ts-type">string</span>,
+  options: <span class="ts-type">RequestInit</span> = {},
+  _csrfRetried = <span class="ts-keyword">false</span>,
+): <span class="ts-type">Promise</span>&lt;<span class="ts-type">T</span>&gt; {
+  <span class="ts-keyword">const</span> token = _getToken?.()
+  <span class="ts-keyword">const</span> method = (options.method ?? <span class="ts-string">'GET'</span>).toUpperCase()
+  <span class="ts-keyword">const</span> isMutating = MUTATING_METHODS.<span class="ts-func">has</span>(method)
+
+  <span class="ts-keyword">const</span> headers: <span class="ts-type">HeadersInit</span> = {
+    <span class="ts-string">'Content-Type'</span>: <span class="ts-string">'application/json'</span>,
+    ...(options.headers ?? {}),                              <span class="ts-comment">// Keep caller headers</span>
+    ...(token ? { Authorization: <span class="ts-string">`Bearer ${token}`</span> } : {}),  <span class="ts-comment">// JWT if authenticated</span>
+    ...(isMutating &amp;&amp; _csrfToken ? { <span class="ts-string">'X-CSRF-Token'</span>: _csrfToken } : {}), <span class="ts-comment">// CSRF if mutation</span>
+  }
+
+  <span class="ts-keyword">const</span> resp = <span class="ts-keyword">await</span> <span class="ts-func">fetch</span>(url, { ...options, headers })
+
+  <span class="ts-comment">// ... CSRF retry logic (shown above) ...</span>
+
+  <span class="ts-keyword">if</span> (!resp.ok) <span class="ts-keyword">throw new</span> <span class="ts-type">Error</span>(<span class="ts-string">`HTTP ${resp.status}: ${await resp.text()}`</span>)
+  <span class="ts-keyword">if</span> (resp.status === <span class="ts-number">204</span>) <span class="ts-keyword">return undefined as</span> <span class="ts-type">T</span>
+  <span class="ts-keyword">return</span> resp.<span class="ts-func">json</span>()
+}
+
+<span class="ts-keyword">export const</span> api = {
+  get:    &lt;<span class="ts-type">T</span>&gt;(url: <span class="ts-type">string</span>) =&gt; <span class="ts-func">request</span>&lt;<span class="ts-type">T</span>&gt;(url),
+  post:   &lt;<span class="ts-type">T</span>&gt;(url: <span class="ts-type">string</span>, body: <span class="ts-keyword">unknown</span>) =&gt; <span class="ts-func">request</span>&lt;<span class="ts-type">T</span>&gt;(url, { method: <span class="ts-string">'POST'</span>, body: JSON.<span class="ts-func">stringify</span>(body) }),
+  put:    &lt;<span class="ts-type">T</span>&gt;(url: <span class="ts-type">string</span>, body: <span class="ts-keyword">unknown</span>) =&gt; <span class="ts-func">request</span>&lt;<span class="ts-type">T</span>&gt;(url, { method: <span class="ts-string">'PUT'</span>, body: JSON.<span class="ts-func">stringify</span>(body) }),
+  delete: &lt;<span class="ts-type">T</span>&gt;(url: <span class="ts-type">string</span>) =&gt; <span class="ts-func">request</span>&lt;<span class="ts-type">T</span>&gt;(url, { method: <span class="ts-string">'DELETE'</span> }),
+}</code></pre>
+
+<h3>Request Header Composition</h3>
+<table>
+  <tr><th>Request Type</th><th>Headers Sent</th></tr>
+  <tr><td><code>GET /ecom/books</code> (public)</td><td><code>Content-Type: application/json</code></td></tr>
+  <tr><td><code>GET /ecom/cart</code> (authenticated read)</td><td><code>Content-Type</code> + <code>Authorization: Bearer &lt;jwt&gt;</code></td></tr>
+  <tr><td><code>POST /ecom/cart</code> (authenticated mutation)</td><td><code>Content-Type</code> + <code>Authorization: Bearer &lt;jwt&gt;</code> + <code>X-CSRF-Token: &lt;uuid&gt;</code></td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════ 13. DOMAIN APIs ═══════════════════════════════════════════ -->
+<h2 id="domain-apis">13. Domain API Modules</h2>
+
+<h3>Books API (<code>books.ts</code>)</h3>
+<pre><code><span class="ts-keyword">export const</span> booksApi = {
+  list: (page = <span class="ts-number">0</span>, size = <span class="ts-number">20</span>) =&gt;
+    api.<span class="ts-func">get</span>&lt;<span class="ts-type">Page</span>&lt;<span class="ts-type">Book</span>&gt;&gt;(<span class="ts-string">`/ecom/books?page=${page}&amp;size=${size}&amp;sort=title`</span>),
+
+  search: (q: <span class="ts-type">string</span>, page = <span class="ts-number">0</span>) =&gt;
+    api.<span class="ts-func">get</span>&lt;<span class="ts-type">Page</span>&lt;<span class="ts-type">Book</span>&gt;&gt;(<span class="ts-string">`/ecom/books/search?q=${encodeURIComponent(q)}&amp;page=${page}`</span>),
+
+  getBulkStock: (bookIds: <span class="ts-type">string</span>[]) =&gt;
+    api.<span class="ts-func">get</span>&lt;<span class="ts-type">StockResponse</span>[]&gt;(<span class="ts-string">`/inven/stock/bulk?book_ids=${bookIds.join(',')}`</span>),
+}</code></pre>
+
+<h3>Cart API (<code>cart.ts</code>)</h3>
+<pre><code><span class="ts-keyword">export const</span> cartApi = {
+  get: () =&gt; api.<span class="ts-func">get</span>&lt;<span class="ts-type">CartItem</span>[]&gt;(<span class="ts-string">'/ecom/cart'</span>),
+  add: (bookId: <span class="ts-type">string</span>, quantity: <span class="ts-type">number</span>) =&gt;
+    api.<span class="ts-func">post</span>&lt;<span class="ts-type">CartItem</span>&gt;(<span class="ts-string">'/ecom/cart'</span>, { bookId, quantity }),
+  remove: (cartItemId: <span class="ts-type">string</span>) =&gt;
+    api.<span class="ts-func">delete</span>&lt;<span class="ts-keyword">void</span>&gt;(<span class="ts-string">`/ecom/cart/${cartItemId}`</span>),
+  checkout: () =&gt;
+    api.<span class="ts-func">post</span>&lt;{ id: <span class="ts-type">string</span>; total: <span class="ts-type">number</span> }&gt;(<span class="ts-string">'/ecom/checkout'</span>, {}),
+}</code></pre>
+
+<!-- ═══════════════════════════════════════════ 14. WIRING ═══════════════════════════════════════════ -->
+<h2 id="wiring">14. Application Wiring (<code>App.tsx</code>)</h2>
+
+<pre><code><span class="ts-comment">// Code-split admin pages -- only loaded when admin navigates to /admin/*</span>
+<span class="ts-keyword">const</span> AdminDashboard = React.<span class="ts-func">lazy</span>(() =&gt; <span class="ts-keyword">import</span>(<span class="ts-string">'./pages/admin/AdminDashboard'</span>))
+
+<span class="ts-keyword">function</span> <span class="ts-func">AppWithAuth</span>() {
+  <span class="ts-keyword">const</span> { getAccessToken, user } = <span class="ts-func">useAuth</span>()
+  <span class="ts-func">setTokenProvider</span>(getAccessToken)  <span class="ts-comment">// Wire token into API client</span>
+
+  <span class="ts-func">useEffect</span>(() =&gt; {
+    <span class="ts-keyword">if</span> (user) <span class="ts-func">fetchCsrfToken</span>()  <span class="ts-comment">// Get CSRF token after auth</span>
+  }, [user])
+
+  <span class="ts-keyword">return</span> (
+    &lt;<span class="ts-type">BrowserRouter</span>&gt;
+      &lt;<span class="ts-type">NavBar</span> /&gt;
+      &lt;<span class="ts-type">ErrorBoundary</span>&gt;
+        &lt;<span class="ts-type">Suspense</span> fallback={&lt;div&gt;Loading...&lt;/div&gt;}&gt;
+          &lt;<span class="ts-type">Routes</span>&gt;
+            &lt;<span class="ts-type">Route</span> path=<span class="ts-string">"/"</span> element={&lt;<span class="ts-type">CatalogPage</span> /&gt;} /&gt;
+            &lt;<span class="ts-type">Route</span> path=<span class="ts-string">"/order-confirmation"</span> element={
+              &lt;<span class="ts-type">ProtectedRoute</span>&gt;&lt;<span class="ts-type">OrderConfirmationPage</span> /&gt;&lt;/<span class="ts-type">ProtectedRoute</span>&gt;
+            } /&gt;
+            &lt;<span class="ts-type">Route</span> path=<span class="ts-string">"/admin"</span> element={
+              &lt;<span class="ts-type">AdminRoute</span>&gt;&lt;<span class="ts-type">AdminDashboard</span> /&gt;&lt;/<span class="ts-type">AdminRoute</span>&gt;
+            } /&gt;
+            <span class="ts-comment">{/* ... more routes ... */}</span>
+          &lt;/<span class="ts-type">Routes</span>&gt;
+        &lt;/<span class="ts-type">Suspense</span>&gt;
+      &lt;/<span class="ts-type">ErrorBoundary</span>&gt;
+    &lt;/<span class="ts-type">BrowserRouter</span>&gt;
+  )
+}
+
+<span class="ts-keyword">export default function</span> <span class="ts-func">App</span>() {
+  <span class="ts-keyword">return</span> (
+    &lt;<span class="ts-type">AuthProvider</span>&gt;       <span class="ts-comment">{/* Provides auth context */}</span>
+      &lt;<span class="ts-type">AppWithAuth</span> /&gt;    <span class="ts-comment">{/* Consumes auth, wires API */}</span>
+    &lt;/<span class="ts-type">AuthProvider</span>&gt;
+  )
+}</code></pre>
+
+<h3>Route Security Levels</h3>
+<table>
+  <tr><th>Route</th><th>Guard</th><th>Access</th></tr>
+  <tr><td><code>/</code>, <code>/search</code>, <code>/cart</code></td><td>None</td><td>Public (anyone)</td></tr>
+  <tr><td><code>/login</code>, <code>/callback</code></td><td>None</td><td>OIDC flow pages</td></tr>
+  <tr><td><code>/order-confirmation</code></td><td><code>ProtectedRoute</code></td><td>Authenticated users</td></tr>
+  <tr><td><code>/admin/*</code></td><td><code>AdminRoute</code></td><td>Admin role required</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════ 15. GUEST CART ═══════════════════════════════════════════ -->
+<h2 id="guest-cart">15. Guest Cart &amp; Cart Merge on Login</h2>
+
+<pre><code><span class="ts-keyword">const</span> GUEST_CART_KEY = <span class="ts-string">'bookstore_guest_cart'</span>
+
+<span class="ts-keyword">export function</span> <span class="ts-func">addToGuestCart</span>(item: <span class="ts-type">Omit</span>&lt;<span class="ts-type">GuestCartItem</span>, <span class="ts-string">'quantity'</span>&gt;): <span class="ts-type">GuestCartItem</span>[] {
+  <span class="ts-keyword">const</span> cart = <span class="ts-func">getGuestCart</span>()
+  <span class="ts-keyword">const</span> existing = cart.<span class="ts-func">find</span>(i =&gt; i.bookId === item.bookId)
+  <span class="ts-keyword">if</span> (existing) {
+    existing.quantity++           <span class="ts-comment">// Increment if already in cart</span>
+  } <span class="ts-keyword">else</span> {
+    cart.<span class="ts-func">push</span>({ ...item, quantity: <span class="ts-number">1</span> })  <span class="ts-comment">// Add new with quantity 1</span>
+  }
+  localStorage.<span class="ts-func">setItem</span>(GUEST_CART_KEY, JSON.<span class="ts-func">stringify</span>(cart))
+  <span class="ts-keyword">return</span> cart
+}</code></pre>
+
+<div class="flow">  <span class="b">Before Login:</span>                              <span class="g">After Login:</span>
+
+  localStorage                               Server Cart (DB)
+  +--------------------+                     +--------------------+
+  | bookstore_guest_cart|                     | User's Cart        |
+  |                    |                     |                    |
+  | [{bookId: "abc",   |  ---- <span class="y">merge</span> ----&gt;  | CartItem(abc, 2)   |
+  |   quantity: 2},    |   (CallbackPage)    | CartItem(def, 1)   |
+  |  {bookId: "def",   |                     |                    |
+  |   quantity: 1}]    |                     +--------------------+
+  +--------------------+
+           |
+           +-- <span class="r">clearGuestCart()</span> -- deleted after merge</div>
+
+<!-- ═══════════════════════════════════════════ 16. NAVBAR ═══════════════════════════════════════════ -->
+<h2 id="navbar">16. Navigation &amp; Conditional UI</h2>
+
+<table>
+  <tr><th>Auth State</th><th>Cart Badge</th><th>Admin Link</th><th>Right Side</th></tr>
+  <tr><td>Loading</td><td>Badge (0)</td><td>Hidden</td><td><code>...</code></td></tr>
+  <tr><td>Guest</td><td>From localStorage</td><td>Hidden</td><td>Login button</td></tr>
+  <tr><td>Authenticated</td><td>From server API</td><td>Hidden</td><td>Email + Logout</td></tr>
+  <tr><td>Admin</td><td>From server API</td><td><strong>Visible</strong></td><td>Email + Logout</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════ 17. TOKEN SECURITY ═══════════════════════════════════════════ -->
+<h2 id="token-security">17. Token Storage Security Model</h2>
+
+<table>
+  <tr><th>Storage</th><th>XSS Accessible</th><th>Persists After Tab Close</th><th>Used For</th></tr>
+  <tr><td><strong>JS variable</strong></td><td>Only during attack</td><td>No</td><td>CSRF token</td></tr>
+  <tr><td><strong>sessionStorage</strong></td><td>Only during attack</td><td>No</td><td>User session</td></tr>
+  <tr><td><strong>localStorage</strong></td><td>Anytime if XSS present</td><td>Yes</td><td>Guest cart only</td></tr>
+  <tr><td><strong>HTTP-only cookie</strong></td><td>Not via JS</td><td>Configurable</td><td>Not used</td></tr>
+</table>
+
+<h3>Defense in Depth</h3>
+<div class="security-layer"><span class="layer-num">1</span> Token in memory (JavaScript variable) &mdash; protects against localStorage scraping</div>
+<div class="security-layer"><span class="layer-num">2</span> sessionStorage for persistence &mdash; closes with tab, not shared across tabs</div>
+<div class="security-layer"><span class="layer-num">3</span> PKCE on Authorization Code Flow &mdash; prevents code interception attacks</div>
+<div class="security-layer"><span class="layer-num">4</span> CSRF token on mutating requests &mdash; prevents cross-site request forgery</div>
+<div class="security-layer"><span class="layer-num">5</span> Server-side JWT validation (JWKS) &mdash; prevents token tampering</div>
+<div class="security-layer"><span class="layer-num">6</span> Istio mTLS between services &mdash; prevents network eavesdropping</div>
+<div class="security-layer"><span class="layer-num">7</span> HTTPS everywhere (cert-manager) &mdash; prevents man-in-the-middle</div>
+
+<!-- ═══════════════════════════════════════════ 18. CROSS-ORIGIN ═══════════════════════════════════════════ -->
+<h2 id="cross-origin">18. Cross-Origin Authentication Relay</h2>
+
+<div class="flow">    <span class="r">https://myecom.net:30000</span>       <span class="g">https://localhost:30000</span>         <span class="b">Keycloak</span>
+              |                          |                        |
+              | 1. Login clicked         |                        |
+              |    crypto.subtle missing? |                        |
+              |                          |                        |
+              | 2. Redirect to localhost  |                        |
+              |-------------------------&gt;|                        |
+              |                          |                        |
+              |                          | 3. PKCE + Auth flow   |
+              |                          |-----------------------&gt;|
+              |                          |&lt;-----------------------|
+              |                          |                        |
+              |                          | 4. Process tokens      |
+              |                          |    Fetch CSRF          |
+              |                          |    Merge cart           |
+              |                          |                        |
+              | 5. Redirect back:        |                        |
+              |    <span class="y">#auth=&lt;encoded-user&gt;</span>  |                        |
+              |&lt;-------------------------|                        |
+              |                          |                        |
+              | 6. AuthContext reads hash |                        |
+              |    Restores session       |                        |
+              |    <span class="r">Clears hash from URL</span>  |                        |</div>
+
+<div class="result pass"><strong>Security</strong>: URL hash is never sent to servers (HTTP spec). Hash is cleared immediately via <code>history.replaceState()</code>. Only allowed origins are accepted.</div>
+
+<!-- ═══════════════════════════════════════════ 19. DATA FLOW ═══════════════════════════════════════════ -->
+<h2 id="data-flow">19. Complete Data Flow Diagram</h2>
+
+<div class="flow">    <span class="b">BROWSER</span>
+    main.tsx &rarr; App.tsx &rarr; <span class="g">AuthProvider</span> &rarr; AppWithAuth
+                                                |
+                         +----------------------+----------------------+
+                         |                      |                      |
+                <span class="ts-func">setTokenProvider()</span>     <span class="ts-func">fetchCsrfToken()</span>        Routes
+                  &darr;                      &darr;                      |
+              client.ts               GET /csrf/token         +------+------+
+              _getToken = fn          Authorization: JWT      |      |      |
+              _csrfToken = tok                               Public Protected Admin
+
+    <span class="y">ISTIO GATEWAY</span> (TLS termination)
+      Mutating: ext_authz &rarr; csrf-service (Redis) &rarr; RequestAuth (JWT) &rarr; AuthzPolicy
+      Safe:     RequestAuth (JWT) &rarr; AuthzPolicy &rarr; csrf-service refreshes TTL
+
+    <span class="c">BACKEND SERVICES</span>
+      E-Commerce Service (Spring Boot)  &lt;-- mTLS --&gt;  Inventory Service (FastAPI)
+      JWT validated again (defense in depth)            JWT validated again</div>
+
+<!-- ═══════════════════════════════════════════ 20. GENERICS ═══════════════════════════════════════════ -->
+<h2 id="generics">20. TypeScript Generics &mdash; The <code>&lt;T&gt;</code> Syntax</h2>
+<p>Generics let you write reusable code that works with <strong>any type</strong> while preserving type safety.</p>
+
+<h3>The Problem Generics Solve</h3>
+<pre><code><span class="ts-comment">// WITHOUT generics -- repetitive for every return type:</span>
+<span class="ts-keyword">async function</span> <span class="ts-func">getBooks</span>(url: <span class="ts-type">string</span>): <span class="ts-type">Promise</span>&lt;<span class="ts-type">Page</span>&lt;<span class="ts-type">Book</span>&gt;&gt; { <span class="ts-keyword">return</span> (<span class="ts-keyword">await</span> <span class="ts-func">fetch</span>(url)).<span class="ts-func">json</span>() }
+<span class="ts-keyword">async function</span> <span class="ts-func">getCart</span>(url: <span class="ts-type">string</span>): <span class="ts-type">Promise</span>&lt;<span class="ts-type">CartItem</span>[]&gt; { <span class="ts-keyword">return</span> (<span class="ts-keyword">await</span> <span class="ts-func">fetch</span>(url)).<span class="ts-func">json</span>() }
+<span class="ts-keyword">async function</span> <span class="ts-func">getStock</span>(url: <span class="ts-type">string</span>): <span class="ts-type">Promise</span>&lt;<span class="ts-type">StockResponse</span>&gt; { <span class="ts-keyword">return</span> (<span class="ts-keyword">await</span> <span class="ts-func">fetch</span>(url)).<span class="ts-func">json</span>() }
+
+<span class="ts-comment">// WITH generics -- one function for ALL types:</span>
+<span class="ts-keyword">async function</span> <span class="ts-func">request</span>&lt;<span class="ts-type">T</span>&gt;(url: <span class="ts-type">string</span>): <span class="ts-type">Promise</span>&lt;<span class="ts-type">T</span>&gt; { <span class="ts-keyword">return</span> (<span class="ts-keyword">await</span> <span class="ts-func">fetch</span>(url)).<span class="ts-func">json</span>() }</code></pre>
+
+<h3>How Callers Specify the Type</h3>
+<pre><code><span class="ts-comment">// T = Page&lt;Book&gt;</span>
+api.<span class="ts-func">get</span>&lt;<span class="ts-type">Page</span>&lt;<span class="ts-type">Book</span>&gt;&gt;(<span class="ts-string">'/ecom/books'</span>)       <span class="ts-comment">// Returns Promise&lt;Page&lt;Book&gt;&gt;</span>
+
+<span class="ts-comment">// T = CartItem[]</span>
+api.<span class="ts-func">get</span>&lt;<span class="ts-type">CartItem</span>[]&gt;(<span class="ts-string">'/ecom/cart'</span>)        <span class="ts-comment">// Returns Promise&lt;CartItem[]&gt;</span>
+
+<span class="ts-comment">// T = void</span>
+api.<span class="ts-func">delete</span>&lt;<span class="ts-keyword">void</span>&gt;(<span class="ts-string">`/ecom/cart/${id}`</span>)     <span class="ts-comment">// Returns Promise&lt;void&gt;</span></code></pre>
+
+<h3>Nested Generics</h3>
+<pre><code><span class="ts-keyword">interface</span> <span class="ts-type">Page</span>&lt;<span class="ts-type">T</span>&gt; {
+  content: <span class="ts-type">T</span>[]              <span class="ts-comment">// Array of whatever T is</span>
+  totalElements: <span class="ts-type">number</span>
+  totalPages: <span class="ts-type">number</span>
+}
+
+<span class="ts-comment">// Page&lt;Book&gt; becomes: { content: Book[], totalElements: number, ... }</span>
+<span class="ts-comment">// api.get&lt;Page&lt;Book&gt;&gt;(...) means:</span>
+<span class="ts-comment">//   Outer &lt;T&gt; of request = Page&lt;Book&gt;</span>
+<span class="ts-comment">//   Inner &lt;T&gt; of Page = Book</span></code></pre>
+
+<h3>Utility Types with Generics</h3>
+<pre><code><span class="ts-comment">// Omit&lt;Type, Keys&gt; -- removes specified keys</span>
+<span class="ts-keyword">function</span> <span class="ts-func">addToGuestCart</span>(item: <span class="ts-type">Omit</span>&lt;<span class="ts-type">GuestCartItem</span>, <span class="ts-string">'quantity'</span>&gt;)
+<span class="ts-comment">// Creates: { bookId: string, title: string, price: number }</span>
+<span class="ts-comment">// (quantity removed -- callers don't specify it)</span></code></pre>
+
+<!-- ═══════════════════════════════════════════ 21. PROMISES ═══════════════════════════════════════════ -->
+<h2 id="promises">21. Promises &amp; Async/Await Deep Dive</h2>
+
+<h3>Promise States</h3>
+<div class="flow">         +---- <span class="y">PENDING</span> ----+
+         |                 |
+         &darr;                 &darr;
+    <span class="g">FULFILLED</span>          <span class="r">REJECTED</span>
+    (value)            (error)</div>
+
+<h3>Three Syntax Styles</h3>
+<pre><code><span class="ts-comment">// STYLE 1: .then() chains</span>
+<span class="ts-func">fetch</span>(<span class="ts-string">'/ecom/books'</span>)
+  .<span class="ts-func">then</span>(response =&gt; response.<span class="ts-func">json</span>())
+  .<span class="ts-func">then</span>(data =&gt; console.<span class="ts-func">log</span>(data))
+  .<span class="ts-func">catch</span>(error =&gt; console.<span class="ts-func">error</span>(error))
+
+<span class="ts-comment">// STYLE 2: async/await</span>
+<span class="ts-keyword">async function</span> <span class="ts-func">getBooks</span>() {
+  <span class="ts-keyword">try</span> {
+    <span class="ts-keyword">const</span> response = <span class="ts-keyword">await</span> <span class="ts-func">fetch</span>(<span class="ts-string">'/ecom/books'</span>)
+    <span class="ts-keyword">const</span> data = <span class="ts-keyword">await</span> response.<span class="ts-func">json</span>()
+  } <span class="ts-keyword">catch</span> (error) {
+    console.<span class="ts-func">error</span>(error)
+  }
+}
+
+<span class="ts-comment">// STYLE 3: Mixed (.then with async callback) -- used in CallbackPage</span>
+userManager.<span class="ts-func">signinRedirectCallback</span>()
+  .<span class="ts-func">then</span>(<span class="ts-keyword">async</span> (user) =&gt; {
+    <span class="ts-keyword">const</span> csrfResp = <span class="ts-keyword">await</span> <span class="ts-func">fetch</span>(...)
+  })
+  .<span class="ts-func">catch</span>(err =&gt; console.<span class="ts-func">error</span>(err))</code></pre>
+
+<h3><code>Promise.allSettled</code> vs <code>Promise.all</code></h3>
+<pre><code><span class="ts-comment">// Promise.all -- FAILS FAST (one rejection kills everything)</span>
+<span class="ts-keyword">await</span> Promise.<span class="ts-func">all</span>([
+  <span class="ts-func">fetch</span>(<span class="ts-string">'/cart/item1'</span>),    <span class="ts-comment">// success</span>
+  <span class="ts-func">fetch</span>(<span class="ts-string">'/cart/item2'</span>),    <span class="ts-comment">// FAILS &rarr; everything fails, item3 result lost!</span>
+  <span class="ts-func">fetch</span>(<span class="ts-string">'/cart/item3'</span>),    <span class="ts-comment">// success (but result lost)</span>
+])
+
+<span class="ts-comment">// Promise.allSettled -- WAITS FOR ALL (used in CallbackPage for cart merge)</span>
+<span class="ts-keyword">await</span> Promise.<span class="ts-func">allSettled</span>([
+  <span class="ts-func">fetch</span>(<span class="ts-string">'/cart/item1'</span>),    <span class="ts-comment">// { status: 'fulfilled', value: Response }</span>
+  <span class="ts-func">fetch</span>(<span class="ts-string">'/cart/item2'</span>),    <span class="ts-comment">// { status: 'rejected',  reason: Error }</span>
+  <span class="ts-func">fetch</span>(<span class="ts-string">'/cart/item3'</span>),    <span class="ts-comment">// { status: 'fulfilled', value: Response }</span>
+])</code></pre>
+
+<div class="result info"><strong>Why <code>allSettled</code> for cart merge?</strong> If one item is out of stock, we still want the others to merge. <code>Promise.all</code> would discard all results if any single item fails.</div>
+
+<h3>The Async IIFE Pattern</h3>
+<pre><code><span class="ts-comment">// React useEffect cannot be async directly</span>
+<span class="ts-func">useEffect</span>(<span class="ts-keyword">async</span> () =&gt; { ... }, [])  <span class="ts-comment">// INVALID -- returns Promise, not void!</span>
+
+<span class="ts-comment">// Solution: Immediately Invoked Function Expression (IIFE)</span>
+<span class="ts-func">useEffect</span>(() =&gt; {
+  ;(<span class="ts-keyword">async</span> () =&gt; {                    <span class="ts-comment">// Define async function</span>
+    <span class="ts-keyword">const</span> u = <span class="ts-keyword">await</span> userManager.<span class="ts-func">getUser</span>()
+    <span class="ts-func">setUser</span>(u)
+  })()                               <span class="ts-comment">// Invoke it immediately</span>
+}, [])</code></pre>
+
+<h3>Optional Chaining on Function Calls</h3>
+<pre><code><span class="ts-keyword">const</span> token = _getToken?.()
+<span class="ts-comment">// If _getToken is null/undefined &rarr; returns undefined (no error)</span>
+<span class="ts-comment">// If _getToken is a function     &rarr; calls it, returns result</span></code></pre>
+
+<!-- ═══════════════════════════════════════════ 22. SPREAD ═══════════════════════════════════════════ -->
+<h2 id="spread">22. Spread &amp; Destructuring &mdash; The <code>...</code> Syntax</h2>
+
+<h3>1. Object Spread (Most Common)</h3>
+<pre><code><span class="ts-keyword">const</span> base = { a: <span class="ts-number">1</span>, b: <span class="ts-number">2</span> }
+<span class="ts-keyword">const</span> extended = { ...base, c: <span class="ts-number">3</span> }       <span class="ts-comment">// { a: 1, b: 2, c: 3 }</span>
+<span class="ts-keyword">const</span> override = { ...base, b: <span class="ts-number">99</span> }      <span class="ts-comment">// { a: 1, b: 99 } -- later overrides</span>
+<span class="ts-keyword">const</span> same = { ...base, ...{} }          <span class="ts-comment">// { a: 1, b: 2 } -- empty spread = noop</span></code></pre>
+
+<h3>2. The Conditional Spread Pattern</h3>
+<pre><code><span class="ts-comment">// The key pattern used throughout this codebase:</span>
+...(condition ? { key: value } : {})
+
+<span class="ts-comment">// Example from client.ts:</span>
+...(token ? { Authorization: <span class="ts-string">`Bearer ${token}`</span> } : {})
+<span class="ts-comment">// token = "abc123" &rarr; spreads { Authorization: "Bearer abc123" } &rarr; added</span>
+<span class="ts-comment">// token = null     &rarr; spreads {} &rarr; nothing added</span></code></pre>
+
+<h3>3. Complete Header Build Example</h3>
+<pre><code><span class="ts-keyword">const</span> headers = {
+  <span class="ts-string">'Content-Type'</span>: <span class="ts-string">'application/json'</span>,          <span class="ts-comment">// Always present</span>
+  ...(options.headers ?? {}),                    <span class="ts-comment">// Preserve caller headers</span>
+  ...(token ? { Authorization: <span class="ts-string">`Bearer ${token}`</span> } : {}),    <span class="ts-comment">// JWT if auth</span>
+  ...(isMutating &amp;&amp; _csrfToken ? { <span class="ts-string">'X-CSRF-Token'</span>: _csrfToken } : {}), <span class="ts-comment">// CSRF</span>
+}
+
+<span class="ts-comment">// Step-by-step with token="jwt..." and csrfToken="uuid..." and POST:</span>
+<span class="ts-comment">// 1. { 'Content-Type': 'application/json' }</span>
+<span class="ts-comment">// 2. + caller headers (if any)</span>
+<span class="ts-comment">// 3. + { Authorization: 'Bearer jwt...' }</span>
+<span class="ts-comment">// 4. + { 'X-CSRF-Token': 'uuid...' }</span></code></pre>
+
+<h3>4. Object Destructuring</h3>
+<pre><code><span class="ts-comment">// Extracting properties into variables:</span>
+<span class="ts-keyword">const</span> { user, isLoading, isAdmin, login, logout } = <span class="ts-func">useAuth</span>()
+<span class="ts-comment">// Equivalent to:</span>
+<span class="ts-comment">// const ctx = useAuth()</span>
+<span class="ts-comment">// const user = ctx.user</span>
+<span class="ts-comment">// const isLoading = ctx.isLoading ...</span>
+
+<span class="ts-comment">// In function parameters:</span>
+<span class="ts-keyword">function</span> <span class="ts-func">AuthProvider</span>({ children }: { children: <span class="ts-type">React.ReactNode</span> }) {
+<span class="ts-comment">// Destructures props to extract "children" directly</span></code></pre>
+
+<h3>5. Spread in Fetch Calls</h3>
+<pre><code><span class="ts-keyword">const</span> resp = <span class="ts-keyword">await</span> <span class="ts-func">fetch</span>(url, { ...options, headers })
+<span class="ts-comment">//                        ^^^^^^^^^^</span>
+<span class="ts-comment">// Spread all properties from "options" (method, body, etc.)</span>
+<span class="ts-comment">// then override "headers" with our custom headers object</span></code></pre>
+
+<!-- ═══════════════════════════════════════════ 23. REACT PATTERNS ═══════════════════════════════════════════ -->
+<h2 id="react-patterns">23. Advanced React Patterns</h2>
+
+<h3>Pattern 1: Context + Custom Hook (Provider Pattern)</h3>
+<div class="card">
+<h3>The Problem: Prop Drilling</h3>
+<pre><code><span class="ts-comment">// WITHOUT Context -- passing props through every layer:</span>
+&lt;App user={user}&gt;
+  &lt;Layout user={user}&gt;                  <span class="ts-comment">// Just passing through!</span>
+    &lt;NavBar user={user} login={login}&gt;
+      ...
+    &lt;CartPage user={user}&gt;              <span class="ts-comment">// Just passing through!</span>
+      &lt;CartItem user={user} /&gt;          <span class="ts-comment">// Finally needs it</span></code></pre>
+<h3>The Solution</h3>
+<pre><code><span class="ts-comment">// 1. Create Context</span>
+<span class="ts-keyword">const</span> AuthContext = <span class="ts-func">createContext</span>&lt;<span class="ts-type">AuthContextValue</span> | <span class="ts-keyword">null</span>&gt;(<span class="ts-keyword">null</span>)
+
+<span class="ts-comment">// 2. Provider manages state</span>
+<span class="ts-keyword">function</span> <span class="ts-func">AuthProvider</span>({ children }) { ... }
+
+<span class="ts-comment">// 3. Custom hook consumes it</span>
+<span class="ts-keyword">function</span> <span class="ts-func">useAuth</span>() {
+  <span class="ts-keyword">const</span> ctx = <span class="ts-func">useContext</span>(AuthContext)
+  <span class="ts-keyword">if</span> (!ctx) <span class="ts-keyword">throw new</span> <span class="ts-type">Error</span>(<span class="ts-string">'useAuth must be used within AuthProvider'</span>)
+  <span class="ts-keyword">return</span> ctx
+}
+
+<span class="ts-comment">// 4. Use anywhere -- no prop drilling!</span>
+<span class="ts-keyword">function</span> <span class="ts-func">NavBar</span>() {
+  <span class="ts-keyword">const</span> { user, login } = <span class="ts-func">useAuth</span>()   <span class="ts-comment">// Direct access</span>
+}</code></pre>
+</div>
+
+<h3>Pattern 2: Module-Level State (Singleton)</h3>
+<div class="card">
+<pre><code><span class="ts-comment">// React state: tied to component lifecycle, triggers re-renders</span>
+<span class="ts-keyword">const</span> [token, setToken] = <span class="ts-func">useState</span>(<span class="ts-keyword">null</span>)  <span class="ts-comment">// Destroyed on unmount</span>
+
+<span class="ts-comment">// Module-level state: persists for page lifetime, no re-renders</span>
+<span class="ts-keyword">let</span> _token = <span class="ts-keyword">null</span>  <span class="ts-comment">// Created once, shared across all imports</span></code></pre>
+<p>The API client uses module-level state because it needs to: persist across component lifecycles, be shared as a singleton, and NOT trigger re-renders when it changes.</p>
+</div>
+
+<h3>Pattern 3: <code>useCallback</code> for Stable References</h3>
+<div class="card">
+<pre><code><span class="ts-comment">// WITHOUT useCallback: new function on every render</span>
+<span class="ts-keyword">const</span> login = (path) =&gt; { ... }  <span class="ts-comment">// New reference each time!</span>
+
+<span class="ts-comment">// WITH useCallback: same reference across renders</span>
+<span class="ts-keyword">const</span> login = <span class="ts-func">useCallback</span>((path) =&gt; { ... }, [])
+<span class="ts-comment">//                                              ^^</span>
+<span class="ts-comment">//  [] = never recreate (no dependencies)</span>
+<span class="ts-comment">//  [user] = recreate only when user changes</span></code></pre>
+<p>Prevents unnecessary re-renders of child components that receive these functions as context values.</p>
+</div>
+
+<h3>Pattern 4: <code>useEffect</code> Cleanup</h3>
+<div class="card">
+<pre><code><span class="ts-func">useEffect</span>(() =&gt; {
+  <span class="ts-keyword">const</span> handler = () =&gt; <span class="ts-func">fetchCartCount</span>()
+  window.<span class="ts-func">addEventListener</span>(<span class="ts-string">'cartUpdated'</span>, handler)   <span class="ts-comment">// Subscribe</span>
+
+  <span class="ts-keyword">return</span> () =&gt; {                                      <span class="ts-comment">// Cleanup function</span>
+    window.<span class="ts-func">removeEventListener</span>(<span class="ts-string">'cartUpdated'</span>, handler) <span class="ts-comment">// Unsubscribe</span>
+  }
+}, [user])  <span class="ts-comment">// Re-runs when user changes</span></code></pre>
+<p><strong>Cleanup runs</strong>: (a) before the effect re-runs (when deps change), and (b) when the component unmounts. Without cleanup, each render adds another listener &mdash; a memory leak.</p>
+</div>
+
+<h3>Pattern 5: Lazy Loading with <code>React.lazy</code></h3>
+<div class="card">
+<pre><code><span class="ts-comment">// Vite creates a separate chunk for each lazy import</span>
+<span class="ts-keyword">const</span> AdminDashboard = React.<span class="ts-func">lazy</span>(() =&gt; <span class="ts-keyword">import</span>(<span class="ts-string">'./pages/admin/AdminDashboard'</span>))
+
+<span class="ts-comment">// Suspense shows fallback while chunk downloads</span>
+&lt;<span class="ts-type">Suspense</span> fallback={&lt;div&gt;Loading...&lt;/div&gt;}&gt;
+  &lt;<span class="ts-type">AdminDashboard</span> /&gt;
+&lt;/<span class="ts-type">Suspense</span>&gt;</code></pre>
+<p>Admin pages are code-split &mdash; regular users never download admin JavaScript. The chunk is fetched on first navigation to <code>/admin</code>.</p>
+</div>
+
+<h3>Pattern 6: Custom DOM Events</h3>
+<div class="card">
+<pre><code><span class="ts-comment">// CartPage dispatches:</span>
+window.<span class="ts-func">dispatchEvent</span>(<span class="ts-keyword">new</span> <span class="ts-type">Event</span>(<span class="ts-string">'cartUpdated'</span>))
+
+<span class="ts-comment">// NavBar listens:</span>
+window.<span class="ts-func">addEventListener</span>(<span class="ts-string">'cartUpdated'</span>, fetchCount)</code></pre>
+<p>Minimal coupling between components. NavBar doesn't need to be a child of CartPage &mdash; they communicate through the DOM event system.</p>
+</div>
+
+<h3>Pattern 7: Conditional Rendering</h3>
+<pre><code><span class="ts-comment">// 1. Logical AND -- show or hide</span>
+{isAdmin &amp;&amp; &lt;Link to=<span class="ts-string">"/admin"</span>&gt;Admin&lt;/Link&gt;}
+
+<span class="ts-comment">// 2. Ternary -- show one OR the other</span>
+{user ? &lt;button onClick={logout}&gt;Logout&lt;/button&gt;
+      : &lt;button onClick={login}&gt;Login&lt;/button&gt;}
+
+<span class="ts-comment">// 3. Early return -- different entire renders</span>
+<span class="ts-keyword">if</span> (isLoading) <span class="ts-keyword">return</span> &lt;div&gt;Loading...&lt;/div&gt;
+<span class="ts-keyword">if</span> (!user) { <span class="ts-func">login</span>(); <span class="ts-keyword">return null</span> }
+<span class="ts-keyword">if</span> (!isAdmin) <span class="ts-keyword">return</span> &lt;div&gt;Access Denied&lt;/div&gt;
+<span class="ts-keyword">return</span> &lt;&gt;{children}&lt;/&gt;</code></pre>
+
+<h3>Pattern 8: Nullish Coalescing &amp; Optional Chaining</h3>
+<pre><code><span class="ts-comment">// Optional chaining (?.) -- safe property/call access</span>
+user?.access_token              <span class="ts-comment">// undefined if user is null (no error)</span>
+_getToken?.()                   <span class="ts-comment">// undefined if null, calls if function</span>
+
+<span class="ts-comment">// Nullish coalescing (??) -- default for null/undefined only</span>
+options.method ?? <span class="ts-string">'GET'</span>          <span class="ts-comment">// 'GET' only if method is null/undefined</span>
+
+<span class="ts-comment">// vs logical OR (||) -- default for any falsy value</span>
+<span class="ts-string">''</span> ?? <span class="ts-string">'default'</span>   <span class="ts-comment">// '' (empty string is NOT nullish)</span>
+<span class="ts-string">''</span> || <span class="ts-string">'default'</span>   <span class="ts-comment">// 'default' (empty string IS falsy)</span>
+<span class="ts-number">0</span> ?? <span class="ts-string">'default'</span>    <span class="ts-comment">// 0 (zero is NOT nullish)</span>
+<span class="ts-number">0</span> || <span class="ts-string">'default'</span>    <span class="ts-comment">// 'default' (zero IS falsy)</span></code></pre>
+
+<!-- ═══════════════════════════════════════════ 24. SUMMARY ═══════════════════════════════════════════ -->
+<h2 id="summary">24. Summary &amp; Security Checklist</h2>
+
+<h3>What You've Learned</h3>
+<table>
+  <tr><th>Topic</th><th>Key Takeaway</th></tr>
+  <tr><td><strong>OAuth2/OIDC</strong></td><td>Authorization Code Flow with PKCE is the standard for SPAs</td></tr>
+  <tr><td><strong>oidc-client-ts</strong></td><td>Handles the entire OIDC lifecycle: redirects, token exchange, silent renewal</td></tr>
+  <tr><td><strong>Token Storage</strong></td><td>In-memory for access token, sessionStorage for persistence, never localStorage</td></tr>
+  <tr><td><strong>JWT</strong></td><td>Decoded client-side for UI only; verified server-side via JWKS</td></tr>
+  <tr><td><strong>CSRF</strong></td><td>Gateway-level protection with Redis tokens, sliding TTL, auto-retry on 403</td></tr>
+  <tr><td><strong>API Client</strong></td><td>Centralized request function with automatic header injection</td></tr>
+  <tr><td><strong>Route Guards</strong></td><td><code>ProtectedRoute</code> for auth, <code>AdminRoute</code> for role-based access</td></tr>
+  <tr><td><strong>Generics &lt;T&gt;</strong></td><td>One function serves all types with full type safety</td></tr>
+  <tr><td><strong>Promises</strong></td><td>async/await, IIFE pattern, allSettled vs all, fire-and-forget</td></tr>
+  <tr><td><strong>Spread ...</strong></td><td>Conditional object composition, destructuring, rest parameters</td></tr>
+  <tr><td><strong>React Patterns</strong></td><td>Context+hooks, useCallback, lazy loading, custom events, cleanup</td></tr>
+</table>
+
+<h3>Security Checklist</h3>
+<ul class="checklist">
+  <li>Tokens stored in memory / sessionStorage (never localStorage)</li>
+  <li>PKCE enabled on Authorization Code Flow</li>
+  <li>CSRF token required on all mutating requests</li>
+  <li>JWT validated server-side (never trust client claims)</li>
+  <li>Route guards prevent unauthorized UI access</li>
+  <li>Admin role checked in both UI and backend</li>
+  <li>Logout terminates both local and server sessions</li>
+  <li>Silent renewal keeps tokens fresh without user interaction</li>
+  <li>Cross-origin relay uses URL hash (not sent to servers)</li>
+  <li>Hash cleared immediately from browser history</li>
+  <li>Error boundaries prevent auth failures from crashing the app</li>
+  <li>Guest cart uses localStorage only for non-sensitive data</li>
+</ul>
+
+</div>
+
+<footer>
+  <p>BookStore Platform &mdash; React Authentication &amp; Security Guide</p>
+  <p>Based on real production code from <a href="index.html">the BookStore microservices platform</a></p>
+</footer>
+
+</body>
+</html>

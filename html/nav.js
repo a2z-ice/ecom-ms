@@ -61,6 +61,12 @@
       ]
     },
     {
+      title: 'React Learning',
+      links: [
+        { label: 'React Auth & Security Guide', href: 'react-auth-guide.html', highlight: true }
+      ]
+    },
+    {
       title: 'Infrastructure',
       links: [
         { label: 'CDC Pipeline Hardening', href: 'cdc-hardening.html' },
