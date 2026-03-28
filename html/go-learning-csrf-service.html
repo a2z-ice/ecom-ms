@@ -75,8 +75,8 @@
     <div class="banner-text">
       <div class="banner-series">Go Learning Series &bull; Complete Code Walkthrough</div>
       <div class="banner-title-text">Learn Go by Building a Gateway Security Service</div>
-      <p class="banner-desc">A line-by-line guide to Go through a real production service: 1,055 lines across 12 files covering HTTP servers, interfaces, Redis, JWT parsing, dependency injection, Prometheus metrics, graceful shutdown, and Kubernetes deployment</p>
-      <div class="banner-tags"><span>Go 1.25</span><span>Zero to Production</span><span>12 Files</span><span>1,055 Lines</span><span>8 Packages</span><span>68 Tests</span><span>Distroless Docker</span><span>Kubernetes</span></div>
+      <p class="banner-desc">A line-by-line guide to Go through a real production service: 18 files across 10 packages covering HTTP servers, interfaces, Redis, HMAC cryptography, Cuckoo filters, XOR masking, JWT parsing, dependency injection, Prometheus metrics, graceful shutdown, and Kubernetes deployment</p>
+      <div class="banner-tags"><span>Go 1.25</span><span>Zero to Production</span><span>18 Files</span><span>10 Packages</span><span>162 Tests</span><span>HMAC-SHA256</span><span>Cuckoo Filter</span><span>XOR BREACH</span><span>Distroless Docker</span><span>Kubernetes</span></div>
     </div>
   </div>
   <div class="banner-brand">BookStore Platform</div>
@@ -90,10 +90,10 @@
 
 <div class="badges">
   <span class="badge cyan">Go 1.25</span>
-  <span class="badge green">1,055 Lines</span>
-  <span class="badge blue">12 Source Files</span>
-  <span class="badge purple">8 Internal Packages</span>
-  <span class="badge orange">68 Unit Tests</span>
+  <span class="badge green">18 Source Files</span>
+  <span class="badge blue">10 Internal Packages</span>
+  <span class="badge purple">162 Unit Tests</span>
+  <span class="badge orange">HMAC + Cuckoo + XOR</span>
 </div>
 
 <!-- TOC -->
@@ -107,10 +107,15 @@
   <li><a href="#network">Network Calls Under the Hood</a></li>
   <li><a href="#go-mod">go.mod &mdash; Dependency Management</a></li>
   <li><a href="#config">config.go &mdash; Environment Variables</a></li>
-  <li><a href="#store">store/redis.go &mdash; Interfaces &amp; Redis</a></li>
+  <li><a href="#store">store/redis.go &mdash; Interfaces &amp; Redis (Legacy)</a></li>
+  <li><a href="#hmac">token/hmac.go &mdash; HMAC Token Engine (NEW)</a></li>
+  <li><a href="#keyring">token/keyring.go &mdash; Key Management (NEW)</a></li>
+  <li><a href="#mask">token/mask.go &mdash; XOR BREACH Masking (NEW)</a></li>
+  <li><a href="#cuckoo">cuckoo/ &mdash; Cuckoo Filter for Single-Use (NEW)</a></li>
+  <li><a href="#hybrid">store/hybrid.go &mdash; Hybrid Store L1+L2+L3 (NEW)</a></li>
   <li><a href="#jwt">jwt/extract.go &mdash; JWT Parsing</a></li>
   <li><a href="#origin">origin/validator.go &mdash; Request Validation</a></li>
-  <li><a href="#ratelimit">ratelimit/limiter.go &mdash; Rate Limiting</a></li>
+  <li><a href="#ratelimit">ratelimit/ &mdash; Rate Limiting (Redis + Local)</a></li>
   <li><a href="#introspect">introspect/client.go &mdash; HTTP Client &amp; Caching</a></li>
   <li><a href="#metrics">middleware/metrics.go &mdash; Prometheus</a></li>
   <li><a href="#handler">handler/ &mdash; HTTP Handlers</a></li>
@@ -223,21 +228,29 @@ name := <span class="go-string">"hello"</span>               <span class="go-com
 <span class="b">&boxvr;&boxh;&boxh; Dockerfile</span>                 <span class="go-comment">Multi-stage build: compile &rarr; distroless</span>
 <span class="b">&boxur;&boxh;&boxh; internal/</span>                  <span class="go-comment">Private packages (Go convention: can't be imported externally)</span>
     <span class="y">&boxvr;&boxh;&boxh; config/</span>                <span class="go-comment">Load settings from environment variables</span>
-    <span class="y">&boxvr;&boxh;&boxh; store/</span>                 <span class="go-comment">Redis token storage (interface + implementation)</span>
+    <span class="y">&boxvr;&boxh;&boxh; store/</span>                 <span class="go-comment">TokenStore interface + Redis + <span class="g">HybridStore (HMAC+Cuckoo)</span></span>
+    <span class="g">&boxvr;&boxh;&boxh; token/</span>                 <span class="go-comment">HMAC-SHA256 token engine, key rotation, XOR masking (NEW)</span>
+    <span class="g">&boxvr;&boxh;&boxh; cuckoo/</span>                <span class="go-comment">Cuckoo filter for single-use enforcement (NEW)</span>
     <span class="y">&boxvr;&boxh;&boxh; handler/</span>               <span class="go-comment">HTTP request handlers (the "controllers")</span>
     <span class="y">&boxvr;&boxh;&boxh; jwt/</span>                   <span class="go-comment">JWT claim extraction (base64 decode only)</span>
     <span class="y">&boxvr;&boxh;&boxh; origin/</span>                <span class="go-comment">Origin/Referer header validation</span>
-    <span class="y">&boxvr;&boxh;&boxh; ratelimit/</span>             <span class="go-comment">Per-user rate limiting via Redis</span>
+    <span class="y">&boxvr;&boxh;&boxh; ratelimit/</span>             <span class="go-comment">Per-user rate limiting (Redis or <span class="g">in-memory</span>)</span>
     <span class="y">&boxvr;&boxh;&boxh; introspect/</span>            <span class="go-comment">Keycloak JWT introspection with Redis cache</span>
     <span class="y">&boxur;&boxh;&boxh; middleware/</span>            <span class="go-comment">Prometheus metrics instrumentation</span></div>
 
 <h3>Dependency Flow</h3>
 <div class="flow"><span class="b">main.go</span>
-  &boxvr;&boxh;&boxh; creates <span class="y">config.Config</span>          (reads env vars)
-  &boxvr;&boxh;&boxh; creates <span class="y">store.RedisStore</span>       (connects to Redis)
+  &boxvr;&boxh;&boxh; creates <span class="y">config.Config</span>          (reads env vars including CSRF_MODE)
+  &boxvr;&boxh;&boxh; <span class="go-comment">if mode == "hybrid" or "hmac":</span>
+  &boxvr;   &boxvr;&boxh;&boxh; creates <span class="g">token.KeyRing</span>       (loads HMAC key from K8s Secret)
+  &boxvr;   &boxvr;&boxh;&boxh; creates <span class="g">token.Generator</span>    (HMAC-SHA256 engine)
+  &boxvr;   &boxvr;&boxh;&boxh; creates <span class="g">cuckoo.RollingFilter</span> (single-use enforcement)
+  &boxvr;   &boxur;&boxh;&boxh; creates <span class="g">store.HybridStore</span>  (L1 Cuckoo + L2 HMAC + L3 Redis)
+  &boxvr;&boxh;&boxh; <span class="go-comment">if mode == "redis" (legacy):</span>
+  &boxvr;   &boxur;&boxh;&boxh; creates <span class="y">store.RedisStore</span>    (UUID + Redis)
   &boxvr;&boxh;&boxh; creates <span class="y">middleware.Metrics</span>     (registers Prometheus counters)
   &boxvr;&boxh;&boxh; creates <span class="y">origin.Validator</span>      (builds allowed-origins map)
-  &boxvr;&boxh;&boxh; creates <span class="y">ratelimit.RedisLimiter</span> (sliding window counter)
+  &boxvr;&boxh;&boxh; creates <span class="y">ratelimit.LocalLimiter</span> (in-memory token bucket)
   &boxvr;&boxh;&boxh; creates <span class="y">introspect.Keycloak...</span> (HTTP client + Redis cache)
   &boxvr;&boxh;&boxh; creates <span class="g">handler.Handler</span>       (receives ALL of the above)
   &boxur;&boxh;&boxh; starts <span class="g">http.Server</span>           (routes &rarr; handler methods)</div>
@@ -249,19 +262,26 @@ name := <span class="go-string">"hello"</span>               <span class="go-com
 
 <table>
   <tr><th>File</th><th>Lines</th><th>Purpose</th><th>Go Concepts</th></tr>
-  <tr><td><code>main.go</code></td><td>129</td><td>Entry point, wiring, server startup</td><td>Goroutines, signal handling, graceful shutdown</td></tr>
-  <tr><td><code>config/config.go</code></td><td>95</td><td>Read env vars with defaults</td><td>Structs, string parsing, slices</td></tr>
-  <tr><td><code>store/redis.go</code></td><td>114</td><td>CSRF token CRUD in Redis</td><td><strong>Interfaces</strong>, methods, error handling, <code>crypto/subtle</code></td></tr>
-  <tr><td><code>handler/token.go</code></td><td>108</td><td>Token generation + Handler struct</td><td>Struct embedding, JSON encoding, HTTP handlers</td></tr>
-  <tr><td><code>handler/authz.go</code></td><td>155</td><td>ext_authz decision logic</td><td>Map lookups, context timeouts, control flow</td></tr>
+  <tr><td><code>main.go</code></td><td>131</td><td>Entry point, mode-based wiring, server startup</td><td>Goroutines, signal handling, graceful shutdown, <strong>switch/case</strong></td></tr>
+  <tr><td><code>config/config.go</code></td><td>98</td><td>Read env vars with defaults (24 vars)</td><td>Structs, string parsing, slices, uint type</td></tr>
+  <tr><td><code>store/redis.go</code></td><td>127</td><td>Legacy CSRF token CRUD in Redis</td><td><strong>Interfaces</strong>, methods, error handling, <code>crypto/subtle</code></td></tr>
+  <tr style="background:rgba(16,185,129,.06)"><td><code>store/hybrid.go</code></td><td>180</td><td><strong>NEW:</strong> Hybrid L1 Cuckoo + L2 HMAC + L3 Redis</td><td><strong>Interface polymorphism</strong>, goroutines (async L3), <code>crypto/subtle</code></td></tr>
+  <tr style="background:rgba(16,185,129,.06)"><td><code>token/hmac.go</code></td><td>160</td><td><strong>NEW:</strong> HMAC-SHA256 token generation &amp; verification</td><td><code>crypto/hmac</code>, <code>crypto/sha256</code>, <code>encoding/binary</code>, <code>crypto/rand</code></td></tr>
+  <tr style="background:rgba(16,185,129,.06)"><td><code>token/keyring.go</code></td><td>100</td><td><strong>NEW:</strong> Dual-key rotation with grace period</td><td><code>sync.RWMutex</code>, <code>time.Ticker</code>, channels, goroutines</td></tr>
+  <tr style="background:rgba(16,185,129,.06)"><td><code>token/mask.go</code></td><td>55</td><td><strong>NEW:</strong> XOR BREACH protection masking</td><td><code>crypto/rand</code>, XOR bitwise ops, <code>encoding/base64</code></td></tr>
+  <tr style="background:rgba(16,185,129,.06)"><td><code>cuckoo/filter.go</code></td><td>65</td><td><strong>NEW:</strong> Thread-safe Cuckoo filter wrapper</td><td><code>sync.RWMutex</code>, third-party library wrapping</td></tr>
+  <tr style="background:rgba(16,185,129,.06)"><td><code>cuckoo/rolling.go</code></td><td>75</td><td><strong>NEW:</strong> Rolling dual-filter with auto-rotation</td><td><code>time.Ticker</code>, channels, pointer swapping</td></tr>
+  <tr><td><code>handler/token.go</code></td><td>111</td><td>Token generation + Handler struct</td><td>Struct embedding, JSON encoding, HTTP handlers</td></tr>
+  <tr><td><code>handler/authz.go</code></td><td>190</td><td>ext_authz decision logic</td><td>Map lookups, context timeouts, control flow</td></tr>
   <tr><td><code>handler/health.go</code></td><td>28</td><td>Kubernetes probes</td><td>Simple HTTP handlers</td></tr>
   <tr><td><code>jwt/extract.go</code></td><td>82</td><td>JWT base64 decode + audience</td><td>Custom JSON unmarshaling, <code>encoding/base64</code></td></tr>
   <tr><td><code>origin/validator.go</code></td><td>52</td><td>Origin/Referer validation</td><td>Maps, URL parsing, result structs</td></tr>
-  <tr><td><code>ratelimit/limiter.go</code></td><td>62</td><td>Sliding window rate limiter</td><td><strong>Interfaces</strong>, Redis INCR+EXPIRE, time</td></tr>
+  <tr><td><code>ratelimit/limiter.go</code></td><td>62</td><td>Redis sliding window rate limiter</td><td><strong>Interfaces</strong>, Redis INCR+EXPIRE, time</td></tr>
+  <tr style="background:rgba(16,185,129,.06)"><td><code>ratelimit/local.go</code></td><td>55</td><td><strong>NEW:</strong> In-memory token bucket (no Redis)</td><td><code>sync.Mutex</code>, maps, background goroutine cleanup</td></tr>
   <tr><td><code>introspect/client.go</code></td><td>138</td><td>Keycloak introspection + cache</td><td>HTTP client, <code>crypto/sha256</code>, Redis caching</td></tr>
-  <tr><td><code>introspect/noop.go</code></td><td>10</td><td>No-op implementation</td><td>Interface satisfaction with zero code</td></tr>
-  <tr><td><code>middleware/metrics.go</code></td><td>82</td><td>Prometheus counters/histograms</td><td>Third-party library integration</td></tr>
+  <tr><td><code>middleware/metrics.go</code></td><td>89</td><td>Prometheus counters/histograms (15 metrics)</td><td>Third-party library integration</td></tr>
 </table>
+<div class="result pass"><strong>Session 30 additions</strong> (highlighted in green): 6 new source files across 3 new packages (<code>token/</code>, <code>cuckoo/</code>, <code>ratelimit/local.go</code>), plus <code>store/hybrid.go</code>. Total: 18 source files, 10 packages, 162 unit tests.</div>
 
 <!-- ═══════════════════════════════════════════════════ -->
 <h2 id="go-mod">5. <code>go.mod</code> &mdash; Dependency Management</h2>
@@ -274,9 +294,10 @@ name := <span class="go-string">"hello"</span>               <span class="go-com
 
 <span class="go-keyword">require</span> (
     github.com/alicebob/miniredis/v2 v2.37.0     <span class="go-comment">// In-memory Redis for tests</span>
-    github.com/google/uuid v1.6.0                 <span class="go-comment">// UUID v4 generation</span>
+    github.com/google/uuid v1.6.0                 <span class="go-comment">// UUID v4 generation (legacy mode)</span>
     github.com/prometheus/client_golang v1.23.2   <span class="go-comment">// Prometheus metrics</span>
     github.com/redis/go-redis/v9 v9.18.0          <span class="go-comment">// Redis client</span>
+    github.com/seiflotfy/cuckoofilter v0.0.0      <span class="go-comment">// Cuckoo filter (single-use token enforcement)</span>
 )</code></pre>
 
 <div class="result info"><strong>Key command:</strong> <code>go mod download</code> fetches all dependencies. <code>go mod tidy</code> removes unused ones. Dependencies are cached globally in <code>$GOPATH/pkg/mod/</code>.</div>
@@ -293,8 +314,18 @@ name := <span class="go-string">"hello"</span>               <span class="go-com
     FailClosed       <span class="go-type">bool</span>             <span class="go-comment">// false (fail-open by default)</span>
     AllowedOrigins   []<span class="go-type">string</span>         <span class="go-comment">// ["https://myecom.net:30000", ...]</span>
     RateLimitPerMin  <span class="go-type">int</span>              <span class="go-comment">// 60</span>
-    <span class="go-comment">// ... 11 more fields</span>
+    <span class="go-comment">// ... existing fields for introspect, audience, etc.</span>
+
+    <span class="go-comment">// Session 30: Hybrid HMAC mode</span>
+    Mode             <span class="go-type">string</span>           <span class="go-comment">// "redis" | "hmac" | "hybrid"</span>
+    HMACKey          <span class="go-type">string</span>           <span class="go-comment">// Base64-encoded 256-bit key from K8s Secret</span>
+    KeyRotateHours   <span class="go-type">int</span>              <span class="go-comment">// 24 (auto-rotate HMAC key interval)</span>
+    XORMasking       <span class="go-type">bool</span>             <span class="go-comment">// true (BREACH protection)</span>
+    CuckooCapacity   <span class="go-type">uint</span>             <span class="go-comment">// 1000000 (Cuckoo filter size)</span>
+    RateLimitMode    <span class="go-type">string</span>           <span class="go-comment">// "local" | "redis"</span>
 }</code></pre>
+
+<div class="result pass"><strong>New Go type: <code>uint</code></strong>. Unsigned integer (no negative values). Used for <code>CuckooCapacity</code> because filter capacity is always positive. Go has <code>int</code> (signed), <code>uint</code> (unsigned), <code>int64</code>, <code>uint32</code>, etc.</div>
 
 <h4>Line-by-line: <code>envOrDefault</code></h4>
 <pre><code><span class="go-keyword">func</span> <span class="go-func">envOrDefault</span>(key, defaultVal <span class="go-type">string</span>) <span class="go-type">string</span> {
@@ -804,6 +835,196 @@ If Envoy <span class="r">cancels</span> the request (e.g., client disconnected):
 }</code></pre>
 
 <!-- ═══════════════════════════════════════════════════ -->
+<h2 id="hmac">7b. <code>token/hmac.go</code> &mdash; HMAC Token Engine <span class="badge green">NEW</span></h2>
+
+<p>Instead of storing random UUIDs in Redis, the hybrid mode generates <strong>self-contained HMAC tokens</strong>. The token carries all validation data (user, origin, expiry, unique ID) and is signed with HMAC-SHA256. Verification requires only the signing key &mdash; zero Redis calls.</p>
+
+<h4>Token binary format</h4>
+<div class="flow"><span class="b">[2-byte sub length]</span><span class="g">[sub bytes]</span><span class="b">[2-byte org length]</span><span class="g">[org bytes]</span><span class="y">[8-byte iat]</span><span class="r">[16-byte jti]</span><span class="b">[32-byte HMAC-SHA256]</span>
+   length prefix     user ID    length prefix     origin       timestamp   unique ID    signature</div>
+
+<h4>Line-by-line: <code>Generate</code></h4>
+<pre><code><span class="go-keyword">func</span> (g *<span class="go-type">Generator</span>) <span class="go-func">Generate</span>(userID, origin <span class="go-type">string</span>) (<span class="go-type">string</span>, Payload, <span class="go-type">error</span>) {
+    <span class="go-keyword">var</span> jti [<span class="go-number">16</span>]<span class="go-type">byte</span>
+    rand.Read(jti[:])                <span class="go-comment">// 128-bit cryptographic random unique ID</span>
+
+    p := <span class="go-type">Payload</span>{
+        Sub: userID,                 <span class="go-comment">// Bind to user (from JWT "sub" claim)</span>
+        Org: origin,                 <span class="go-comment">// Bind to origin (from Origin header)</span>
+        Iat: time.Now().Unix(),      <span class="go-comment">// Issued-at (TTL check: now - iat &lt; ttl)</span>
+        Jti: jti,                    <span class="go-comment">// Unique ID (for single-use via Cuckoo filter)</span>
+    }
+
+    data := <span class="go-func">encodePayload</span>(p)         <span class="go-comment">// Compact binary encoding (not JSON!)</span>
+    mac := g.keyRing.<span class="go-func">Sign</span>(data)     <span class="go-comment">// HMAC-SHA256 signature</span>
+    raw := <span class="go-keyword">append</span>(data, mac...)     <span class="go-comment">// payload || signature</span>
+
+    <span class="go-keyword">return</span> base64.RawURLEncoding.EncodeToString(raw), p, <span class="go-keyword">nil</span>
+}</code></pre>
+
+<div class="result info"><strong>Why binary encoding instead of JSON?</strong> Binary is ~3x smaller than JSON for the same data. A JWT-style JSON token would be 300+ bytes; this binary format is ~80 bytes before base64. Smaller tokens = less bandwidth, faster XOR masking.</div>
+
+<h4>Line-by-line: <code>Verify</code></h4>
+<pre><code><span class="go-keyword">func</span> (g *<span class="go-type">Generator</span>) <span class="go-func">Verify</span>(token <span class="go-type">string</span>) (Payload, <span class="go-type">error</span>) {
+    raw, err := base64.RawURLEncoding.DecodeString(token)
+    <span class="go-keyword">if</span> err != <span class="go-keyword">nil</span> { <span class="go-keyword">return</span> Payload{}, ErrInvalidToken }
+
+    data := raw[:len(raw)-<span class="go-number">32</span>]        <span class="go-comment">// Everything except last 32 bytes</span>
+    mac := raw[len(raw)-<span class="go-number">32</span>:]         <span class="go-comment">// Last 32 bytes = HMAC-SHA256 signature</span>
+
+    <span class="go-keyword">if</span> !g.keyRing.<span class="go-func">Verify</span>(data, mac) {  <span class="go-comment">// Tries current key, then previous key</span>
+        <span class="go-keyword">return</span> Payload{}, ErrTamperedToken
+    }
+
+    p, _ := <span class="go-func">decodePayload</span>(data)      <span class="go-comment">// Extract sub, org, iat, jti from binary</span>
+
+    elapsed := time.Now().Unix() - p.Iat
+    <span class="go-keyword">if</span> elapsed &gt; <span class="go-keyword">int64</span>(g.ttl.Seconds()) {  <span class="go-comment">// TTL check (no Redis needed!)</span>
+        <span class="go-keyword">return</span> Payload{}, ErrExpiredToken
+    }
+    <span class="go-keyword">return</span> p, <span class="go-keyword">nil</span>
+}</code></pre>
+
+<div class="result pass"><strong>Key insight:</strong> <code>Verify()</code> makes zero network calls. It decodes the token, checks the HMAC signature, and validates TTL &mdash; all in ~1 microsecond of CPU time. Compare this to the Redis-based validation which required 2 network round-trips (~2ms).</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="keyring">7c. <code>token/keyring.go</code> &mdash; Key Management <span class="badge green">NEW</span></h2>
+
+<p>The KeyRing manages HMAC signing keys with <strong>rotation support</strong>. During rotation, the previous key remains valid for one TTL window so in-flight tokens can still be verified.</p>
+
+<pre><code><span class="go-keyword">type</span> <span class="go-type">KeyRing</span> <span class="go-keyword">struct</span> {
+    current   []<span class="go-type">byte</span>         <span class="go-comment">// Active 256-bit signing key</span>
+    previous  []<span class="go-type">byte</span>         <span class="go-comment">// Previous key (grace period)</span>
+    mu        sync.<span class="go-type">RWMutex</span>   <span class="go-comment">// Thread safety for concurrent reads/writes</span>
+}
+
+<span class="go-comment">// Verify tries current key first, falls back to previous</span>
+<span class="go-keyword">func</span> (kr *<span class="go-type">KeyRing</span>) <span class="go-func">Verify</span>(data, mac []<span class="go-type">byte</span>) <span class="go-type">bool</span> {
+    kr.mu.RLock()                                    <span class="go-comment">// Read lock (many readers OK)</span>
+    <span class="go-keyword">defer</span> kr.mu.RUnlock()
+    <span class="go-keyword">if</span> hmac.Equal(<span class="go-func">sign</span>(kr.current, data), mac) { <span class="go-keyword">return</span> <span class="go-keyword">true</span> }
+    <span class="go-keyword">if</span> kr.previous != <span class="go-keyword">nil</span> {
+        <span class="go-keyword">return</span> hmac.Equal(<span class="go-func">sign</span>(kr.previous, data), mac)
+    }
+    <span class="go-keyword">return</span> <span class="go-keyword">false</span>
+}
+
+<span class="go-comment">// Rotate: current &rarr; previous, generate new current</span>
+<span class="go-keyword">func</span> (kr *<span class="go-type">KeyRing</span>) <span class="go-func">Rotate</span>() {
+    kr.mu.Lock()                                     <span class="go-comment">// Write lock (exclusive)</span>
+    <span class="go-keyword">defer</span> kr.mu.Unlock()
+    kr.previous = kr.current
+    kr.current = <span class="go-keyword">make</span>([]<span class="go-type">byte</span>, <span class="go-number">32</span>)
+    rand.Read(kr.current)                            <span class="go-comment">// New 256-bit random key</span>
+}</code></pre>
+
+<div class="result info"><strong>Go concurrency: <code>sync.RWMutex</code></strong>. A read-write mutex allows multiple goroutines to read simultaneously (<code>RLock</code>) but only one to write (<code>Lock</code>). This is critical because <code>Verify()</code> is called on every request (read-heavy), while <code>Rotate()</code> runs once every 24 hours (rare write).</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="mask">7d. <code>token/mask.go</code> &mdash; XOR BREACH Masking <span class="badge green">NEW</span></h2>
+
+<p><strong>BREACH attack</strong>: If HTTP compression is enabled, an attacker can observe response sizes to deduce secret tokens byte-by-byte. XOR masking defeats this by making every response contain different bytes for the same token.</p>
+
+<pre><code><span class="go-comment">// Mask: token &rarr; Base64URL(random || (token XOR random))</span>
+<span class="go-keyword">func</span> <span class="go-func">Mask</span>(token <span class="go-type">string</span>) (<span class="go-type">string</span>, <span class="go-type">error</span>) {
+    tokenBytes := []<span class="go-keyword">byte</span>(token)
+    random := <span class="go-keyword">make</span>([]<span class="go-type">byte</span>, <span class="go-keyword">len</span>(tokenBytes))
+    rand.Read(random)                          <span class="go-comment">// Fresh randomness each call</span>
+
+    xored := <span class="go-keyword">make</span>([]<span class="go-type">byte</span>, <span class="go-keyword">len</span>(tokenBytes))
+    <span class="go-keyword">for</span> i := <span class="go-keyword">range</span> tokenBytes {
+        xored[i] = tokenBytes[i] ^ random[i]  <span class="go-comment">// XOR: bitwise exclusive-or</span>
+    }
+
+    combined := <span class="go-keyword">append</span>(random, xored...)       <span class="go-comment">// [random bytes][XORed bytes]</span>
+    <span class="go-keyword">return</span> base64.RawURLEncoding.EncodeToString(combined), <span class="go-keyword">nil</span>
+}
+
+<span class="go-comment">// Unmask: split in half, XOR second half with first &rarr; original</span>
+<span class="go-keyword">func</span> <span class="go-func">Unmask</span>(masked <span class="go-type">string</span>) (<span class="go-type">string</span>, <span class="go-type">error</span>) {
+    combined, _ := base64.RawURLEncoding.DecodeString(masked)
+    half := <span class="go-keyword">len</span>(combined) / <span class="go-number">2</span>
+    random, xored := combined[:half], combined[half:]
+    original := <span class="go-keyword">make</span>([]<span class="go-type">byte</span>, half)
+    <span class="go-keyword">for</span> i := <span class="go-keyword">range</span> xored {
+        original[i] = xored[i] ^ random[i]    <span class="go-comment">// Reverse XOR: (a ^ b) ^ b = a</span>
+    }
+    <span class="go-keyword">return</span> <span class="go-keyword">string</span>(original), <span class="go-keyword">nil</span>
+}</code></pre>
+
+<div class="result warn"><strong>XOR property:</strong> <code>(A XOR B) XOR B = A</code>. This is why XOR is used in cryptography: applying the same operation twice recovers the original. The random bytes are included in the output so the receiver can reverse it. Each call generates new random bytes, so the same token produces completely different output every time.</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="cuckoo">7e. <code>cuckoo/</code> &mdash; Cuckoo Filter for Single-Use <span class="badge green">NEW</span></h2>
+
+<p>A <strong>Cuckoo filter</strong> is a probabilistic data structure (like a Bloom filter) that answers: "Have I seen this item before?" Unlike Bloom filters, Cuckoo filters <strong>support deletion</strong>, which is critical for managing expired tokens.</p>
+
+<table>
+  <tr><th>Property</th><th>Bloom Filter</th><th>Cuckoo Filter</th></tr>
+  <tr><td>False positives</td><td>~0.1%</td><td>~0.01% (10x better)</td></tr>
+  <tr><td>False negatives</td><td>0</td><td>0</td></tr>
+  <tr><td>Delete support</td><td>No</td><td><strong>Yes</strong></td></tr>
+  <tr><td>Memory efficiency</td><td>Good</td><td>Better at low FP rates</td></tr>
+</table>
+
+<pre><code><span class="go-comment">// RollingFilter manages two Cuckoo filters with automatic rotation.</span>
+<span class="go-comment">// "current" receives new inserts. "previous" is checked on lookups.</span>
+<span class="go-keyword">type</span> <span class="go-type">RollingFilter</span> <span class="go-keyword">struct</span> {
+    current  *<span class="go-type">Filter</span>
+    previous *<span class="go-type">Filter</span>
+    capacity <span class="go-type">uint</span>
+    mu       sync.<span class="go-type">RWMutex</span>
+}
+
+<span class="go-keyword">func</span> (rf *<span class="go-type">RollingFilter</span>) <span class="go-func">Lookup</span>(jti []<span class="go-type">byte</span>) <span class="go-type">bool</span> {
+    rf.mu.RLock()
+    <span class="go-keyword">defer</span> rf.mu.RUnlock()
+    <span class="go-keyword">return</span> rf.current.Lookup(jti) || rf.previous.Lookup(jti)
+}
+
+<span class="go-comment">// Rotate: previous discarded, current &rarr; previous, new empty &rarr; current</span>
+<span class="go-keyword">func</span> (rf *<span class="go-type">RollingFilter</span>) <span class="go-func">Rotate</span>() {
+    rf.mu.Lock()
+    <span class="go-keyword">defer</span> rf.mu.Unlock()
+    rf.previous = rf.current
+    rf.current = <span class="go-func">NewFilter</span>(rf.capacity)
+}</code></pre>
+
+<div class="result info"><strong>Why rolling?</strong> Cuckoo filters have fixed capacity. After 10 minutes (token TTL), old consumed JTIs are no longer relevant. The rolling window automatically discards them by rotating the filter, keeping memory bounded at ~8MB per filter regardless of traffic volume.</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2 id="hybrid">7f. <code>store/hybrid.go</code> &mdash; Hybrid Store L1+L2+L3 <span class="badge green">NEW</span></h2>
+
+<p>The <code>HybridStore</code> implements the same <code>TokenStore</code> interface as <code>RedisStore</code>, but uses a 3-tier validation architecture:</p>
+
+<div class="flow"><span class="b">Validate(userID, token, origin)</span>
+  &boxvr;&boxh;&boxh; <span class="b">1.</span> Is it a UUID format (36 chars, hyphens)? <span class="y">&rarr; Legacy Redis fallback</span>
+  &boxvr;&boxh;&boxh; <span class="b">2.</span> XOR unmask (if masking enabled)
+  &boxvr;&boxh;&boxh; <span class="b">3.</span> <span class="g">L2: HMAC verify</span> (signature + expiry) &mdash; <span class="g">0 Redis ops</span>
+  &boxvr;&boxh;&boxh; <span class="b">4.</span> Check user binding (payload.Sub == userID?)
+  &boxvr;&boxh;&boxh; <span class="b">5.</span> Check origin binding (payload.Org == origin?)
+  &boxvr;&boxh;&boxh; <span class="b">6.</span> <span class="g">L1: Cuckoo filter</span> (consumed on this pod?) &mdash; <span class="g">0 Redis ops</span>
+  &boxvr;&boxh;&boxh; <span class="b">7.</span> <span class="y">L3: Redis SISMEMBER</span> (consumed on another pod?) &mdash; <span class="y">1 Redis op (optional)</span>
+  &boxur;&boxh;&boxh; <span class="b">8.</span> Mark consumed: L1 insert + async L3 SADD</div>
+
+<pre><code><span class="go-comment">// Generate creates a token with 0 Redis operations</span>
+<span class="go-keyword">func</span> (s *<span class="go-type">HybridStore</span>) <span class="go-func">Generate</span>(_ <span class="go-type">context.Context</span>, userID, origin <span class="go-type">string</span>) (<span class="go-type">string</span>, <span class="go-type">error</span>) {
+    tok, _, err := s.generator.Generate(userID, origin)  <span class="go-comment">// HMAC sign (CPU only)</span>
+    <span class="go-keyword">if</span> s.xorMask {
+        masked, _ := token.Mask(tok)                      <span class="go-comment">// XOR mask (CPU only)</span>
+        <span class="go-keyword">return</span> masked, <span class="go-keyword">nil</span>
+    }
+    <span class="go-keyword">return</span> tok, <span class="go-keyword">nil</span>
+}
+
+<span class="go-comment">// isLegacyUUID detects old UUID tokens for backward compatibility</span>
+<span class="go-keyword">func</span> <span class="go-func">isLegacyUUID</span>(s <span class="go-type">string</span>) <span class="go-type">bool</span> {
+    <span class="go-keyword">return</span> <span class="go-keyword">len</span>(s) == <span class="go-number">36</span> && s[<span class="go-number">8</span>] == <span class="go-string">'-'</span> && s[<span class="go-number">13</span>] == <span class="go-string">'-'</span> && s[<span class="go-number">18</span>] == <span class="go-string">'-'</span> && s[<span class="go-number">23</span>] == <span class="go-string">'-'</span>
+}</code></pre>
+
+<div class="result pass"><strong>Interface polymorphism in action:</strong> <code>HybridStore</code> and <code>RedisStore</code> both implement <code>TokenStore</code>. The handler doesn't know or care which one it's using &mdash; <code>main.go</code> decides based on <code>CSRF_MODE</code> and injects the right implementation. This is the power of Go interfaces.</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
 <h2 id="jwt">8. <code>jwt/extract.go</code> &mdash; JWT Parsing</h2>
 
 <p>A JWT (JSON Web Token) has three parts separated by dots: <code>header.payload.signature</code>. Each part is base64url-encoded. This package decodes the payload to read claims like <code>sub</code> (user ID) and <code>aud</code> (audience).</p>
@@ -847,10 +1068,11 @@ If Envoy <span class="r">cancels</span> the request (e.g., client disconnected):
 <div class="result info"><strong>Go maps as sets.</strong> Go doesn't have a built-in Set type. The pattern <code>map[string]bool</code> is used instead &mdash; lookup is <code>O(1)</code> and checking membership is just <code>m["key"]</code> (returns <code>false</code> if not present).</div>
 
 <!-- ═══════════════════════════════════════════════════ -->
-<h2 id="ratelimit">10. <code>ratelimit/limiter.go</code> &mdash; Rate Limiting</h2>
+<h2 id="ratelimit">10. <code>ratelimit/</code> &mdash; Rate Limiting (Redis + Local)</h2>
 
-<p>This implements a <strong>sliding window rate limiter</strong> using Redis <code>INCR</code> + <code>EXPIRE</code>:</p>
+<p>Two implementations of the same <code>Limiter</code> interface:</p>
 
+<h4>RedisLimiter (legacy mode)</h4>
 <pre><code><span class="go-keyword">func</span> (l *<span class="go-type">RedisLimiter</span>) <span class="go-func">Allow</span>(ctx <span class="go-type">context.Context</span>, userID <span class="go-type">string</span>) (<span class="go-type">bool</span>, <span class="go-type">error</span>) {
     bucket := time.Now().Truncate(time.Minute).Unix()  <span class="go-comment">// Current minute as number</span>
     key := fmt.Sprintf(<span class="go-string">"ratelimit:csrf:%s:%d"</span>, userID, bucket)
@@ -859,9 +1081,30 @@ If Envoy <span class="r">cancels</span> the request (e.g., client disconnected):
     <span class="go-keyword">if</span> count == <span class="go-number">1</span> {
         l.client.Expire(ctx, key, <span class="go-number">2</span>*time.Minute)       <span class="go-comment">// Set TTL on first use</span>
     }
-
     <span class="go-keyword">return</span> count &lt;= int64(l.maxPerMin), <span class="go-keyword">nil</span>          <span class="go-comment">// Under limit?</span>
 }</code></pre>
+
+<h4>LocalLimiter (hybrid mode &mdash; no Redis) <span class="badge green">NEW</span></h4>
+<pre><code><span class="go-keyword">type</span> <span class="go-type">LocalLimiter</span> <span class="go-keyword">struct</span> {
+    maxPerMin <span class="go-type">int</span>
+    buckets   <span class="go-keyword">map</span>[<span class="go-type">string</span>]*bucket   <span class="go-comment">// Per-user counters</span>
+    mu        sync.<span class="go-type">Mutex</span>            <span class="go-comment">// Thread safety</span>
+}
+
+<span class="go-keyword">func</span> (l *<span class="go-type">LocalLimiter</span>) <span class="go-func">Allow</span>(_ <span class="go-type">context.Context</span>, userID <span class="go-type">string</span>) (<span class="go-type">bool</span>, <span class="go-type">error</span>) {
+    l.mu.Lock()
+    <span class="go-keyword">defer</span> l.mu.Unlock()
+    now := time.Now().Truncate(time.Minute).Unix()
+    b, ok := l.buckets[userID]
+    <span class="go-keyword">if</span> !ok || b.windowAt != now {
+        l.buckets[userID] = &amp;bucket{count: <span class="go-number">1</span>, windowAt: now}
+        <span class="go-keyword">return</span> <span class="go-keyword">true</span>, <span class="go-keyword">nil</span>
+    }
+    b.count++
+    <span class="go-keyword">return</span> b.count &lt;= l.maxPerMin, <span class="go-keyword">nil</span>
+}</code></pre>
+
+<div class="result info"><strong>Interface polymorphism again:</strong> Both <code>RedisLimiter</code> and <code>LocalLimiter</code> implement the <code>Limiter</code> interface with <code>Allow(ctx, userID) (bool, error)</code>. The handler calls <code>h.RateLimiter.Allow()</code> without knowing which implementation is behind it. <code>main.go</code> picks based on <code>CSRF_RATELIMIT_MODE</code>.</div>
 
 <!-- ═══════════════════════════════════════════════════ -->
 <h2 id="introspect">11. <code>introspect/client.go</code> &mdash; HTTP Client &amp; Caching</h2>
@@ -878,14 +1121,25 @@ If Envoy <span class="r">cancels</span> the request (e.g., client disconnected):
 <h2 id="metrics">12. <code>middleware/metrics.go</code> &mdash; Prometheus</h2>
 
 <pre><code><span class="go-keyword">type</span> <span class="go-type">Metrics</span> <span class="go-keyword">struct</span> {
-    RequestsTotal     *prometheus.CounterVec       <span class="go-comment">// Counts by {method, result}</span>
-    RedisErrorsTotal  prometheus.Counter            <span class="go-comment">// Single counter</span>
-    RequestDuration   *prometheus.HistogramVec      <span class="go-comment">// Latency distribution</span>
-    AnomalyTotal      *prometheus.CounterVec        <span class="go-comment">// Security anomalies</span>
-    <span class="go-comment">// ... 4 more metric families</span>
+    RequestsTotal      *prometheus.CounterVec       <span class="go-comment">// Counts by {method, result}</span>
+    RedisErrorsTotal   prometheus.Counter            <span class="go-comment">// Single counter</span>
+    RequestDuration    *prometheus.HistogramVec      <span class="go-comment">// Latency distribution</span>
+    AnomalyTotal       *prometheus.CounterVec        <span class="go-comment">// Security anomalies</span>
+    OriginChecksTotal  *prometheus.CounterVec        <span class="go-comment">// Origin validation results</span>
+    RateLimitTotal     *prometheus.CounterVec        <span class="go-comment">// Rate limit outcomes</span>
+    IntrospectTotal    *prometheus.CounterVec        <span class="go-comment">// JWT introspection results</span>
+    IntrospectDuration *prometheus.HistogramVec      <span class="go-comment">// Introspection latency</span>
+    TTLRenewalsTotal   *prometheus.CounterVec        <span class="go-comment">// Sliding TTL refreshes</span>
+    <span class="go-comment">// Session 30: HMAC + Cuckoo metrics</span>
+    HMACOpsTotal       *prometheus.CounterVec        <span class="go-comment">// {op: generate|verify, result: ok|invalid|expired}</span>
+    CuckooOpsTotal     *prometheus.CounterVec        <span class="go-comment">// {op: insert|lookup, tier: l1|l3}</span>
+    XORMaskTotal       *prometheus.CounterVec        <span class="go-comment">// {op: mask|unmask}</span>
+    KeyRotationsTotal  prometheus.Counter             <span class="go-comment">// Key rotation events</span>
+    L3FallbackTotal    *prometheus.CounterVec        <span class="go-comment">// {result: hit|miss|error}</span>
+    TokenFormatTotal   *prometheus.CounterVec        <span class="go-comment">// {format: hmac|uuid_legacy}</span>
 }</code></pre>
 
-<div class="result info"><strong>Counter vs Histogram.</strong> A <strong>Counter</strong> only goes up (total requests). A <strong>Histogram</strong> records distributions (latency percentiles: p50, p95, p99). Both are scraped by Prometheus every 15 seconds.</div>
+<div class="result info"><strong>Counter vs Histogram.</strong> A <strong>Counter</strong> only goes up (total requests). A <strong>Histogram</strong> records distributions (latency percentiles: p50, p95, p99). Both are scraped by Prometheus every 15 seconds. The service now has <strong>15 metric families</strong> &mdash; 6 new ones for HMAC/Cuckoo/XOR tracking.</div>
 
 <!-- ═══════════════════════════════════════════════════ -->
 <h2 id="handler">13. <code>handler/</code> &mdash; HTTP Handlers</h2>
@@ -915,10 +1169,14 @@ If Envoy <span class="r">cancels</span> the request (e.g., client disconnected):
   <span class="b">5.</span> Introspect token with Keycloak (check cache first)
      &bull; User disabled? <span class="r">&rarr; return 403 "Token is no longer valid"</span>
   <span class="b">6.</span> Read X-Csrf-Token header
-     &bull; Missing? <span class="r">&rarr; return 403</span>
-  <span class="b">7.</span> Validate token in Redis (constant-time compare + origin check)
-     &bull; Invalid? <span class="r">&rarr; return 403</span>
-     &bull; Valid? <span class="g">&rarr; DELETE from Redis (single-use)</span>
+     &bull; Missing? <span class="r">&rarr; return 403 + auto-regenerate new token</span>
+  <span class="b">7.</span> Validate via <span class="g">store.Validate()</span>:
+     <span class="go-comment">// Hybrid mode (CSRF_MODE=hybrid):</span>
+     &bull; UUID format? <span class="y">&rarr; Legacy Redis validation</span>
+     &bull; <span class="g">XOR unmask &rarr; HMAC verify &rarr; Cuckoo L1 &rarr; Redis L3</span>
+     &bull; Invalid/tampered/expired? <span class="r">&rarr; return 403 + auto-regenerate</span>
+     &bull; Already consumed (Cuckoo)? <span class="r">&rarr; return 403 + auto-regenerate</span>
+     &bull; Valid? <span class="g">&rarr; Mark consumed in L1 + async L3</span>
   <span class="b">8.</span> <span class="g">&rarr; return 200 (allow request through to backend)</span></div>
 
 <!-- ═══════════════════════════════════════════════════ -->
@@ -931,38 +1189,47 @@ If Envoy <span class="r">cancels</span> the request (e.g., client disconnected):
     <span class="go-comment">// 2. Load config from environment</span>
     cfg := config.Load()
 
-    <span class="go-comment">// 3. Create all dependencies</span>
-    tokenStore := store.NewRedisStore(cfg.RedisAddr, cfg.RedisPassword, cfg.TokenTTL, cfg.FailClosed)
-    metrics := middleware.NewMetrics()
-    originValidator := origin.NewValidator(cfg.AllowedOrigins, cfg.RequireOrigin)
-    rateLimiter := ratelimit.NewRedisLimiter(redisClient, cfg.RateLimitPerMin)
+    <span class="go-comment">// 3. Create token store based on CSRF_MODE</span>
+    <span class="go-keyword">var</span> tokenStore store.<span class="go-type">TokenStore</span>
+    <span class="go-keyword">switch</span> cfg.Mode {
+    <span class="go-keyword">case</span> <span class="go-string">"hmac"</span>, <span class="go-string">"hybrid"</span>:
+        kr, _ := token.NewKeyRing(cfg.HMACKey, cfg.TokenTTL)
+        stopKeyRotation = kr.StartAutoRotation(...)     <span class="go-comment">// Background goroutine</span>
+        gen := token.NewGenerator(kr, cfg.TokenTTL)
+        cf := cuckoo.NewRollingFilter(cfg.CuckooCapacity)
+        stopCuckooRotation = cf.StartAutoRotation(...)  <span class="go-comment">// Background goroutine</span>
+        tokenStore = store.NewHybridStore(gen, cf, redisClient, ...)
+    <span class="go-keyword">default</span>: <span class="go-comment">// "redis" legacy mode</span>
+        tokenStore = store.NewRedisStore(cfg.RedisAddr, ...)
+    }
 
-    <span class="go-comment">// 4. Inject ALL dependencies into the handler</span>
-    h := handler.New(tokenStore, metrics, originValidator, rateLimiter, introspector,
-        cfg.AllowedAudiences, cfg.ValidateAudience)
+    <span class="go-comment">// 4. Rate limiter: local (in-memory) or Redis</span>
+    <span class="go-keyword">var</span> rateLimiter ratelimit.<span class="go-type">Limiter</span>
+    <span class="go-keyword">switch</span> cfg.RateLimitMode {
+    <span class="go-keyword">case</span> <span class="go-string">"local"</span>:
+        rateLimiter = ratelimit.NewLocalLimiter(cfg.RateLimitPerMin)
+    <span class="go-keyword">default</span>:
+        rateLimiter = ratelimit.NewRedisLimiter(redisClient, cfg.RateLimitPerMin)
+    }
 
-    <span class="go-comment">// 5. Wire HTTP routes (Go 1.22+ pattern-based routing)</span>
+    <span class="go-comment">// 5. Inject ALL dependencies into the handler</span>
+    h := handler.New(tokenStore, metrics, originValidator, rateLimiter, ...)
+
+    <span class="go-comment">// 6. Wire HTTP routes</span>
     mux := http.NewServeMux()
-    mux.HandleFunc(<span class="go-string">"GET /csrf/token"</span>, h.GenerateToken)  <span class="go-comment">// Only GET</span>
-    mux.HandleFunc(<span class="go-string">"GET /healthz"</span>, h.Healthz)
-    mux.HandleFunc(<span class="go-string">"GET /livez"</span>, h.Livez)
-    mux.Handle(<span class="go-string">"GET /metrics"</span>, promhttp.Handler())
-    mux.HandleFunc(<span class="go-string">"/"</span>, h.ExtAuthzCheck)                <span class="go-comment">// Catch-all for ext_authz</span>
+    mux.HandleFunc(<span class="go-string">"GET /csrf/token"</span>, h.GenerateToken)
+    mux.HandleFunc(<span class="go-string">"/"</span>, h.ExtAuthzCheck)               <span class="go-comment">// Catch-all for ext_authz</span>
 
-    <span class="go-comment">// 6. Start HTTP server in a goroutine (background)</span>
-    <span class="go-keyword">go</span> <span class="go-keyword">func</span>() {
-        srv.ListenAndServe()   <span class="go-comment">// Blocks until error or shutdown</span>
-    }()
-
-    <span class="go-comment">// 7. Wait for SIGTERM or SIGINT (Kubernetes sends SIGTERM on pod deletion)</span>
-    sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
-    &lt;-sigCtx.Done()            <span class="go-comment">// Blocks here until signal received</span>
-
-    <span class="go-comment">// 8. Graceful shutdown: drain connections for 10 seconds</span>
-    shutdownCtx, _ := context.WithTimeout(context.Background(), <span class="go-number">10</span>*time.Second)
-    srv.Shutdown(shutdownCtx)  <span class="go-comment">// Stops accepting new requests, waits for in-flight</span>
-    tokenStore.Close()         <span class="go-comment">// Close Redis connections</span>
+    <span class="go-comment">// 7. Start server, wait for SIGTERM, graceful shutdown</span>
+    <span class="go-keyword">go</span> <span class="go-keyword">func</span>() { srv.ListenAndServe() }()
+    &lt;-sigCtx.Done()
+    srv.Shutdown(shutdownCtx)
+    stopKeyRotation()       <span class="go-comment">// Stop background key rotation goroutine</span>
+    stopCuckooRotation()    <span class="go-comment">// Stop background Cuckoo rotation goroutine</span>
+    tokenStore.Close()
 }</code></pre>
+
+<div class="result pass"><strong>Go pattern: <code>switch</code> for mode selection.</strong> The <code>switch cfg.Mode</code> selects which <code>TokenStore</code> implementation to create. Both <code>HybridStore</code> and <code>RedisStore</code> satisfy the same interface, so the handler works with either. Setting <code>CSRF_MODE=redis</code> restores exact legacy behavior &mdash; a safe escape hatch.</div>
 
 <!-- ═══════════════════════════════════════════════════ -->
 <h2 id="dockerfile">15. Dockerfile &mdash; Multi-Stage Build</h2>
@@ -1024,7 +1291,60 @@ CMD ["./csrf-service"]</code></pre>
     <span class="go-keyword">if</span> valid { t.Error(<span class="go-string">"second use should fail &mdash; token consumed"</span>) }
 }</code></pre>
 
-<div class="result info"><strong>68 tests</strong> across 6 packages, all using <code>miniredis</code> (in-memory) and <code>httptest</code> (mock HTTP). No real Redis or Keycloak needed. Run with: <code>go test -v ./...</code></div>
+<div class="result info"><strong>162 tests</strong> across 8 packages, all using <code>miniredis</code> (in-memory) and <code>httptest</code> (mock HTTP). No real Redis or Keycloak needed. Run with: <code>go test -v ./...</code></div>
+
+<h4>Testing the HMAC token engine (token package &mdash; 27 tests)</h4>
+<pre><code><span class="go-keyword">func</span> <span class="go-func">TestVerifyTampered</span>(t *testing.T) {
+    gen := NewGenerator(testKeyRing(t), <span class="go-number">10</span>*time.Minute)
+    tok, _, _ := gen.Generate(<span class="go-string">"user-1"</span>, <span class="go-string">""</span>)
+
+    <span class="go-comment">// Flip a character in the middle of the token</span>
+    chars := []<span class="go-keyword">byte</span>(tok)
+    chars[<span class="go-keyword">len</span>(chars)/<span class="go-number">2</span>] ^= <span class="go-number">0xFF</span>    <span class="go-comment">// XOR flip one byte</span>
+
+    _, err := gen.Verify(<span class="go-keyword">string</span>(chars))
+    <span class="go-keyword">if</span> err != ErrTamperedToken {
+        t.Fatal(<span class="go-string">"expected ErrTamperedToken for tampered token"</span>)
+    }
+}
+
+<span class="go-keyword">func</span> <span class="go-func">TestMaskProducesDifferentOutput</span>(t *testing.T) {
+    masked1, _ := Mask(<span class="go-string">"same-token"</span>)
+    masked2, _ := Mask(<span class="go-string">"same-token"</span>)
+    <span class="go-keyword">if</span> masked1 == masked2 {
+        t.Fatal(<span class="go-string">"expected different masked outputs (random XOR)"</span>)
+    }
+}</code></pre>
+
+<h4>Testing the Cuckoo filter (cuckoo package &mdash; 17 tests)</h4>
+<pre><code><span class="go-keyword">func</span> <span class="go-func">TestFalsePositiveRate</span>(t *testing.T) {
+    f := NewFilter(<span class="go-number">100000</span>)
+    <span class="go-comment">// Insert 10K items</span>
+    <span class="go-keyword">for</span> i := <span class="go-number">0</span>; i &lt; <span class="go-number">10000</span>; i++ { f.Insert(randomJTI()) }
+
+    <span class="go-comment">// Check 100K non-inserted items</span>
+    falsePositives := <span class="go-number">0</span>
+    <span class="go-keyword">for</span> i := <span class="go-number">0</span>; i &lt; <span class="go-number">100000</span>; i++ {
+        <span class="go-keyword">if</span> f.Lookup(randomJTI()) { falsePositives++ }
+    }
+    fpRate := <span class="go-keyword">float64</span>(falsePositives) / <span class="go-number">100000</span>
+    <span class="go-keyword">if</span> fpRate &gt; <span class="go-number">0.01</span> {                     <span class="go-comment">// Must be under 1%</span>
+        t.Fatalf(<span class="go-string">"FP rate too high: %.4f%%"</span>, fpRate*<span class="go-number">100</span>)
+    }
+    <span class="go-comment">// Measured: 0.26% (well under 1% threshold)</span>
+}</code></pre>
+
+<h4>Testing the hybrid store (store package &mdash; 15 new tests)</h4>
+<pre><code><span class="go-keyword">func</span> <span class="go-func">TestHybridRedisDown</span>(t *testing.T) {
+    hs, mr := setupHybrid(t)
+    mr.Close()                                     <span class="go-comment">// Simulate Redis failure</span>
+
+    tok, err := hs.Generate(ctx, <span class="go-string">"user-1"</span>, <span class="go-string">""</span>)  <span class="go-comment">// HMAC: works without Redis</span>
+    <span class="go-keyword">if</span> err != <span class="go-keyword">nil</span> { t.Fatal(err) }
+
+    valid, _ := hs.Validate(ctx, <span class="go-string">"user-1"</span>, tok, <span class="go-string">""</span>)  <span class="go-comment">// L1+L2: works without Redis</span>
+    <span class="go-keyword">if</span> !valid { t.Fatal(<span class="go-string">"should work with Redis down"</span>) }
+}</code></pre>
 
 <!-- ═══════════════════════════════════════════════════ -->
 <h2 id="run">18. How to Build &amp; Run</h2>
@@ -1069,9 +1389,14 @@ go test -coverprofile=coverage.out ./...
 go tool cover -html=coverage.out     <span class="go-comment"># Opens browser with line-by-line coverage</span>
 
 <span class="go-comment"># Count total tests</span>
-go test -v ./... 2>&1 | grep -c "^--- PASS"   <span class="go-comment"># 68</span></code></pre>
+go test -v ./... 2>&1 | grep -c "^--- PASS"   <span class="go-comment"># 162</span>
 
-<div class="result info"><strong>No external services needed.</strong> All 68 tests use <code>miniredis</code> (in-memory Redis) and <code>httptest</code> (mock HTTP server). You can run them offline, on a plane, without Docker or Kubernetes.</div>
+<span class="go-comment"># Run just the new HMAC/Cuckoo tests</span>
+go test -v ./internal/token/
+go test -v ./internal/cuckoo/
+go test -v -run TestHybrid ./internal/store/</code></pre>
+
+<div class="result info"><strong>No external services needed.</strong> All 162 tests use <code>miniredis</code> (in-memory Redis) and <code>httptest</code> (mock HTTP server). You can run them offline, on a plane, without Docker or Kubernetes. The new HMAC and Cuckoo tests need zero Redis &mdash; they are pure CPU-based tests.</div>
 
 <h3>Build &amp; Run Locally (without Docker)</h3>
 <pre><code><span class="go-comment"># Build the binary</span>
@@ -1131,6 +1456,7 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o csrf-service .
 
 <footer>
   <p>BookStore Platform &mdash; Learn Go: CSRF Service Complete Walkthrough<br>
+  <a href="csrf-hmac-hybrid-architecture.html">HMAC Hybrid Architecture</a> &bull;
   <a href="csrf-architecture-deep-dive.html">CSRF Architecture</a> &bull;
   <a href="csrf-before-after-comparison.html">Before vs After</a> &bull;
   <a href="csrf-clean-code-refactor.html">Clean Code Refactor</a> &bull;
