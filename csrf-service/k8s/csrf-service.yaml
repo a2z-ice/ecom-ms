@@ -9,6 +9,7 @@ data:
   CSRF_REDIS_HOST: cmVkaXMuaW5mcmEuc3ZjLmNsdXN0ZXIubG9jYWw=
   CSRF_REDIS_PORT: NjM3OQ==
   CSRF_REDIS_PASSWORD: Q0hBTkdFX01F
+  CSRF_HMAC_KEY: anM1UWErc2dSekF4anVoVnNaNityVFpndFdXSHBHdCs2QUFUNyt3enNMdz0=
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -53,6 +54,16 @@ spec:
               value: "10"
             - name: CSRF_SLIDING_TTL
               value: "true"
+            - name: CSRF_MODE
+              value: "hybrid"
+            - name: CSRF_XOR_MASKING
+              value: "true"
+            - name: CSRF_CUCKOO_CAPACITY
+              value: "1000000"
+            - name: CSRF_RATELIMIT_MODE
+              value: "local"
+            - name: CSRF_KEY_ROTATE_HOURS
+              value: "24"
           envFrom:
             - secretRef:
                 name: csrf-service-secret
@@ -64,10 +75,10 @@ spec:
           resources:
             requests:
               cpu: 50m
-              memory: 32Mi
+              memory: 48Mi
             limits:
               cpu: 200m
-              memory: 64Mi
+              memory: 80Mi
           readinessProbe:
             httpGet:
               path: /healthz

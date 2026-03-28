@@ -682,6 +682,10 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
       <h3>Sliding TTL &amp; Auto-Regeneration</h3>
       <p>Attack window reduced from 30 to 10 minutes with sliding TTL that resets on every authenticated request. Auto-regeneration returns a fresh token in the 403 response body, saving one network round trip. 9 Go unit tests, 12 E2E tests. OWASP &amp; NIST SP 800-63B aligned.</p>
     </a>
+    <a href="csrf-hmac-hybrid-architecture.html" class="doc-card" style="border-color: #8b5cf6; border-width: 2px;">
+      <h3>HMAC Hybrid Architecture (NEW)</h3>
+      <p>Stateless CSRF with HMAC-SHA256 tokens, Cuckoo filter single-use enforcement, and XOR BREACH masking. 1000x faster generation, 600x faster validation, Redis-optional resilience. 162 unit tests, 44 E2E tests. Full before/after comparison.</p>
+    </a>
     <a href="csrf-extauthz-vs-wasm.html" class="doc-card" style="border-color: var(--accent);">
       <h3>ext_authz vs Wasm Plugin Analysis</h3>
       <p>Deep comparison: ext_authz Go microservice (8.8/10) vs Istio Wasm plugin (6.3/10). Security, resilience, traffic handling, maintenance, Redis integration, industry patterns, and weighted scorecard.</p>

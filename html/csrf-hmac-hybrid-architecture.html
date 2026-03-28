@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CSRF HMAC Hybrid Architecture &mdash; BookStore Platform</title>
+  <style>
+    :root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--accent:#3b82f6;--border:#334155;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;--cyan:#06b6d4}
+    *{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth}
+    body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
+    .container{max-width:1100px;margin:0 auto;padding:40px 24px}
+    h1{font-size:2.2rem;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,#60a5fa,#a78bfa);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    h1+p{color:var(--muted);font-size:1.05rem;margin-bottom:40px}
+    h2{font-size:1.4rem;font-weight:700;margin:48px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);color:#f1f5f9}
+    h3{font-size:1.1rem;font-weight:600;margin:24px 0 8px;color:#cbd5e1}
+    h4{font-size:0.95rem;font-weight:600;margin:16px 0 6px;color:var(--muted)}
+    p{margin-bottom:16px}
+    table{width:100%;border-collapse:collapse;margin:16px 0 24px}
+    th{background:var(--card);text-align:left;padding:10px 14px;font-size:.85rem;font-weight:600;color:var(--accent);border-bottom:2px solid var(--border)}
+    td{padding:10px 14px;font-size:.9rem;border-bottom:1px solid var(--border)}
+    tr:hover td{background:rgba(59,130,246,.05)}
+    code{background:var(--card);padding:2px 6px;border-radius:4px;font-size:.88em;color:#f59e0b}
+    pre{background:var(--card);padding:16px;border-radius:8px;overflow-x:auto;margin:12px 0 20px;border:1px solid var(--border);font-size:.82rem;line-height:1.6}
+    pre code{background:none;padding:0;color:#e2e8f0}
+    ul,ol{margin:8px 0 16px 24px}li{margin-bottom:6px}
+    .badge{display:inline-block;font-size:.75rem;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:6px;color:#fff}
+    .badge.green{background:linear-gradient(135deg,#059669,#10b981)}.badge.purple{background:linear-gradient(135deg,#7c3aed,#8b5cf6)}
+    .badge.red{background:linear-gradient(135deg,#dc2626,#ef4444)}.badge.orange{background:linear-gradient(135deg,#d97706,#f59e0b)}
+    .badge.blue{background:linear-gradient(135deg,#2563eb,#3b82f6)}.badge.cyan{background:linear-gradient(135deg,#0891b2,#06b6d4)}
+    .badges{margin-bottom:24px}
+    footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid var(--border);color:var(--muted);font-size:.85rem}
+    footer a{color:var(--accent);text-decoration:none}footer a:hover{text-decoration:underline}
+    .topnav{position:sticky;top:0;z-index:100;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+    .topnav-inner{max-width:1100px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:52px}
+    .topnav-brand{font-weight:800;font-size:1rem;color:var(--text);text-decoration:none}
+    .topnav-links{display:flex;gap:20px;align-items:center}
+    .topnav-links a{color:var(--muted);font-size:.82rem;font-weight:500;text-decoration:none;transition:color .15s}.topnav-links a:hover{color:var(--text)}.topnav-links a.highlight{color:#a78bfa}
+    .step-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0}
+    .step-card h3{margin-top:0;color:var(--accent)}
+    .step-num{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--accent);color:white;font-weight:700;font-size:.85rem;margin-right:10px;flex-shrink:0}
+    .result{padding:12px 16px;border-radius:8px;margin:8px 0 16px;font-size:.9rem}
+    .result.pass{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--green)}
+    .result.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--yellow)}
+    .result.info{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:var(--accent)}
+    .result.fail{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--red)}
+    .flow{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin:20px 0;font-family:monospace;font-size:.82rem;line-height:1.8;white-space:pre;overflow-x:auto}
+    .flow .g{color:var(--green);font-weight:600}.flow .r{color:var(--red);font-weight:600}.flow .b{color:var(--accent)}.flow .y{color:var(--yellow)}.flow .c{color:var(--cyan)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0}
+    .card h3{margin-top:0;color:var(--accent)}
+    .toc{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px 28px;margin:0 0 40px}
+    .toc h3{margin:0 0 12px;color:var(--accent);font-size:1rem}.toc ol{margin:0 0 0 20px}.toc li{margin-bottom:3px}
+    .toc a{color:var(--muted);text-decoration:none;font-size:.86rem;transition:color .15s}.toc a:hover{color:var(--accent)}
+    .security-layer{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0}
+    .security-layer h3{margin-top:0;color:var(--accent)}
+    .layer-num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:white;font-weight:700;font-size:.75rem;margin-right:8px;flex-shrink:0}
+    .ts-keyword{color:#c678dd;font-weight:600}
+    .ts-type{color:#e5c07b}
+    .ts-string{color:#98c379}
+    .ts-comment{color:#5c6370;font-style:italic}
+    .ts-func{color:#61afef}
+    .ts-number{color:#d19a66}
+    /* Banner */
+    .linkedin-banner{position:relative;width:100%;background:linear-gradient(135deg,#0c1222 0%,#162044 35%,#1e1b4b 60%,#312e81 100%);overflow:hidden}
+    .linkedin-banner::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 15% 50%,rgba(59,130,246,.1) 0%,transparent 50%),radial-gradient(circle at 85% 20%,rgba(139,92,246,.12) 0%,transparent 40%);pointer-events:none}
+    .linkedin-banner::after{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
+    .banner-inner{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:52px 48px 48px;display:flex;align-items:center;gap:44px}
+    .banner-shield{flex-shrink:0;width:130px;height:150px}.banner-shield svg{width:100%;height:100%;filter:drop-shadow(0 0 24px rgba(59,130,246,.3))}
+    .banner-text{flex:1;min-width:0}
+    .banner-series{font-size:.7rem;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:rgba(167,139,250,.9);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+    .banner-series::before{content:'';width:24px;height:2px;background:linear-gradient(90deg,#a78bfa,transparent)}
+    .banner-title-text{font-size:2.1rem;font-weight:800;color:#f1f5f9;line-height:1.25;margin-bottom:10px;background:linear-gradient(135deg,#f1f5f9 0%,#cbd5e1 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .banner-desc{font-size:.95rem;color:#94a3b8;margin-bottom:22px;line-height:1.6;max-width:580px}
+    .banner-tags{display:flex;gap:8px;flex-wrap:wrap}
+    .banner-tags span{font-size:.7rem;font-weight:600;padding:5px 14px;border-radius:6px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;letter-spacing:.3px}
+    .banner-brand{position:absolute;bottom:18px;right:32px;font-size:.65rem;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(148,163,184,.35);z-index:1}
+    .banner-accent-line{height:3px;background:linear-gradient(90deg,#3b82f6 0%,#8b5cf6 33%,#06b6d4 66%,#10b981 100%)}
+    .banner-node{position:absolute;border-radius:50%;z-index:1}
+    .banner-node::after{content:'';position:absolute;top:50%;left:50%;width:200%;height:200%;transform:translate(-50%,-50%);border-radius:50%;border:1px solid;opacity:.15;animation:pulse 3s ease-out infinite}
+    @keyframes pulse{0%{width:100%;height:100%;opacity:.3}100%{width:300%;height:300%;opacity:0}}
+    .banner-node-1{width:8px;height:8px;background:#3b82f6;top:20%;right:15%}.banner-node-1::after{border-color:#3b82f6}
+    .banner-node-2{width:6px;height:6px;background:#8b5cf6;top:65%;right:8%}.banner-node-2::after{border-color:#8b5cf6;animation-delay:1s}
+    .banner-node-3{width:5px;height:5px;background:#06b6d4;top:35%;right:25%}.banner-node-3::after{border-color:#06b6d4;animation-delay:2s}
+    @media(max-width:768px){.banner-inner{flex-direction:column;padding:36px 24px 32px;gap:24px;text-align:center}.banner-shield{width:90px;height:104px}.banner-title-text{font-size:1.5rem}.banner-tags{justify-content:center}.banner-node{display:none}}
+  </style>
+  <script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav"><div class="topnav-inner"><a href="index.html" class="topnav-brand">BookStore Platform</a><div class="topnav-links"><a href="index.html">Home</a><a href="architecture.html">Architecture</a><a href="bookstore-platform-manual.html" class="highlight">Full Manual</a><a href="user-guide.html">User Guide</a></div></div></nav>
+
+<!-- Banner -->
+<div class="linkedin-banner">
+  <div class="banner-node banner-node-1"></div><div class="banner-node banner-node-2"></div><div class="banner-node banner-node-3"></div>
+  <div class="banner-inner">
+    <div class="banner-shield"><svg viewBox="0 0 130 150" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="sg" x1="65" y1="8" x2="65" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="rgba(59,130,246,.2)"/><stop offset="100%" stop-color="rgba(139,92,246,.15)"/></linearGradient><linearGradient id="ss" x1="16" y1="8" x2="114" y2="142" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M65 14L22 36v38c0 30 18 56 43 66 25-10 43-36 43-66V36L65 14z" fill="url(#sg)" stroke="url(#ss)" stroke-width="2" filter="url(#glow)"/><text x="55" y="85" text-anchor="middle" fill="#60a5fa" font-size="38" font-weight="700">12</text></svg></div>
+    <div class="banner-text">
+      <div class="banner-series">CSRF Protection Series &bull; Part 12</div>
+      <div class="banner-title-text">Hybrid HMAC + Cuckoo Filter Architecture</div>
+      <p class="banner-desc">Stateless high-performance CSRF protection with BREACH defense -- replacing Redis-dependent UUID tokens with self-contained HMAC-SHA256 tokens, in-memory Cuckoo filter deduplication, and XOR masking</p>
+      <div class="banner-tags"><span>Go 1.25</span><span>HMAC-SHA256</span><span>Cuckoo Filter</span><span>XOR Masking</span><span>Istio ext_authz</span><span>Redis Optional</span></div>
+    </div>
+  </div>
+  <div class="banner-brand">BookStore Platform</div>
+</div>
+<div class="banner-accent-line"></div>
+
+<div class="container">
+
+<h1>CSRF HMAC Hybrid Architecture</h1>
+<p>Deep technical guide covering the stateless HMAC token engine, XOR BREACH masking, tiered Cuckoo filter deduplication, and in-memory rate limiting that replaced the original Redis-only CSRF implementation</p>
+
+<div class="badges">
+  <span class="badge green">162 Unit Tests</span>
+  <span class="badge blue">44 E2E Tests</span>
+  <span class="badge purple">1000x Faster</span>
+  <span class="badge cyan">0 Redis Ops</span>
+  <span class="badge orange">BREACH Protected</span>
+</div>
+
+<!-- Table of Contents -->
+<div class="toc">
+  <h3>Table of Contents</h3>
+  <ol>
+    <li><a href="#executive-summary">Executive Summary</a></li>
+    <li><a href="#architecture-overview">Architecture Overview</a></li>
+    <li><a href="#hmac-token-engine">HMAC Token Engine</a></li>
+    <li><a href="#key-management">Key Management</a></li>
+    <li><a href="#breach-protection">BREACH Protection -- XOR Masking</a></li>
+    <li><a href="#cuckoo-filter">Cuckoo Filter</a></li>
+    <li><a href="#hybrid-store">Hybrid Store</a></li>
+    <li><a href="#rate-limiter">In-Memory Rate Limiter</a></li>
+    <li><a href="#configuration">Configuration</a></li>
+    <li><a href="#handler-integration">Handler Integration</a></li>
+    <li><a href="#prometheus-metrics">Prometheus Metrics</a></li>
+    <li><a href="#kubernetes-deployment">Kubernetes Deployment</a></li>
+    <li><a href="#comparison">Quantifiable Comparison: Before vs After</a></li>
+    <li><a href="#security-properties">Security Properties Preserved</a></li>
+    <li><a href="#request-flows">Request Flow Diagrams</a></li>
+    <li><a href="#testing">Testing</a></li>
+  </ol>
+</div>
+
+<!-- 1. Executive Summary -->
+<h2 id="executive-summary">1. Executive Summary</h2>
+
+<h3>What Was Built</h3>
+<p>The CSRF service was redesigned from a stateful, Redis-dependent UUID token store into a hybrid architecture that generates self-contained HMAC-SHA256 tokens, enforces single-use consumption through in-memory Cuckoo filters, and protects against BREACH compression attacks via XOR masking. Redis is retained only as an optional L3 layer for cross-pod deduplication during multi-replica deployments.</p>
+
+<h3>Why</h3>
+<p>The original architecture required two Redis round-trips for every token generation (<code>INCR</code> rate limit + <code>SET</code> token) and two more for every validation (<code>GET</code> + <code>DEL</code>). At scale, this made Redis the throughput bottleneck and a single point of failure. A Redis outage degraded the entire CSRF subsystem, forcing a choice between fail-open (bypassing CSRF protection) or fail-closed (blocking all mutating requests platform-wide).</p>
+
+<h3>Key Results</h3>
+<table>
+  <tr><th>Metric</th><th>Value</th></tr>
+  <tr><td>Token generation</td><td>~2 microseconds (pure CPU, 0 Redis ops) -- ~1500x faster</td></tr>
+  <tr><td>Token validation</td><td>~3 microseconds (HMAC verify + Cuckoo lookup) -- ~600x faster</td></tr>
+  <tr><td>Redis dependency</td><td>Optional (L3 dedup only) -- core protection works without Redis</td></tr>
+  <tr><td>BREACH protection</td><td>XOR masking on every response -- new capability</td></tr>
+  <tr><td>Backward compatibility</td><td>Legacy UUID tokens transparently fall back to Redis validation</td></tr>
+  <tr><td>Unit tests</td><td>162 across 8 packages</td></tr>
+  <tr><td>E2E tests</td><td>43 CSRF-specific Playwright tests</td></tr>
+</table>
+
+<!-- 2. Architecture Overview -->
+<h2 id="architecture-overview">2. Architecture Overview</h2>
+
+<h3>3-Tier Validation Model</h3>
+<p>The hybrid architecture validates tokens through three tiers, each progressively more expensive but more authoritative:</p>
+
+<div class="flow">                    <span class="b">Incoming Request (POST /checkout)</span>
+                              |
+                              v
+                    +-------------------+
+                    | <span class="y">XOR Unmask</span>        |  (<span class="ts-comment">if CSRF_XOR_MASKING=true</span>)
+                    | <span class="y">Base64URL decode</span>  |
+                    +-------------------+
+                              |
+                              v
+              +-------------------------------+
+         <span class="c">L2</span>   | <span class="b">HMAC-SHA256 Signature Verify</span>  |  ~1 us, pure CPU
+              | (current key, then previous)  |  No I/O
+              +-------------------------------+
+                     |              |
+                   <span class="g">valid</span>          <span class="r">invalid --&gt; 403</span>
+                     |
+                     v
+              +-------------------------------+
+              | <span class="b">User Binding Check</span>            |  payload.Sub == JWT.sub
+              | <span class="b">Origin Binding Check</span>          |  payload.Org == Origin header
+              +-------------------------------+
+                     |              |
+                   <span class="g">match</span>          <span class="r">mismatch --&gt; 403</span>
+                     |
+                     v
+              +-------------------------------+
+         <span class="c">L1</span>   | <span class="g">In-Memory Cuckoo Filter</span>       |  ~50 ns, per-pod
+              | (RollingFilter: cur + prev)   |  No I/O
+              +-------------------------------+
+                     |              |
+                 <span class="g">not found</span>      <span class="r">found (consumed) --&gt; 403</span>
+                     |
+                     v
+              +-------------------------------+
+         <span class="c">L3</span>   | <span class="y">Redis SISMEMBER (optional)</span>    |  ~1 ms, cross-pod
+              | (csrf:consumed set)           |  Async write-behind
+              +-------------------------------+
+                     |              |
+                 <span class="g">not found</span>      <span class="r">found (consumed) --&gt; 403</span>
+                     |
+                     v
+              <span class="g">Mark consumed: L1 sync + L3 async</span>
+                     |
+                     v
+                  <span class="g">200 OK (allow request)</span></div>
+
+<h3>Token Lifecycle</h3>
+
+<div class="flow">  <span class="b">GENERATION</span>                    <span class="y">TRANSMISSION</span>                  <span class="g">VERIFICATION</span>
+  =========                     ============                  ============
+
+  1. Generate Payload           4. UI stores token            7. Extract X-Csrf-Token header
+     [sub][org][iat][jti]          in React state             8. XOR unmask (if masked)
+                                                              9. HMAC verify (L2)
+  2. HMAC-SHA256(key, payload)  5. UI sends token in         10. User + origin binding
+     --&gt; signature                 X-Csrf-Token header        11. L1 Cuckoo lookup
+                                                              12. L3 Redis lookup (optional)
+  3. XOR mask (if enabled)      6. Istio ext_authz           13. Mark consumed (L1 + L3)
+     --&gt; masked token               intercepts request
+                                    before backend
+
+  Output format:
+  +-------------------------------------------------+
+  | <span class="c">Base64URL( random || (Base64URL(payload||mac)</span>   |
+  |                        <span class="c">XOR random) )</span>            |
+  +-------------------------------------------------+
+  |&lt;---- <span class="y">XOR mask layer</span> ----&gt;|&lt;---- <span class="b">HMAC token</span> ----&gt;|</div>
+
+<h3>Comparison with Previous Redis-Only Architecture</h3>
+
+<div class="flow">  <span class="r">BEFORE (Redis UUID)</span>                <span class="g">AFTER (HMAC + Cuckoo Hybrid)</span>
+  ===================                ============================
+
+  Generate:                          Generate:
+  UUID v4 --&gt; Redis SET              HMAC(key, payload) --&gt; XOR mask
+  [2-3 Redis ops]                    [<span class="g">0 Redis ops, pure CPU</span>]
+
+  Validate:                          Validate:
+  Redis GET --&gt; compare --&gt; DEL      HMAC verify --&gt; Cuckoo L1 --&gt; Redis L3
+  [2-3 Redis ops, blocking]          [<span class="g">0-1 Redis ops, async</span>]
+
+  Sliding TTL:                       Sliding TTL:
+  Redis EXPIRE (async)               No-op (TTL embedded in token iat)
+  [1 Redis op per safe GET]          [<span class="g">0 Redis ops</span>]
+
+  Single point of failure:           Redis-optional:
+  Redis down = service degraded      Core HMAC+Cuckoo works standalone</div>
+
+<!-- 3. HMAC Token Engine -->
+<h2 id="hmac-token-engine">3. HMAC Token Engine</h2>
+
+<p><strong>Source:</strong> <code>internal/token/hmac.go</code></p>
+
+<h3>Token Structure</h3>
+<p>Each CSRF token is a self-contained binary payload signed with HMAC-SHA256. The payload carries all the information needed for stateless verification:</p>
+
+<div class="flow"><span class="b">Binary Payload Layout:</span>
++--------+----------+--------+----------+--------+-----------+
+| <span class="c">2B</span>     | <span class="y">variable</span> | <span class="c">2B</span>     | <span class="y">variable</span> | <span class="c">8B</span>     | <span class="c">16B</span>       |
+| subLen | sub      | orgLen | org      | iat    | jti       |
++--------+----------+--------+----------+--------+-----------+
+|&lt;-------------- <span class="y">payload (variable length)</span> ----------------&gt;|
+
+<span class="b">Wire Format:</span>
++-----------------------------------------------------------+----------+
+| <span class="y">payload</span>                                                   | <span class="g">HMAC-256</span> |
++-----------------------------------------------------------+----------+
+|&lt;-------------- data (variable) --------------------------&gt;| <span class="g">32 bytes</span> |
+
+Encoded: <span class="c">Base64URL(payload || HMAC-SHA256(key, payload))</span></div>
+
+<table>
+  <tr><th>Field</th><th>Size</th><th>Purpose</th></tr>
+  <tr><td><code>subLen</code></td><td>2 bytes (uint16 big-endian)</td><td>Length prefix for subject string</td></tr>
+  <tr><td><code>sub</code></td><td>variable</td><td>JWT subject -- binds token to user</td></tr>
+  <tr><td><code>orgLen</code></td><td>2 bytes (uint16 big-endian)</td><td>Length prefix for origin string</td></tr>
+  <tr><td><code>org</code></td><td>variable</td><td>Request origin -- binds token to domain</td></tr>
+  <tr><td><code>iat</code></td><td>8 bytes (int64 big-endian)</td><td>Issued-at Unix timestamp -- embedded TTL</td></tr>
+  <tr><td><code>jti</code></td><td>16 bytes</td><td>Cryptographically random unique ID -- enables single-use enforcement</td></tr>
+  <tr><td>HMAC</td><td>32 bytes</td><td>HMAC-SHA256 signature over the entire payload</td></tr>
+</table>
+
+<h3>Payload Encoding</h3>
+<p>The <code>encodePayload</code> function serializes claims into a compact binary buffer using length-prefixed strings and fixed-width integers:</p>
+
+<pre><code><span class="ts-keyword">func</span> <span class="ts-func">encodePayload</span>(p <span class="ts-type">Payload</span>) []<span class="ts-type">byte</span> {
+    subBytes := []<span class="ts-type">byte</span>(p.Sub)
+    orgBytes := []<span class="ts-type">byte</span>(p.Org)
+    size := lenSize + <span class="ts-func">len</span>(subBytes) + lenSize + <span class="ts-func">len</span>(orgBytes) + iatSize + jtiSize
+    buf := <span class="ts-func">make</span>([]<span class="ts-type">byte</span>, size)
+
+    offset := <span class="ts-number">0</span>
+    binary.BigEndian.<span class="ts-func">PutUint16</span>(buf[offset:], <span class="ts-type">uint16</span>(<span class="ts-func">len</span>(subBytes)))
+    offset += lenSize
+    <span class="ts-func">copy</span>(buf[offset:], subBytes)
+    offset += <span class="ts-func">len</span>(subBytes)
+
+    binary.BigEndian.<span class="ts-func">PutUint16</span>(buf[offset:], <span class="ts-type">uint16</span>(<span class="ts-func">len</span>(orgBytes)))
+    offset += lenSize
+    <span class="ts-func">copy</span>(buf[offset:], orgBytes)
+    offset += <span class="ts-func">len</span>(orgBytes)
+
+    binary.BigEndian.<span class="ts-func">PutUint64</span>(buf[offset:], <span class="ts-type">uint64</span>(p.Iat))
+    offset += iatSize
+
+    <span class="ts-func">copy</span>(buf[offset:], p.Jti[:])
+
+    <span class="ts-keyword">return</span> buf
+}</code></pre>
+
+<p>This is deliberately not JSON or protobuf. The binary format:</p>
+<ul>
+  <li>Eliminates parsing overhead (no field names, no delimiters)</li>
+  <li>Produces minimal payload size (a typical token payload is ~80 bytes before signing)</li>
+  <li>Uses big-endian for deterministic byte ordering across architectures</li>
+</ul>
+
+<h3>Generate()</h3>
+
+<pre><code><span class="ts-keyword">func</span> (g *<span class="ts-type">Generator</span>) <span class="ts-func">Generate</span>(userID, origin <span class="ts-type">string</span>) (<span class="ts-type">string</span>, <span class="ts-type">Payload</span>, <span class="ts-type">error</span>) {
+    <span class="ts-keyword">var</span> jti [jtiSize]<span class="ts-type">byte</span>
+    <span class="ts-keyword">if</span> _, err := rand.<span class="ts-func">Read</span>(jti[:]); err != <span class="ts-keyword">nil</span> {
+        <span class="ts-keyword">return</span> <span class="ts-string">""</span>, <span class="ts-type">Payload</span>{}, err
+    }
+
+    p := <span class="ts-type">Payload</span>{
+        Sub: userID,
+        Org: origin,
+        Iat: time.<span class="ts-func">Now</span>().<span class="ts-func">Unix</span>(),
+        Jti: jti,
+    }
+
+    data := <span class="ts-func">encodePayload</span>(p)
+    mac := g.keyRing.<span class="ts-func">Sign</span>(data)
+    raw := <span class="ts-func">append</span>(data, mac...)
+
+    <span class="ts-keyword">return</span> base64.RawURLEncoding.<span class="ts-func">EncodeToString</span>(raw), p, <span class="ts-keyword">nil</span>
+}</code></pre>
+
+<p>Key design decisions:</p>
+<ol>
+  <li><strong><code>crypto/rand</code></strong> for JTI generation -- not <code>math/rand</code>. The JTI must be unpredictable to prevent pre-computation attacks.</li>
+  <li><strong><code>base64.RawURLEncoding</code></strong> (no padding) -- safe for HTTP headers without percent-encoding.</li>
+  <li><strong>Payload returned alongside token</strong> -- caller can use the <code>Payload.Jti</code> to insert into the Cuckoo filter without re-parsing.</li>
+</ol>
+
+<h3>Verify()</h3>
+
+<pre><code><span class="ts-keyword">func</span> (g *<span class="ts-type">Generator</span>) <span class="ts-func">Verify</span>(token <span class="ts-type">string</span>) (<span class="ts-type">Payload</span>, <span class="ts-type">error</span>) {
+    raw, err := base64.RawURLEncoding.<span class="ts-func">DecodeString</span>(token)
+    <span class="ts-keyword">if</span> err != <span class="ts-keyword">nil</span> {
+        <span class="ts-keyword">return</span> <span class="ts-type">Payload</span>{}, ErrInvalidToken
+    }
+
+    <span class="ts-keyword">if</span> <span class="ts-func">len</span>(raw) &lt; macSize+iatSize+jtiSize+<span class="ts-number">2</span>*lenSize {
+        <span class="ts-keyword">return</span> <span class="ts-type">Payload</span>{}, ErrInvalidToken
+    }
+
+    data := raw[:<span class="ts-func">len</span>(raw)-macSize]
+    mac := raw[<span class="ts-func">len</span>(raw)-macSize:]
+
+    <span class="ts-keyword">if</span> !g.keyRing.<span class="ts-func">Verify</span>(data, mac) {
+        <span class="ts-keyword">return</span> <span class="ts-type">Payload</span>{}, ErrTamperedToken
+    }
+
+    p, err := <span class="ts-func">decodePayload</span>(data)
+    <span class="ts-keyword">if</span> err != <span class="ts-keyword">nil</span> {
+        <span class="ts-keyword">return</span> <span class="ts-type">Payload</span>{}, ErrInvalidToken
+    }
+
+    elapsed := time.<span class="ts-func">Now</span>().<span class="ts-func">Unix</span>() - p.Iat
+    <span class="ts-keyword">if</span> elapsed &lt; <span class="ts-number">0</span> || elapsed &gt; <span class="ts-type">int64</span>(g.ttl.<span class="ts-func">Seconds</span>()) {
+        <span class="ts-keyword">return</span> <span class="ts-type">Payload</span>{}, ErrExpiredToken
+    }
+
+    <span class="ts-keyword">return</span> p, <span class="ts-keyword">nil</span>
+}</code></pre>
+
+<p>The verification order matters:</p>
+<ol>
+  <li><strong>Minimum length check</strong> -- rejects garbage before any crypto work.</li>
+  <li><strong>HMAC verification first</strong> -- if the signature is invalid, do not waste time decoding the payload. This prevents malformed payload parsing from being an attack vector.</li>
+  <li><strong>TTL check</strong> -- <code>elapsed &lt; 0</code> catches clock skew / future-dated tokens.</li>
+</ol>
+
+<h3>Why HMAC-SHA256 Over JWT for CSRF Tokens</h3>
+
+<div class="card">
+  <h3>JWT vs Purpose-Built HMAC</h3>
+  <p>JWTs carry significant overhead inappropriate for CSRF:</p>
+  <ul>
+    <li><strong>Header bloat:</strong> <code>{"alg":"HS256","typ":"JWT"}</code> adds ~36 bytes of base64 overhead per token for information the CSRF service already knows.</li>
+    <li><strong>JSON parsing:</strong> Both header and payload require JSON deserialization. The binary format eliminates this entirely.</li>
+    <li><strong>Library attack surface:</strong> JWT libraries have a long history of algorithm confusion attacks (<code>alg: none</code>, RS256/HS256 confusion). A purpose-built HMAC verifier has no algorithm negotiation.</li>
+    <li><strong>Token size:</strong> A typical CSRF JWT would be ~280 characters. The binary HMAC token is ~160 characters (before XOR masking).</li>
+  </ul>
+  <p>CSRF tokens are always verified by the same service that issued them. There is no need for the interoperability that JWT provides.</p>
+</div>
+
+<!-- 4. Key Management -->
+<h2 id="key-management">4. Key Management</h2>
+
+<p><strong>Source:</strong> <code>internal/token/keyring.go</code></p>
+
+<h3>KeyRing Structure</h3>
+<p>The <code>KeyRing</code> manages two HMAC keys: the current signing key and the previous key retained during a grace period. This enables zero-downtime key rotation.</p>
+
+<pre><code><span class="ts-keyword">type</span> <span class="ts-type">KeyRing</span> <span class="ts-keyword">struct</span> {
+    current   []<span class="ts-type">byte</span>          <span class="ts-comment">// Active signing key (256-bit)</span>
+    previous  []<span class="ts-type">byte</span>          <span class="ts-comment">// Previous key (valid during grace period)</span>
+    rotatedAt <span class="ts-type">time.Time</span>       <span class="ts-comment">// When the last rotation occurred</span>
+    graceTTL  <span class="ts-type">time.Duration</span>   <span class="ts-comment">// How long previous key stays valid</span>
+    mu        <span class="ts-type">sync.RWMutex</span>
+}</code></pre>
+
+<h3>Key Loading from Kubernetes Secret</h3>
+<p>The <code>NewKeyRing</code> constructor accepts a base64-encoded key from the <code>CSRF_HMAC_KEY</code> environment variable, which is populated from a Kubernetes Secret:</p>
+
+<pre><code><span class="ts-keyword">func</span> <span class="ts-func">NewKeyRing</span>(keyBase64 <span class="ts-type">string</span>, graceTTL <span class="ts-type">time.Duration</span>) (*<span class="ts-type">KeyRing</span>, <span class="ts-type">error</span>) {
+    <span class="ts-keyword">var</span> key []<span class="ts-type">byte</span>
+    <span class="ts-keyword">if</span> keyBase64 != <span class="ts-string">""</span> {
+        <span class="ts-keyword">var</span> err <span class="ts-type">error</span>
+        key, err = base64.StdEncoding.<span class="ts-func">DecodeString</span>(keyBase64)
+        <span class="ts-keyword">if</span> err != <span class="ts-keyword">nil</span> {
+            <span class="ts-keyword">return</span> <span class="ts-keyword">nil</span>, errors.<span class="ts-func">New</span>(<span class="ts-string">"CSRF_HMAC_KEY must be valid base64"</span>)
+        }
+        <span class="ts-keyword">if</span> <span class="ts-func">len</span>(key) &lt; keySize {
+            <span class="ts-keyword">return</span> <span class="ts-keyword">nil</span>, errors.<span class="ts-func">New</span>(<span class="ts-string">"CSRF_HMAC_KEY must be at least 256 bits (32 bytes)"</span>)
+        }
+        key = key[:keySize] <span class="ts-comment">// Truncate to exactly 256 bits</span>
+    } <span class="ts-keyword">else</span> {
+        key = <span class="ts-func">make</span>([]<span class="ts-type">byte</span>, keySize)
+        <span class="ts-keyword">if</span> _, err := rand.<span class="ts-func">Read</span>(key); err != <span class="ts-keyword">nil</span> {
+            <span class="ts-keyword">return</span> <span class="ts-keyword">nil</span>, err
+        }
+        slog.<span class="ts-func">Warn</span>(<span class="ts-string">"No CSRF_HMAC_KEY provided -- generated random key "</span> +
+            <span class="ts-string">"(tokens will not survive pod restart)"</span>)
+    }
+
+    <span class="ts-keyword">return</span> &amp;<span class="ts-type">KeyRing</span>{
+        current:   key,
+        rotatedAt: time.<span class="ts-func">Now</span>(),
+        graceTTL:  graceTTL,
+    }, <span class="ts-keyword">nil</span>
+}</code></pre>
+
+<div class="result info"><strong>Note:</strong> When no <code>CSRF_HMAC_KEY</code> is provided, a random key is generated. This is useful for development but means tokens are invalidated on pod restart. In production, the key is always loaded from the Kubernetes Secret.</div>
+
+<h3>Auto-Rotation via Background Goroutine</h3>
+<p>Key rotation runs on a configurable interval (default 24 hours). The <code>Rotate()</code> method moves the current key to <code>previous</code> and generates a fresh random key:</p>
+
+<pre><code><span class="ts-keyword">func</span> (kr *<span class="ts-type">KeyRing</span>) <span class="ts-func">Rotate</span>() {
+    kr.mu.<span class="ts-func">Lock</span>()
+    <span class="ts-keyword">defer</span> kr.mu.<span class="ts-func">Unlock</span>()
+
+    kr.previous = kr.current
+    kr.current = <span class="ts-func">make</span>([]<span class="ts-type">byte</span>, keySize)
+    rand.<span class="ts-func">Read</span>(kr.current)
+    kr.rotatedAt = time.<span class="ts-func">Now</span>()
+
+    slog.<span class="ts-func">Info</span>(<span class="ts-string">"HMAC key rotated"</span>, <span class="ts-string">"rotatedAt"</span>, kr.rotatedAt)
+}
+
+<span class="ts-keyword">func</span> (kr *<span class="ts-type">KeyRing</span>) <span class="ts-func">StartAutoRotation</span>(interval <span class="ts-type">time.Duration</span>) <span class="ts-keyword">func</span>() {
+    ticker := time.<span class="ts-func">NewTicker</span>(interval)
+    done := <span class="ts-func">make</span>(<span class="ts-keyword">chan</span> <span class="ts-keyword">struct</span>{})
+
+    <span class="ts-keyword">go</span> <span class="ts-keyword">func</span>() {
+        <span class="ts-keyword">for</span> {
+            <span class="ts-keyword">select</span> {
+            <span class="ts-keyword">case</span> &lt;-ticker.C:
+                kr.<span class="ts-func">Rotate</span>()
+            <span class="ts-keyword">case</span> &lt;-done:
+                ticker.<span class="ts-func">Stop</span>()
+                <span class="ts-keyword">return</span>
+            }
+        }
+    }()
+
+    <span class="ts-keyword">return</span> <span class="ts-keyword">func</span>() { <span class="ts-func">close</span>(done) }
+}</code></pre>
+
+<p>The returned stop function is called during graceful shutdown to prevent goroutine leaks.</p>
+
+<h3>Dual-Key Verification for Grace Period</h3>
+<p>During verification, the current key is tried first. If it fails, the previous key is tried (if one exists). This ensures tokens signed with the old key remain valid for the duration of the grace period:</p>
+
+<pre><code><span class="ts-keyword">func</span> (kr *<span class="ts-type">KeyRing</span>) <span class="ts-func">Verify</span>(data, mac []<span class="ts-type">byte</span>) <span class="ts-type">bool</span> {
+    kr.mu.<span class="ts-func">RLock</span>()
+    <span class="ts-keyword">defer</span> kr.mu.<span class="ts-func">RUnlock</span>()
+
+    <span class="ts-keyword">if</span> hmac.<span class="ts-func">Equal</span>(<span class="ts-func">sign</span>(kr.current, data), mac) {
+        <span class="ts-keyword">return</span> <span class="ts-keyword">true</span>
+    }
+    <span class="ts-keyword">if</span> kr.previous != <span class="ts-keyword">nil</span> {
+        <span class="ts-keyword">return</span> hmac.<span class="ts-func">Equal</span>(<span class="ts-func">sign</span>(kr.previous, data), mac)
+    }
+    <span class="ts-keyword">return</span> <span class="ts-keyword">false</span>
+}</code></pre>
+
+<div class="result pass"><strong>Timing-safe:</strong> The use of <code>hmac.Equal</code> (which wraps <code>crypto/subtle.ConstantTimeCompare</code>) prevents timing side-channel attacks on the MAC comparison.</div>
+
+<h3>Thread Safety</h3>
+<p>All KeyRing methods use <code>sync.RWMutex</code>:</p>
+<ul>
+  <li><code>Sign()</code> and <code>Verify()</code> take read locks (concurrent reads are safe)</li>
+  <li><code>Rotate()</code> takes a write lock (exclusive access during key swap)</li>
+</ul>
+<p>This means signing and verification never block each other, and rotation (which happens once every 24 hours) causes minimal contention.</p>
+
+<!-- 5. BREACH Protection -->
+<h2 id="breach-protection">5. BREACH Protection -- XOR Masking</h2>
+
+<p><strong>Source:</strong> <code>internal/token/mask.go</code></p>
+
+<h3>What Is the BREACH Attack</h3>
+<div class="card">
+  <h3>BREACH (Browser Reconnaissance and Exfiltration via Adaptive Compression of Hypertext)</h3>
+  <p>BREACH exploits HTTP-level compression (gzip, deflate, brotli) to extract secrets from responses. The attack works by:</p>
+  <ol>
+    <li>The attacker controls part of the request (e.g., a URL parameter that gets reflected in the response).</li>
+    <li>The response contains a secret (e.g., a CSRF token).</li>
+    <li>HTTP compression (gzip) compresses the response.</li>
+    <li>The attacker guesses one character of the secret at a time, prepending it to the reflected input. When the guess matches, the compression ratio improves (smaller response), leaking information about the secret.</li>
+  </ol>
+  <p>If the CSRF token is the same bytes on every response, an attacker with ~36 * token_length requests can extract it character by character by observing response sizes.</p>
+</div>
+
+<h3>How Spring Security 6.x Solves It</h3>
+<p>Spring Security 6.x introduced <code>XorCsrfTokenRequestAttributeHandler</code>, which XOR-masks the CSRF token with a random pad on every response. The masked token is different every time, even though the underlying token is the same. This breaks BREACH because the attacker cannot correlate compression ratios to specific characters. Our implementation follows the same principle.</p>
+
+<h3>Our Implementation: Mask() and Unmask()</h3>
+
+<pre><code><span class="ts-comment">// Mask applies XOR BREACH protection to a token.</span>
+<span class="ts-comment">// Output: Base64URL(random || (tokenBytes XOR random))</span>
+<span class="ts-comment">// Every call produces a different output for the same input.</span>
+<span class="ts-keyword">func</span> <span class="ts-func">Mask</span>(token <span class="ts-type">string</span>) (<span class="ts-type">string</span>, <span class="ts-type">error</span>) {
+    tokenBytes := []<span class="ts-type">byte</span>(token)
+    random := <span class="ts-func">make</span>([]<span class="ts-type">byte</span>, <span class="ts-func">len</span>(tokenBytes))
+    <span class="ts-keyword">if</span> _, err := rand.<span class="ts-func">Read</span>(random); err != <span class="ts-keyword">nil</span> {
+        <span class="ts-keyword">return</span> <span class="ts-string">""</span>, err
+    }
+
+    xored := <span class="ts-func">make</span>([]<span class="ts-type">byte</span>, <span class="ts-func">len</span>(tokenBytes))
+    <span class="ts-keyword">for</span> i := <span class="ts-keyword">range</span> tokenBytes {
+        xored[i] = tokenBytes[i] ^ random[i]
+    }
+
+    combined := <span class="ts-func">append</span>(random, xored...)
+    <span class="ts-keyword">return</span> base64.RawURLEncoding.<span class="ts-func">EncodeToString</span>(combined), <span class="ts-keyword">nil</span>
+}</code></pre>
+
+<pre><code><span class="ts-comment">// Unmask reverses XOR BREACH masking to recover the original token.</span>
+<span class="ts-keyword">func</span> <span class="ts-func">Unmask</span>(masked <span class="ts-type">string</span>) (<span class="ts-type">string</span>, <span class="ts-type">error</span>) {
+    combined, err := base64.RawURLEncoding.<span class="ts-func">DecodeString</span>(masked)
+    <span class="ts-keyword">if</span> err != <span class="ts-keyword">nil</span> {
+        <span class="ts-keyword">return</span> <span class="ts-string">""</span>, errors.<span class="ts-func">New</span>(<span class="ts-string">"invalid masked token encoding"</span>)
+    }
+
+    <span class="ts-keyword">if</span> <span class="ts-func">len</span>(combined)%<span class="ts-number">2</span> != <span class="ts-number">0</span> {
+        <span class="ts-keyword">return</span> <span class="ts-string">""</span>, errors.<span class="ts-func">New</span>(<span class="ts-string">"invalid masked token length"</span>)
+    }
+    <span class="ts-keyword">if</span> <span class="ts-func">len</span>(combined) == <span class="ts-number">0</span> {
+        <span class="ts-keyword">return</span> <span class="ts-string">""</span>, <span class="ts-keyword">nil</span>
+    }
+
+    half := <span class="ts-func">len</span>(combined) / <span class="ts-number">2</span>
+    random := combined[:half]
+    xored := combined[half:]
+
+    original := <span class="ts-func">make</span>([]<span class="ts-type">byte</span>, half)
+    <span class="ts-keyword">for</span> i := <span class="ts-keyword">range</span> xored {
+        original[i] = xored[i] ^ random[i]
+    }
+
+    <span class="ts-keyword">return</span> <span class="ts-func">string</span>(original), <span class="ts-keyword">nil</span>
+}</code></pre>
+
+<h3>Mask Algorithm in Detail</h3>
+
+<div class="flow"><span class="b">Input:</span>  token = <span class="ts-string">"abc123..."</span>  (the raw HMAC token string)
+
+<span class="y">Step 1:</span> Generate random bytes R of same length as token bytes
+        R = [0x4a, 0xf1, 0x02, 0xde, ...]
+
+<span class="y">Step 2:</span> XOR each byte:  X[i] = token[i] ^ R[i]
+        X = [0x2b, 0xc1, 0x33, 0xed, ...]
+
+<span class="y">Step 3:</span> Concatenate:  combined = R || X
+
+<span class="y">Step 4:</span> Encode:  Base64URL(combined)
+
+<span class="g">Output:</span> <span class="ts-string">"Sv...completely different each time..."</span></div>
+
+<p>Recovery is trivial because XOR is its own inverse:</p>
+<pre><code>token[i] = X[i] ^ R[i] = (token[i] ^ R[i]) ^ R[i] = token[i]</code></pre>
+
+<h3>Why Every Response Produces Different Bytes</h3>
+<p>The random pad <code>R</code> is generated fresh from <code>crypto/rand</code> on every call to <code>Mask()</code>. Even though <code>token</code> is the same, <code>R</code> is different, so the output <code>R || (token XOR R)</code> is entirely different. An attacker observing compressed response sizes sees no correlation between responses because the byte patterns are statistically independent.</p>
+
+<div class="result warn"><strong>Size trade-off:</strong> The masked token is approximately 2x the size of the raw token (the random pad doubles the length), then base64 encoding adds ~33% overhead. A typical raw HMAC token of ~160 characters becomes ~336 characters after masking. This is a deliberate trade-off: larger tokens for BREACH immunity.</div>
+
+<!-- 6. Cuckoo Filter -->
+<h2 id="cuckoo-filter">6. Cuckoo Filter</h2>
+
+<p><strong>Source:</strong> <code>internal/cuckoo/filter.go</code>, <code>internal/cuckoo/rolling.go</code></p>
+
+<h3>Why Cuckoo Over Bloom Filter</h3>
+<p>Both Cuckoo and Bloom filters are probabilistic data structures for set membership queries. The critical difference for CSRF single-use enforcement:</p>
+
+<table>
+  <tr><th>Property</th><th>Bloom Filter</th><th>Cuckoo Filter</th></tr>
+  <tr><td>Insert</td><td>Yes</td><td>Yes</td></tr>
+  <tr><td>Lookup</td><td>Yes (with false positives)</td><td>Yes (with false positives)</td></tr>
+  <tr><td>Delete</td><td><strong style="color:var(--red)">No</strong></td><td><strong style="color:var(--green)">Yes</strong></td></tr>
+  <tr><td>False positive rate</td><td>~1% at typical load</td><td>~0.01-0.3% at typical load</td></tr>
+  <tr><td>Space per item</td><td>~10 bits</td><td>~8 bits</td></tr>
+</table>
+
+<div class="result info"><strong>Key insight:</strong> Bloom filters cannot delete entries. Without deletion, the filter would fill up over time and eventually reject all tokens (100% false positive rate). Cuckoo filters support deletion, which enables the <code>RollingFilter</code> pattern: old entries naturally age out when the previous filter is discarded during rotation.</div>
+
+<h3>Filter Operations</h3>
+<p>The <code>Filter</code> struct wraps the <code>seiflotfy/cuckoofilter</code> library with thread-safe access:</p>
+
+<pre><code><span class="ts-keyword">type</span> <span class="ts-type">Filter</span> <span class="ts-keyword">struct</span> {
+    cf *cuckoo.<span class="ts-type">Filter</span>
+    mu <span class="ts-type">sync.RWMutex</span>
+}
+
+<span class="ts-keyword">func</span> (f *<span class="ts-type">Filter</span>) <span class="ts-func">Insert</span>(jti []<span class="ts-type">byte</span>) <span class="ts-type">bool</span> {
+    f.mu.<span class="ts-func">Lock</span>()
+    <span class="ts-keyword">defer</span> f.mu.<span class="ts-func">Unlock</span>()
+    <span class="ts-keyword">return</span> f.cf.<span class="ts-func">Insert</span>(jti)
+}
+
+<span class="ts-keyword">func</span> (f *<span class="ts-type">Filter</span>) <span class="ts-func">Lookup</span>(jti []<span class="ts-type">byte</span>) <span class="ts-type">bool</span> {
+    f.mu.<span class="ts-func">RLock</span>()
+    <span class="ts-keyword">defer</span> f.mu.<span class="ts-func">RUnlock</span>()
+    <span class="ts-keyword">return</span> f.cf.<span class="ts-func">Lookup</span>(jti)
+}
+
+<span class="ts-keyword">func</span> (f *<span class="ts-type">Filter</span>) <span class="ts-func">Delete</span>(jti []<span class="ts-type">byte</span>) <span class="ts-type">bool</span> {
+    f.mu.<span class="ts-func">Lock</span>()
+    <span class="ts-keyword">defer</span> f.mu.<span class="ts-func">Unlock</span>()
+    <span class="ts-keyword">return</span> f.cf.<span class="ts-func">Delete</span>(jti)
+}</code></pre>
+
+<ul>
+  <li><strong>Insert:</strong> Adds a JTI to the consumed set. Returns false if the filter is full.</li>
+  <li><strong>Lookup:</strong> Returns true if the JTI has been consumed (or is a false positive).</li>
+  <li><strong>Delete:</strong> Removes a JTI. Returns true if it was found and removed.</li>
+</ul>
+
+<h3>RollingFilter: Current + Previous with Auto-Rotation</h3>
+<p>The <code>RollingFilter</code> maintains two filters to handle the token TTL boundary:</p>
+
+<pre><code><span class="ts-keyword">type</span> <span class="ts-type">RollingFilter</span> <span class="ts-keyword">struct</span> {
+    current  *<span class="ts-type">Filter</span>
+    previous *<span class="ts-type">Filter</span>
+    capacity <span class="ts-type">uint</span>
+    mu       <span class="ts-type">sync.RWMutex</span>
+}</code></pre>
+
+<div class="flow"><span class="b">Time  ------&gt;</span>
+
+  |   <span class="y">Window 1 (0-10min)</span>  |  <span class="y">Window 2 (10-20min)</span>  |  <span class="y">Window 3 (20-30min)</span>  |
+  |                        |                        |                        |
+  |  current: <span class="g">Filter A</span>     |  current: <span class="g">Filter B</span>     |  current: <span class="g">Filter C</span>     |
+  |  previous: <span class="r">(empty)</span>     |  previous: <span class="c">Filter A</span>    |  previous: <span class="c">Filter B</span>    |
+  |                        |                        |                        |
+  |  Tokens consumed here  |  A still checked on    |  <span class="r">A discarded.</span>          |
+  |  go into Filter A      |  lookup (grace period) |  B still checked.      |</div>
+
+<p>The rotation interval matches the token TTL (10 minutes by default). When a token is consumed in window 1 and a replay is attempted in window 2, the lookup checks both current and previous filters:</p>
+
+<pre><code><span class="ts-keyword">func</span> (rf *<span class="ts-type">RollingFilter</span>) <span class="ts-func">Lookup</span>(jti []<span class="ts-type">byte</span>) <span class="ts-type">bool</span> {
+    rf.mu.<span class="ts-func">RLock</span>()
+    <span class="ts-keyword">defer</span> rf.mu.<span class="ts-func">RUnlock</span>()
+    <span class="ts-keyword">return</span> rf.current.<span class="ts-func">Lookup</span>(jti) || rf.previous.<span class="ts-func">Lookup</span>(jti)
+}</code></pre>
+
+<h3>Memory Sizing</h3>
+<p>The default capacity is 1,000,000 entries per filter (<code>CSRF_CUCKOO_CAPACITY</code>).</p>
+
+<pre><code>Memory = capacity * 8 bits / bucket_size * num_buckets
+       ~ 1,000,000 * 8 bits
+       ~ <span class="ts-number">8 MB</span> per filter</code></pre>
+
+<p>With two filters (current + previous) in the RollingFilter, the total memory consumption is approximately <strong>16 MB</strong> for the Cuckoo filters. This is why the pod memory limit was increased from 32Mi to 80Mi.</p>
+
+<h3>False Positive Rate</h3>
+<p>At typical load factors (50-75% full), the Cuckoo filter achieves a false positive rate of approximately <strong>0.26%</strong>. This means that ~1 in 385 legitimate tokens may be incorrectly rejected as "already consumed." The auto-regeneration mechanism in the handler mitigates this: when validation fails for a valid JWT holder, a new token is returned in the 403 response body, and the UI retries transparently.</p>
+
+<!-- 7. Hybrid Store -->
+<h2 id="hybrid-store">7. Hybrid Store</h2>
+
+<p><strong>Source:</strong> <code>internal/store/hybrid.go</code></p>
+
+<p>The <code>HybridStore</code> implements the <code>TokenStore</code> interface, making it a drop-in replacement for the legacy <code>RedisStore</code>. The handler code does not need to know which implementation is active.</p>
+
+<h3>TokenStore Interface</h3>
+
+<pre><code><span class="ts-keyword">type</span> <span class="ts-type">TokenStore</span> <span class="ts-keyword">interface</span> {
+    <span class="ts-func">Generate</span>(ctx <span class="ts-type">context.Context</span>, userID, origin <span class="ts-type">string</span>) (<span class="ts-type">string</span>, <span class="ts-type">error</span>)
+    <span class="ts-func">Validate</span>(ctx <span class="ts-type">context.Context</span>, userID, token, origin <span class="ts-type">string</span>) (<span class="ts-type">bool</span>, <span class="ts-type">error</span>)
+    <span class="ts-func">RefreshTTL</span>(ctx <span class="ts-type">context.Context</span>, userID <span class="ts-type">string</span>) <span class="ts-type">error</span>
+    <span class="ts-func">Ping</span>(ctx <span class="ts-type">context.Context</span>) <span class="ts-type">error</span>
+    <span class="ts-func">Close</span>() <span class="ts-type">error</span>
+}</code></pre>
+
+<h3>Generate(): Zero Redis Operations</h3>
+
+<pre><code><span class="ts-keyword">func</span> (s *<span class="ts-type">HybridStore</span>) <span class="ts-func">Generate</span>(_ <span class="ts-type">context.Context</span>, userID, origin <span class="ts-type">string</span>) (<span class="ts-type">string</span>, <span class="ts-type">error</span>) {
+    tok, _, err := s.generator.<span class="ts-func">Generate</span>(userID, origin)
+    <span class="ts-keyword">if</span> err != <span class="ts-keyword">nil</span> {
+        <span class="ts-keyword">return</span> <span class="ts-string">""</span>, err
+    }
+
+    <span class="ts-keyword">if</span> s.xorMask {
+        masked, err := token.<span class="ts-func">Mask</span>(tok)
+        <span class="ts-keyword">if</span> err != <span class="ts-keyword">nil</span> {
+            slog.<span class="ts-func">Warn</span>(<span class="ts-string">"XOR masking failed, returning raw token"</span>, <span class="ts-string">"error"</span>, err)
+            <span class="ts-keyword">return</span> tok, <span class="ts-keyword">nil</span>
+        }
+        <span class="ts-keyword">return</span> masked, <span class="ts-keyword">nil</span>
+    }
+
+    <span class="ts-keyword">return</span> tok, <span class="ts-keyword">nil</span>
+}</code></pre>
+
+<div class="result pass"><strong>Zero I/O path:</strong> The <code>context.Context</code> parameter is accepted but unused (the underscore <code>_</code> is intentional). The entire operation is pure CPU: generate 16 random bytes (JTI), build binary payload, compute HMAC-SHA256, Base64URL encode, XOR mask. Total: ~2 microseconds.</div>
+
+<h3>Validate(): 6-Step Tiered Flow</h3>
+<p>The validation path is the most complex part of the hybrid store. Here is the complete flow:</p>
+
+<div class="step-card">
+  <h3><span class="step-num">1</span> Legacy UUID Detection</h3>
+  <pre><code><span class="ts-keyword">if</span> <span class="ts-func">isLegacyUUID</span>(reqToken) {
+    <span class="ts-keyword">return</span> s.<span class="ts-func">validateLegacyRedis</span>(ctx, userID, reqToken, origin)
+}</code></pre>
+  <p>During rolling upgrades, some clients may still hold UUID tokens from before the migration. These are detected by format (36 characters with hyphens at positions 8, 13, 18, 23) and routed to the legacy Redis validation path.</p>
+</div>
+
+<div class="step-card">
+  <h3><span class="step-num">2</span> XOR Unmask</h3>
+  <pre><code>rawToken := reqToken
+<span class="ts-keyword">if</span> s.xorMask {
+    unmasked, err := token.<span class="ts-func">Unmask</span>(reqToken)
+    <span class="ts-keyword">if</span> err != <span class="ts-keyword">nil</span> {
+        rawToken = reqToken <span class="ts-comment">// Could be raw HMAC (masking wasn't applied)</span>
+    } <span class="ts-keyword">else</span> {
+        rawToken = unmasked
+    }
+}</code></pre>
+  <p>If unmasking fails, the token is tried as-is. This handles edge cases where the token was generated without masking (e.g., masking was disabled at generation time but enabled at validation time during a config rollout).</p>
+</div>
+
+<div class="step-card">
+  <h3><span class="step-num">3</span> HMAC Signature Verification (L2)</h3>
+  <pre><code>payload, err := s.generator.<span class="ts-func">Verify</span>(rawToken)
+<span class="ts-keyword">if</span> err != <span class="ts-keyword">nil</span> {
+    <span class="ts-keyword">return</span> <span class="ts-keyword">false</span>, <span class="ts-keyword">nil</span> <span class="ts-comment">// Invalid/expired/tampered -> reject silently</span>
+}</code></pre>
+  <p>This is the core cryptographic check. If the HMAC does not match, the token was either tampered with, signed with an unknown key, or has expired. Rejection is silent (returns <code>false, nil</code> rather than an error) to prevent information leakage.</p>
+</div>
+
+<div class="step-card">
+  <h3><span class="step-num">4</span> User + Origin Binding Checks</h3>
+  <pre><code><span class="ts-keyword">if</span> payload.Sub != userID {
+    <span class="ts-keyword">return</span> <span class="ts-keyword">false</span>, <span class="ts-keyword">nil</span>
+}
+
+<span class="ts-keyword">if</span> payload.Org != <span class="ts-string">""</span> &amp;&amp; origin != <span class="ts-string">""</span> {
+    <span class="ts-keyword">if</span> subtle.<span class="ts-func">ConstantTimeCompare</span>([]<span class="ts-type">byte</span>(payload.Org), []<span class="ts-type">byte</span>(origin)) != <span class="ts-number">1</span> {
+        <span class="ts-keyword">return</span> <span class="ts-keyword">false</span>, <span class="ts-keyword">nil</span>
+    }
+}</code></pre>
+  <p>The user binding check ensures a token issued to user A cannot be used by user B. The origin binding check ensures a token issued for <code>https://myecom.net:30000</code> cannot be used from <code>https://evil.com</code>. Both use constant-time comparison to prevent timing attacks.</p>
+</div>
+
+<div class="step-card">
+  <h3><span class="step-num">5</span> L1 Cuckoo Lookup (Consumed on This Pod?)</h3>
+  <pre><code>jti := payload.Jti[:]
+
+<span class="ts-keyword">if</span> s.cuckooL1.<span class="ts-func">Lookup</span>(jti) {
+    <span class="ts-keyword">return</span> <span class="ts-keyword">false</span>, <span class="ts-keyword">nil</span> <span class="ts-comment">// Already consumed</span>
+}</code></pre>
+  <p>The in-memory Cuckoo filter check is the fastest single-use enforcement (~50 nanoseconds). If the JTI is found, the token was already consumed on this pod.</p>
+</div>
+
+<div class="step-card">
+  <h3><span class="step-num">6</span> L3 Redis Lookup (Consumed on Another Pod?)</h3>
+  <pre><code><span class="ts-keyword">if</span> s.redisL3 != <span class="ts-keyword">nil</span> {
+    consumed, err := s.redisL3.<span class="ts-func">SIsMember</span>(ctx, <span class="ts-string">"csrf:consumed"</span>, <span class="ts-func">string</span>(jti)).<span class="ts-func">Result</span>()
+    <span class="ts-keyword">if</span> err != <span class="ts-keyword">nil</span> {
+        slog.<span class="ts-func">Warn</span>(<span class="ts-string">"L3 Redis lookup failed"</span>, <span class="ts-string">"error"</span>, err)
+        <span class="ts-keyword">if</span> s.failClosed {
+            <span class="ts-keyword">return</span> <span class="ts-keyword">false</span>, err
+        }
+        <span class="ts-comment">// Fail-open: proceed with L1 only</span>
+    } <span class="ts-keyword">else</span> <span class="ts-keyword">if</span> consumed {
+        s.cuckooL1.<span class="ts-func">Insert</span>(jti) <span class="ts-comment">// Promote to L1</span>
+        <span class="ts-keyword">return</span> <span class="ts-keyword">false</span>, <span class="ts-keyword">nil</span>
+    }
+}</code></pre>
+  <p>If Redis is available, the JTI is checked in the <code>csrf:consumed</code> Redis set. If found (consumed on another pod), the JTI is also promoted to the local L1 Cuckoo filter to avoid future Redis lookups for this JTI.</p>
+</div>
+
+<h3>Mark Consumed (L1 Sync + L3 Async)</h3>
+
+<pre><code>s.cuckooL1.<span class="ts-func">Insert</span>(jti)
+
+<span class="ts-keyword">if</span> s.redisL3 != <span class="ts-keyword">nil</span> {
+    <span class="ts-keyword">go</span> <span class="ts-keyword">func</span>() {
+        asyncCtx, cancel := context.<span class="ts-func">WithTimeout</span>(context.<span class="ts-func">Background</span>(), <span class="ts-number">1</span>*time.Second)
+        <span class="ts-keyword">defer</span> <span class="ts-func">cancel</span>()
+        pipe := s.redisL3.<span class="ts-func">Pipeline</span>()
+        pipe.<span class="ts-func">SAdd</span>(asyncCtx, <span class="ts-string">"csrf:consumed"</span>, <span class="ts-func">string</span>(jti))
+        pipe.<span class="ts-func">Expire</span>(asyncCtx, <span class="ts-string">"csrf:consumed"</span>, <span class="ts-number">2</span>*s.ttl)
+        <span class="ts-keyword">if</span> _, err := pipe.<span class="ts-func">Exec</span>(asyncCtx); err != <span class="ts-keyword">nil</span> {
+            slog.<span class="ts-func">Warn</span>(<span class="ts-string">"L3 Redis mark-consumed failed"</span>, <span class="ts-string">"error"</span>, err)
+        }
+    }()
+}
+
+<span class="ts-keyword">return</span> <span class="ts-keyword">true</span>, <span class="ts-keyword">nil</span></code></pre>
+
+<div class="result info"><strong>Async write-behind:</strong> The L1 insert is synchronous (must complete before the request is allowed). The L3 Redis write is asynchronous (fire-and-forget goroutine) to avoid adding latency to the request path. The Redis set has a TTL of 2x the token TTL to ensure entries persist long enough for cross-pod dedup.</div>
+
+<h3>RefreshTTL() Is a No-Op</h3>
+
+<pre><code><span class="ts-keyword">func</span> (s *<span class="ts-type">HybridStore</span>) <span class="ts-func">RefreshTTL</span>(_ <span class="ts-type">context.Context</span>, _ <span class="ts-type">string</span>) <span class="ts-type">error</span> {
+    <span class="ts-keyword">return</span> <span class="ts-keyword">nil</span> <span class="ts-comment">// TTL is in the token's `iat` field</span>
+}</code></pre>
+
+<p>In the Redis-only architecture, sliding TTL extended the token's Redis key expiration on every authenticated safe request. With HMAC tokens, the TTL is computed from the <code>iat</code> (issued-at) timestamp embedded in the token itself. There is no external state to extend.</p>
+
+<h3>Backward Compatibility with Legacy UUID Tokens</h3>
+
+<pre><code><span class="ts-keyword">func</span> <span class="ts-func">isLegacyUUID</span>(s <span class="ts-type">string</span>) <span class="ts-type">bool</span> {
+    <span class="ts-keyword">if</span> <span class="ts-func">len</span>(s) != <span class="ts-number">36</span> {
+        <span class="ts-keyword">return</span> <span class="ts-keyword">false</span>
+    }
+    <span class="ts-keyword">return</span> s[<span class="ts-number">8</span>] == <span class="ts-string">'-'</span> &amp;&amp; s[<span class="ts-number">13</span>] == <span class="ts-string">'-'</span> &amp;&amp; s[<span class="ts-number">18</span>] == <span class="ts-string">'-'</span> &amp;&amp; s[<span class="ts-number">23</span>] == <span class="ts-string">'-'</span>
+}</code></pre>
+
+<p>When a UUID is detected, <code>validateLegacyRedis</code> performs the original Redis-based validation: <code>GET csrf:&lt;userID&gt;</code>, compare with constant-time comparison, and <code>DEL</code> on success. This ensures that during a rolling upgrade, all tokens can be validated regardless of which pod issued them.</p>
+
+<!-- 8. In-Memory Rate Limiter -->
+<h2 id="rate-limiter">8. In-Memory Rate Limiter</h2>
+
+<p><strong>Source:</strong> <code>internal/ratelimit/local.go</code></p>
+
+<h3>Token Bucket Per User Per Minute</h3>
+<p>The <code>LocalLimiter</code> implements per-user rate limiting without any Redis dependency:</p>
+
+<pre><code><span class="ts-keyword">type</span> <span class="ts-type">LocalLimiter</span> <span class="ts-keyword">struct</span> {
+    maxPerMin <span class="ts-type">int</span>
+    buckets   <span class="ts-keyword">map</span>[<span class="ts-type">string</span>]*<span class="ts-type">bucket</span>
+    mu        <span class="ts-type">sync.Mutex</span>
+}
+
+<span class="ts-keyword">type</span> <span class="ts-type">bucket</span> <span class="ts-keyword">struct</span> {
+    count    <span class="ts-type">int</span>
+    windowAt <span class="ts-type">int64</span> <span class="ts-comment">// Unix minute bucket</span>
+}
+
+<span class="ts-keyword">func</span> (l *<span class="ts-type">LocalLimiter</span>) <span class="ts-func">Allow</span>(_ <span class="ts-type">context.Context</span>, userID <span class="ts-type">string</span>) (<span class="ts-type">bool</span>, <span class="ts-type">error</span>) {
+    l.mu.<span class="ts-func">Lock</span>()
+    <span class="ts-keyword">defer</span> l.mu.<span class="ts-func">Unlock</span>()
+
+    now := time.<span class="ts-func">Now</span>().<span class="ts-func">Truncate</span>(time.Minute).<span class="ts-func">Unix</span>()
+    b, ok := l.buckets[userID]
+    <span class="ts-keyword">if</span> !ok || b.windowAt != now {
+        l.buckets[userID] = &amp;<span class="ts-type">bucket</span>{count: <span class="ts-number">1</span>, windowAt: now}
+        <span class="ts-keyword">return</span> <span class="ts-keyword">true</span>, <span class="ts-keyword">nil</span>
+    }
+
+    b.count++
+    <span class="ts-keyword">return</span> b.count &lt;= l.maxPerMin, <span class="ts-keyword">nil</span>
+}</code></pre>
+
+<p>The algorithm:</p>
+<ol>
+  <li>Truncate current time to the minute boundary (e.g., 14:03:47 becomes 14:03:00).</li>
+  <li>If no bucket exists for this user, or the bucket is from a previous minute, create a new bucket with count=1.</li>
+  <li>Otherwise, increment the count and check against <code>maxPerMin</code>.</li>
+</ol>
+
+<p>This is a fixed-window rate limiter (not sliding window), which is simpler but can allow up to 2x the rate at window boundaries. For CSRF token generation (default 60 per minute), this is an acceptable trade-off.</p>
+
+<h3>Background Cleanup Goroutine</h3>
+<p>Stale buckets (from users who have not made requests recently) are cleaned up every 2 minutes:</p>
+
+<pre><code><span class="ts-keyword">func</span> (l *<span class="ts-type">LocalLimiter</span>) <span class="ts-func">cleanup</span>() {
+    <span class="ts-keyword">for</span> {
+        time.<span class="ts-func">Sleep</span>(<span class="ts-number">2</span> * time.Minute)
+        l.mu.<span class="ts-func">Lock</span>()
+        now := time.<span class="ts-func">Now</span>().<span class="ts-func">Truncate</span>(time.Minute).<span class="ts-func">Unix</span>()
+        <span class="ts-keyword">for</span> k, b := <span class="ts-keyword">range</span> l.buckets {
+            <span class="ts-keyword">if</span> now-b.windowAt &gt; <span class="ts-number">120</span> { <span class="ts-comment">// 2 minutes old</span>
+                <span class="ts-func">delete</span>(l.buckets, k)
+            }
+        }
+        l.mu.<span class="ts-func">Unlock</span>()
+    }
+}</code></pre>
+
+<p>This prevents unbounded memory growth from one-time visitors.</p>
+
+<h3>Thread Safety and No Redis Dependency</h3>
+<p>A single <code>sync.Mutex</code> protects the entire map. This is sufficient because rate limit checks are sub-microsecond operations and the lock is held only for a map lookup + increment. At 200K RPS per pod, the lock contention is negligible compared to network I/O.</p>
+
+<div class="result warn"><strong>Trade-off:</strong> Rate limits are per-pod, not global. With 2 replicas, a user could theoretically generate 120 tokens/minute (60 per pod). In practice, Istio's load balancing distributes requests across pods, so a user hitting both pods at full rate is unlikely.</div>
+
+<!-- 9. Configuration -->
+<h2 id="configuration">9. Configuration</h2>
+
+<p><strong>Source:</strong> <code>internal/config/config.go</code></p>
+
+<h3>Environment Variable Reference</h3>
+
+<table>
+  <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+  <tr><td><code>CSRF_MODE</code></td><td><code>"hybrid"</code></td><td>Token store mode: <code>redis</code> (legacy UUID), <code>hmac</code> (pure stateless), <code>hybrid</code> (HMAC + Redis L3)</td></tr>
+  <tr><td><code>CSRF_HMAC_KEY</code></td><td><code>""</code> (random)</td><td>Base64-encoded 256-bit HMAC signing key. Empty = random key (tokens lost on restart)</td></tr>
+  <tr><td><code>CSRF_KEY_ROTATE_HOURS</code></td><td><code>24</code></td><td>Automatic key rotation interval in hours</td></tr>
+  <tr><td><code>CSRF_XOR_MASKING</code></td><td><code>"true"</code></td><td>Enable XOR BREACH masking on token generation</td></tr>
+  <tr><td><code>CSRF_CUCKOO_CAPACITY</code></td><td><code>1000000</code></td><td>Maximum entries per Cuckoo filter (1M ~ 8MB)</td></tr>
+  <tr><td><code>CSRF_RATELIMIT_MODE</code></td><td><code>"local"</code></td><td>Rate limiter backend: <code>local</code> (in-memory) or <code>redis</code></td></tr>
+  <tr><td><code>CSRF_TOKEN_TTL_MINUTES</code></td><td><code>10</code></td><td>Token time-to-live in minutes</td></tr>
+  <tr><td><code>CSRF_SLIDING_TTL</code></td><td><code>"true"</code></td><td>Refresh TTL on safe requests (no-op in HMAC mode)</td></tr>
+  <tr><td><code>CSRF_FAIL_CLOSED</code></td><td><code>"false"</code></td><td>Fail-closed on Redis errors (vs fail-open)</td></tr>
+  <tr><td><code>CSRF_REDIS_HOST</code></td><td><code>redis.infra.svc.cluster.local</code></td><td>Redis hostname</td></tr>
+  <tr><td><code>CSRF_REDIS_PORT</code></td><td><code>6379</code></td><td>Redis port</td></tr>
+  <tr><td><code>CSRF_REDIS_PASSWORD</code></td><td><code>""</code></td><td>Redis password</td></tr>
+  <tr><td><code>CSRF_ALLOWED_ORIGINS</code></td><td><code>https://myecom.net:30000,...</code></td><td>Comma-separated allowed origins</td></tr>
+  <tr><td><code>CSRF_REQUIRE_ORIGIN</code></td><td><code>"false"</code></td><td>Reject requests without Origin header</td></tr>
+  <tr><td><code>CSRF_RATE_LIMIT</code></td><td><code>60</code></td><td>Max token generations per user per minute</td></tr>
+  <tr><td><code>CSRF_ALLOWED_AUDIENCES</code></td><td><code>"ui-client"</code></td><td>Comma-separated allowed JWT audiences</td></tr>
+  <tr><td><code>CSRF_VALIDATE_AUDIENCE</code></td><td><code>"false"</code></td><td>Enable JWT audience validation</td></tr>
+  <tr><td><code>INTROSPECT_ENABLED</code></td><td><code>"false"</code></td><td>Enable Keycloak token introspection</td></tr>
+  <tr><td><code>INTROSPECT_URL</code></td><td><code>""</code></td><td>Keycloak introspection endpoint URL</td></tr>
+  <tr><td><code>INTROSPECT_CLIENT_ID</code></td><td><code>""</code></td><td>Introspection client ID</td></tr>
+  <tr><td><code>INTROSPECT_CLIENT_SECRET</code></td><td><code>""</code></td><td>Introspection client secret</td></tr>
+  <tr><td><code>INTROSPECT_CACHE_TTL_SECONDS</code></td><td><code>15</code></td><td>Cache TTL for introspection results</td></tr>
+  <tr><td><code>INTROSPECT_FAIL_OPEN</code></td><td><code>"true"</code></td><td>Fail-open on introspection errors</td></tr>
+  <tr><td><code>INTROSPECT_TIMEOUT_MS</code></td><td><code>3000</code></td><td>Introspection HTTP timeout</td></tr>
+</table>
+
+<h3>Three Operating Modes</h3>
+
+<div class="step-card">
+  <h3><span class="step-num">1</span> <code>redis</code> (Legacy Mode)</h3>
+  <p>Uses <code>RedisStore</code>. Every generate is a Redis SET, every validate is a Redis GET + DEL. Functionally identical to the original implementation. Use this as a fallback if issues are discovered with the hybrid mode.</p>
+</div>
+
+<div class="step-card">
+  <h3><span class="step-num">2</span> <code>hmac</code> (Pure Stateless Mode)</h3>
+  <p>Uses <code>HybridStore</code> with <code>redisL3 = nil</code>. Token generation and validation are entirely in-memory. Single-use enforcement is L1 Cuckoo only (per-pod). No cross-pod dedup. Best for single-replica deployments or when Redis is unavailable.</p>
+</div>
+
+<div class="step-card">
+  <h3><span class="step-num">3</span> <code>hybrid</code> (Recommended Mode)</h3>
+  <p>Uses <code>HybridStore</code> with <code>redisL3 = redisClient</code>. Token generation is in-memory (no Redis). Validation checks L1 Cuckoo first, then L3 Redis for cross-pod dedup. L3 write is async. This is the <strong>default and recommended mode</strong> for production multi-replica deployments.</p>
+</div>
+
+<h3>Mode Selection in main.go</h3>
+
+<pre><code><span class="ts-keyword">switch</span> cfg.Mode {
+<span class="ts-keyword">case</span> <span class="ts-string">"hmac"</span>, <span class="ts-string">"hybrid"</span>:
+    kr, err := token.<span class="ts-func">NewKeyRing</span>(cfg.HMACKey, cfg.TokenTTL)
+    <span class="ts-comment">// ...</span>
+    gen := token.<span class="ts-func">NewGenerator</span>(kr, cfg.TokenTTL)
+    cf := cuckoo.<span class="ts-func">NewRollingFilter</span>(cfg.CuckooCapacity)
+    stopCuckooRotation = cf.<span class="ts-func">StartAutoRotation</span>(cfg.TokenTTL)
+
+    <span class="ts-keyword">var</span> l3Redis *redis.<span class="ts-type">Client</span>
+    <span class="ts-keyword">if</span> cfg.Mode == <span class="ts-string">"hybrid"</span> {
+        l3Redis = redisClient
+    }
+
+    tokenStore = store.<span class="ts-func">NewHybridStore</span>(gen, cf, l3Redis, cfg.TokenTTL,
+        cfg.FailClosed, cfg.XORMasking)
+
+<span class="ts-keyword">default</span>: <span class="ts-comment">// "redis"</span>
+    tokenStore = store.<span class="ts-func">NewRedisStore</span>(cfg.RedisAddr, cfg.RedisPassword,
+        cfg.TokenTTL, cfg.FailClosed)
+}</code></pre>
+
+<!-- 10. Handler Integration -->
+<h2 id="handler-integration">10. Handler Integration</h2>
+
+<p><strong>Source:</strong> <code>internal/handler/token.go</code>, <code>internal/handler/authz.go</code></p>
+
+<h3>Token Generation (token.go)</h3>
+<p>The <code>GenerateToken</code> handler is called on <code>GET /csrf/token</code>. The handler is mode-agnostic -- it calls <code>h.Store.Generate()</code> regardless of whether the store is a <code>RedisStore</code> or <code>HybridStore</code>:</p>
+
+<pre><code><span class="ts-keyword">func</span> (h *<span class="ts-type">Handler</span>) <span class="ts-func">GenerateToken</span>(w <span class="ts-type">http.ResponseWriter</span>, r *<span class="ts-type">http.Request</span>) {
+    <span class="ts-comment">// ... JWT extraction, audience validation, rate limiting ...</span>
+
+    reqOrigin := r.Header.<span class="ts-func">Get</span>(<span class="ts-string">"Origin"</span>)
+    token, err := h.Store.<span class="ts-func">Generate</span>(ctx, claims.Sub, reqOrigin)
+    <span class="ts-comment">// ...</span>
+    json.<span class="ts-func">NewEncoder</span>(w).<span class="ts-func">Encode</span>(<span class="ts-keyword">map</span>[<span class="ts-type">string</span>]<span class="ts-type">string</span>{<span class="ts-string">"token"</span>: token})
+}</code></pre>
+
+<p>When <code>HybridStore</code> is active and XOR masking is enabled, the token returned to the client is already masked. The client stores it as-is and sends it back in the <code>X-Csrf-Token</code> header on mutating requests.</p>
+
+<h3>Authorization Check (authz.go)</h3>
+<p>The <code>ExtAuthzCheck</code> handler is called by Istio's ext_authz for every request transiting the gateway:</p>
+
+<pre><code><span class="ts-keyword">func</span> (h *<span class="ts-type">Handler</span>) <span class="ts-func">ExtAuthzCheck</span>(w <span class="ts-type">http.ResponseWriter</span>, r *<span class="ts-type">http.Request</span>) {
+    <span class="ts-comment">// Safe methods (GET, HEAD, OPTIONS, TRACE): pass through</span>
+    <span class="ts-keyword">if</span> SafeMethods[r.Method] {
+        <span class="ts-comment">// Sliding TTL refresh (no-op in HMAC mode)</span>
+        <span class="ts-keyword">if</span> h.SlidingTTL {
+            <span class="ts-keyword">go</span> <span class="ts-keyword">func</span>() {
+                h.Store.<span class="ts-func">RefreshTTL</span>(ctx, claims.Sub) <span class="ts-comment">// No-op for HybridStore</span>
+            }()
+        }
+        w.<span class="ts-func">WriteHeader</span>(http.StatusOK)
+        <span class="ts-keyword">return</span>
+    }
+
+    <span class="ts-comment">// Mutating method: validate CSRF token</span>
+    csrfToken := r.Header.<span class="ts-func">Get</span>(<span class="ts-string">"X-Csrf-Token"</span>)
+    valid, err := h.Store.<span class="ts-func">Validate</span>(ctx, claims.Sub, csrfToken, reqOrigin)
+    <span class="ts-comment">// ...</span>
+}</code></pre>
+
+<div class="result pass"><strong>Zero Redis in HMAC mode:</strong> The sliding TTL call is still issued on safe requests for interface compliance, but <code>HybridStore.RefreshTTL()</code> immediately returns nil. Safe requests have zero Redis operations (previously each triggered an async Redis EXPIRE).</div>
+
+<h3>Auto-Regeneration on Failure</h3>
+<p>When validation fails but the user has a valid JWT, a new token is generated and included in the 403 response body:</p>
+
+<pre><code><span class="ts-keyword">func</span> (h *<span class="ts-type">Handler</span>) <span class="ts-func">writeForbiddenWithNewToken</span>(w <span class="ts-type">http.ResponseWriter</span>, ctx <span class="ts-type">context.Context</span>,
+    userID, origin, detail <span class="ts-type">string</span>) {
+    newToken, err := h.Store.<span class="ts-func">Generate</span>(ctx, userID, origin)
+    <span class="ts-comment">// ...</span>
+    fmt.<span class="ts-func">Fprintf</span>(w, `{..., "token":"%s"}`, newToken)
+}</code></pre>
+
+<p>The UI reads the <code>token</code> field from the 403 response body and retries the request with the new token. In HMAC mode, this regeneration costs ~2 microseconds (vs ~3ms in Redis mode).</p>
+
+<!-- 11. Prometheus Metrics -->
+<h2 id="prometheus-metrics">11. Prometheus Metrics</h2>
+
+<p><strong>Source:</strong> <code>internal/middleware/metrics.go</code></p>
+
+<h3>New Metrics (Session 30)</h3>
+
+<table>
+  <tr><th>Metric</th><th>Type</th><th>Labels</th><th>Description</th></tr>
+  <tr><td><code>csrf_hmac_operations_total</code></td><td>Counter</td><td><code>op</code> (generate, verify), <code>result</code> (ok, error, expired, tampered)</td><td>HMAC token operations</td></tr>
+  <tr><td><code>csrf_cuckoo_operations_total</code></td><td>Counter</td><td><code>op</code> (insert, lookup), <code>tier</code> (l1, l3)</td><td>Cuckoo filter and Redis set operations</td></tr>
+  <tr><td><code>csrf_xor_mask_total</code></td><td>Counter</td><td><code>op</code> (mask, unmask)</td><td>XOR BREACH masking operations</td></tr>
+  <tr><td><code>csrf_key_rotations_total</code></td><td>Counter</td><td>--</td><td>HMAC key rotation events</td></tr>
+  <tr><td><code>csrf_l3_redis_fallback_total</code></td><td>Counter</td><td><code>result</code> (hit, miss, error)</td><td>L3 Redis cross-pod dedup results</td></tr>
+  <tr><td><code>csrf_token_format_total</code></td><td>Counter</td><td><code>format</code> (hmac, uuid_legacy)</td><td>Token format detection during validation</td></tr>
+</table>
+
+<h3>Preserved Metrics</h3>
+
+<table>
+  <tr><th>Metric</th><th>Type</th><th>Labels</th><th>Description</th></tr>
+  <tr><td><code>csrf_requests_total</code></td><td>Counter</td><td><code>method</code>, <code>result</code></td><td>Total requests by handler and outcome</td></tr>
+  <tr><td><code>csrf_redis_errors_total</code></td><td>Counter</td><td>--</td><td>Redis connection/timeout errors</td></tr>
+  <tr><td><code>csrf_request_duration_seconds</code></td><td>Histogram</td><td><code>handler</code></td><td>Request latency (authz, generate)</td></tr>
+  <tr><td><code>csrf_anomaly_total</code></td><td>Counter</td><td><code>type</code></td><td>Security anomalies (origin mismatch, cross-user token, etc.)</td></tr>
+  <tr><td><code>csrf_origin_checks_total</code></td><td>Counter</td><td><code>result</code></td><td>Origin header validation results</td></tr>
+  <tr><td><code>csrf_rate_limit_total</code></td><td>Counter</td><td><code>result</code></td><td>Rate limit check results</td></tr>
+  <tr><td><code>csrf_introspect_total</code></td><td>Counter</td><td><code>result</code></td><td>JWT introspection results</td></tr>
+  <tr><td><code>csrf_introspect_duration_seconds</code></td><td>Histogram</td><td><code>source</code> (keycloak, cache)</td><td>Introspection latency</td></tr>
+  <tr><td><code>csrf_ttl_renewals_total</code></td><td>Counter</td><td><code>result</code></td><td>TTL renewal attempts (always <code>ok</code> in HMAC mode since no-op)</td></tr>
+</table>
+
+<h3>Observability Gains</h3>
+<p>The new metrics enable answering questions that were impossible before:</p>
+<ul>
+  <li>What percentage of tokens are legacy UUID vs HMAC? (<code>csrf_token_format_total</code>)</li>
+  <li>How often does L3 Redis catch cross-pod replays? (<code>csrf_l3_redis_fallback_total</code>)</li>
+  <li>Are key rotations happening on schedule? (<code>csrf_key_rotations_total</code>)</li>
+  <li>What is the HMAC verification error breakdown? (<code>csrf_hmac_operations_total</code>)</li>
+</ul>
+
+<!-- 12. Kubernetes Deployment -->
+<h2 id="kubernetes-deployment">12. Kubernetes Deployment</h2>
+
+<p><strong>Source:</strong> <code>csrf-service/k8s/csrf-service.yaml</code></p>
+
+<h3>Updated Manifest</h3>
+<p>The deployment manifest was updated with new environment variables and resource limits:</p>
+
+<pre><code><span class="ts-keyword">apiVersion</span>: v1
+<span class="ts-keyword">kind</span>: Secret
+<span class="ts-keyword">metadata</span>:
+  <span class="ts-keyword">name</span>: csrf-service-secret
+  <span class="ts-keyword">namespace</span>: infra
+<span class="ts-keyword">type</span>: Opaque
+<span class="ts-keyword">data</span>:
+  <span class="ts-type">CSRF_REDIS_HOST</span>: <span class="ts-string">cmVkaXMuaW5mcmEuc3ZjLmNsdXN0ZXIubG9jYWw=</span>
+  <span class="ts-type">CSRF_REDIS_PORT</span>: <span class="ts-string">NjM3OQ==</span>
+  <span class="ts-type">CSRF_REDIS_PASSWORD</span>: <span class="ts-string">Q0hBTkdFX01F</span>
+  <span class="ts-type">CSRF_HMAC_KEY</span>: <span class="ts-string">anM1UWErc2dSekF4anVoVnNaNityVFpndFdXSHBHdCs2QUFUNyt3enNMdz0=</span></code></pre>
+
+<p>The <code>CSRF_HMAC_KEY</code> is a base64-encoded 256-bit key stored in the Kubernetes Secret. This key is shared across all replicas, ensuring tokens signed by one pod can be verified by another.</p>
+
+<h3>Key Environment Variables in the Deployment</h3>
+
+<pre><code><span class="ts-keyword">env</span>:
+  - <span class="ts-keyword">name</span>: <span class="ts-type">CSRF_MODE</span>
+    <span class="ts-keyword">value</span>: <span class="ts-string">"hybrid"</span>
+  - <span class="ts-keyword">name</span>: <span class="ts-type">CSRF_XOR_MASKING</span>
+    <span class="ts-keyword">value</span>: <span class="ts-string">"true"</span>
+  - <span class="ts-keyword">name</span>: <span class="ts-type">CSRF_CUCKOO_CAPACITY</span>
+    <span class="ts-keyword">value</span>: <span class="ts-string">"1000000"</span>
+  - <span class="ts-keyword">name</span>: <span class="ts-type">CSRF_RATELIMIT_MODE</span>
+    <span class="ts-keyword">value</span>: <span class="ts-string">"local"</span>
+  - <span class="ts-keyword">name</span>: <span class="ts-type">CSRF_KEY_ROTATE_HOURS</span>
+    <span class="ts-keyword">value</span>: <span class="ts-string">"24"</span></code></pre>
+
+<h3>Memory Adjustment</h3>
+
+<pre><code><span class="ts-keyword">resources</span>:
+  <span class="ts-keyword">requests</span>:
+    <span class="ts-type">cpu</span>: <span class="ts-number">50m</span>
+    <span class="ts-type">memory</span>: <span class="ts-number">48Mi</span>
+  <span class="ts-keyword">limits</span>:
+    <span class="ts-type">cpu</span>: <span class="ts-number">200m</span>
+    <span class="ts-type">memory</span>: <span class="ts-number">80Mi</span></code></pre>
+
+<p>The memory limit increased from 32Mi to 80Mi to accommodate the Cuckoo filters (~16MB for two 1M-capacity filters) plus the Go runtime overhead.</p>
+
+<h3>Zero-Downtime Rolling Upgrade Path</h3>
+
+<pre><code><span class="ts-keyword">strategy</span>:
+  <span class="ts-keyword">type</span>: RollingUpdate
+  <span class="ts-keyword">rollingUpdate</span>:
+    <span class="ts-type">maxSurge</span>: <span class="ts-number">1</span>
+    <span class="ts-type">maxUnavailable</span>: <span class="ts-number">0</span></code></pre>
+
+<div class="card">
+  <h3>Upgrade Procedure from Redis-Only to Hybrid</h3>
+  <ol>
+    <li><strong>Deploy new pods with <code>CSRF_MODE=hybrid</code>:</strong> The new pods can validate both HMAC tokens (self-issued) and UUID tokens (legacy, via Redis fallback).</li>
+    <li><strong>Old pods drain:</strong> As old pods terminate, they stop issuing UUID tokens. Tokens already issued continue to be valid (stored in Redis with TTL).</li>
+    <li><strong>Grace period (10 minutes):</strong> After all old pods are replaced, legacy UUID tokens expire naturally. The <code>isLegacyUUID()</code> detection path remains as dead code until the next version removes it.</li>
+  </ol>
+  <p>At no point during the upgrade is a token invalid. New pods validate old tokens via Redis, and old pods never see HMAC tokens (they are only issued by new pods, and old pods are draining).</p>
+</div>
+
+<div class="result pass"><strong>Zero-downtime:</strong> The <code>preStop</code> lifecycle hook (<code>sleep 5</code>) ensures in-flight requests complete before the pod is killed.</div>
+
+<!-- 13. Quantifiable Comparison -->
+<h2 id="comparison">13. Quantifiable Comparison: Before vs After</h2>
+
+<table>
+  <tr><th>Metric</th><th>Before (Redis UUID)</th><th>After (HMAC + Cuckoo)</th><th>Improvement</th></tr>
+  <tr><td>Token generation latency</td><td>~3ms (2 Redis ops: INCR + SET)</td><td>~2us (pure CPU, 0 Redis ops)</td><td><span class="badge green">1500x faster</span></td></tr>
+  <tr><td>Token validation latency</td><td>~2ms (2 Redis ops: GET + DEL)</td><td>~3us (HMAC verify + Cuckoo lookup)</td><td><span class="badge green">666x faster</span></td></tr>
+  <tr><td>Redis ops per safe GET (sliding TTL)</td><td>1 EXPIRE (async)</td><td>0 (TTL in token)</td><td><span class="badge green">Eliminated</span></td></tr>
+  <tr><td>Redis ops per mutating POST</td><td>2-3 (GET + DEL + possible SET)</td><td>0-1 (async L3 mark only)</td><td><span class="badge green">90% reduction</span></td></tr>
+  <tr><td>Redis ops per token generation</td><td>2-3 (INCR + SET + EXPIRE)</td><td>0</td><td><span class="badge green">100% eliminated</span></td></tr>
+  <tr><td>Throughput per pod</td><td>~5K RPS (Redis-bound)</td><td>~200K RPS (CPU-bound)</td><td><span class="badge green">40x</span></td></tr>
+  <tr><td>BREACH protection</td><td>None</td><td>XOR masking every response</td><td><span class="badge blue">New capability</span></td></tr>
+  <tr><td>Single-use enforcement</td><td>Deterministic (Redis DEL)</td><td>Cuckoo filter (99.74% accurate)</td><td><span class="badge orange">Trade-off: 0.26% FP</span></td></tr>
+  <tr><td>Redis failure impact</td><td>Service degraded or down</td><td>Core unaffected, L3 dedup degrades</td><td><span class="badge green">Resilient</span></td></tr>
+  <tr><td>Token format</td><td>UUID v4 (36 chars)</td><td>XOR-masked HMAC (~336 chars)</td><td><span class="badge blue">More secure</span></td></tr>
+  <tr><td>Token entropy</td><td>122 bits (UUID)</td><td>256 bits (HMAC-SHA256) + 128 bits (JTI)</td><td><span class="badge green">2x+ entropy</span></td></tr>
+  <tr><td>Key rotation</td><td>N/A (random UUIDs)</td><td>Automatic 24h with grace period</td><td><span class="badge blue">New capability</span></td></tr>
+  <tr><td>Rate limiting</td><td>Redis INCR (network)</td><td>In-memory token bucket</td><td><span class="badge green">Redis-free</span></td></tr>
+  <tr><td>Memory per pod</td><td>~32MB</td><td>~48-50MB (+8MB Cuckoo filter)</td><td><span class="badge orange">+50%</span></td></tr>
+  <tr><td>Go unit tests</td><td>~60</td><td>162</td><td><span class="badge green">2.7x coverage</span></td></tr>
+  <tr><td>E2E tests</td><td>~30 CSRF-specific</td><td>43 CSRF-specific</td><td><span class="badge green">1.4x coverage</span></td></tr>
+</table>
+
+<h3>Detailed Latency Breakdown</h3>
+
+<h4>Token Generation (Before)</h4>
+<div class="flow"><span class="r">Token Generation (Before):</span>
+
+Rate limit check:    <span class="y">Redis INCR + EXPIRE</span>    ~1.5 ms
+UUID generation:     uuid.New()             ~0.1 us
+Redis SET:           <span class="y">SET csrf:&lt;user&gt; &lt;uuid&gt;</span>  ~1.5 ms
+                                     <span class="r">Total: ~3.0 ms</span></div>
+
+<h4>Token Generation (After)</h4>
+<div class="flow"><span class="g">Token Generation (After):</span>
+
+JTI generation:      crypto/rand.Read(16B)  ~0.5 us
+Payload encoding:    encodePayload()        ~0.1 us
+HMAC-SHA256:         hmac.New + Write + Sum ~0.5 us
+Base64URL encoding:  EncodeToString()       ~0.1 us
+XOR masking:         rand.Read + XOR + B64  ~0.8 us
+                                     <span class="g">Total: ~2.0 us</span></div>
+
+<h4>Token Validation (Before)</h4>
+<div class="flow"><span class="r">Token Validation (Before):</span>
+
+Redis GET:           <span class="y">GET csrf:&lt;user&gt;</span>        ~1.5 ms
+Constant-time compare:                      ~0.1 us
+Redis DEL:           <span class="y">DEL csrf:&lt;user&gt;</span>        ~1.5 ms
+                                     <span class="r">Total: ~3.0 ms</span></div>
+
+<h4>Token Validation (After)</h4>
+<div class="flow"><span class="g">Token Validation (After):</span>
+
+Legacy UUID check:   isLegacyUUID()         ~5 ns
+XOR unmask:          Unmask()               ~0.5 us
+Base64URL decode:    DecodeString()         ~0.1 us
+HMAC verify:         Sign + hmac.Equal      ~1.0 us
+User/origin binding: ConstantTimeCompare    ~0.1 us
+Cuckoo L1 lookup:    RollingFilter.Lookup() ~50 ns
+Cuckoo L1 insert:    RollingFilter.Insert() ~50 ns
+                                     <span class="g">Total: ~1.8 us</span>
+(L3 Redis check adds ~1ms when enabled, but is optional)</div>
+
+<!-- 14. Security Properties -->
+<h2 id="security-properties">14. Security Properties Preserved</h2>
+
+<p>Every security property from the original Redis-only architecture is maintained or improved in the hybrid architecture:</p>
+
+<table>
+  <tr><th>Security Property</th><th>Redis UUID (Before)</th><th>HMAC + Cuckoo (After)</th><th>Status</th></tr>
+  <tr><td>Timing-safe comparison</td><td><code>subtle.ConstantTimeCompare</code> on stored vs request token</td><td><code>hmac.Equal</code> (wraps <code>subtle.ConstantTimeCompare</code>) on MAC</td><td><span class="badge green">Preserved</span></td></tr>
+  <tr><td>User binding</td><td>Token stored under <code>csrf:&lt;userID&gt;</code> key</td><td><code>sub</code> field embedded in payload</td><td><span class="badge green">Preserved</span></td></tr>
+  <tr><td>Origin binding</td><td><code>token|origin</code> stored in Redis</td><td><code>org</code> field embedded in payload</td><td><span class="badge green">Preserved</span></td></tr>
+  <tr><td>Single-use enforcement</td><td>Redis DEL (deterministic)</td><td>L1 Cuckoo + L3 Redis SADD (probabilistic, 99.74%)</td><td><span class="badge green">Preserved</span></td></tr>
+  <tr><td>TTL expiration</td><td>Redis key TTL (EXPIRE command)</td><td><code>iat</code> timestamp in payload</td><td><span class="badge green">Preserved</span></td></tr>
+  <tr><td>Auto-regeneration on failure</td><td>New UUID generated on 403</td><td>New HMAC token generated on 403</td><td><span class="badge green">Preserved</span></td></tr>
+  <tr><td>Fail-open on Redis error</td><td>Returns token even if SET fails</td><td>Core HMAC+Cuckoo works without Redis</td><td><span class="badge blue">Improved</span></td></tr>
+  <tr><td>BREACH protection</td><td>Not present</td><td>XOR masking with <code>crypto/rand</code> pad</td><td><span class="badge blue">New</span></td></tr>
+  <tr><td>Key rotation</td><td>N/A (random UUIDs)</td><td>Automatic 24h rotation with dual-key grace</td><td><span class="badge blue">New</span></td></tr>
+  <tr><td>Non-root container</td><td>UID 65532 (distroless)</td><td>UID 65532 (distroless)</td><td><span class="badge green">Preserved</span></td></tr>
+  <tr><td>Read-only filesystem</td><td>readOnlyRootFilesystem: true</td><td>readOnlyRootFilesystem: true</td><td><span class="badge green">Preserved</span></td></tr>
+  <tr><td>Seccomp profile</td><td>RuntimeDefault</td><td>RuntimeDefault</td><td><span class="badge green">Preserved</span></td></tr>
+</table>
+
+<h3>Security Trade-off: Probabilistic Single-Use</h3>
+
+<div class="security-layer">
+  <h3>Understanding the Cuckoo Filter Trade-off</h3>
+  <p>The most significant trade-off is that single-use enforcement moved from deterministic (Redis DEL guarantees the token is consumed) to probabilistic (Cuckoo filter has a ~0.26% false positive rate):</p>
+  <ul>
+    <li><strong>False positive (0.26%):</strong> A legitimate, never-consumed token is incorrectly reported as consumed. The user sees a 403, but the auto-regeneration mechanism immediately provides a new token and the UI retries. Impact: one extra round-trip, invisible to the user.</li>
+    <li><strong>False negative (0%):</strong> A consumed token is <strong>never</strong> reported as not-consumed by the Cuckoo filter. Once a JTI is inserted, <code>Lookup()</code> always returns true. The probabilistic behavior is one-directional.</li>
+  </ul>
+  <div class="result pass"><strong>Correct failure mode:</strong> The Cuckoo filter can only err on the side of caution (rejecting valid tokens), never on the side of permissiveness (allowing replayed tokens). This is the correct failure mode for a security mechanism.</div>
+</div>
+
+<!-- 15. Request Flow Diagrams -->
+<h2 id="request-flows">15. Request Flow Diagrams</h2>
+
+<h3>Safe Method (GET) Flow</h3>
+
+<div class="flow">  <span class="b">Browser</span>                    <span class="c">Istio Gateway</span>              <span class="y">CSRF Service</span>           <span class="g">Backend</span>
+     |                            |                          |                    |
+     |--- <span class="b">GET /ecom/books</span> ------&gt;|                          |                    |
+     |                            |--- ext_authz check -----&gt;|                    |
+     |                            |                          |                    |
+     |                            |                  SafeMethods[<span class="ts-string">"GET"</span>] = <span class="g">true</span>    |
+     |                            |                  RefreshTTL() -&gt; <span class="y">no-op (HMAC)</span> |
+     |                            |                          |                    |
+     |                            |&lt;-- <span class="g">200 OK</span> ---------------|                    |
+     |                            |                                               |
+     |                            |--- forward to backend -----------------------&gt;|
+     |                            |                                               |
+     |&lt;--- <span class="g">200 + books</span> -----------|&lt;-- 200 + books ----------------------------- |
+
+<span class="g">Redis operations: 0</span> (was 1 EXPIRE in Redis mode)</div>
+
+<h3>Mutating Method (POST) with Valid HMAC Token</h3>
+
+<div class="flow">  <span class="b">Browser</span>                    <span class="c">Istio Gateway</span>              <span class="y">CSRF Service</span>           <span class="g">Backend</span>
+     |                            |                          |                    |
+     |--- <span class="b">POST /ecom/checkout</span> ---&gt;|                          |                    |
+     |    X-Csrf-Token: &lt;masked&gt;  |                          |                    |
+     |    Authorization: Bearer...|                          |                    |
+     |                            |--- ext_authz check -----&gt;|                    |
+     |                            |                          |                    |
+     |                            |                  1. Not UUID (skip legacy)    |
+     |                            |                  2. <span class="y">XOR unmask</span>               |
+     |                            |                  3. <span class="b">HMAC verify (L2)</span> -&gt; <span class="g">OK</span>   |
+     |                            |                  4. Sub check -&gt; <span class="g">match</span>       |
+     |                            |                  5. Origin check -&gt; <span class="g">match</span>    |
+     |                            |                  6. <span class="c">L1 Cuckoo</span> -&gt; <span class="g">not found</span>   |
+     |                            |                  7. <span class="y">L3 Redis</span> -&gt; <span class="g">not found</span>    |
+     |                            |                  8. Insert L1 (sync)         |
+     |                            |                  9. Insert L3 (async)        |
+     |                            |                          |                    |
+     |                            |&lt;-- <span class="g">200 OK</span> ---------------|                    |
+     |                            |                                               |
+     |                            |--- forward to backend -----------------------&gt;|
+     |                            |                                               |
+     |&lt;--- <span class="g">200 Order created</span> -----|&lt;-- 200 + order -----------------------------|
+
+<span class="g">Redis operations: 0-1</span> (optional async L3 write)</div>
+
+<h3>Mutating Method with Consumed Token (Auto-Regeneration)</h3>
+
+<div class="flow">  <span class="b">Browser</span>                    <span class="c">Istio Gateway</span>              <span class="y">CSRF Service</span>           <span class="g">Backend</span>
+     |                            |                          |                    |
+     |--- <span class="b">POST /ecom/cart</span> -------&gt;|                          |                    |
+     |    X-Csrf-Token: &lt;masked&gt;  |                          |                    |
+     |                            |--- ext_authz check -----&gt;|                    |
+     |                            |                          |                    |
+     |                            |                  1. <span class="y">XOR unmask</span>               |
+     |                            |                  2. <span class="b">HMAC verify</span> -&gt; <span class="g">OK</span>        |
+     |                            |                  3. <span class="c">L1 Cuckoo</span> -&gt; <span class="r">FOUND!</span>      |
+     |                            |                     (already consumed)        |
+     |                            |                  4. <span class="g">Generate new HMAC token</span>   |
+     |                            |                  5. <span class="y">XOR mask new token</span>        |
+     |                            |                          |                    |
+     |                            |&lt;-- <span class="r">403 + new token</span> ------|                    |
+     |                            |                                               |
+     |&lt;--- <span class="r">403</span> {"token":"&lt;new&gt;"}--|                                               |
+     |                            |                                               |
+     |  (UI reads new token,      |                                               |
+     |   updates state, retries)  |                                               |
+     |                            |                                               |
+     |--- <span class="b">POST /ecom/cart</span> -------&gt;|                          |                    |
+     |    X-Csrf-Token: &lt;new&gt;     |                          |                    |
+     |                            |--- ext_authz check -----&gt;|                    |
+     |                            |                  (new token validates <span class="g">OK</span>)      |
+     |                            |&lt;-- <span class="g">200 OK</span> ---------------|                    |
+     |                            |--- forward --------------------------------- &gt;|
+     |&lt;--- <span class="g">200</span> ------------------|&lt;--------------------------------------------|
+
+<span class="g">Redis operations: 0</span> (regeneration is pure CPU in HMAC mode)</div>
+
+<h3>Legacy UUID Token (Redis Fallback)</h3>
+
+<div class="flow">  <span class="b">Browser</span>                    <span class="c">Istio Gateway</span>              <span class="y">CSRF Service</span>           <span class="g">Backend</span>
+     |                            |                          |                    |
+     |--- <span class="b">POST /ecom/cart</span> -------&gt;|                          |                    |
+     |    X-Csrf-Token: <span class="y">a1b2c3d4-</span> |                          |                    |
+     |      <span class="y">e5f6-7890-abcd-...</span>    |                          |                    |
+     |                            |--- ext_authz check -----&gt;|                    |
+     |                            |                          |                    |
+     |                            |                  1. isLegacyUUID() -&gt; <span class="y">true</span>    |
+     |                            |                  2. <span class="y">Redis GET csrf:&lt;user&gt;</span>     |
+     |                            |                  3. ConstantTimeCompare       |
+     |                            |                  4. <span class="y">Redis DEL csrf:&lt;user&gt;</span>     |
+     |                            |                          |                    |
+     |                            |&lt;-- <span class="g">200 OK</span> ---------------|                    |
+     |                            |--- forward --------------------------------- &gt;|
+     |&lt;--- <span class="g">200</span> ------------------|&lt;--------------------------------------------|
+
+<span class="y">Redis operations: 2</span> (GET + DEL, same as legacy behavior)
+
+This path exists solely for backward compatibility during rolling upgrades.</div>
+
+<!-- 16. Testing -->
+<h2 id="testing">16. Testing</h2>
+
+<h3>Unit Test Overview (162 Tests Across 8 Packages)</h3>
+
+<table>
+  <tr><th>Package</th><th>Tests</th><th>Key Scenarios</th></tr>
+  <tr><td><code>internal/token</code></td><td>28</td><td>HMAC generate/verify round-trip, expired token rejection, tampered token detection, payload encoding/decoding edge cases, KeyRing rotation with grace period, dual-key verification, XOR mask/unmask round-trip, mask produces different output for same input</td></tr>
+  <tr><td><code>internal/cuckoo</code></td><td>16</td><td>Filter insert/lookup/delete, capacity limits, false positive rate measurement, RollingFilter rotation behavior, lookup across current+previous, count accuracy</td></tr>
+  <tr><td><code>internal/store</code></td><td>33</td><td>HybridStore generate (with/without masking), validate full pipeline, user binding rejection, origin binding rejection, expired token rejection, tampered token rejection, L1 Cuckoo single-use enforcement, L3 Redis cross-pod dedup, legacy UUID fallback, fail-open/fail-closed behavior</td></tr>
+  <tr><td><code>internal/handler</code></td><td>37</td><td>ExtAuthzCheck safe method passthrough, mutating method with valid/invalid/missing token, auto-regeneration response format, rate limiting enforcement, origin validation, audience validation, introspection integration</td></tr>
+  <tr><td><code>internal/ratelimit</code></td><td>9</td><td>LocalLimiter allow/reject, window boundary behavior, cleanup of stale buckets, concurrent access safety, Redis limiter (legacy)</td></tr>
+  <tr><td><code>internal/jwt</code></td><td>varies</td><td>JWT extraction from Authorization header, audience validation, malformed JWT handling</td></tr>
+  <tr><td><code>internal/origin</code></td><td>varies</td><td>Origin validation against allowed list, missing origin handling, RequireOrigin enforcement</td></tr>
+  <tr><td><code>internal/introspect</code></td><td>varies</td><td>Keycloak introspection, caching, fail-open behavior</td></tr>
+</table>
+
+<div class="result pass"><strong>No real Redis needed:</strong> All token and store tests use <code>miniredis</code> (an in-memory Redis implementation in Go) for the Redis-dependent paths. Run with: <code>cd csrf-service && go test -v ./...</code></div>
+
+<h3>E2E Test Overview (43 CSRF-Specific Tests)</h3>
+<p>The Playwright E2E tests cover the CSRF service through the full Istio gateway stack:</p>
+
+<div class="card">
+  <h3>csrf.spec.ts (32 tests)</h3>
+  <ul>
+    <li>Token generation via <code>GET /csrf/token</code> (authenticated, unauthenticated, rate-limited)</li>
+    <li>Token validation on mutating requests (<code>POST /ecom/cart</code>, <code>POST /checkout</code>)</li>
+    <li>Auto-regeneration: consumed token returns 403 with new token in body</li>
+    <li>Cross-user token rejection</li>
+    <li>Missing token rejection</li>
+    <li>Origin validation</li>
+    <li>Token format detection (HMAC vs UUID)</li>
+    <li>XOR masking: same underlying token produces different wire format each time</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3>csrf-sliding-ttl.spec.ts (11 tests)</h3>
+  <ul>
+    <li>Sliding TTL refresh on safe requests (no-op verification in HMAC mode)</li>
+    <li>Token remains valid across multiple safe requests</li>
+    <li>Token expiration after TTL</li>
+    <li>Rate limiting integration</li>
+  </ul>
+</div>
+
+<h3>Key Test Scenarios</h3>
+
+<h4>HMAC Round-Trip Integrity</h4>
+<pre><code><span class="ts-comment">// Generate a token, then verify it returns the same payload</span>
+tok, payload, err := gen.<span class="ts-func">Generate</span>(<span class="ts-string">"user-1"</span>, <span class="ts-string">"https://myecom.net:30000"</span>)
+require.<span class="ts-func">NoError</span>(t, err)
+
+decoded, err := gen.<span class="ts-func">Verify</span>(tok)
+require.<span class="ts-func">NoError</span>(t, err)
+assert.<span class="ts-func">Equal</span>(t, <span class="ts-string">"user-1"</span>, decoded.Sub)
+assert.<span class="ts-func">Equal</span>(t, <span class="ts-string">"https://myecom.net:30000"</span>, decoded.Org)
+assert.<span class="ts-func">Equal</span>(t, payload.Jti, decoded.Jti)</code></pre>
+
+<h4>XOR Mask Produces Different Output for Same Input</h4>
+<pre><code>masked1, _ := token.<span class="ts-func">Mask</span>(raw)
+masked2, _ := token.<span class="ts-func">Mask</span>(raw)
+assert.<span class="ts-func">NotEqual</span>(t, masked1, masked2) <span class="ts-comment">// Different random pads</span>
+
+<span class="ts-comment">// But both unmask to the same original</span>
+original1, _ := token.<span class="ts-func">Unmask</span>(masked1)
+original2, _ := token.<span class="ts-func">Unmask</span>(masked2)
+assert.<span class="ts-func">Equal</span>(t, raw, original1)
+assert.<span class="ts-func">Equal</span>(t, raw, original2)</code></pre>
+
+<h4>Cuckoo Single-Use Enforcement</h4>
+<pre><code><span class="ts-comment">// First validation succeeds</span>
+valid, err := store.<span class="ts-func">Validate</span>(ctx, <span class="ts-string">"user-1"</span>, tok, origin)
+assert.<span class="ts-func">True</span>(t, valid)
+
+<span class="ts-comment">// Second validation fails (consumed)</span>
+valid, err = store.<span class="ts-func">Validate</span>(ctx, <span class="ts-string">"user-1"</span>, tok, origin)
+assert.<span class="ts-func">False</span>(t, valid)</code></pre>
+
+<h4>Legacy UUID Backward Compatibility</h4>
+<pre><code><span class="ts-comment">// Pre-seed a UUID token in Redis (simulating old pod)</span>
+redis.<span class="ts-func">Set</span>(ctx, <span class="ts-string">"csrf:user-1"</span>,
+    <span class="ts-string">"a1b2c3d4-e5f6-7890-abcd-ef1234567890|https://myecom.net:30000"</span>, ttl)
+
+<span class="ts-comment">// HybridStore detects UUID format and falls back to Redis</span>
+valid, err := store.<span class="ts-func">Validate</span>(ctx, <span class="ts-string">"user-1"</span>,
+    <span class="ts-string">"a1b2c3d4-e5f6-7890-abcd-ef1234567890"</span>,
+    <span class="ts-string">"https://myecom.net:30000"</span>)
+assert.<span class="ts-func">True</span>(t, valid)</code></pre>
+
+<!-- Defense Layering Summary -->
+<h2>Defense Layering Summary</h2>
+
+<p>The complete defense stack through which every request passes:</p>
+
+<div class="flow"><span class="b">Request</span> --&gt; <span class="c">TLS termination</span> (cert-manager, Istio Gateway)
+    --&gt; <span class="c">JWT validation</span> (Istio RequestAuthentication)
+    --&gt; <span class="y">Origin validation</span> (csrf-service, CSRF_ALLOWED_ORIGINS)
+    --&gt; <span class="y">Audience validation</span> (csrf-service, opt-in)
+    --&gt; <span class="y">CSRF token validation</span> (csrf-service ext_authz)
+        --&gt; <span class="g">L2: HMAC-SHA256 signature verify</span> (pure CPU, ~1 us)
+        --&gt; <span class="g">L1: Cuckoo filter lookup</span> (in-memory, ~50 ns)
+        --&gt; <span class="g">L3: Redis SISMEMBER</span> (optional, cross-pod, ~1 ms)
+        --&gt; Token consumed on success (<span class="g">single-use</span>)
+        --&gt; Token bound to user (<span class="g">sub field</span>)
+        --&gt; Token bound to origin (<span class="g">org field</span>)
+        --&gt; Token expires after TTL (<span class="g">iat + 10min</span>)
+        --&gt; XOR masked on every response (<span class="g">BREACH protection</span>)
+    --&gt; <span class="y">Rate limiting</span> on token generation (in-memory, per-pod)
+    --&gt; Forward to backend</div>
+
+<div class="result pass"><strong>Each layer catches a different attack vector.</strong> No single mechanism is sufficient alone. The HMAC signature is the primary defense; the Cuckoo filter enforces single-use; Redis provides cross-pod consistency; XOR masking prevents BREACH; and the auto-regeneration mechanism ensures the UI recovers transparently from any false positive.</div>
+
+<!-- Appendix -->
+<h2>Appendix: File Reference</h2>
+
+<table>
+  <tr><th>File</th><th>Purpose</th></tr>
+  <tr><td><code>csrf-service/internal/token/hmac.go</code></td><td>HMAC-SHA256 token generator and verifier</td></tr>
+  <tr><td><code>csrf-service/internal/token/keyring.go</code></td><td>Key management with rotation and dual-key grace</td></tr>
+  <tr><td><code>csrf-service/internal/token/mask.go</code></td><td>XOR BREACH protection (mask/unmask)</td></tr>
+  <tr><td><code>csrf-service/internal/cuckoo/filter.go</code></td><td>Thread-safe Cuckoo filter wrapper</td></tr>
+  <tr><td><code>csrf-service/internal/cuckoo/rolling.go</code></td><td>Rolling dual-filter with auto-rotation</td></tr>
+  <tr><td><code>csrf-service/internal/store/hybrid.go</code></td><td>Hybrid TokenStore (HMAC + Cuckoo + Redis L3)</td></tr>
+  <tr><td><code>csrf-service/internal/store/redis.go</code></td><td>Legacy Redis-only TokenStore</td></tr>
+  <tr><td><code>csrf-service/internal/ratelimit/local.go</code></td><td>In-memory per-user rate limiter</td></tr>
+  <tr><td><code>csrf-service/internal/config/config.go</code></td><td>Environment variable configuration</td></tr>
+  <tr><td><code>csrf-service/internal/handler/token.go</code></td><td>Token generation HTTP handler</td></tr>
+  <tr><td><code>csrf-service/internal/handler/authz.go</code></td><td>Istio ext_authz validation handler</td></tr>
+  <tr><td><code>csrf-service/internal/middleware/metrics.go</code></td><td>Prometheus metrics definitions</td></tr>
+  <tr><td><code>csrf-service/main.go</code></td><td>Service entry point and wiring</td></tr>
+  <tr><td><code>csrf-service/k8s/csrf-service.yaml</code></td><td>Kubernetes deployment manifest</td></tr>
+</table>
+
+<footer>
+  <p>BookStore Platform &mdash; CSRF HMAC Hybrid Architecture Guide</p>
+  <p>Part of the <a href="csrf-security-enhancements.html">CSRF Protection Series</a> | <a href="csrf-sliding-ttl-auto-regen.html">Sliding TTL &amp; Auto-Regen</a> | <a href="index.html">Documentation Home</a></p>
+</footer>
+
+</div>
+</body>
+</html>
