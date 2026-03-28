@@ -1,4 +1,6 @@
 ```txt
+CSRF token propagate through header
+
 As a cyber security expert review the current implementation of CSRF token and I need Another enhanchment of CSRF token. The current implementation has the CSRF token 30 minutes TTL which is opening a big attack window if the CSRF token expire. How about make the TTL sorter and re-new the TTL lifetime every interaction happend from server side means any secure(authenticated) server call will renew the CSRF token TTL. By this way we can also reduce the attack window. Please make the proper security basepractics analysis and make a proper plan 
 
  3. Race conditions are benign — if a GET EXPIRE runs on a key just DEL-ed by a POST validation, Redis returns 0 (no-op). No data corruption.
