@@ -22,7 +22,7 @@
 
 ## Session 15 — Completed
 
-- `AuthContext.tsx`: `login(returnPath?)` — at non-localhost hosts redirects to `localhost:30000/login?return=<path>` (avoids `crypto.subtle` unavailability); at localhost calls `userManager.signinRedirect({ state: { returnUrl } })`
+- `AuthContext.tsx`: `login(returnPath?)` — defense-in-depth: if `crypto.subtle` is absent, redirects to `${window.location.origin}/login?return=<url>` (no hardcoded URLs); with HTTPS everywhere this fallback should never trigger. Normal path calls `userManager.signinRedirect({ state: { returnUrl } })`
 - `LoginPage.tsx` (NEW): served at `/login?return=<path>`, triggers OIDC redirect at localhost (secure context always available)
 - `CallbackPage.tsx`: reads `user.state.returnUrl` and navigates to original page after auth (guest cart merge logic preserved)
 - `ProtectedRoute.tsx` (NEW): route guard that calls `login()` with current path if unauthenticated

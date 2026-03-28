@@ -313,12 +313,12 @@
 
 <h3>Login Method</h3>
 <pre><code><span class="ts-keyword">const</span> <span class="ts-func">login</span> = <span class="ts-func">useCallback</span>((returnPath?: <span class="ts-type">string</span>) =&gt; {
-  <span class="ts-comment">// PKCE requires crypto.subtle (Web Crypto API)</span>
-  <span class="ts-comment">// Only available in "secure contexts" (HTTPS or localhost)</span>
+  <span class="ts-comment">// PKCE (S256) requires crypto.subtle, available only in secure contexts.</span>
+  <span class="ts-comment">// With HTTPS everywhere (cert-manager), this fallback should never trigger.</span>
+  <span class="ts-comment">// Kept as defense-in-depth for edge cases.</span>
   <span class="ts-keyword">if</span> (<span class="ts-keyword">typeof</span> crypto === <span class="ts-string">'undefined'</span> || !crypto.subtle) {
-    <span class="ts-comment">// Redirect to localhost (always secure) for PKCE</span>
     window.location.href =
-      <span class="ts-string">`https://localhost:30000/login?return=${encodeURIComponent(window.location.href)}`</span>
+      <span class="ts-string">`${window.location.origin}/login?return=${encodeURIComponent(window.location.href)}`</span>
     <span class="ts-keyword">return</span>
   }
 
@@ -838,33 +838,33 @@
 <div class="security-layer"><span class="layer-num">7</span> HTTPS everywhere (cert-manager) &mdash; prevents man-in-the-middle</div>
 
 <!-- ═══════════════════════════════════════════ 18. CROSS-ORIGIN ═══════════════════════════════════════════ -->
-<h2 id="cross-origin">18. Cross-Origin Authentication Relay</h2>
+<h2 id="cross-origin">18. Cross-Origin Authentication Relay (Legacy &mdash; Now Inactive)</h2>
 
-<div class="flow">    <span class="r">https://myecom.net:30000</span>       <span class="g">https://localhost:30000</span>         <span class="b">Keycloak</span>
-              |                          |                        |
-              | 1. Login clicked         |                        |
-              |    crypto.subtle missing? |                        |
-              |                          |                        |
-              | 2. Redirect to localhost  |                        |
-              |-------------------------&gt;|                        |
-              |                          |                        |
-              |                          | 3. PKCE + Auth flow   |
-              |                          |-----------------------&gt;|
-              |                          |&lt;-----------------------|
-              |                          |                        |
-              |                          | 4. Process tokens      |
-              |                          |    Fetch CSRF          |
-              |                          |    Merge cart           |
-              |                          |                        |
-              | 5. Redirect back:        |                        |
-              |    <span class="y">#auth=&lt;encoded-user&gt;</span>  |                        |
-              |&lt;-------------------------|                        |
-              |                          |                        |
-              | 6. AuthContext reads hash |                        |
-              |    Restores session       |                        |
-              |    <span class="r">Clears hash from URL</span>  |                        |</div>
+<div class="result pass"><strong>Note:</strong> With HTTPS everywhere (cert-manager TLS on port 30000), <code>crypto.subtle</code> is always available on all origins. The cross-origin relay below is retained as defense-in-depth but should never trigger in normal operation. No hardcoded URLs are used &mdash; the fallback dynamically derives the origin from <code>window.location.origin</code>.</div>
 
-<div class="result pass"><strong>Security</strong>: URL hash is never sent to servers (HTTP spec). Hash is cleared immediately via <code>history.replaceState()</code>. Only allowed origins are accepted.</div>
+<div class="flow">    <span class="r">Origin A (any)</span>                  <span class="b">Keycloak</span>
+              |                                  |
+              | 1. Login clicked                 |
+              |    crypto.subtle missing?         |
+              |    (should not happen with HTTPS) |
+              |                                  |
+              | 2. Redirect to                   |
+              |    ${window.location.origin}/login |
+              |    ?return=&lt;current-url&gt;          |
+              |                                  |
+              | 3. PKCE + Auth flow              |
+              |--------------------------------&gt; |
+              |&lt;-------------------------------- |
+              |                                  |
+              | 4. Process tokens                |
+              |    Fetch CSRF                    |
+              |    Merge cart                    |
+              |                                  |
+              | 5. Validate returnUrl matches    |
+              |    window.location.origin         |
+              |    Navigate to returnUrl          |</div>
+
+<div class="result pass"><strong>Security</strong>: URL hash is never sent to servers (HTTP spec). Hash is cleared immediately via <code>history.replaceState()</code>. Redirect targets validated dynamically against <code>window.location.origin</code> (no hardcoded allowlist).</div>
 
 <!-- ═══════════════════════════════════════════ 19. DATA FLOW ═══════════════════════════════════════════ -->
 <h2 id="data-flow">19. Complete Data Flow Diagram</h2>

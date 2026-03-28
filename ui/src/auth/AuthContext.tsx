@@ -65,13 +65,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback((returnPath?: string) => {
     // PKCE (S256) requires crypto.subtle, available only in secure contexts.
-    // localhost is always secure. http://myecom.net:30000 resolves to 127.0.0.1 via
-    // /etc/hosts — browsers that check the resolved IP (Chrome) treat it as secure too,
-    // so crypto.subtle IS available there. Fall back to the localhost relay only if
-    // crypto.subtle is genuinely absent (strict non-secure context).
+    // With HTTPS everywhere (cert-manager), this fallback should never trigger.
+    // Kept as defense-in-depth for edge cases.
     if (typeof crypto === 'undefined' || !crypto.subtle) {
       window.location.href =
-        `https://localhost:30000/login?return=${encodeURIComponent(window.location.href)}`
+        `${window.location.origin}/login?return=${encodeURIComponent(window.location.href)}`
       return
     }
 

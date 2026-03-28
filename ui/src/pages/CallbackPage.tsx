@@ -52,12 +52,8 @@ export default function CallbackPage() {
         // sent to servers and is cleared immediately by AuthContext on arrival.
         const isAbsolute = returnUrl.startsWith('http://') || returnUrl.startsWith('https://')
         const isAllowedRedirect = (url: string): boolean => {
-          const ALLOWED_ORIGINS = new Set([
-            'https://localhost:30000',
-            'https://myecom.net:30000',
-          ])
           try {
-            return ALLOWED_ORIGINS.has(new URL(url).origin)
+            return new URL(url).origin === window.location.origin
           } catch {
             return false
           }
