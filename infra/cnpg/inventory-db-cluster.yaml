@@ -78,32 +78,21 @@ spec:
       cpu: 500m
       memory: 512Mi
 
-  # ── Backup Configuration (enable when S3-compatible storage is available) ──
-  # backup:
-  #   barmanObjectStore:
-  #     destinationPath: "s3://bookstore-backups/inventory-db/"
-  #     endpointURL: "https://s3.amazonaws.com"
-  #     s3Credentials:
-  #       accessKeyId:
-  #         name: backup-s3-creds
-  #         key: ACCESS_KEY_ID
-  #       secretAccessKey:
-  #         name: backup-s3-creds
-  #         key: ACCESS_SECRET_KEY
-  #     wal:
-  #       compression: gzip
-  #   retentionPolicy: "7d"
-  # ---
-  # apiVersion: postgresql.cnpg.io/v1
-  # kind: ScheduledBackup
-  # metadata:
-  #   name: inventory-db-daily-backup
-  #   namespace: inventory
-  # spec:
-  #   schedule: "0 2 * * *"
-  #   backupOwnerReference: self
-  #   cluster:
-  #     name: inventory-db
+  # ── Backup Configuration — MinIO S3-compatible store ──
+  backup:
+    barmanObjectStore:
+      destinationPath: "s3://cnpg-backups/inventory-db/"
+      endpointURL: "http://minio.infra.svc.cluster.local:9000"
+      s3Credentials:
+        accessKeyId:
+          name: minio-secret
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: minio-secret
+          key: SECRET_ACCESS_KEY
+      wal:
+        compression: gzip
+    retentionPolicy: "7d"
 
 ---
 # ExternalName Service alias

@@ -1,0 +1,53 @@
+databaseChangeLog:
+  - changeSet:
+      id: 008-create-outbox-table
+      author: audit-remediation
+      comment: "Transactional outbox table for reliable Kafka event publishing"
+      changes:
+        - createTable:
+            tableName: outbox_events
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: aggregate_type
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: aggregate_id
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: event_type
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: payload
+                  type: jsonb
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: published_at
+                  type: timestamp with time zone
+        - createIndex:
+            tableName: outbox_events
+            indexName: idx_outbox_unpublished
+            columns:
+              - column:
+                  name: published_at
+              - column:
+                  name: created_at

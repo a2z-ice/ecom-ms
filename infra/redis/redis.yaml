@@ -59,9 +59,9 @@ spec:
             - --save
             - "60 1"
             - --maxmemory
-            - 200mb
+            - 512mb
             - --maxmemory-policy
-            - allkeys-lru
+            - volatile-lru
             - --tcp-backlog
             - "511"
             - --timeout

@@ -1,4 +1,5 @@
 # ── Stage 1: Build / dependency install ───────────────────────────────────────
+# Pin to digest: run `bash scripts/pin-image-digests.sh` when Docker is available
 FROM python:3.12-slim AS build
 WORKDIR /app
 
@@ -11,6 +12,7 @@ RUN poetry config virtualenvs.create false && \
 COPY . .
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
+# Pin to digest: run `bash scripts/pin-image-digests.sh` when Docker is available
 FROM python:3.12-slim
 
 RUN addgroup --system --gid 1001 app && \
@@ -28,4 +30,4 @@ USER app
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--timeout-graceful-shutdown", "20"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--timeout-graceful-shutdown", "20"]

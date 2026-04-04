@@ -16,8 +16,8 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 2
+      maximum-pool-size: 20
+      minimum-idle: 5
       connection-timeout: 30000
       max-lifetime: 1800000
       idle-timeout: 600000
@@ -35,6 +35,11 @@ spring:
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
     enabled: true
+
+  task:
+    scheduling:
+      pool:
+        size: 2
 
   security:
     oauth2:
@@ -94,11 +99,7 @@ springdoc:
   show-actuator: false
 
 logging:
+  config: classpath:logback-spring.xml
   level:
     root: ${LOG_LEVEL:INFO}
     com.bookstore: ${LOG_LEVEL:INFO}
-  structured:
-    format:
-      console: ecs
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

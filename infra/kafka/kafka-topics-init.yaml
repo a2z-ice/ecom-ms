@@ -43,7 +43,7 @@ spec:
                 else
                   kafka-topics --bootstrap-server kafka.infra.svc.cluster.local:9092 \
                     --create --topic "$topic" \
-                    --partitions 3 \
+                    --partitions 6 \
                     --replication-factor 1
                   echo "Topic '$topic' created."
                 fi

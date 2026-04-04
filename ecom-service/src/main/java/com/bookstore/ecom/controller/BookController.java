@@ -4,6 +4,7 @@ import com.bookstore.ecom.model.Book;
 import com.bookstore.ecom.service.BookService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import jakarta.validation.constraints.Size;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.CacheControl;
@@ -23,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 @RestController
 @RequestMapping("/books")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "Catalog", description = "Browse and search the book catalog. All endpoints are **public** — no authentication required.")
 public class BookController {
 
@@ -58,7 +61,7 @@ public class BookController {
     @GetMapping("/search")
     public ResponseEntity<Page<Book>> searchBooks(
             @Parameter(description = "Search query — title, author, or genre keyword", example = "tolkien", required = true)
-            @RequestParam String q,
+            @RequestParam @Size(min = 1, max = 200, message = "Search query must be 1-200 characters") String q,
             @Parameter(description = "Pagination parameters")
             @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok()
@@ -79,6 +82,8 @@ public class BookController {
     public ResponseEntity<Book> getBook(
             @Parameter(description = "Book UUID", example = "00000000-0000-0000-0000-000000000001", required = true)
             @PathVariable UUID id) {
-        return ResponseEntity.ok(bookService.findById(id));
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES).cachePublic())
+            .body(bookService.findById(id));
     }
 }

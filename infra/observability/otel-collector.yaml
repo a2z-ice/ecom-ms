@@ -87,7 +87,7 @@ data:
         limit_mib: 200
         spike_limit_mib: 50
       probabilistic_sampler:
-        sampling_percentage: 25
+        sampling_percentage: 100
       # Map resource attributes to Loki labels so they appear in label filters
       resource/loki:
         attributes:

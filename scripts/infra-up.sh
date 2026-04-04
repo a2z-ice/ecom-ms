@@ -24,6 +24,18 @@ wait_deployment() {
   kubectl rollout status deployment/"${name}" -n "${ns}" --timeout=180s
 }
 
+# ── 0. MinIO — S3-compatible backup store for CNPG barman ──────────────────
+info "Deploying MinIO (S3-compatible backup store)..."
+kubectl apply -f "${REPO_ROOT}/infra/minio/minio.yaml"
+wait_deployment minio infra
+
+# Copy minio-secret to database namespaces (CNPG needs it for barman backup)
+for ns in ecom inventory analytics identity; do
+  kubectl get secret minio-secret -n infra -o yaml \
+    | sed "s/namespace: infra/namespace: ${ns}/" \
+    | kubectl apply -f - 2>/dev/null || true
+done
+
 # ── 1. CloudNativePG database clusters ─────────────────────────────────────
 info "Installing CloudNativePG operator..."
 bash "${REPO_ROOT}/infra/cnpg/install.sh"
@@ -43,6 +55,9 @@ wait
 
 info "Applying CNPG Istio peer authentication..."
 kubectl apply -f "${REPO_ROOT}/infra/cnpg/peer-auth.yaml"
+
+info "Applying CNPG scheduled backups..."
+kubectl apply -f "${REPO_ROOT}/infra/cnpg/scheduled-backups.yaml"
 
 # ── 2. Redis ────────────────────────────────────────────────────────────────
 info "Deploying Redis..."
@@ -145,6 +160,10 @@ wait_deployment loki otel
 # ── 8. ResourceQuota + LimitRange ──────────────────────────────────────────
 info "Applying ResourceQuota + LimitRange for ecom and inventory namespaces..."
 kubectl apply -f "${REPO_ROOT}/infra/kubernetes/resource-limits/"
+
+# ── 8b. RBAC — minimal roles per service account ──────────────────────────
+info "Applying RBAC roles and bindings..."
+kubectl apply -f "${REPO_ROOT}/infra/kubernetes/rbac/"
 
 # ── 9. Summary ──────────────────────────────────────────────────────────────
 echo ""

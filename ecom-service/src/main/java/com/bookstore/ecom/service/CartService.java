@@ -32,7 +32,7 @@ public class CartService {
 
         return cartItemRepository.findByUserIdAndBookId(userId, request.bookId())
             .map(existing -> {
-                existing.setQuantity(existing.getQuantity() + request.quantity());
+                existing.setQuantity(request.quantity());
                 return cartItemRepository.save(existing);
             })
             .orElseGet(() -> {

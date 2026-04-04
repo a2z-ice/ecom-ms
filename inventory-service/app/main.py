@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 import sys
 from contextlib import asynccontextmanager
 
@@ -56,6 +57,17 @@ from app.database import AsyncSessionLocal
 from app.kafka.consumer import run_consumer_supervised
 from app.kafka.dlq_consumer import run_dlq_consumer_supervised
 
+# ── PII masking filter — redact UUIDs in userId context ──────────────────────
+_UUID_RE = re.compile(r"(userId?[=:\s\"]+)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE)
+
+
+class _PIIMaskingFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        if hasattr(record, "msg") and isinstance(record.msg, str):
+            record.msg = _UUID_RE.sub(r"\1[REDACTED]", record.msg)
+        return True
+
+
 # ── Structured JSON logging ──────────────────────────────────────────────────
 _json_formatter = JsonFormatter(
     fmt="%(asctime)s %(levelname)s %(name)s %(message)s %(otelTraceID)s %(otelSpanID)s %(otelTraceSampled)s",
@@ -73,6 +85,7 @@ _handler = logging.StreamHandler(sys.stdout)
 _handler.setFormatter(_json_formatter)
 
 logging.root.handlers.clear()
+logging.root.addFilter(_PIIMaskingFilter())
 logging.root.addHandler(_handler)
 # Attach OTel log handler (sends logs to OTel Collector → Loki)
 if _OTEL_ENABLED and os.environ.get("OTEL_LOGS_EXPORTER", "").lower() == "otlp":
@@ -210,6 +223,18 @@ app.add_middleware(
     allow_methods=["GET", "PUT", "POST"],
     allow_headers=["Authorization", "Content-Type", "X-CSRF-Token"],
 )
+
+
+# ── Security headers middleware ─────────────────────────────────────────────
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+    return response
 
 app.include_router(stock_router)
 app.include_router(admin_router)

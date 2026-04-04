@@ -1,4 +1,5 @@
 # ── Stage 1: Build ───────────────────────────────────────────────────────────
+# Pin to digest: run `bash scripts/pin-image-digests.sh` when Docker is available
 FROM node:22-alpine AS build
 WORKDIR /app
 
@@ -15,6 +16,7 @@ ARG VITE_REDIRECT_URI
 RUN npm run build
 
 # ── Stage 2: Runtime (Nginx) ─────────────────────────────────────────────────
+# Pin to digest: run `bash scripts/pin-image-digests.sh` when Docker is available
 FROM nginx:1.27-alpine
 
 # Run nginx as non-root

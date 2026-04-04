@@ -44,8 +44,8 @@ spec:
             - name: FLINK_PROPERTIES
               value: |
                 jobmanager.rpc.address: flink-jobmanager
-                jobmanager.memory.process.size: 900m
-                parallelism.default: 1
+                jobmanager.memory.process.size: 1200m
+                parallelism.default: 4
                 state.backend.type: hashmap
                 execution.checkpointing.dir: file:///opt/flink/checkpoints
                 execution.checkpointing.interval: 30s
@@ -87,11 +87,11 @@ spec:
               drop: ["ALL"]
           resources:
             requests:
-              cpu: 200m
-              memory: 768Mi
-            limits:
-              cpu: 500m
+              cpu: 300m
               memory: 1Gi
+            limits:
+              cpu: 750m
+              memory: 1536Mi
           readinessProbe:
             httpGet:
               path: /overview
@@ -127,7 +127,7 @@ spec:
                 -Drest.address=localhost \
                 -Drest.port=8081 \
                 -Dexecution.target=remote \
-                -Dparallelism.default=1
+                -Dparallelism.default=4
           ports:
             - containerPort: 9091
               name: sql-gateway
@@ -138,7 +138,7 @@ spec:
                 rest.address: localhost
                 rest.port: 8081
                 execution.target: remote
-                parallelism.default: 1
+                parallelism.default: 4
             - name: ANALYTICS_DB_USER
               valueFrom:
                 secretKeyRef:
@@ -269,7 +269,7 @@ spec:
                 jobmanager.rpc.address: flink-jobmanager
                 taskmanager.memory.process.size: 1024m
                 taskmanager.numberOfTaskSlots: 4
-                parallelism.default: 1
+                parallelism.default: 4
                 state.backend.type: hashmap
                 execution.checkpointing.dir: file:///opt/flink/checkpoints
                 execution.checkpointing.interval: 30s

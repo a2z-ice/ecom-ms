@@ -17,3 +17,9 @@ databaseChangeLog:
   - include:
       file: db/changelog/006-add-idempotency-key.yaml
       relativeToChangelogFile: false
+  - include:
+      file: db/changelog/007-add-query-indexes.yaml
+      relativeToChangelogFile: false
+  - include:
+      file: db/changelog/008-create-outbox-table.yaml
+      relativeToChangelogFile: false

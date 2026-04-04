@@ -74,7 +74,8 @@
         { label: 'Schema Registry', href: 'schema-registry.html' },
         { label: 'PostgreSQL HA (CNPG)', href: 'postgresql-ha.html' },
         { label: 'Sessions 30\u201333: Hardening', href: 'sessions-30-33-architecture-hardening.html' },
-        { label: 'Sessions 34\u201335: Infra & Ops', href: 'sessions-34-35-infra-ops-hardening.html' }
+        { label: 'Sessions 34\u201335: Infra & Ops', href: 'sessions-34-35-infra-ops-hardening.html' },
+        { label: 'Session 29: Grade A Audit', href: 'session-29-audit-remediation.html', highlight: true }
       ]
     },
     {

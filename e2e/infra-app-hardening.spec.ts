@@ -80,21 +80,21 @@ test.describe('Kafka Production Configs', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 test.describe('Redis Production Configs', () => {
 
-  test('maxmemory is 200mb', async () => {
+  test('maxmemory is 512mb', async () => {
     const output = kubectl([
       'exec', '-n', 'infra', 'deploy/redis', '--',
       'redis-cli', '-a', 'CHANGE_ME', 'CONFIG', 'GET', 'maxmemory',
     ])
-    // 200mb = 209715200 bytes
-    expect(output).toContain('209715200')
+    // 512mb = 536870912 bytes
+    expect(output).toContain('536870912')
   })
 
-  test('maxmemory-policy is allkeys-lru', async () => {
+  test('maxmemory-policy is volatile-lru', async () => {
     const output = kubectl([
       'exec', '-n', 'infra', 'deploy/redis', '--',
       'redis-cli', '-a', 'CHANGE_ME', 'CONFIG', 'GET', 'maxmemory-policy',
     ])
-    expect(output).toContain('allkeys-lru')
+    expect(output).toContain('volatile-lru')
   })
 
   test('tcp-keepalive is 60', async () => {

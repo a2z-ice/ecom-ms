@@ -61,32 +61,21 @@ spec:
       cpu: 500m
       memory: 1Gi
 
-  # ── Backup Configuration (enable when S3-compatible storage is available) ──
-  # backup:
-  #   barmanObjectStore:
-  #     destinationPath: "s3://bookstore-backups/analytics-db/"
-  #     endpointURL: "https://s3.amazonaws.com"
-  #     s3Credentials:
-  #       accessKeyId:
-  #         name: backup-s3-creds
-  #         key: ACCESS_KEY_ID
-  #       secretAccessKey:
-  #         name: backup-s3-creds
-  #         key: ACCESS_SECRET_KEY
-  #     wal:
-  #       compression: gzip
-  #   retentionPolicy: "7d"
-  # ---
-  # apiVersion: postgresql.cnpg.io/v1
-  # kind: ScheduledBackup
-  # metadata:
-  #   name: analytics-db-daily-backup
-  #   namespace: analytics
-  # spec:
-  #   schedule: "0 2 * * *"
-  #   backupOwnerReference: self
-  #   cluster:
-  #     name: analytics-db
+  # ── Backup Configuration — MinIO S3-compatible store ──
+  backup:
+    barmanObjectStore:
+      destinationPath: "s3://cnpg-backups/analytics-db/"
+      endpointURL: "http://minio.infra.svc.cluster.local:9000"
+      s3Credentials:
+        accessKeyId:
+          name: minio-secret
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: minio-secret
+          key: SECRET_ACCESS_KEY
+      wal:
+        compression: gzip
+    retentionPolicy: "7d"
 
 ---
 # ExternalName Service alias

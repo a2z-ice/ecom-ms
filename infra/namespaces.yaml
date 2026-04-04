@@ -7,6 +7,7 @@ metadata:
   name: ecom
   labels:
     istio.io/dataplane-mode: ambient
+    allow-external-routes: "true"
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/enforce-version: latest
     pod-security.kubernetes.io/warn: restricted
@@ -21,6 +22,7 @@ metadata:
   name: inventory
   labels:
     istio.io/dataplane-mode: ambient
+    allow-external-routes: "true"
     pod-security.kubernetes.io/enforce: restricted
     pod-security.kubernetes.io/enforce-version: latest
     pod-security.kubernetes.io/warn: restricted
@@ -45,6 +47,7 @@ metadata:
   name: identity
   labels:
     istio.io/dataplane-mode: ambient
+    allow-external-routes: "true"
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/enforce-version: latest
 
@@ -56,6 +59,7 @@ metadata:
   name: infra
   labels:
     istio.io/dataplane-mode: ambient
+    allow-external-routes: "true"
     # baseline (not restricted) because Kafka/Zookeeper require more privileges
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/enforce-version: latest

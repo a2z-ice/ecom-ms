@@ -3,11 +3,14 @@ package com.bookstore.ecom.service;
 import com.bookstore.ecom.client.InventoryClient;
 import com.bookstore.ecom.dto.OrderCreatedEvent;
 import com.bookstore.ecom.exception.BusinessException;
-import com.bookstore.ecom.kafka.OrderEventPublisher;
 import com.bookstore.ecom.model.CartItem;
 import com.bookstore.ecom.model.Order;
 import com.bookstore.ecom.model.OrderItem;
+import com.bookstore.ecom.model.OutboxEvent;
 import com.bookstore.ecom.repository.OrderRepository;
+import com.bookstore.ecom.repository.OutboxEventRepository;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -26,17 +29,20 @@ public class OrderService {
 
     private final CartService cartService;
     private final OrderRepository orderRepository;
-    private final OrderEventPublisher eventPublisher;
+    private final OutboxEventRepository outboxRepo;
+    private final ObjectMapper objectMapper;
     private final InventoryClient inventoryClient;
     private final Counter ordersTotal;
     private final Timer checkoutDuration;
 
     public OrderService(CartService cartService, OrderRepository orderRepository,
-                        OrderEventPublisher eventPublisher, InventoryClient inventoryClient,
+                        OutboxEventRepository outboxRepo, ObjectMapper objectMapper,
+                        InventoryClient inventoryClient,
                         MeterRegistry meterRegistry) {
         this.cartService = cartService;
         this.orderRepository = orderRepository;
-        this.eventPublisher = eventPublisher;
+        this.outboxRepo = outboxRepo;
+        this.objectMapper = objectMapper;
         this.inventoryClient = inventoryClient;
         this.ordersTotal = Counter.builder("orders_total")
             .description("Total number of completed orders")
@@ -93,7 +99,8 @@ public class OrderService {
             Order saved = orderRepository.save(order);
             cartService.clearCart(userId);
 
-            // Publish event to Kafka
+            // Write event to transactional outbox (same DB transaction as order).
+            // OutboxPublisher polls and publishes to Kafka asynchronously.
             OrderCreatedEvent event = new OrderCreatedEvent(
                 saved.getId(),
                 userId,
@@ -106,7 +113,16 @@ public class OrderService {
                 saved.getTotal(),
                 OffsetDateTime.now()
             );
-            eventPublisher.publishOrderCreated(event);
+            try {
+                OutboxEvent outboxEvent = new OutboxEvent();
+                outboxEvent.setAggregateType("Order");
+                outboxEvent.setAggregateId(saved.getId().toString());
+                outboxEvent.setEventType("order.created");
+                outboxEvent.setPayload(objectMapper.writeValueAsString(event));
+                outboxRepo.save(outboxEvent);
+            } catch (JacksonException e) {
+                throw new RuntimeException("Failed to serialize order event", e);
+            }
 
             ordersTotal.increment();
             log.info("Order created: orderId={} userId={} total={}", saved.getId(), userId, total);

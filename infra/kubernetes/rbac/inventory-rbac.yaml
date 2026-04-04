@@ -1,0 +1,26 @@
+---
+# Minimal RBAC for inventory-service ServiceAccount.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: inventory-service-role
+  namespace: inventory
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: inventory-service-binding
+  namespace: inventory
+subjects:
+  - kind: ServiceAccount
+    name: inventory-service
+    namespace: inventory
+roleRef:
+  kind: Role
+  name: inventory-service-role
+  apiGroup: rbac.authorization.k8s.io

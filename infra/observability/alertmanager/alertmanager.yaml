@@ -18,8 +18,10 @@ data:
     receivers:
       - name: 'default'
         webhook_configs:
-          - url: 'http://alertmanager.observability:9093/-/healthy'
+          - url: 'http://otel-collector.otel.svc.cluster.local:4318/v1/logs'
             send_resolved: true
+            http_config:
+              follow_redirects: false
 
 ---
 # AlertManager Deployment

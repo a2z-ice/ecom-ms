@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,7 +15,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     Optional<Order> findByIdempotencyKey(String idempotencyKey);
 
     @EntityGraph(attributePaths = {"items", "items.book"})
-    List<Order> findByUserIdOrderByCreatedAtDesc(String userId);
+    Page<Order> findByUserIdOrderByCreatedAtDesc(String userId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"items", "items.book"})
     @Query("SELECT o FROM Order o ORDER BY o.createdAt DESC")

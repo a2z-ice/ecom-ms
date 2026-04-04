@@ -1,0 +1,50 @@
+---
+# ScheduledBackup CRs — daily automated backups via CNPG barman to MinIO.
+# These require the backup section to be enabled in each Cluster CR.
+
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: ecom-db-daily-backup
+  namespace: ecom
+spec:
+  schedule: "0 2 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: ecom-db
+
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: inventory-db-daily-backup
+  namespace: inventory
+spec:
+  schedule: "0 2 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: inventory-db
+
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: analytics-db-daily-backup
+  namespace: analytics
+spec:
+  schedule: "0 2 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: analytics-db
+
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: keycloak-db-daily-backup
+  namespace: identity
+spec:
+  schedule: "0 2 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: keycloak-db

@@ -1,0 +1,27 @@
+---
+# Minimal RBAC for ecom-service ServiceAccount.
+# Principle of least privilege: only allow reading ConfigMaps in own namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ecom-service-role
+  namespace: ecom
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ecom-service-binding
+  namespace: ecom
+subjects:
+  - kind: ServiceAccount
+    name: ecom-service
+    namespace: ecom
+roleRef:
+  kind: Role
+  name: ecom-service-role
+  apiGroup: rbac.authorization.k8s.io

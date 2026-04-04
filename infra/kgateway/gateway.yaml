@@ -20,14 +20,20 @@ spec:
         mode: Terminate
         certificateRefs:
           - name: bookstore-gateway-tls
-      # Allow HTTPRoutes from all namespaces to attach
+      # Only allow HTTPRoutes from namespaces labeled allow-external-routes=true
       allowedRoutes:
         namespaces:
-          from: All
+          from: Selector
+          selector:
+            matchLabels:
+              allow-external-routes: "true"
     - name: http
       protocol: HTTP
       port: 8080
       # HTTP listener kept for redirect-to-HTTPS only
       allowedRoutes:
         namespaces:
-          from: All
+          from: Selector
+          selector:
+            matchLabels:
+              allow-external-routes: "true"

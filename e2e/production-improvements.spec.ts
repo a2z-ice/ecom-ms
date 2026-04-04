@@ -39,7 +39,7 @@ plainTest.describe('Production Improvements — API Headers', () => {
     expect(cacheControl).toContain('public')
   })
 
-  plainTest('GET /ecom/books/{id} does NOT set cache-control header', async ({ request }) => {
+  plainTest('GET /ecom/books/{id} has cache-control with max-age=300', async ({ request }) => {
     // First get a book ID from the list
     const listResp = await request.get(`${ECOM_API}/books`)
     expect(listResp.ok()).toBeTruthy()
@@ -50,8 +50,9 @@ plainTest.describe('Production Improvements — API Headers', () => {
     const resp = await request.get(`${ECOM_API}/books/${bookId}`)
     expect(resp.ok(), `GET /ecom/books/${bookId} → ${resp.status()}`).toBeTruthy()
     const cacheControl = resp.headers()['cache-control'] ?? ''
-    // Individual book endpoint should NOT have cache-control (no cacheControl() call in getBook)
-    expect(cacheControl).not.toContain('max-age=60')
+    // Session 29: book detail endpoint now has 5-minute cache-control
+    expect(cacheControl).toContain('max-age=300')
+    expect(cacheControl).toContain('public')
   })
 })
 

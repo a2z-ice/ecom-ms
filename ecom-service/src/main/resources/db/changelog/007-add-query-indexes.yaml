@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-add-query-indexes
+      author: audit-remediation
+      comment: "Add indexes for frequent query patterns (orders by user, cart by user, books by genre)"
+      changes:
+        - createIndex:
+            tableName: orders
+            indexName: idx_orders_user_id
+            columns:
+              - column:
+                  name: user_id
+        - createIndex:
+            tableName: cart_items
+            indexName: idx_cart_items_user_id
+            columns:
+              - column:
+                  name: user_id
+        - createIndex:
+            tableName: books
+            indexName: idx_books_genre
+            columns:
+              - column:
+                  name: genre
+      # Note: idx_books_author and idx_books_title already created in 001-create-books.yaml

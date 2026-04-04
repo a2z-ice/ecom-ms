@@ -166,8 +166,8 @@ async def list_dlq_messages(
 ):
     """Returns dead-letter queue messages (last 100) and total count."""
     return {
-        "totalCount": dlq_monitor.total_count,
-        "messages": dlq_monitor.messages,
+        "totalCount": await dlq_monitor.total_count,
+        "messages": await dlq_monitor.messages(),
     }
 
 

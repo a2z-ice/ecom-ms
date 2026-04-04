@@ -83,7 +83,7 @@ spec:
               value: "http://inventory-service.inventory.svc.cluster.local:8000"
             # JVM tuning flags
             - name: JAVA_TOOL_OPTIONS
-              value: "-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -javaagent:/otel/opentelemetry-javaagent.jar"
+              value: "-XX:MaxRAMPercentage=50.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -javaagent:/otel/opentelemetry-javaagent.jar"
             - name: OTEL_SERVICE_NAME
               value: "ecom-service"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -111,11 +111,11 @@ spec:
               mountPath: /tmp
           resources:
             requests:
-              cpu: 250m
-              memory: 512Mi
-            limits:
               cpu: 500m
-              memory: 1Gi
+              memory: 768Mi
+            limits:
+              cpu: 1000m
+              memory: 1536Mi
           startupProbe:
             httpGet:
               path: /ecom/actuator/health/liveness

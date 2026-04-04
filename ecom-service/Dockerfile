@@ -1,4 +1,5 @@
 # ── Stage 1: Build ───────────────────────────────────────────────────────────
+# Pin to digest: run `bash scripts/pin-image-digests.sh` when Docker is available
 FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /workspace
 
@@ -24,6 +25,7 @@ RUN mkdir -p /otel && \
     ls -la /otel/opentelemetry-javaagent.jar
 
 # ── Stage 2: Runtime ─────────────────────────────────────────────────────────
+# Pin to digest: run `bash scripts/pin-image-digests.sh` when Docker is available
 FROM eclipse-temurin:21-jre-alpine
 
 # Create non-root user

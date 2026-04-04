@@ -7,10 +7,10 @@ metadata:
   namespace: inventory
 spec:
   hard:
-    requests.cpu: 1500m
-    requests.memory: 3Gi
-    limits.cpu: "3"
-    limits.memory: 6Gi
+    requests.cpu: "3"
+    requests.memory: 4Gi
+    limits.cpu: "6"
+    limits.memory: 8Gi
     pods: "10"
 
 ---

@@ -1,0 +1,26 @@
+---
+# Minimal RBAC for csrf-service ServiceAccount in infra namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: csrf-service-role
+  namespace: infra
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: csrf-service-binding
+  namespace: infra
+subjects:
+  - kind: ServiceAccount
+    name: csrf-service
+    namespace: infra
+roleRef:
+  kind: Role
+  name: csrf-service-role
+  apiGroup: rbac.authorization.k8s.io
