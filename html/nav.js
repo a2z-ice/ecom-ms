@@ -70,7 +70,6 @@
       title: 'Infrastructure',
       links: [
         { label: 'CDC Pipeline Hardening', href: 'cdc-hardening.html' },
-        { label: 'CDC & Superset Stability', href: 'cdc-superset-stability-guide.html', highlight: true },
         { label: 'Schema Registry', href: 'schema-registry.html' },
         { label: 'PostgreSQL HA (CNPG)', href: 'postgresql-ha.html' },
         { label: 'Sessions 30\u201333: Hardening', href: 'sessions-30-33-architecture-hardening.html' },
@@ -96,12 +95,18 @@
       ]
     },
     {
+      title: 'Diagnostics & Fixes',
+      links: [
+        { label: 'up.sh Stability Fixes (Post-Mortem)', href: 'up-sh-stability-fixes.html', highlight: true },
+        { label: 'CDC & Superset Stability', href: 'cdc-superset-stability-guide.html', highlight: true },
+        { label: 'PgAdmin Connectivity Fix', href: 'pgadmin-connectivity-fix.html' }
+      ]
+    },
+    {
       title: 'Operations',
       links: [
         { label: 'Claude Code Skills Reference', href: 'claude-code-skills.html', highlight: true },
-        { label: 'up.sh Stability Fixes', href: 'up-sh-stability-fixes.html', highlight: true },
         { label: 'Inline Python Scripts', href: 'inline-python-scripts.html' },
-        { label: 'PgAdmin Connectivity Fix', href: 'pgadmin-connectivity-fix.html' },
         { label: 'PgAdmin Security Review', href: 'pgadmin-security-review.html' },
         { label: 'External DB (Aurora) Guide', href: 'external-database-mtls-guide.html' },
         { label: 'Browser CA Trust Guide', href: 'browser-ca-trust.html', highlight: true }
