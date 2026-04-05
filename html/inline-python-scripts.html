@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Inline Python Scripts Reference -- BookStore Platform</title>
   <meta property="og:title" content="Inline Python Scripts Reference -- Shell Script Automation" />
-  <meta property="og:description" content="18 inline Python snippets across 8 shell scripts: what they do, why Python, and what they produce." />
+  <meta property="og:description" content="14 inline Python snippets across 5 shell scripts in scripts/: what they do, why Python, and what they produce." />
   <meta property="og:type" content="article" />
   <style>
     :root {
@@ -70,7 +70,7 @@
     /* -- TABLES -- */
     table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; }
     th { background: var(--card); text-align: left; padding: 12px 16px; font-size: 0.78rem; font-weight: 700; color: var(--accent); border-bottom: 2px solid var(--border); text-transform: uppercase; letter-spacing: 0.05em; }
-    td { padding: 12px 16px; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+    td { padding: 12px 16px; font-size: 0.88rem; border-bottom: 1px solid var(--border); vertical-align: top; }
     tr:hover td { background: rgba(59,130,246,0.04); }
 
     /* -- CARDS -- */
@@ -162,11 +162,11 @@
 <!-- HERO -->
 <div class="hero">
   <h1>Inline Python Scripts Reference</h1>
-  <p class="subtitle">18 inline Python snippets across 8 shell scripts: what they do, why Python, and what they produce</p>
+  <p class="subtitle">14 inline Python snippets across 5 shell scripts in <code>scripts/</code>: what they do, why Python, and what they produce</p>
   <div class="hero-badges">
-    <span class="hbadge p">18 Python Snippets</span>
-    <span class="hbadge o">8 Shell Scripts</span>
-    <span class="hbadge g">5 Patterns</span>
+    <span class="hbadge p">14 Python Snippets</span>
+    <span class="hbadge o">5 Shell Scripts</span>
+    <span class="hbadge g">3 Patterns</span>
     <span class="hbadge g">Zero jq Dependency</span>
   </div>
 </div>
@@ -177,35 +177,25 @@
 <section id="overview">
   <div class="container">
     <h2><span class="accent">1.</span> Overview</h2>
-    <p class="section-sub">The BookStore platform's shell scripts use inline Python for JSON/YAML manipulation tasks that are impractical in pure bash.</p>
+    <p class="section-sub">The BookStore platform's shell scripts in <code>scripts/</code> use inline Python for JSON/YAML manipulation tasks that are impractical in pure bash.</p>
 
-    <p>All 18 snippets use only the Python standard library (<code>json</code>, <code>sys</code>) plus <code>yaml</code> (PyYAML) where YAML parsing is required. No third-party JSON tools like <code>jq</code> or <code>yq</code> are needed.</p>
+    <p>All 14 snippets use only the Python standard library (<code>json</code>, <code>sys</code>) plus <code>yaml</code> (PyYAML) where YAML parsing is required. No third-party JSON tools like <code>jq</code> or <code>yq</code> are needed. Every snippet is idempotent and safe to re-run.</p>
 
     <div class="pattern-grid">
       <div class="pattern-card">
         <h4>JSON Field Extraction</h4>
         <span class="count">10 usages</span>
-        <p style="color:var(--muted); font-size:0.85rem; margin-top:8px;">Extracting fields from API responses -- health status, counts, tokens, IDs</p>
+        <p style="color:var(--muted); font-size:0.85rem; margin-top:8px;">Reading single fields from API responses &mdash; health status, counts, access tokens &mdash; one-liner <code>json.load(sys.stdin)['field']</code></p>
       </div>
       <div class="pattern-card">
-        <h4>YAML+JSON ConfigMap Manipulation</h4>
+        <h4>Kubernetes Policy Array Patching</h4>
         <span class="count">3 usages</span>
-        <p style="color:var(--muted); font-size:0.85rem; margin-top:8px;">Editing Istio mesh config (YAML embedded inside JSON ConfigMaps)</p>
+        <p style="color:var(--muted); font-size:0.85rem; margin-top:8px;">Appending <code>.spec.rules[]</code> / <code>.spec.egress[]</code> / <code>.spec.ingress[]</code> entries on live resources &mdash; AuthorizationPolicy, NetworkPolicy, gateway-egress</p>
       </div>
       <div class="pattern-card">
-        <h4>NetworkPolicy JSON Patching</h4>
-        <span class="count">2 usages</span>
-        <p style="color:var(--muted); font-size:0.85rem; margin-top:8px;">Inserting egress rules at specific positions in policy arrays</p>
-      </div>
-      <div class="pattern-card">
-        <h4>Token Parsing</h4>
-        <span class="count">2 usages</span>
-        <p style="color:var(--muted); font-size:0.85rem; margin-top:8px;">Extracting JWT access tokens from Keycloak OIDC responses</p>
-      </div>
-      <div class="pattern-card">
-        <h4>File Processing</h4>
+        <h4>YAML-in-JSON ConfigMap Mutation</h4>
         <span class="count">1 usage</span>
-        <p style="color:var(--muted); font-size:0.85rem; margin-top:8px;">Reading schema files and JSON-escaping their content for API payloads</p>
+        <p style="color:var(--muted); font-size:0.85rem; margin-top:8px;">Editing the Istio mesh config which is a YAML string <i>inside</i> a JSON ConfigMap &mdash; register <code>csrf-ext-authz</code> extensionProvider</p>
       </div>
     </div>
 
@@ -214,14 +204,11 @@
       <ul>
         <li><a href="#overview">1. Overview</a></li>
         <li><a href="#scripts">2. Script-by-Script Reference</a></li>
-        <li class="indent"><a href="#up-sh">2.1 scripts/up.sh (3 usages)</a></li>
+        <li class="indent"><a href="#up-sh">2.1 scripts/up.sh (5 usages)</a></li>
         <li class="indent"><a href="#smoke-test-sh">2.2 scripts/smoke-test.sh (3 usages)</a></li>
-        <li class="indent"><a href="#sanity-test-sh">2.3 scripts/sanity-test.sh (1 usage)</a></li>
-        <li class="indent"><a href="#full-stack-test-sh">2.4 scripts/full-stack-test.sh (4 usages)</a></li>
+        <li class="indent"><a href="#full-stack-test-sh">2.3 scripts/full-stack-test.sh (4 usages)</a></li>
+        <li class="indent"><a href="#sanity-test-sh">2.4 scripts/sanity-test.sh (1 usage)</a></li>
         <li class="indent"><a href="#cert-dashboard-up-sh">2.5 scripts/cert-dashboard-up.sh (1 usage)</a></li>
-        <li class="indent"><a href="#register-schemas-sh">2.6 infra/schema-registry/register-schemas.sh (3 usages)</a></li>
-        <li class="indent"><a href="#register-connectors-sh">2.7 infra/debezium/register-connectors.sh (1 usage)</a></li>
-        <li class="indent"><a href="#csrf-service-up-sh">2.8 csrf-service/scripts/csrf-service-up.sh (2 usages)</a></li>
         <li><a href="#patterns">3. Pattern Catalog</a></li>
         <li><a href="#why-python">4. Why Python Instead of jq/yq/bash</a></li>
         <li><a href="#summary">5. Summary Table</a></li>
@@ -236,7 +223,7 @@
 <section id="scripts">
   <div class="container">
     <h2><span class="accent">2.</span> Script-by-Script Reference</h2>
-    <p class="section-sub">Each script's inline Python snippets, with full context showing the shell pipe chain and what the Python does.</p>
+    <p class="section-sub">Each script's inline Python snippets with the exact Python expression and its purpose.</p>
 
     <!-- ============================================================ -->
     <!-- 2.1 scripts/up.sh -->
@@ -244,18 +231,16 @@
     <div id="up-sh" class="script-header">
       <span class="script-path">scripts/up.sh</span>
       <span class="script-desc">Master bootstrap script -- creates/recovers the entire cluster</span>
-      <span class="usage-count">3 Python usages</span>
+      <span class="usage-count">5 Python usages</span>
     </div>
 
     <!-- Snippet 1 -->
     <div class="snippet-section">
-      <h4>Snippet 1: Istio extensionProvider Registration</h4>
+      <h4>1. Istio mesh config -- register csrf-ext-authz extensionProvider</h4>
       <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> up.sh:378-396</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill purple">YAML+JSON ConfigMap</span></span>
-        <span class="meta-item"><strong>Condition:</strong> Only if csrf-ext-authz not in mesh config</span>
+        <span class="meta-item"><strong>Pattern:</strong> <span class="pill purple">YAML-in-JSON ConfigMap</span></span>
+        <span class="meta-item"><strong>Condition:</strong> Only if csrf-ext-authz not already present</span>
       </div>
-
       <div class="side-by-side">
         <div class="shell">
           <span class="label-tag">Shell Pipe Chain</span>
@@ -263,795 +248,6 @@
   -n istio-system -o json \
 | python3 -c "..." \
 | kubectl apply -f -</code></pre>
-          <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;"><strong>Input:</strong> ConfigMap JSON from kubectl<br><strong>Output:</strong> Modified ConfigMap piped to kubectl apply</p>
-        </div>
-        <div class="python">
-          <span class="label-tag">Python Logic</span>
-          <pre><code>import sys, json, yaml
-cm = json.load(sys.stdin)           # parse ConfigMap JSON
-mesh = yaml.safe_load(              # parse embedded YAML
-    cm['data']['mesh'])
-if 'extensionProviders' not in mesh:
-    mesh['extensionProviders'] = [] # init list if missing
-mesh['extensionProviders'].append({ # add new provider
-    'name': 'csrf-ext-authz',
-    'envoyExtAuthzHttp': {
-        'service': 'csrf-service.infra...',
-        'port': 8080, ...
-    }
-})
-cm['data']['mesh'] = yaml.dump(     # re-serialize YAML
-    mesh, default_flow_style=False)
-json.dump(cm, sys.stdout)           # output full ConfigMap</code></pre>
-        </div>
-      </div>
-      <p style="font-size:0.85rem;"><strong>Why Python:</strong> The mesh config is YAML embedded inside a JSON ConfigMap. Bash cannot parse YAML, and <code>jq</code> cannot parse YAML either. Python with PyYAML handles both layers.</p>
-      <div class="result pass">
-        <strong>Expected Output (healthy):</strong><br>
-        The Python modifies the ConfigMap's <code>data.mesh</code> field. The resulting embedded YAML:
-        <pre><code>defaultConfig:
-  discoveryAddress: istiod.istio-system.svc:15012
-  image:
-    imageType: distroless
-  proxyMetadata:
-    ISTIO_META_ENABLE_HBONE: 'true'
-defaultProviders:
-  metrics:
-  - prometheus
-enablePrometheusMerge: true
-extensionProviders:
-- envoyExtAuthzHttp:
-    failOpen: true
-    headersToUpstreamOnAllow: []
-    includeRequestHeadersInCheck:
-    - authorization
-    - x-csrf-token
-    port: 8080
-    service: csrf-service.infra.svc.cluster.local
-  name: csrf-ext-authz
-rootNamespace: istio-system
-trustDomain: cluster.local</code></pre>
-      </div>
-    </div>
-
-    <!-- Snippet 2 -->
-    <div class="snippet-section">
-      <h4>Snippet 2: Gateway Egress NetworkPolicy Patch</h4>
-      <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> up.sh:471-479</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill cyan">NetworkPolicy Patch</span></span>
-        <span class="meta-item"><strong>Condition:</strong> Only if gateway-egress exists and lacks csrf-service</span>
-      </div>
-
-      <div class="side-by-side">
-        <div class="shell">
-          <span class="label-tag">Shell Pipe Chain</span>
-          <pre><code># $_GW_EGRESS previously fetched via:
-# kubectl get networkpolicy \
-#   gateway-egress -n infra -o json
-
-echo "$_GW_EGRESS" \
-| python3 -c "..." \
-| kubectl apply -f -</code></pre>
-          <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;"><strong>Input:</strong> NetworkPolicy JSON from variable<br><strong>Output:</strong> Modified NetworkPolicy with new egress rule</p>
-        </div>
-        <div class="python">
-          <span class="label-tag">Python Logic</span>
-          <pre><code>import sys, json
-pol = json.load(sys.stdin)          # parse NetworkPolicy
-pol['spec']['egress'].insert(0, {   # insert at position 0
-    'to': [{'podSelector': {
-        'matchLabels': {
-            'app': 'csrf-service'
-        }
-    }}],
-    'ports': [{
-        'port': 8080,
-        'protocol': 'TCP'
-    }]
-})
-json.dump(pol, sys.stdout)          # output modified policy</code></pre>
-        </div>
-      </div>
-      <p style="font-size:0.85rem;"><strong>Why Python:</strong> Inserting an element at a specific position in a JSON array requires parsing the full structure. <code>sed</code>/<code>awk</code> cannot safely manipulate JSON arrays.</p>
-      <div class="result pass">
-        <strong>Expected Output (after patch):</strong><br>
-        The NetworkPolicy with csrf-service egress rule inserted at position 0:
-        <pre><code>spec:
-  egress:
-    - ports:                           # rule[0]: csrf-service (INSERTED)
-        - port: 8080
-          protocol: TCP
-      to:
-        - podSelector:
-            matchLabels:
-              app: csrf-service
-    - ports:                           # rule[1]: ecom namespace
-        - port: 8080
-          protocol: TCP
-      to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: ecom
-    - ports:                           # rule[2]: inventory namespace
-        - port: 8000
-          protocol: TCP
-      to:
-        - namespaceSelector: ...
-    - ports:                           # rule[3]: identity namespace
-        - port: 8080 ...
-    - ports:                           # rule[4]: UI service
-        - port: 80 ...
-    - ports:                           # rule[5]: DNS
-        - port: 53
-          protocol: UDP ...
-    - ports:                           # rule[6]: HBONE tunnel
-        - port: 15008</code></pre>
-      </div>
-    </div>
-
-    <!-- Snippet 3 -->
-    <div class="snippet-section">
-      <h4>Snippet 3: Debezium Health Check</h4>
-      <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> up.sh:680</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extract</span></span>
-        <span class="meta-item"><strong>Condition:</strong> Called in _debezium_health() during healthy-cluster verification</span>
-      </div>
-
-      <div class="side-by-side">
-        <div class="shell">
-          <span class="label-tag">Shell Pipe Chain</span>
-          <pre><code>curl -sf --max-time 10 \
-  "http://localhost:${port}/q/health" \
-| python3 -c "..." \
-  2>/dev/null || echo ""</code></pre>
-          <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;"><strong>Input:</strong> JSON from Debezium health endpoint<br><strong>Output:</strong> String "UP" or empty</p>
-        </div>
-        <div class="python">
-          <span class="label-tag">Python Logic</span>
-          <pre><code>import sys, json
-print(
-    json.load(sys.stdin)  # parse health JSON
-    .get('status', '')    # extract 'status' field
-)                         # default to empty string</code></pre>
-        </div>
-      </div>
-      <div class="result pass">
-        <strong>Expected Output (healthy):</strong><br>
-        <pre><code>UP</code></pre>
-      </div>
-      <div class="result fail">
-        <strong>Expected Output (unhealthy):</strong><br>
-        <pre><code>(empty string)</code></pre>
-      </div>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- 2.2 scripts/smoke-test.sh -->
-    <!-- ============================================================ -->
-    <div id="smoke-test-sh" class="script-header">
-      <span class="script-path">scripts/smoke-test.sh</span>
-      <span class="script-desc">Full-stack smoke test -- pods, HTTP routes, Kafka lag, Debezium, admin access</span>
-      <span class="usage-count">3 Python usages</span>
-    </div>
-
-    <!-- Snippet 1 -->
-    <div class="snippet-section">
-      <h4>Snippet 1: Debezium Health Status Extraction</h4>
-      <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> smoke-test.sh:105-107</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extract</span></span>
-        <span class="meta-item"><strong>Condition:</strong> Loops over ecom (32300) and inventory (32301)</span>
-      </div>
-
-      <div class="side-by-side">
-        <div class="shell">
-          <span class="label-tag">Shell Pipe Chain</span>
-          <pre><code>STATUS=$(curl -s --max-time 10 \
-  "${url}/q/health" 2>/dev/null \
-| python3 -c "..." 2>/dev/null \
-|| echo "UNKNOWN")</code></pre>
-          <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;"><strong>Input:</strong> Debezium health JSON<br><strong>Output:</strong> "UP" or "UNKNOWN" in $STATUS</p>
-        </div>
-        <div class="python">
-          <span class="label-tag">Python Logic</span>
-          <pre><code>import sys, json
-print(
-    json.load(sys.stdin)
-    .get('status', 'UNKNOWN')
-)</code></pre>
-        </div>
-      </div>
-      <div class="result pass">
-        <strong>Expected Output (healthy):</strong><br>
-        <pre><code>UP</code></pre>
-      </div>
-      <div class="result fail">
-        <strong>Expected Output (unhealthy):</strong><br>
-        <pre><code>UNKNOWN</code></pre>
-      </div>
-    </div>
-
-    <!-- Snippet 2 -->
-    <div class="snippet-section">
-      <h4>Snippet 2: Admin Token Extraction from Keycloak</h4>
-      <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> smoke-test.sh:124-128</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill orange">Token Parsing</span></span>
-        <span class="meta-item"><strong>Condition:</strong> Always runs; token used for admin API testing</span>
-      </div>
-
-      <div class="side-by-side">
-        <div class="shell">
-          <span class="label-tag">Shell Pipe Chain</span>
-          <pre><code>ADMIN_TOKEN=$(curl -sk --max-time 15 \
-  -X POST "https://idp.keycloak.net:30000\
-/realms/bookstore/protocol/\
-openid-connect/token" \
-  -H "Content-Type: application/\
-x-www-form-urlencoded" \
-  -d "grant_type=password&amp;\
-client_id=ui-client&amp;\
-username=admin1&amp;\
-password=CHANGE_ME" \
-| python3 -c "..." 2>/dev/null \
-|| echo "")</code></pre>
-          <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;"><strong>Input:</strong> Keycloak token response JSON<br><strong>Output:</strong> JWT access token string</p>
-        </div>
-        <div class="python">
-          <span class="label-tag">Python Logic</span>
-          <pre><code>import sys, json
-print(
-    json.load(sys.stdin)
-    .get('access_token', '')
-)
-# Extracts the JWT from:
-# {"access_token":"eyJ...",
-#  "token_type":"Bearer",
-#  "expires_in":300, ...}</code></pre>
-        </div>
-      </div>
-      <p style="font-size:0.85rem;"><strong>Why Python:</strong> JWTs contain dots, equals signs, and base64 characters that would confuse bash string operations like <code>cut</code> or <code>awk</code>.</p>
-      <div class="result pass">
-        <strong>Expected Output (healthy):</strong><br>
-        <pre><code>eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6IC...</code></pre>
-        (Full JWT is ~995 characters, truncated for display)
-      </div>
-      <div class="result fail">
-        <strong>Expected Output (Keycloak down):</strong><br>
-        <pre><code>(empty string)</code></pre>
-      </div>
-    </div>
-
-    <!-- Snippet 3 -->
-    <div class="snippet-section">
-      <h4>Snippet 3: Customer Token Extraction</h4>
-      <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> smoke-test.sh:141-145</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill orange">Token Parsing</span></span>
-        <span class="meta-item"><strong>Condition:</strong> Always runs; verifies customer role is denied on admin endpoints</span>
-      </div>
-
-      <div class="side-by-side">
-        <div class="shell">
-          <span class="label-tag">Shell Pipe Chain</span>
-          <pre><code>CUSTOMER_TOKEN=$(curl -sk --max-time 15 \
-  -X POST ".../openid-connect/token" \
-  -d "...username=user1&amp;\
-password=CHANGE_ME" \
-| python3 -c "..." 2>/dev/null \
-|| echo "")</code></pre>
-          <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;"><strong>Input:</strong> Keycloak token response (user1)<br><strong>Output:</strong> JWT access token string</p>
-        </div>
-        <div class="python">
-          <span class="label-tag">Python Logic</span>
-          <pre><code>import sys, json
-print(
-    json.load(sys.stdin)
-    .get('access_token', '')
-)
-# Same pattern as admin token,
-# different user credentials</code></pre>
-        </div>
-      </div>
-      <div class="result pass">
-        <strong>Expected Output (healthy):</strong><br>
-        <pre><code>eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6IC...</code></pre>
-        (Full JWT is ~995 characters, truncated for display)
-      </div>
-      <div class="result fail">
-        <strong>Expected Output (Keycloak down):</strong><br>
-        <pre><code>(empty string)</code></pre>
-      </div>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- 2.3 scripts/sanity-test.sh -->
-    <!-- ============================================================ -->
-    <div id="sanity-test-sh" class="script-header">
-      <span class="script-path">scripts/sanity-test.sh</span>
-      <span class="script-desc">Comprehensive cluster health check -- pod status, routes, Kafka, Debezium</span>
-      <span class="usage-count">1 Python usage</span>
-    </div>
-
-    <div class="snippet-section">
-      <h4>Snippet 1: Debezium Health Status</h4>
-      <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> sanity-test.sh:131-133</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extract</span></span>
-        <span class="meta-item"><strong>Condition:</strong> Loops over ecom (32300) and inventory (32301)</span>
-      </div>
-
-      <div class="side-by-side">
-        <div class="shell">
-          <span class="label-tag">Shell Pipe Chain</span>
-          <pre><code>STATUS=$(curl -s --max-time 10 \
-  "http://localhost:${port}/q/health" \
-  2>/dev/null \
-| python3 -c "..." 2>/dev/null \
-|| echo "UNKNOWN")</code></pre>
-          <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;"><strong>Input:</strong> Debezium health JSON<br><strong>Output:</strong> "UP" or "UNKNOWN"</p>
-        </div>
-        <div class="python">
-          <span class="label-tag">Python Logic</span>
-          <pre><code>import sys, json
-print(
-    json.load(sys.stdin)
-    .get('status', 'UNKNOWN')
-)</code></pre>
-        </div>
-      </div>
-      <div class="result pass">
-        <strong>Expected Output (healthy):</strong><br>
-        <pre><code>UP</code></pre>
-      </div>
-      <div class="result fail">
-        <strong>Expected Output (unhealthy):</strong><br>
-        <pre><code>UNKNOWN</code></pre>
-      </div>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- 2.4 scripts/full-stack-test.sh -->
-    <!-- ============================================================ -->
-    <div id="full-stack-test-sh" class="script-header">
-      <span class="script-path">scripts/full-stack-test.sh</span>
-      <span class="script-desc">Comprehensive full-stack validation with scored sections and detailed reporting</span>
-      <span class="usage-count">4 Python usages</span>
-    </div>
-
-    <!-- Snippet 1 -->
-    <div class="snippet-section">
-      <h4>Snippet 1: Book Count from API</h4>
-      <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> full-stack-test.sh:344-345</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extract</span> (array length)</span>
-        <span class="meta-item"><strong>Condition:</strong> Always runs in API tests section</span>
-      </div>
-
-      <div class="side-by-side">
-        <div class="shell">
-          <span class="label-tag">Shell Pipe Chain</span>
-          <pre><code>BOOK_COUNT=$(curl -sk --max-time 15 \
-  "https://api.service.net:30000\
-/ecom/books" 2>/dev/null \
-| python3 -c "..." 2>/dev/null \
-|| echo "0")</code></pre>
-          <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;"><strong>Input:</strong> JSON array of books from ecom-service<br><strong>Output:</strong> Integer count (e.g., "15")</p>
-        </div>
-        <div class="python">
-          <span class="label-tag">Python Logic</span>
-          <pre><code>import sys, json
-print(
-    len(json.load(sys.stdin))
-)
-# Counts array elements:
-# [{"id":"...","title":"..."}, ...]
-# Result: 15</code></pre>
-        </div>
-      </div>
-      <p style="font-size:0.85rem;"><strong>Why Python:</strong> Counting elements in a JSON array requires parsing. <code>wc -l</code> would count lines, not array elements. <code>grep -c</code> would give false positives.</p>
-      <div class="result pass">
-        <strong>Expected Output (healthy):</strong><br>
-        <pre><code>10</code></pre>
-      </div>
-      <div class="result fail">
-        <strong>Expected Output (API down):</strong><br>
-        <pre><code>0</code></pre>
-      </div>
-    </div>
-
-    <!-- Snippet 2 -->
-    <div class="snippet-section">
-      <h4>Snippet 2: Certificate Count from Dashboard API</h4>
-      <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> full-stack-test.sh:368-369</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extract</span> (array length)</span>
-        <span class="meta-item"><strong>Condition:</strong> Only if cert-dashboard namespace exists</span>
-      </div>
-
-      <div class="side-by-side">
-        <div class="shell">
-          <span class="label-tag">Shell Pipe Chain</span>
-          <pre><code>CERT_COUNT=$(curl -s --max-time 10 \
-  "http://localhost:32600/api/certs" \
-  2>/dev/null \
-| python3 -c "..." 2>/dev/null \
-|| echo "0")</code></pre>
-          <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;"><strong>Input:</strong> JSON array from cert-dashboard API<br><strong>Output:</strong> Integer count of certificates</p>
-        </div>
-        <div class="python">
-          <span class="label-tag">Python Logic</span>
-          <pre><code>import sys, json
-print(
-    len(json.load(sys.stdin))
-)</code></pre>
-        </div>
-      </div>
-      <div class="result pass">
-        <strong>Expected Output (healthy):</strong><br>
-        <pre><code>2</code></pre>
-      </div>
-      <div class="result fail">
-        <strong>Expected Output (API down):</strong><br>
-        <pre><code>0</code></pre>
-      </div>
-    </div>
-
-    <!-- Snippet 3 -->
-    <div class="snippet-section">
-      <h4>Snippet 3: Debezium Health Status</h4>
-      <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> full-stack-test.sh:395-397</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extract</span></span>
-        <span class="meta-item"><strong>Condition:</strong> Loops over ecom and inventory Debezium instances</span>
-      </div>
-
-      <div class="side-by-side">
-        <div class="shell">
-          <span class="label-tag">Shell Pipe Chain</span>
-          <pre><code>STATUS=$(curl -s --max-time 10 \
-  "${url}/q/health" 2>/dev/null \
-| python3 -c "..." 2>/dev/null \
-|| echo "UNKNOWN")</code></pre>
-        </div>
-        <div class="python">
-          <span class="label-tag">Python Logic</span>
-          <pre><code>import sys, json
-print(
-    json.load(sys.stdin)
-    .get('status', 'UNKNOWN')
-)</code></pre>
-        </div>
-      </div>
-      <div class="result pass">
-        <strong>Expected Output (healthy):</strong><br>
-        <pre><code>UP</code></pre>
-      </div>
-      <div class="result fail">
-        <strong>Expected Output (unhealthy):</strong><br>
-        <pre><code>UNKNOWN</code></pre>
-      </div>
-    </div>
-
-    <!-- Snippet 4 -->
-    <div class="snippet-section">
-      <h4>Snippet 4: Flink Running Job Count</h4>
-      <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> full-stack-test.sh:405-407</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extract</span> (filtered count)</span>
-        <span class="meta-item"><strong>Condition:</strong> Always runs; expects 4 RUNNING jobs</span>
-      </div>
-
-      <div class="side-by-side">
-        <div class="shell">
-          <span class="label-tag">Shell Pipe Chain</span>
-          <pre><code>FLINK_JOBS=$(curl -s --max-time 10 \
-  "http://localhost:32200\
-/jobs/overview" 2>/dev/null \
-| python3 -c "..." 2>/dev/null \
-|| echo "0")</code></pre>
-          <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;"><strong>Input:</strong> Flink REST API jobs overview JSON<br><strong>Output:</strong> Count of RUNNING jobs (expected: 4)</p>
-        </div>
-        <div class="python">
-          <span class="label-tag">Python Logic</span>
-          <pre><code>import sys, json
-d = json.load(sys.stdin)
-print(
-    sum(1
-        for j in d.get('jobs', [])
-        if j['state'] == 'RUNNING'
-    )
-)
-# Filters jobs by state, counts matches
-# {"jobs":[{"state":"RUNNING"}, ...]}</code></pre>
-        </div>
-      </div>
-      <p style="font-size:0.85rem;"><strong>Why Python:</strong> Filtering a JSON array by a nested field value and counting matches is beyond what bash string operations can reliably do. This is a generator expression with a conditional -- clean Python, impossible in bash.</p>
-      <div class="result pass">
-        <strong>Expected Output (healthy):</strong><br>
-        <pre><code>4</code></pre>
-      </div>
-      <div class="result fail">
-        <strong>Expected Output (Flink down):</strong><br>
-        <pre><code>0</code></pre>
-      </div>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- 2.5 scripts/cert-dashboard-up.sh -->
-    <!-- ============================================================ -->
-    <div id="cert-dashboard-up-sh" class="script-header">
-      <span class="script-path">scripts/cert-dashboard-up.sh</span>
-      <span class="script-desc">Build and deploy the cert-dashboard operator and CRD/CR</span>
-      <span class="usage-count">1 Python usage</span>
-    </div>
-
-    <div class="snippet-section">
-      <h4>Snippet 1: Certificate Count from API</h4>
-      <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> cert-dashboard-up.sh:425</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extract</span> (array length)</span>
-        <span class="meta-item"><strong>Condition:</strong> Post-deploy verification</span>
-      </div>
-
-      <div class="side-by-side">
-        <div class="shell">
-          <span class="label-tag">Shell Pipe Chain</span>
-          <pre><code>CERT_COUNT=$(curl -s \
-  "http://localhost:${DASHBOARD_PORT}\
-/api/certs" 2>/dev/null \
-| python3 -c "..." 2>/dev/null \
-|| echo "0")</code></pre>
-          <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;"><strong>Input:</strong> JSON array from cert-dashboard<br><strong>Output:</strong> Integer count of certificates</p>
-        </div>
-        <div class="python">
-          <span class="label-tag">Python Logic</span>
-          <pre><code>import sys, json
-print(
-    len(json.load(sys.stdin))
-)</code></pre>
-        </div>
-      </div>
-      <div class="result pass">
-        <strong>Expected Output (healthy):</strong><br>
-        <pre><code>2</code></pre>
-      </div>
-      <div class="result fail">
-        <strong>Expected Output (API down):</strong><br>
-        <pre><code>0</code></pre>
-      </div>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- 2.6 infra/schema-registry/register-schemas.sh -->
-    <!-- ============================================================ -->
-    <div id="register-schemas-sh" class="script-header">
-      <span class="script-path">infra/schema-registry/register-schemas.sh</span>
-      <span class="script-desc">Register JSON schemas with Confluent Schema Registry for Kafka topic validation</span>
-      <span class="usage-count">3 Python usages</span>
-    </div>
-
-    <!-- Snippet 1 -->
-    <div class="snippet-section">
-      <h4>Snippet 1: Schema Payload Generation (File Read + JSON Escape)</h4>
-      <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> register-schemas.sh:72-77</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill purple">File Processing</span></span>
-        <span class="meta-item"><strong>Condition:</strong> Runs for each subject/schema pair in the SUBJECTS array</span>
-      </div>
-
-      <div class="side-by-side">
-        <div class="shell">
-          <span class="label-tag">Shell Command</span>
-          <pre><code># $schema_file is interpolated by bash
-# into the Python source code
-payload=$(python3 -c "
-import json
-with open('$schema_file') as f:
-    schema = f.read().strip()
-print(json.dumps({
-    'schemaType': 'JSON',
-    'schema': schema
-}))
-")</code></pre>
-          <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;"><strong>Input:</strong> JSON schema file on disk<br><strong>Output:</strong> Schema Registry payload with escaped content</p>
-        </div>
-        <div class="python">
-          <span class="label-tag">Python Logic (line-by-line)</span>
-          <pre><code>import json
-
-# 1. Open the schema file
-with open('schemas/order.json') as f:
-    schema = f.read().strip()
-    # schema = '{"type":"object",...}'
-
-# 2. Wrap in Registry envelope
-#    json.dumps handles all escaping:
-#    - quotes become \"
-#    - newlines become \n
-#    - backslashes become \\
-print(json.dumps({
-    'schemaType': 'JSON',
-    'schema': schema
-}))
-# Output: {"schemaType":"JSON",
-#  "schema":"{\"type\":\"object\",...}"}</code></pre>
-        </div>
-      </div>
-      <p style="font-size:0.85rem;"><strong>Why Python:</strong> This is the most complex snippet. The schema file content must be JSON-escaped (quotes, newlines, backslashes) and embedded as a string value inside another JSON object. This "JSON inside JSON" escaping is fragile or impossible with <code>sed</code>/<code>awk</code>, and bash has no built-in JSON escape function.</p>
-      <div class="result pass">
-        <strong>Expected Output:</strong><br>
-        Input file (<code>schemas/order-created-value.json</code>):
-        <pre><code>{
-  "type": "object",
-  "title": "Application Event — order.created",
-  "properties": {
-    "orderId": { "type": "string", "format": "uuid" },
-    "userId": { "type": "string" },
-    "items": { "type": "array", ... }
-  }
-}</code></pre>
-        Output (schema content JSON-escaped and embedded as a string):
-        <pre><code>{
-  "schemaType": "JSON",
-  "schema": "{\n  \"type\": \"object\",\n  \"title\": \"Application Event \\u2014 order.created\",\n  \"properties\": {\n    \"orderId\": { \"type\": \"string\", \"format\": \"uuid\" },\n    ..."
-}</code></pre>
-      </div>
-    </div>
-
-    <!-- Snippet 2 -->
-    <div class="snippet-section">
-      <h4>Snippet 2: Schema ID Extraction</h4>
-      <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> register-schemas.sh:92</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extract</span></span>
-        <span class="meta-item"><strong>Condition:</strong> After successful schema registration</span>
-      </div>
-
-      <div class="side-by-side">
-        <div class="shell">
-          <span class="label-tag">Shell Pipe Chain</span>
-          <pre><code>schema_id=$(echo "$response" \
-| python3 -c "..." 2>/dev/null \
-|| echo "?")</code></pre>
-          <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;"><strong>Input:</strong> Registration response <code>{"id":1}</code><br><strong>Output:</strong> Schema ID integer or "?"</p>
-        </div>
-        <div class="python">
-          <span class="label-tag">Python Logic</span>
-          <pre><code>import sys, json
-print(
-    json.load(sys.stdin)
-    .get('id', '?')
-)</code></pre>
-        </div>
-      </div>
-      <div class="result pass">
-        <strong>Expected Output (success):</strong><br>
-        <pre><code>1</code></pre>
-        (or <code>2</code>, <code>3</code>, etc. -- the schema version ID returned by the registry)
-      </div>
-      <div class="result fail">
-        <strong>Expected Output (failure):</strong><br>
-        <pre><code>?</code></pre>
-      </div>
-    </div>
-
-    <!-- Snippet 3 -->
-    <div class="snippet-section">
-      <h4>Snippet 3: Subject List Pretty-Printing</h4>
-      <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> register-schemas.sh:103-108</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extract</span> (array iteration)</span>
-        <span class="meta-item"><strong>Condition:</strong> After all registrations complete</span>
-      </div>
-
-      <div class="side-by-side">
-        <div class="shell">
-          <span class="label-tag">Shell Pipe Chain</span>
-          <pre><code>kubectl exec -n infra $SR_POD -- \
-  curl -sf "${SR_URL}/subjects" \
-| python3 -c "..." 2>/dev/null \
-|| warn "Could not list subjects"</code></pre>
-          <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;"><strong>Input:</strong> JSON array of subject names<br><strong>Output:</strong> Sorted, indented list to stdout</p>
-        </div>
-        <div class="python">
-          <span class="label-tag">Python Logic</span>
-          <pre><code>import sys, json
-subjects = json.load(sys.stdin)
-for s in sorted(subjects):
-    print(f'  - {s}')
-
-# Input:  ["b-value","a-value"]
-# Output:
-#   - a-value
-#   - b-value</code></pre>
-        </div>
-      </div>
-      <p style="font-size:0.85rem;"><strong>Why Python:</strong> Sorting a JSON array and formatting each element requires parsing. Bash <code>sort</code> operates on lines, not JSON array elements.</p>
-      <div class="result pass">
-        <strong>Expected Output:</strong><br>
-        <pre><code>  - ecom-connector.public.books-value
-  - ecom-connector.public.order_items-value
-  - ecom-connector.public.orders-value
-  - inventory-connector.public.inventory-value
-  - inventory.updated-value
-  - order.created-value</code></pre>
-      </div>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- 2.7 infra/debezium/register-connectors.sh -->
-    <!-- ============================================================ -->
-    <div id="register-connectors-sh" class="script-header">
-      <span class="script-path">infra/debezium/register-connectors.sh</span>
-      <span class="script-desc">Wait for Debezium Server instances to become healthy</span>
-      <span class="usage-count">1 Python usage</span>
-    </div>
-
-    <div class="snippet-section">
-      <h4>Snippet 1: Debezium Health Status</h4>
-      <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> register-connectors.sh:30-32</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extract</span></span>
-        <span class="meta-item"><strong>Condition:</strong> Polling loop in _wait_healthy(), retries up to 60 times</span>
-      </div>
-
-      <div class="side-by-side">
-        <div class="shell">
-          <span class="label-tag">Shell Pipe Chain</span>
-          <pre><code>status=$(curl -sf \
-  "${url}/q/health" \
-| python3 -c "..." 2>/dev/null \
-|| echo "")</code></pre>
-          <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;"><strong>Input:</strong> Debezium health JSON<br><strong>Output:</strong> "UP" or empty string</p>
-        </div>
-        <div class="python">
-          <span class="label-tag">Python Logic</span>
-          <pre><code>import sys, json
-print(
-    json.load(sys.stdin)
-    .get('status', '')
-)</code></pre>
-        </div>
-      </div>
-      <div class="result pass">
-        <strong>Expected Output (healthy):</strong><br>
-        <pre><code>UP</code></pre>
-      </div>
-      <div class="result fail">
-        <strong>Expected Output (unhealthy):</strong><br>
-        <pre><code>(empty string)</code></pre>
-      </div>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- 2.8 csrf-service/scripts/csrf-service-up.sh -->
-    <!-- ============================================================ -->
-    <div id="csrf-service-up-sh" class="script-header">
-      <span class="script-path">csrf-service/scripts/csrf-service-up.sh</span>
-      <span class="script-desc">Build and deploy the CSRF validation service, including Istio integration</span>
-      <span class="usage-count">2 Python usages</span>
-    </div>
-
-    <!-- Snippet 1 -->
-    <div class="snippet-section">
-      <h4>Snippet 1: Istio extensionProvider Registration (Defensive Variant)</h4>
-      <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> csrf-service-up.sh:75-95</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill purple">YAML+JSON ConfigMap</span></span>
-        <span class="meta-item"><strong>Condition:</strong> Only if csrf-ext-authz not found in mesh config</span>
-      </div>
-
-      <div class="side-by-side">
-        <div class="shell">
-          <span class="label-tag">Shell Pipe Chain</span>
-          <pre><code>kubectl get configmap istio \
-  -n istio-system -o json \
-| python3 -c "..." \
-| kubectl apply -f -</code></pre>
-          <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;"><strong>Input:</strong> Istio ConfigMap JSON<br><strong>Output:</strong> Modified ConfigMap with csrf-ext-authz</p>
         </div>
         <div class="python">
           <span class="label-tag">Python Logic</span>
@@ -1060,68 +256,255 @@ cm = json.load(sys.stdin)
 mesh = yaml.safe_load(cm['data']['mesh'])
 if 'extensionProviders' not in mesh:
     mesh['extensionProviders'] = []
-
-# DEFENSIVE: check existing list
-existing = [p for p in
-    mesh['extensionProviders']
-    if p.get('name') == 'csrf-ext-authz']
-if not existing:
-    mesh['extensionProviders'].append({
-        'name': 'csrf-ext-authz',
-        'envoyExtAuthzHttp': { ... }
-    })
-
+mesh['extensionProviders'].append({
+    'name': 'csrf-ext-authz',
+    'envoyExtAuthzHttp': {
+        'service': 'csrf-service.infra.svc.cluster.local',
+        'port': 8080,
+        'failOpen': True,
+        'headersToUpstreamOnAllow': [],
+        'includeRequestHeadersInCheck': [
+            'authorization', 'x-csrf-token',
+            'origin', 'referer'
+        ],
+    }
+})
 cm['data']['mesh'] = yaml.dump(
     mesh, default_flow_style=False)
 json.dump(cm, sys.stdout)</code></pre>
         </div>
       </div>
-      <p style="font-size:0.85rem;">This is the same logic as <code>up.sh</code> snippet 1 but with an additional defensive check: it filters the existing <code>extensionProviders</code> list for a matching <code>name</code> before appending (line 81). This makes it safe to run even if the outer <code>grep -q</code> check had a false negative.</p>
-      <div class="result pass">
-        <strong>Expected Output:</strong><br>
-        Same as up.sh Snippet 1 -- the resulting <code>data.mesh</code> YAML will contain the <code>csrf-ext-authz</code> extensionProvider.
-      </div>
+      <p style="font-size:0.85rem;"><strong>Why Python:</strong> The mesh config is YAML embedded inside a JSON ConfigMap. Bash cannot parse YAML and <code>jq</code> cannot parse YAML. Python with PyYAML handles both layers.</p>
     </div>
 
     <!-- Snippet 2 -->
     <div class="snippet-section">
-      <h4>Snippet 2: Gateway Egress NetworkPolicy Patch</h4>
+      <h4>2. Patch gateway-egress NetworkPolicy to allow csrf-service</h4>
       <div class="snippet-meta">
-        <span class="meta-item"><strong>Location:</strong> csrf-service-up.sh:176-184</span>
-        <span class="meta-item"><strong>Pattern:</strong> <span class="pill cyan">NetworkPolicy Patch</span></span>
-        <span class="meta-item"><strong>Condition:</strong> Only if gateway-egress exists and lacks csrf-service</span>
+        <span class="meta-item"><strong>Pattern:</strong> <span class="pill cyan">K8s Policy Array Patch</span></span>
+        <span class="meta-item"><strong>Condition:</strong> Only if csrf-service rule not already present</span>
       </div>
-
       <div class="side-by-side">
         <div class="shell">
           <span class="label-tag">Shell Pipe Chain</span>
-          <pre><code>echo "$GATEWAY_EGRESS" \
+          <pre><code>_GW_EGRESS=$(kubectl get networkpolicy \
+  gateway-egress -n infra -o json)
+echo "$_GW_EGRESS" \
 | python3 -c "..." \
 | kubectl apply -f -</code></pre>
-          <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;"><strong>Input:</strong> NetworkPolicy JSON from variable<br><strong>Output:</strong> Modified policy with csrf-service egress</p>
         </div>
         <div class="python">
           <span class="label-tag">Python Logic</span>
           <pre><code>import sys, json
 pol = json.load(sys.stdin)
 pol['spec']['egress'].insert(0, {
-    'to': [{'podSelector': {
-        'matchLabels': {
-            'app': 'csrf-service'
-        }
-    }}],
-    'ports': [{
-        'port': 8080,
-        'protocol': 'TCP'
-    }]
+    'to': [{'podSelector': {'matchLabels':
+        {'app': 'csrf-service'}}}],
+    'ports': [{'port': 8080,
+               'protocol': 'TCP'}]
 })
 json.dump(pol, sys.stdout)</code></pre>
         </div>
       </div>
-      <div class="result pass">
-        <strong>Expected Output:</strong><br>
-        Same as up.sh Snippet 2 -- the resulting NetworkPolicy will have the csrf-service egress rule inserted at position 0.
+      <p style="font-size:0.85rem;"><strong>Why Python:</strong> <code>insert(0, ...)</code> prepends a new egress rule at index 0 without disturbing the existing rules. <code>kubectl patch</code> strategic merge cannot insert at a specific array position.</p>
+    </div>
+
+    <!-- Snippet 3 -->
+    <div class="snippet-section">
+      <h4>3. Patch AuthorizationPolicy to add admin-tools namespace</h4>
+      <div class="snippet-meta">
+        <span class="meta-item"><strong>Pattern:</strong> <span class="pill cyan">K8s Policy Array Patch</span></span>
+        <span class="meta-item"><strong>Applied to:</strong> 4 policies (ecom-db, inventory-db, analytics-db, keycloak-db)</span>
       </div>
+      <pre><code>echo "$_AP" | python3 -c "import sys,json;
+p=json.load(sys.stdin);
+p['spec']['rules'].append({'from':[{'source':{'namespaces':['admin-tools']}}]});
+json.dump(p,sys.stdout)" | kubectl apply -f -</code></pre>
+      <p style="font-size:0.85rem;"><strong>Purpose:</strong> Grants PgAdmin (in <code>admin-tools</code> namespace) access to all 4 database AuthorizationPolicies. Idempotent via upstream <code>grep -q admin-tools</code> check before calling Python.</p>
+    </div>
+
+    <!-- Snippet 4 -->
+    <div class="snippet-section">
+      <h4>4. Patch NetworkPolicy to allow admin-tools ingress</h4>
+      <div class="snippet-meta">
+        <span class="meta-item"><strong>Pattern:</strong> <span class="pill cyan">K8s Policy Array Patch</span></span>
+        <span class="meta-item"><strong>Applied to:</strong> 4 policies (ecom-db, inventory-db, analytics-db, keycloak-db)</span>
+      </div>
+      <pre><code>echo "$_NP" | python3 -c "import sys,json;
+p=json.load(sys.stdin);
+p['spec']['ingress'].append({'from':[{'namespaceSelector':
+  {'matchLabels':{'kubernetes.io/metadata.name':'admin-tools'}}}]});
+json.dump(p,sys.stdout)" | kubectl apply -f -</code></pre>
+      <p style="font-size:0.85rem;"><strong>Purpose:</strong> The NetworkPolicy partner of Snippet 3. Both AuthorizationPolicy AND NetworkPolicy must allow admin-tools for PgAdmin to reach each DB.</p>
+    </div>
+
+    <!-- Snippet 5 -->
+    <div class="snippet-section">
+      <h4>5. Debezium Server health extraction (in _debezium_health helper)</h4>
+      <div class="snippet-meta">
+        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extraction</span></span>
+        <span class="meta-item"><strong>Used by:</strong> ensure_connectors() during healthy cluster path</span>
+      </div>
+      <pre><code>curl -sf --max-time 10 "http://localhost:${port}/q/health" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" \
+  2>/dev/null || echo ""</code></pre>
+      <p style="font-size:0.85rem;"><strong>Purpose:</strong> Checks the <code>status</code> field of Debezium Server's Quarkus health response (<code>UP</code> or <code>DOWN</code>). Failure tolerance via <code>|| echo ""</code>.</p>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 2.2 scripts/smoke-test.sh -->
+    <!-- ============================================================ -->
+    <div id="smoke-test-sh" class="script-header">
+      <span class="script-path">scripts/smoke-test.sh</span>
+      <span class="script-desc">31-check smoke test: pods, HTTP, Kafka, Debezium, admin access control</span>
+      <span class="usage-count">3 Python usages</span>
+    </div>
+
+    <!-- Snippet 1 -->
+    <div class="snippet-section">
+      <h4>1. Debezium Server health extraction (iterates ecom + inventory)</h4>
+      <div class="snippet-meta">
+        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extraction</span></span>
+      </div>
+      <pre><code>STATUS=$(curl -s --max-time 10 "${url}/q/health" 2>/dev/null \
+  | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','UNKNOWN'))" \
+  2>/dev/null || echo "UNKNOWN")
+[[ "$STATUS" == "UP" ]] && ok "[Debezium Server] ${name}=UP" || fail ...</code></pre>
+      <p style="font-size:0.85rem;"><strong>Purpose:</strong> Verifies both Debezium Server instances respond with <code>status=UP</code>. Fallback to <code>UNKNOWN</code> covers network failures and parse errors.</p>
+    </div>
+
+    <!-- Snippet 2 -->
+    <div class="snippet-section">
+      <h4>2. Extract admin1 JWT access_token from Keycloak</h4>
+      <div class="snippet-meta">
+        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extraction</span></span>
+        <span class="meta-item"><strong>Grant type:</strong> password (Resource Owner) via ui-client</span>
+      </div>
+      <pre><code>ADMIN_TOKEN=$(curl -sk --max-time 15 -X POST \
+  "https://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password&amp;client_id=ui-client&amp;username=admin1&amp;password=CHANGE_ME" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))" \
+  2>/dev/null || echo "")</code></pre>
+      <p style="font-size:0.85rem;"><strong>Purpose:</strong> Fetches admin1 JWT to verify admin API access control. Empty string on failure lets the check report gracefully.</p>
+    </div>
+
+    <!-- Snippet 3 -->
+    <div class="snippet-section">
+      <h4>3. Extract user1 (customer) JWT access_token from Keycloak</h4>
+      <div class="snippet-meta">
+        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extraction</span></span>
+      </div>
+      <pre><code>CUSTOMER_TOKEN=$(curl -sk --max-time 15 -X POST \
+  "https://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password&amp;client_id=ui-client&amp;username=user1&amp;password=CHANGE_ME" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))" \
+  2>/dev/null || echo "")</code></pre>
+      <p style="font-size:0.85rem;"><strong>Purpose:</strong> Fetches customer JWT to verify that customer tokens are DENIED (HTTP 403) on admin endpoints &mdash; exercises role-based access enforcement.</p>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 2.3 scripts/full-stack-test.sh -->
+    <!-- ============================================================ -->
+    <div id="full-stack-test-sh" class="script-header">
+      <span class="script-path">scripts/full-stack-test.sh</span>
+      <span class="script-desc">End-to-end full-stack validation: APIs, dashboards, CDC, Flink</span>
+      <span class="usage-count">4 Python usages</span>
+    </div>
+
+    <!-- Snippet 1 -->
+    <div class="snippet-section">
+      <h4>1. Count books returned by ecom GET /books</h4>
+      <div class="snippet-meta">
+        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extraction (length)</span></span>
+      </div>
+      <pre><code>BOOK_COUNT=$(curl -sk --max-time 15 "https://api.service.net:30000/ecom/books" \
+  | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" \
+  2>/dev/null || echo "0")
+[[ "$BOOK_COUNT" -ge 10 ]] &amp;&amp; pass "[ecom] GET /books returned $BOOK_COUNT books"</code></pre>
+      <p style="font-size:0.85rem;"><strong>Purpose:</strong> Verifies seed data loaded (10+ books expected).</p>
+    </div>
+
+    <!-- Snippet 2 -->
+    <div class="snippet-section">
+      <h4>2. Count certificates returned by cert-dashboard API</h4>
+      <div class="snippet-meta">
+        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extraction (length)</span></span>
+      </div>
+      <pre><code>CERT_COUNT=$(curl -s --max-time 10 "http://localhost:32600/api/certs" 2>/dev/null \
+  | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" \
+  2>/dev/null || echo "0")</code></pre>
+      <p style="font-size:0.85rem;"><strong>Purpose:</strong> Verifies cert-dashboard-operator is reconciling certificates (expects &ge;1).</p>
+    </div>
+
+    <!-- Snippet 3 -->
+    <div class="snippet-section">
+      <h4>3. Debezium health iterate (ecom + inventory)</h4>
+      <div class="snippet-meta">
+        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extraction</span></span>
+      </div>
+      <pre><code>STATUS=$(curl -s --max-time 10 "${url}/q/health" 2>/dev/null \
+  | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','UNKNOWN'))" \
+  2>/dev/null || echo "UNKNOWN")</code></pre>
+      <p style="font-size:0.85rem;"><strong>Purpose:</strong> Same pattern as smoke-test.sh &mdash; checks both Debezium Server instances.</p>
+    </div>
+
+    <!-- Snippet 4 -->
+    <div class="snippet-section">
+      <h4>4. Count RUNNING Flink streaming jobs (filter state)</h4>
+      <div class="snippet-meta">
+        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extraction (filtered count)</span></span>
+        <span class="meta-item"><strong>Expected:</strong> 4 jobs</span>
+      </div>
+      <pre><code>FLINK_JOBS=$(curl -s --max-time 10 "http://localhost:32200/jobs/overview" 2>/dev/null \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(1 for j in d.get('jobs',[]) if j['state']=='RUNNING'))" \
+  2>/dev/null || echo "0")
+[[ "$FLINK_JOBS" -eq 4 ]] &amp;&amp; pass "[Flink] $FLINK_JOBS/4 streaming jobs RUNNING"</code></pre>
+      <p style="font-size:0.85rem;"><strong>Why Python (not length):</strong> A simple count would include stopped/failed jobs. The generator expression filters by <code>state=='RUNNING'</code> &mdash; impossible to express cleanly in bash.</p>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 2.4 scripts/sanity-test.sh -->
+    <!-- ============================================================ -->
+    <div id="sanity-test-sh" class="script-header">
+      <span class="script-path">scripts/sanity-test.sh</span>
+      <span class="script-desc">Lightweight cluster health check (subset of smoke-test)</span>
+      <span class="usage-count">1 Python usage</span>
+    </div>
+
+    <div class="snippet-section">
+      <h4>1. Debezium Server health check (iterates ecom + inventory)</h4>
+      <div class="snippet-meta">
+        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extraction</span></span>
+      </div>
+      <pre><code>STATUS=$(curl -s --max-time 10 "http://localhost:${port}/q/health" 2>/dev/null \
+  | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','UNKNOWN'))" \
+  2>/dev/null || echo "UNKNOWN")</code></pre>
+      <p style="font-size:0.85rem;"><strong>Note:</strong> Identical Python expression as <code>smoke-test.sh</code> and <code>full-stack-test.sh</code>. This is the canonical Debezium health check pattern in the project.</p>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 2.5 scripts/cert-dashboard-up.sh -->
+    <!-- ============================================================ -->
+    <div id="cert-dashboard-up-sh" class="script-header">
+      <span class="script-path">scripts/cert-dashboard-up.sh</span>
+      <span class="script-desc">Build + deploy cert-dashboard-operator (CRD + OLM + operator + CR + dashboard)</span>
+      <span class="usage-count">1 Python usage</span>
+    </div>
+
+    <div class="snippet-section">
+      <h4>1. Post-deploy verification -- count certs via dashboard API</h4>
+      <div class="snippet-meta">
+        <span class="meta-item"><strong>Pattern:</strong> <span class="pill green">JSON Field Extraction (length)</span></span>
+      </div>
+      <pre><code>CERT_COUNT=$(curl -s "http://localhost:${DASHBOARD_PORT}/api/certs" 2>/dev/null \
+  | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" \
+  2>/dev/null || echo "0")
+if [[ "$CERT_COUNT" -gt 0 ]]; then
+  pass "Certs API: ${CERT_COUNT} certificates found"
+fi</code></pre>
+      <p style="font-size:0.85rem;"><strong>Purpose:</strong> Smoke-verifies that after deploy, the dashboard successfully reconciles at least one cert-manager Certificate. The same snippet also lives in <code>full-stack-test.sh</code>.</p>
     </div>
 
   </div>
@@ -1133,137 +516,101 @@ json.dump(pol, sys.stdout)</code></pre>
 <section id="patterns">
   <div class="container">
     <h2><span class="accent">3.</span> Pattern Catalog</h2>
-    <p class="section-sub">Five reusable patterns covering all 18 inline Python snippets. Each includes a canonical example, when to use it, and common gotchas.</p>
+    <p class="section-sub">Three reusable patterns covering all 14 inline Python snippets. Each includes a canonical example, when to use it, and common gotchas.</p>
 
     <!-- Pattern 1 -->
     <div class="card" style="border-top: 3px solid var(--green);">
       <h3>Pattern 1: JSON Field Extraction <span class="pill green">10 usages</span></h3>
-      <p>The most common pattern. Extracts a single field from a JSON API response.</p>
+      <p>The most common pattern. Extracts a single field (or array length, or filtered count) from a JSON API response.</p>
 
       <h4>Canonical Example</h4>
-      <pre><code>VALUE=$(curl -s http://api/endpoint \
+      <pre><code>VALUE=$(curl -s http://api/endpoint 2>/dev/null \
   | python3 -c "import sys,json; print(json.load(sys.stdin).get('key', 'default'))" \
   2>/dev/null || echo "fallback")</code></pre>
 
       <h4>When to Use</h4>
-      <p>Any time you need a single value from a JSON response in a bash variable.</p>
+      <p>Any time you need a single value from a JSON response bound to a bash variable.</p>
 
-      <h4>Variations</h4>
+      <h4>Variations Found in <code>scripts/</code></h4>
       <table>
         <tr><th>Variation</th><th>Python Expression</th><th>Used In</th></tr>
-        <tr><td>Single field</td><td><code>.get('status', 'UNKNOWN')</code></td><td>Health checks (6 scripts)</td></tr>
-        <tr><td>Array length</td><td><code>len(json.load(sys.stdin))</code></td><td>Book/cert counts (3 scripts)</td></tr>
-        <tr><td>Filtered count</td><td><code>sum(1 for j in d.get('jobs',[]) if j['state']=='RUNNING')</code></td><td>Flink job count</td></tr>
-        <tr><td>Sorted iteration</td><td><code>for s in sorted(subjects): print(s)</code></td><td>Schema subject listing</td></tr>
+        <tr><td>Single field</td><td><code>.get('status', 'UNKNOWN')</code></td><td>Debezium health (4 places)</td></tr>
+        <tr><td>Access token</td><td><code>.get('access_token', '')</code></td><td>smoke-test.sh (2 places)</td></tr>
+        <tr><td>Array length</td><td><code>len(json.load(sys.stdin))</code></td><td>Book count, cert count (3 places)</td></tr>
+        <tr><td>Filtered count</td><td><code>sum(1 for j in d.get('jobs',[]) if j['state']=='RUNNING')</code></td><td>Flink jobs (1 place)</td></tr>
       </table>
 
       <h4>Common Gotchas</h4>
       <ul style="margin-left: 20px; color: var(--muted); font-size: 0.88rem;">
-        <li>Always include <code>2>/dev/null</code> after the Python command to suppress parse errors on malformed input</li>
-        <li>Always include <code>|| echo "fallback"</code> to handle cases where curl or Python fails entirely</li>
+        <li>Always append <code>2&gt;/dev/null</code> after the Python command to suppress parse errors on malformed input</li>
+        <li>Always append <code>|| echo "fallback"</code> to handle cases where curl or Python fails entirely</li>
         <li>Use <code>.get('key', 'default')</code> rather than <code>['key']</code> to avoid KeyError on missing fields</li>
+        <li>Quote the resulting bash variable when used with <code>[[ ... ]]</code> &mdash; JWT tokens contain special chars</li>
       </ul>
     </div>
 
     <!-- Pattern 2 -->
-    <div class="card" style="border-top: 3px solid var(--accent2);">
-      <h3>Pattern 2: YAML+JSON ConfigMap Edit <span class="pill purple">3 usages</span></h3>
-      <p>Modifies an Istio ConfigMap that contains embedded YAML inside a JSON structure.</p>
+    <div class="card" style="border-top: 3px solid var(--cyan);">
+      <h3>Pattern 2: Kubernetes Policy Array Patching <span class="pill cyan">3 usages</span></h3>
+      <p>Reads a live Kubernetes policy resource, appends or inserts a rule, and reapplies it via <code>kubectl apply</code>.</p>
 
-      <h4>Canonical Example</h4>
-      <pre><code>kubectl get configmap NAME -n NAMESPACE -o json | python3 -c "
-import sys, json, yaml
-cm = json.load(sys.stdin)
-mesh = yaml.safe_load(cm['data']['mesh'])
-# ... modify mesh dict ...
-cm['data']['mesh'] = yaml.dump(mesh, default_flow_style=False)
-json.dump(cm, sys.stdout)
+      <h4>Canonical Example (append)</h4>
+      <pre><code>echo "$POLICY_JSON" | python3 -c "
+import sys, json
+p = json.load(sys.stdin)
+p['spec']['rules'].append({
+    'from': [{'source': {'namespaces': ['admin-tools']}}]
+})
+json.dump(p, sys.stdout)
 " | kubectl apply -f -</code></pre>
 
-      <h4>When to Use</h4>
-      <p>When you need to modify Istio mesh configuration or any ConfigMap with embedded YAML.</p>
-
-      <h4>Common Gotchas</h4>
-      <ul style="margin-left: 20px; color: var(--muted); font-size: 0.88rem;">
-        <li>Requires PyYAML (<code>yaml</code> module) -- verify availability: <code>python3 -c "import yaml"</code></li>
-        <li>Use <code>yaml.safe_load</code> (not <code>yaml.load</code>) to avoid arbitrary code execution</li>
-        <li>Use <code>default_flow_style=False</code> to produce human-readable block-style YAML</li>
-        <li>Always check for the key's existence before appending to avoid duplicates</li>
-      </ul>
-    </div>
-
-    <!-- Pattern 3 -->
-    <div class="card" style="border-top: 3px solid var(--cyan);">
-      <h3>Pattern 3: NetworkPolicy JSON Patch <span class="pill cyan">2 usages</span></h3>
-      <p>Reads a NetworkPolicy, inserts a rule at a specific position, and reapplies it.</p>
-
-      <h4>Canonical Example</h4>
-      <pre><code>kubectl get networkpolicy NAME -n NAMESPACE -o json | python3 -c "
+      <h4>Canonical Example (insert at index)</h4>
+      <pre><code>echo "$POLICY_JSON" | python3 -c "
 import sys, json
 pol = json.load(sys.stdin)
 pol['spec']['egress'].insert(0, {
-    'to': [{'podSelector': {'matchLabels': {'app': 'target-app'}}}],
+    'to': [{'podSelector': {'matchLabels': {'app': 'csrf-service'}}}],
     'ports': [{'port': 8080, 'protocol': 'TCP'}]
 })
 json.dump(pol, sys.stdout)
 " | kubectl apply -f -</code></pre>
 
       <h4>When to Use</h4>
-      <p>When you need to programmatically add rules to an existing NetworkPolicy without replacing the entire spec.</p>
+      <p>When you must programmatically add a rule to an existing policy without replacing the entire spec (preserves other rules, metadata, status).</p>
 
       <h4>Common Gotchas</h4>
       <ul style="margin-left: 20px; color: var(--muted); font-size: 0.88rem;">
-        <li><code>insert(0, ...)</code> places the rule at the front -- position matters for readability</li>
-        <li>Always store the JSON in a variable first and check for existence/duplicates before patching</li>
-        <li>The full resource (including metadata, apiVersion) must be preserved -- <code>json.load</code>/<code>json.dump</code> handles this</li>
+        <li>Always do an idempotency check BEFORE calling Python: <code>grep -q admin-tools</code>. Calling Python unconditionally creates duplicate rules.</li>
+        <li><code>insert(0, ...)</code> prepends; <code>append(...)</code> adds to the end. Choose based on policy evaluation order requirements.</li>
+        <li>The full resource (apiVersion, kind, metadata, status) is passed through untouched &mdash; <code>json.load</code>/<code>json.dump</code> preserves everything.</li>
+        <li><code>kubectl apply -f -</code> reads stdin; pipe the Python output directly.</li>
       </ul>
     </div>
 
-    <!-- Pattern 4 -->
-    <div class="card" style="border-top: 3px solid var(--orange);">
-      <h3>Pattern 4: Token Extraction <span class="pill orange">2 usages</span></h3>
-      <p>Extracts JWT access tokens from Keycloak OIDC token responses.</p>
+    <!-- Pattern 3 -->
+    <div class="card" style="border-top: 3px solid var(--accent2);">
+      <h3>Pattern 3: YAML-in-JSON ConfigMap Mutation <span class="pill purple">1 usage</span></h3>
+      <p>Modifies an Istio ConfigMap whose <code>data.mesh</code> field is a YAML document (as a string) inside a JSON ConfigMap structure.</p>
 
       <h4>Canonical Example</h4>
-      <pre><code>TOKEN=$(curl -sk -X POST \
-  "https://idp.keycloak.net:30000/realms/bookstore/protocol/openid-connect/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=password&amp;client_id=ui-client&amp;username=USER&amp;password=PASS" \
-  | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))" \
-  2>/dev/null || echo "")</code></pre>
+      <pre><code>kubectl get configmap istio -n istio-system -o json | python3 -c "
+import sys, json, yaml
+cm = json.load(sys.stdin)           # parse outer JSON (ConfigMap)
+mesh = yaml.safe_load(cm['data']['mesh'])  # parse inner YAML string
+# ... modify mesh dict ...
+cm['data']['mesh'] = yaml.dump(mesh, default_flow_style=False)
+json.dump(cm, sys.stdout)
+" | kubectl apply -f -</code></pre>
 
       <h4>When to Use</h4>
-      <p>When you need to obtain a JWT from Keycloak for API testing in shell scripts.</p>
+      <p>Exclusively for Istio's <code>istio-system/istio</code> ConfigMap &mdash; that's the one case in this project where YAML is embedded inside a JSON ConfigMap.</p>
 
       <h4>Common Gotchas</h4>
       <ul style="margin-left: 20px; color: var(--muted); font-size: 0.88rem;">
-        <li>JWTs contain dots, equals, and base64 characters that confuse bash -- always quote the variable</li>
-        <li>Use <code>-sk</code> with curl when the Keycloak endpoint uses a self-signed certificate</li>
-        <li>Check for empty token before using: <code>[[ -n "$TOKEN" ]]</code></li>
-      </ul>
-    </div>
-
-    <!-- Pattern 5 -->
-    <div class="card" style="border-top: 3px solid #f472b6;">
-      <h3>Pattern 5: File Read + JSON Escape <span class="pill purple">1 usage</span></h3>
-      <p>Reads a file and embeds its content as a JSON-escaped string inside a wrapper object.</p>
-
-      <h4>Canonical Example</h4>
-      <pre><code>payload=$(python3 -c "
-import json
-with open('path/to/schema.json') as f:
-    schema = f.read().strip()
-print(json.dumps({'schemaType': 'JSON', 'schema': schema}))
-")</code></pre>
-
-      <h4>When to Use</h4>
-      <p>When a file's content must be embedded as a string value inside a JSON payload (e.g., Schema Registry, configuration endpoints).</p>
-
-      <h4>Common Gotchas</h4>
-      <ul style="margin-left: 20px; color: var(--muted); font-size: 0.88rem;">
-        <li><code>json.dumps()</code> handles all escaping: quotes become <code>\"</code>, newlines become <code>\n</code>, backslashes become <code>\\</code></li>
-        <li>The file path is interpolated by bash -- ensure the path does not contain single quotes</li>
-        <li>Use <code>.strip()</code> to remove trailing newlines that could cause issues</li>
+        <li>Requires PyYAML (<code>yaml</code> module). It's shipped with the Python in this project's environment.</li>
+        <li>Use <code>yaml.safe_load</code> (not <code>yaml.load</code>) to avoid arbitrary Python code execution.</li>
+        <li>Use <code>default_flow_style=False</code> to keep the output human-readable (block style, not JSON-ish flow).</li>
+        <li>Always check if the change already exists before appending (via <code>grep</code> upstream or <code>if ... not in</code> in Python).</li>
       </ul>
     </div>
 
@@ -1311,7 +658,8 @@ print(json.dumps({'schemaType': 'JSON', 'schema': schema}))
 
     <div class="card">
       <h3>Key Advantage: Zero Additional Dependencies</h3>
-      <p>Every macOS and modern Linux distribution ships with Python 3 and the <code>json</code> module. The <code>yaml</code> module (PyYAML) is needed only for the 3 ConfigMap manipulation snippets and is available in the project's Python environment (inventory-service).</p>
+      <p>Every macOS and modern Linux distribution ships with Python 3 and the <code>json</code> module. The <code>yaml</code> module (PyYAML) is needed only for the 1 Istio mesh-config snippet and is available in the project's Python environment.</p>
+      <p>Note: <code>scripts/up.sh</code> verifies <code>python3</code> is on <code>PATH</code> in its pre-flight check alongside <code>kind</code>, <code>kubectl</code>, <code>docker</code>, <code>helm</code>, and <code>istioctl</code>.</p>
       <p style="margin-bottom:0;">This means any developer can run <code>scripts/up.sh</code> or <code>scripts/smoke-test.sh</code> without installing additional tools beyond what the OS provides.</p>
     </div>
   </div>
@@ -1323,7 +671,7 @@ print(json.dumps({'schemaType': 'JSON', 'schema': schema}))
 <section id="summary">
   <div class="container">
     <h2><span class="accent">5.</span> Summary Table</h2>
-    <p class="section-sub">All 18 inline Python usages at a glance.</p>
+    <p class="section-sub">All 14 inline Python usages in <code>scripts/</code> at a glance.</p>
 
     <table>
       <thead>
@@ -1338,67 +686,52 @@ print(json.dumps({'schemaType': 'JSON', 'schema': schema}))
       <tbody>
         <tr>
           <td><code>scripts/up.sh</code></td>
-          <td>3</td>
-          <td><span class="pill purple">YAML+JSON</span> <span class="pill cyan">JSON Patch</span> <span class="pill green">Field Extract</span></td>
-          <td>ConfigMap, NetworkPolicy, health API</td>
+          <td>5</td>
+          <td><span class="pill purple">YAML+JSON</span> <span class="pill cyan">Policy Patch</span>&times;3 <span class="pill green">Field Extract</span></td>
+          <td>ConfigMap, NetworkPolicy, AuthorizationPolicy, Debezium health</td>
           <td>Modified K8s objects, status strings</td>
         </tr>
         <tr>
           <td><code>scripts/smoke-test.sh</code></td>
           <td>3</td>
-          <td><span class="pill green">Field Extract</span> <span class="pill orange">Token Parse</span></td>
-          <td>Health API, Keycloak token API</td>
+          <td><span class="pill green">Field Extract</span>&times;3</td>
+          <td>Debezium health, Keycloak token API</td>
           <td>Status strings, JWT tokens</td>
         </tr>
         <tr>
           <td><code>scripts/full-stack-test.sh</code></td>
           <td>4</td>
-          <td><span class="pill green">Field Extract</span></td>
-          <td>ecom, cert-dashboard, Debezium, Flink APIs</td>
+          <td><span class="pill green">Field Extract</span>&times;4</td>
+          <td>ecom books, cert-dashboard, Debezium, Flink APIs</td>
           <td>Counts, status strings</td>
         </tr>
         <tr>
           <td><code>scripts/sanity-test.sh</code></td>
           <td>1</td>
           <td><span class="pill green">Field Extract</span></td>
-          <td>Health API</td>
+          <td>Debezium health API</td>
           <td>Status string</td>
         </tr>
         <tr>
           <td><code>scripts/cert-dashboard-up.sh</code></td>
           <td>1</td>
           <td><span class="pill green">Field Extract</span></td>
-          <td>Dashboard API</td>
-          <td>Count</td>
-        </tr>
-        <tr>
-          <td><code>infra/schema-registry/register-schemas.sh</code></td>
-          <td>3</td>
-          <td><span class="pill purple">File Read+Escape</span> <span class="pill green">Field Extract</span></td>
-          <td>Schema files, registration API</td>
-          <td>JSON payload, IDs, formatted list</td>
-        </tr>
-        <tr>
-          <td><code>infra/debezium/register-connectors.sh</code></td>
-          <td>1</td>
-          <td><span class="pill green">Field Extract</span></td>
-          <td>Health API</td>
-          <td>Status string</td>
-        </tr>
-        <tr>
-          <td><code>csrf-service/scripts/csrf-service-up.sh</code></td>
-          <td>2</td>
-          <td><span class="pill purple">YAML+JSON</span> <span class="pill cyan">JSON Patch</span></td>
-          <td>ConfigMap, NetworkPolicy</td>
-          <td>Modified K8s objects</td>
+          <td>Dashboard /api/certs</td>
+          <td>Cert count</td>
         </tr>
         <tr style="font-weight: 700;">
           <td>Total</td>
-          <td>18</td>
-          <td colspan="3">5 patterns</td>
+          <td>14</td>
+          <td colspan="3">3 patterns across 5 scripts</td>
         </tr>
       </tbody>
     </table>
+
+    <div class="card" style="margin-top: 24px;">
+      <h3>What Changed vs. the Old Reference?</h3>
+      <p>Earlier revisions of this document counted 18 snippets across 8 files, including scripts outside <code>scripts/</code> (<code>infra/schema-registry/register-schemas.sh</code>, <code>infra/debezium/register-connectors.sh</code>, <code>csrf-service/scripts/csrf-service-up.sh</code>). This document now focuses strictly on the <code>scripts/</code> folder, which is where day-to-day operator commands live.</p>
+      <p style="margin-bottom: 0;">Two patterns from the old list (<b>Token Parsing</b> and <b>File Read+JSON Escape</b>) have been folded back into Pattern 1 (JSON Field Extraction) and Pattern 3 (YAML-in-JSON) respectively &mdash; they were stylistic variants, not distinct patterns.</p>
+    </div>
   </div>
 </section>
 
