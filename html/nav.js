@@ -19,6 +19,15 @@
       ]
     },
     {
+      title: 'Guides',
+      links: [
+        { label: 'Technical Reference Manual', href: 'bookstore-platform-manual.html', highlight: true },
+        { label: 'User Guide', href: 'user-guide.html' },
+        { label: 'Architecture Deep Dive', href: 'architecture.html' },
+        { label: 'Enhancement Report', href: 'comprehensive-platform-enhancements.html' }
+      ]
+    },
+    {
       title: 'AWS (EKS)',
       links: [
         { label: 'Deploy to AWS (EKS)', href: 'deploy-aws.html' },
@@ -42,15 +51,6 @@
         { label: 'Hardening: Azure AKS', href: 'production-hardening-azure.html' },
         { label: 'Before/After: Azure', href: 'hardening-visual-azure.html' },
         { label: 'Node Scaling Guide', href: 'node-scaling-guide.html', highlight: true }
-      ]
-    },
-    {
-      title: 'Guides',
-      links: [
-        { label: 'Technical Reference Manual', href: 'bookstore-platform-manual.html', highlight: true },
-        { label: 'User Guide', href: 'user-guide.html' },
-        { label: 'Architecture Deep Dive', href: 'architecture.html' },
-        { label: 'Enhancement Report', href: 'comprehensive-platform-enhancements.html' }
       ]
     },
     {
