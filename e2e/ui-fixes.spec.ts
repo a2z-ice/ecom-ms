@@ -49,26 +49,36 @@ test.describe('UI Fixes', () => {
     await page.screenshot({ path: 'screenshots/ui-fixes-03-cart-before-minus.png', fullPage: true })
 
     const firstRow = page.locator('tbody tr').first()
+    await expect(firstRow).toBeVisible({ timeout: 10000 })
     const qtySpan = firstRow.locator('.qty-ctrl span')
+    await expect(qtySpan).toBeVisible({ timeout: 10000 })
     const plusBtn = firstRow.locator('button.qty-btn').last()
     const minusBtn = firstRow.locator('button.qty-btn').first()
+    await expect(plusBtn).toBeVisible({ timeout: 5000 })
 
-    // Click + to guarantee qty ≥ 2 and wait for the API response
+    // Click + to guarantee qty ≥ 2 and wait for the POST response
     const qtyBeforePlus = parseInt(await qtySpan.textContent() ?? '1')
-    await Promise.all([
-      page.waitForResponse((r: any) => r.url().includes('/ecom/cart') && r.status() < 400),
-      plusBtn.click(),
-    ])
-    await expect(qtySpan).toHaveText(String(qtyBeforePlus + 1), { timeout: 10000 })
+
+    // Listen for all /ecom/cart responses to debug
+    const postResponse = page.waitForResponse(
+      (r: any) => r.url().includes('/ecom/cart') && r.request().method() === 'POST' && r.status() < 400,
+      { timeout: 15000 }
+    )
+    await plusBtn.click()
+    await postResponse
+    // Wait for React to re-render after the cartApi.get() refresh
+    await expect(qtySpan).toHaveText(String(qtyBeforePlus + 1), { timeout: 15000 })
 
     const qtyBeforeMinus = parseInt(await qtySpan.textContent() ?? '2')
 
-    // Click − and wait for response
-    await Promise.all([
-      page.waitForResponse((r: any) => r.url().includes('/ecom/cart') && r.status() < 400),
-      minusBtn.click(),
-    ])
-    await expect(qtySpan).toHaveText(String(qtyBeforeMinus - 1), { timeout: 10000 })
+    // Click − which calls cartApi.update (PUT) or cartApi.remove (DELETE)
+    const mutateResponse = page.waitForResponse(
+      (r: any) => r.url().includes('/ecom/cart') && ['PUT', 'DELETE'].includes(r.request().method()) && r.status() < 400,
+      { timeout: 15000 }
+    )
+    await minusBtn.click()
+    await mutateResponse
+    await expect(qtySpan).toHaveText(String(qtyBeforeMinus - 1), { timeout: 15000 })
 
     const qtyAfterMinus = parseInt(await qtySpan.textContent() ?? '0')
     expect(qtyAfterMinus).toBe(qtyBeforeMinus - 1)

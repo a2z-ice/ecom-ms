@@ -98,6 +98,7 @@
     {
       title: 'Operations',
       links: [
+        { label: 'up.sh Stability Fixes', href: 'up-sh-stability-fixes.html', highlight: true },
         { label: 'Inline Python Scripts', href: 'inline-python-scripts.html' },
         { label: 'PgAdmin Connectivity Fix', href: 'pgadmin-connectivity-fix.html' },
         { label: 'PgAdmin Security Review', href: 'pgadmin-security-review.html' },

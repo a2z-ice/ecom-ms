@@ -202,6 +202,7 @@
 
   <div class="sidebar-section">
     <div class="sidebar-section-title">Operations</div>
+    <a href="up-sh-stability-fixes.html" class="sidebar-link">up.sh Stability Fixes</a>
     <a href="inline-python-scripts.html" class="sidebar-link">Inline Python Scripts Reference</a>
     <a href="pgadmin-connectivity-fix.html" class="sidebar-link">PgAdmin Connectivity Fix</a>
     <a href="pgadmin-security-review.html" class="sidebar-link">PgAdmin Security Review</a>
@@ -693,6 +694,10 @@ E-Commerce → Inventory Service (service-to-service mTLS)</code></pre>
     <a href="csrf-extauthz-vs-wasm.html" class="doc-card" style="border-color: var(--accent);">
       <h3>ext_authz vs Wasm Plugin Analysis</h3>
       <p>Deep comparison: ext_authz Go microservice (8.8/10) vs Istio Wasm plugin (6.3/10). Security, resilience, traffic handling, maintenance, Redis integration, industry patterns, and weighted scorecard.</p>
+    </a>
+    <a href="up-sh-stability-fixes.html" class="doc-card" style="border-color: #ef4444; border-width: 2px;">
+      <h3>up.sh Stability Fixes (Post-Mortem)</h3>
+      <p>7 issues found after <code>bash scripts/up.sh</code>: kafka-exporter missing, Kiali can't see Prometheus, cert-dashboard not deployed, cart + silently fails, gateway stale xDS. Root cause analysis, diagnosis commands, and permanent fixes for each.</p>
     </a>
     <a href="inline-python-scripts.html" class="doc-card">
       <h3>Inline Python Scripts Reference</h3>

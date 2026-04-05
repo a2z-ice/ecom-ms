@@ -239,7 +239,12 @@ bootstrap_fresh() {
   kubectl apply -f "${REPO_ROOT}/infra/kafka/kafka-topics-init.yaml"
   kubectl wait --for=condition=complete job/kafka-topic-init -n infra --timeout=300s
 
-  # ── 5b. Schema Registry + JSON Schema registration ─────────────────────────
+  # ── 5b. Kafka Exporter (Prometheus metrics for consumer lag) ────────────────
+  info "Deploying Kafka Exporter..."
+  kubectl apply -f "${REPO_ROOT}/infra/kafka/kafka-exporter.yaml"
+  wait_deploy kafka-exporter infra
+
+  # ── 5c. Schema Registry + JSON Schema registration ─────────────────────────
   info "Deploying Schema Registry..."
   kubectl apply -f "${REPO_ROOT}/infra/schema-registry/schema-registry.yaml"
   wait_deploy schema-registry infra
@@ -571,6 +576,13 @@ json.dump(pol, sys.stdout)
   wait_deploy tempo otel
   wait_deploy loki otel
 
+  # ── 13c. Cert Dashboard Operator (OLM + CRD + operator + CR) ─────────────────
+  if [[ -f "${REPO_ROOT}/scripts/cert-dashboard-up.sh" ]]; then
+    section "Deploying Cert Dashboard Operator"
+    bash "${REPO_ROOT}/scripts/cert-dashboard-up.sh" || \
+      warn "cert-dashboard-up.sh failed — cert dashboard may need manual setup"
+  fi
+
   # ── 14. Wait for Debezium Server health ───────────────────────────────────────
   section "Waiting for Debezium Server health"
   bash "${REPO_ROOT}/infra/debezium/register-connectors.sh"
@@ -602,11 +614,22 @@ recovery() {
   section "Recovery mode — restarting ztunnel and all pods"
   info "See docs/restart-app.md for full explanation."
 
+  info "Restarting istiod (xDS control plane — may have expired workload certs)..."
+  kubectl rollout restart deploy/istiod -n istio-system
+  kubectl rollout status deploy/istiod -n istio-system --timeout=90s
+
   info "Restarting ztunnel (HBONE network plumbing reset)..."
   kubectl rollout restart daemonset/ztunnel -n istio-system
   kubectl rollout status daemonset/ztunnel -n istio-system --timeout=90s
   info "ztunnel ready — waiting 10s for mesh to stabilize..."
   sleep 10
+
+  info "Restarting gateway (must re-establish xDS stream + endpoint discovery)..."
+  kubectl rollout restart deploy/bookstore-gateway-istio -n infra 2>/dev/null || true
+  kubectl rollout status deploy/bookstore-gateway-istio -n infra --timeout=90s 2>/dev/null || true
+  # Re-patch NodePorts after gateway restart (Istio may reassign them)
+  kubectl patch svc bookstore-gateway-istio -n infra --type='merge' \
+    -p='{"spec":{"ports":[{"name":"https","port":8443,"targetPort":8443,"nodePort":30000,"protocol":"TCP"},{"name":"http","port":8080,"targetPort":8080,"nodePort":30080,"protocol":"TCP"}]}}' 2>/dev/null || true
 
   section "Restarting DB pods (dependencies first)"
   info "Restarting CNPG database pods..."
@@ -631,6 +654,8 @@ recovery() {
   kubectl rollout restart deploy/debezium-server-inventory -n infra
   kubectl rollout restart deploy/pgadmin -n admin-tools 2>/dev/null || true
   kubectl rollout restart deploy/csrf-service -n infra 2>/dev/null || true
+  kubectl rollout restart deploy/kafka-exporter -n infra 2>/dev/null || true
+  kubectl rollout restart deploy/schema-registry -n infra 2>/dev/null || true
   kubectl rollout restart deploy/flink-jobmanager -n analytics
   kubectl rollout restart deploy/flink-taskmanager -n analytics
   kubectl rollout restart deploy/superset -n analytics

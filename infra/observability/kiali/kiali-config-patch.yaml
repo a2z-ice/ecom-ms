@@ -89,6 +89,8 @@ data:
         enabled: true
       grafana:
         enabled: false
+      prometheus:
+        url: http://prometheus.observability.svc.cluster.local:9090
       istio:
         root_namespace: istio-system
         component_status:

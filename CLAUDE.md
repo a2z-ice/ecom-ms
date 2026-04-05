@@ -107,8 +107,8 @@ kubectl exec -n inventory -it inventory-db-1 -- psql -U inventory
 kubectl exec -n analytics -it analytics-db-1 -- psql -U analytics
 
 # Kafka topics and consumer groups
-kubectl exec -n infra deploy/kafka -- /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
-kubectl exec -n infra deploy/kafka -- /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list
+kubectl exec -n infra deploy/kafka -- kafka-topics --bootstrap-server localhost:9092 --list
+kubectl exec -n infra deploy/kafka -- kafka-consumer-groups --bootstrap-server localhost:9092 --list
 
 # Debezium health
 curl -s http://localhost:32300/q/health | jq .   # ecom
@@ -178,6 +178,7 @@ See `docs/operations/restart-app.md` for the full explanation and root cause ana
 | E-Commerce Service | Spring Boot 4.0.3 | `ecom-service/` | `api.service.net:30000/ecom` |
 | Inventory Service | Python FastAPI | `inventory-service/` | `api.service.net:30000/inven` |
 | CSRF Service | Go 1.25 | `csrf-service/` | `api.service.net:30000/csrf` (ext_authz internal) |
+| Cert Dashboard Operator | Go 1.25 (operator-sdk) | `cert-dashboard-operator/` | `localhost:32600` |
 | Analytics Pipeline | Kafka + Debezium + Flink SQL | `analytics/` | internal |
 
 ### Infrastructure Stack

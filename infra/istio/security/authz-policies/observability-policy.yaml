@@ -2,6 +2,13 @@
 # Prometheus AuthorizationPolicy — defense-in-depth.
 # Prometheus is mesh-enrolled (no ambient.istio.io/redirection: disabled),
 # so this policy IS enforced by ztunnel at L4.
+#
+# Uses ALLOW-ALL (same pattern as Grafana) because Kiali queries Prometheus
+# from istio-system namespace which is NOT enrolled in the ambient mesh.
+# Non-mesh pods have no SPIFFE identity, so ztunnel cannot verify their
+# namespace — a namespace-based rule would silently block them.
+# Primary defense: NetworkPolicy (restricts ingress to Grafana, Kiali, and
+# observability namespace on port 9090 only) + Prometheus is read-only.
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
@@ -12,14 +19,7 @@ spec:
     matchLabels:
       app: prometheus
   rules:
-    # Grafana queries Prometheus (same namespace)
-    - from:
-        - source:
-            namespaces: ["observability"]
-    # Kiali queries Prometheus for traffic graph
-    - from:
-        - source:
-            namespaces: ["istio-system"]
+    - {}
 
 ---
 # Grafana AuthorizationPolicy — defense-in-depth.
