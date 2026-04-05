@@ -98,6 +98,7 @@
     {
       title: 'Operations',
       links: [
+        { label: 'Claude Code Skills Reference', href: 'claude-code-skills.html', highlight: true },
         { label: 'up.sh Stability Fixes', href: 'up-sh-stability-fixes.html', highlight: true },
         { label: 'Inline Python Scripts', href: 'inline-python-scripts.html' },
         { label: 'PgAdmin Connectivity Fix', href: 'pgadmin-connectivity-fix.html' },

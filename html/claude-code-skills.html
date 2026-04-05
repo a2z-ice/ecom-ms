@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Claude Code Skills Reference &mdash; 15 Operator Shortcuts for the BookStore Platform</title>
+  <style>
+    :root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--accent:#3b82f6;--border:#334155;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;--cyan:#06b6d4;--purple:#a78bfa}
+    *{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth}
+    body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
+    .container{max-width:1100px;margin:0 auto;padding:40px 24px}
+    h1{font-size:2.2rem;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,#60a5fa,#a78bfa);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    h1+p{color:var(--muted);font-size:1.05rem;margin-bottom:40px}
+    h2{font-size:1.4rem;font-weight:700;margin:48px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);color:#f1f5f9}
+    h3{font-size:1.1rem;font-weight:600;margin:24px 0 8px;color:#cbd5e1}
+    h4{font-size:0.95rem;font-weight:600;margin:16px 0 6px;color:var(--muted)}
+    p{margin-bottom:16px}
+    table{width:100%;border-collapse:collapse;margin:16px 0 24px}
+    th{background:var(--card);text-align:left;padding:10px 14px;font-size:.85rem;font-weight:600;color:var(--accent);border-bottom:2px solid var(--border)}
+    td{padding:10px 14px;font-size:.88rem;border-bottom:1px solid var(--border);vertical-align:top}
+    tr:hover td{background:rgba(59,130,246,.05)}
+    code{background:var(--card);padding:2px 6px;border-radius:4px;font-size:.88em;color:#f59e0b}
+    pre{background:var(--card);padding:16px;border-radius:8px;overflow-x:auto;margin:12px 0 20px;border:1px solid var(--border);font-size:.82rem;line-height:1.6}
+    pre code{background:none;padding:0;color:#e2e8f0}
+    ul,ol{margin:8px 0 16px 24px}li{margin-bottom:6px}
+    .badge{display:inline-block;font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:6px;color:#fff}
+    .badge.green{background:linear-gradient(135deg,#059669,#10b981)}.badge.purple{background:linear-gradient(135deg,#7c3aed,#8b5cf6)}
+    .badge.red{background:linear-gradient(135deg,#dc2626,#ef4444)}.badge.orange{background:linear-gradient(135deg,#d97706,#f59e0b)}
+    .badge.blue{background:linear-gradient(135deg,#2563eb,#3b82f6)}.badge.cyan{background:linear-gradient(135deg,#0891b2,#06b6d4)}
+    .badge.gray{background:linear-gradient(135deg,#475569,#64748b)}
+    .badges{margin-bottom:24px}
+    footer{text-align:center;margin-top:60px;padding-top:24px;border-top:1px solid var(--border);color:var(--muted);font-size:.85rem}
+    footer a{color:var(--accent);text-decoration:none}footer a:hover{text-decoration:underline}
+    .topnav{position:sticky;top:0;z-index:100;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+    .topnav-inner{max-width:1100px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:52px}
+    .topnav-brand{font-weight:800;font-size:1rem;color:var(--text);text-decoration:none}
+    .topnav-links{display:flex;gap:20px;align-items:center}
+    .topnav-links a{color:var(--muted);font-size:.82rem;font-weight:500;text-decoration:none;transition:color .15s}.topnav-links a:hover{color:var(--text)}.topnav-links a.highlight{color:var(--purple)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0}
+    .result{padding:12px 16px;border-radius:8px;margin:8px 0 16px;font-size:.9rem}
+    .result.info{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:var(--accent)}
+    .result.pass{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--green)}
+    .result.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--yellow)}
+    .skill-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0;position:relative}
+    .skill-card h3{margin-top:0;display:flex;align-items:center;gap:12px;font-size:1.15rem;color:var(--accent)}
+    .skill-card .cat{font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.05em}
+    .skill-card .cat.lifecycle{background:rgba(124,58,237,.2);color:var(--purple)}
+    .skill-card .cat.obs{background:rgba(59,130,246,.2);color:var(--accent)}
+    .skill-card .cat.debug{background:rgba(239,68,68,.2);color:var(--red)}
+    .skill-card .cat.dev{background:rgba(16,185,129,.2);color:var(--green)}
+    .skill-card .args{font-size:.82rem;color:var(--muted);font-family:monospace;margin:4px 0 12px}
+    .skill-card .invoke{background:rgba(15,23,42,.6);border:1px solid var(--border);border-radius:6px;padding:8px 12px;margin:12px 0;font-family:monospace;font-size:.82rem;color:var(--cyan)}
+    .skill-card .meta{display:flex;gap:16px;margin-top:12px;font-size:.78rem;color:var(--muted)}
+    .skill-card .meta span{display:inline-flex;align-items:center;gap:4px}
+    .skill-card .why{background:rgba(124,58,237,.08);border-left:3px solid var(--purple);padding:10px 14px;margin:12px 0;border-radius:0 6px 6px 0;font-size:.88rem}
+    .skill-card .benefit{color:var(--green);font-weight:600}
+    .toc{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin:16px 0}
+    .toc ul{list-style:none;margin:0;padding:0}
+    .toc li{margin:4px 0}
+    .toc a{color:var(--cyan);text-decoration:none;font-size:.88rem}
+    .toc a:hover{text-decoration:underline}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    @media(max-width:700px){.grid-2{grid-template-columns:1fr}}
+  </style>
+<script src="nav.js" defer></script>
+</head>
+<body>
+<nav class="topnav"><div class="topnav-inner"><a href="index.html" class="topnav-brand">BookStore Platform</a><div class="topnav-links"><a href="index.html">Home</a><a href="architecture.html">Architecture</a><a href="bookstore-platform-manual.html" class="highlight">Full Manual</a></div></div></nav>
+
+<div class="container">
+  <h1>Claude Code Skills Reference</h1>
+  <p>15 operator shortcuts (<code>.claude/skills/*/SKILL.md</code>) that turn common platform operations into one-line commands. This document explains why each skill exists, how to invoke it, what it does, and the concrete benefits it provides.</p>
+
+  <div class="badges">
+    <span class="badge purple">15 skills</span>
+    <span class="badge green">production-ready</span>
+    <span class="badge blue">1011 lines total</span>
+    <span class="badge cyan">all idempotent</span>
+  </div>
+
+  <h2>What Are Skills?</h2>
+  <div class="card">
+    <p>Claude Code skills are reusable prompt-templates stored in <code>.claude/skills/&lt;name&gt;/SKILL.md</code>. Each skill has YAML frontmatter declaring its name, description, allowed tools, and argument hints. When invoked as <code>/skill-name [args]</code>, Claude Code expands the SKILL.md file into the conversation as instructions.</p>
+    <p>Skills differ from slash-commands in that they are <b>in-repo</b>, <b>version-controlled</b>, and <b>expand into context</b> rather than executing directly. They're ideal for multi-step operations that combine <code>kubectl</code>, <code>curl</code>, <code>docker</code>, and <code>psql</code> — exactly the kind of glue a 15-service platform needs.</p>
+  </div>
+
+  <h2>Why We Built These Skills</h2>
+  <p>This project is a 15-service microservices platform with Istio Ambient mesh, Kafka, Debezium, Flink, Keycloak, CNPG PostgreSQL, and 5 observability stacks. Common operations — "check stack health", "run E2E tests", "fix Debezium after failover" — touch 5-10 components each and are error-prone if typed by hand.</p>
+  <p>Three forces drove skill creation:</p>
+  <ol>
+    <li><b>Repetition:</b> The same diagnostic sequences were run many times. Every manual repetition risks a typo.</li>
+    <li><b>Shared vocabulary:</b> Team members and future-Claude-sessions need a consistent way to say "recover after Docker Desktop restart" without re-deriving the 6-step procedure.</li>
+    <li><b>Onboarding compression:</b> A new operator can read <code>.claude/skills/</code> and see every high-value operation the platform supports, in ~1000 lines total.</li>
+  </ol>
+
+  <h2>Table of Contents</h2>
+  <div class="toc">
+    <div class="grid-2">
+      <div>
+        <h4 style="margin-top:0">Lifecycle &amp; Bootstrap</h4>
+        <ul>
+          <li><a href="#skill-bootstrap">bootstrap</a></li>
+          <li><a href="#skill-teardown">teardown</a></li>
+          <li><a href="#skill-deploy">deploy</a></li>
+          <li><a href="#skill-recover">recover</a></li>
+        </ul>
+        <h4>Observability &amp; Testing</h4>
+        <ul>
+          <li><a href="#skill-status">status</a></li>
+          <li><a href="#skill-smoke">smoke</a></li>
+          <li><a href="#skill-health-check">health-check</a></li>
+          <li><a href="#skill-e2e">e2e</a></li>
+          <li><a href="#skill-logs">logs</a></li>
+          <li><a href="#skill-cdc-verify">cdc-verify</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 style="margin-top:0">Debugging &amp; Fixes</h4>
+        <ul>
+          <li><a href="#skill-fix-stability">fix-stability</a></li>
+          <li><a href="#skill-fix-debezium">fix-debezium</a></li>
+        </ul>
+        <h4>Development &amp; Data</h4>
+        <ul>
+          <li><a href="#skill-db">db</a></li>
+          <li><a href="#skill-operator">operator</a></li>
+          <li><a href="#skill-diagrams">diagrams</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h2>Lifecycle &amp; Bootstrap Skills</h2>
+
+  <div class="skill-card" id="skill-bootstrap">
+    <h3><span class="cat lifecycle">lifecycle</span> bootstrap</h3>
+    <div class="args">argument-hint: [--fresh] [--yes]</div>
+    <p><b>Why it exists:</b> The full stack bootstrap touches a kind cluster, Istio, KGateway, cert-manager, 4 CNPG clusters, Kafka, Redis, Debezium, Flink, Keycloak, Superset, Grafana, Prometheus, OTel, and 5+ custom services. Typing the sequence by hand is unreliable.</p>
+    <div class="invoke">/bootstrap [--fresh] [--yes]</div>
+    <p><b>What it does:</b> Wraps <code>scripts/up.sh</code> which is smart — it auto-detects cluster state (no cluster → bootstrap, degraded → recover, healthy → verify) and runs the correct path. <code>--fresh</code> forces a full teardown and rebuild.</p>
+    <div class="why"><b class="benefit">Benefit:</b> One command replaces ~20 manual steps. Same entrypoint for "fresh install" and "recovery" scenarios. Idempotent — safe to re-run.</div>
+    <div class="meta"><span>Tools: Bash</span><span>Runs: scripts/up.sh</span><span>Time: 8-12 min fresh</span></div>
+  </div>
+
+  <div class="skill-card" id="skill-teardown">
+    <h3><span class="cat lifecycle">lifecycle</span> teardown</h3>
+    <div class="args">argument-hint: [--data] [--images] [--all] [--yes]</div>
+    <p><b>Why it exists:</b> Fully removing a kind cluster involves stopping Docker containers, deleting PVCs, optionally wiping <code>./data/</code>, and optionally removing all <code>bookstore/*</code> Docker images. The flags make each choice explicit.</p>
+    <div class="invoke">/teardown [--data] [--images] [--all] [--yes]</div>
+    <p><b>What it does:</b> Delegates to <code>scripts/down.sh</code>. By default only deletes the cluster (fastest re-bootstrap). <code>--data</code> wipes host-mounted PVC data. <code>--images</code> removes images to reclaim ~5GB. <code>--all</code> does both.</p>
+    <div class="why"><b class="benefit">Benefit:</b> Prevents accidental data loss (no default <code>--data</code>). Supports CI automation via <code>--yes</code>. Each mode is visible at invocation time.</div>
+    <div class="meta"><span>Tools: Bash</span><span>Runs: scripts/down.sh</span></div>
+  </div>
+
+  <div class="skill-card" id="skill-deploy">
+    <h3><span class="cat lifecycle">lifecycle</span> deploy</h3>
+    <div class="args">argument-hint: &lt;service-name&gt;</div>
+    <p><b>Why it exists:</b> After changing code in one service (e.g. <code>ecom-service</code>), the cycle is: build JAR/binary → docker build → <code>kind load docker-image</code> → <code>kubectl rollout restart</code> → wait. Each service has its own build tool (Maven, Poetry, Go, Vite). This skill knows each one.</p>
+    <div class="invoke">/deploy ecom      # Spring Boot
+/deploy inventory # FastAPI
+/deploy ui        # React/Vite (needs VITE_ build args)
+/deploy csrf      # Go
+/deploy flink     # custom Flink image</div>
+    <p><b>What it does:</b> Reads the service name, picks the right build tool, loads the image into kind, and does a rolling restart. For <code>ui</code>, it passes the required <code>VITE_</code> build args.</p>
+    <div class="why"><b class="benefit">Benefit:</b> No need to remember 5 different build/push/restart sequences. UI's <code>VITE_</code> gotcha is baked in (build-time vars, not runtime). Works with kind's lack of a container registry.</div>
+    <div class="meta"><span>Tools: Bash, Read, Grep</span></div>
+  </div>
+
+  <div class="skill-card" id="skill-recover">
+    <h3><span class="cat lifecycle">lifecycle</span> recover</h3>
+    <p><b>Why it exists:</b> After Docker Desktop sleeps/restarts, the Istio Ambient HBONE plumbing breaks at ztunnel level. Pods must restart in dependency order (DBs → apps). Debezium re-snapshots from Kafka offset topics. This is non-obvious and was painful to derive the first time.</p>
+    <div class="invoke">/recover</div>
+    <p><b>What it does:</b> Runs the smart <code>up.sh</code> which detects degraded state automatically, or falls back to <code>scripts/restart-after-docker.sh</code>. Restarts ztunnel first, then all pods in dependency order, then verifies Debezium health.</p>
+    <div class="why"><b class="benefit">Benefit:</b> Turns a multi-hour debugging session ("why are all my services returning connection reset?") into a 2-minute recovery. Encodes the "restart ztunnel FIRST" rule.</div>
+    <div class="meta"><span>Tools: Bash</span><span>Runs: scripts/up.sh or restart-after-docker.sh</span></div>
+  </div>
+
+  <h2>Observability &amp; Testing Skills</h2>
+
+  <div class="skill-card" id="skill-status">
+    <h3><span class="cat obs">observability</span> status</h3>
+    <div class="args">argument-hint: [namespace]</div>
+    <p><b>Why it exists:</b> The platform spans 10+ namespaces. A single <code>kubectl get pods -A</code> dump is too noisy. This skill produces a curated view of what matters.</p>
+    <div class="invoke">/status
+/status ecom    # focused on one namespace</div>
+    <p><b>What it does:</b> Shows pod readiness by namespace, external endpoint health (HTTPS 30000, Keycloak 32400, Debezium 32300/32301, Kiali 32100, Grafana 32500, Superset 32000, Flink 32200, PgAdmin 31111, Cert Dashboard 32600), Flink job count/status, Debezium <code>/q/health</code> status, and cluster name.</p>
+    <div class="why"><b class="benefit">Benefit:</b> 30-second overview of the entire platform. Instantly spots pods in <code>CrashLoopBackOff</code>, stopped Flink jobs, or down endpoints.</div>
+    <div class="meta"><span>Tools: Bash</span></div>
+  </div>
+
+  <div class="skill-card" id="skill-smoke">
+    <h3><span class="cat obs">observability</span> smoke</h3>
+    <p><b>Why it exists:</b> "Is everything working?" needs a bulletproof yes/no answer. 31 individual checks cover pods, HTTP, Kafka, Debezium, admin endpoints.</p>
+    <div class="invoke">/smoke</div>
+    <p><b>What it does:</b> Runs <code>scripts/smoke-test.sh</code> which verifies pods in all app namespaces, tests HTTPS endpoints, checks Kafka connectivity, polls Debezium health, exercises admin routes. Exits non-zero on failure (usable in CI).</p>
+    <div class="why"><b class="benefit">Benefit:</b> Single green/red signal. Part of the standard bootstrap verification flow. Catches silent degradation (e.g. a pod that's Running but failing liveness).</div>
+    <div class="meta"><span>Tools: Bash</span><span>31 checks</span></div>
+  </div>
+
+  <div class="skill-card" id="skill-health-check">
+    <h3><span class="cat obs">observability</span> health-check</h3>
+    <p><b>Why it exists:</b> Deeper than <code>smoke</code> — includes observability stack (Loki, Tempo, Grafana dashboards), AlertManager silences, and cert-manager certificate expiry.</p>
+    <div class="invoke">/health-check</div>
+    <p><b>What it does:</b> Runs all the checks from <code>smoke</code> plus queries Loki for recent error logs, checks Grafana dashboard availability, verifies AlertManager has no firing alerts, confirms cert-manager certificates are not expiring within 7 days.</p>
+    <div class="why"><b class="benefit">Benefit:</b> Catches issues that <code>smoke</code> misses. Proactive — flags expiring certs before they break the platform.</div>
+    <div class="meta"><span>Tools: Bash</span></div>
+  </div>
+
+  <div class="skill-card" id="skill-e2e">
+    <h3><span class="cat obs">observability</span> e2e</h3>
+    <div class="args">argument-hint: [test-file] [--headed] [--ui]</div>
+    <p><b>Why it exists:</b> Playwright E2E tests are the acceptance gate for every feature. The invocations vary (full suite vs single file vs UI mode) and the working directory matters.</p>
+    <div class="invoke">/e2e                         # all tests
+/e2e cart.spec.ts            # one file
+/e2e checkout.spec.ts --headed   # watch it run
+/e2e --ui                    # Playwright UI mode</div>
+    <p><b>What it does:</b> Runs Playwright from the <code>e2e/</code> directory. Supports grep-by-name, headed browser, UI mode. Prints a summary of pass/fail/skip.</p>
+    <div class="why"><b class="benefit">Benefit:</b> Always runs with the correct working directory. Exposes headed/UI modes for debugging without needing to remember flags.</div>
+    <div class="meta"><span>Tools: Bash</span><span>533 tests total</span></div>
+  </div>
+
+  <div class="skill-card" id="skill-logs">
+    <h3><span class="cat obs">observability</span> logs</h3>
+    <div class="args">argument-hint: &lt;service&gt; [--tail N] [--follow]</div>
+    <p><b>Why it exists:</b> Each service is in a different namespace. Typing <code>kubectl logs -n &lt;ns&gt; deploy/&lt;name&gt; -f</code> for the N-th time invites mistakes.</p>
+    <div class="invoke">/logs ecom --follow
+/logs kafka --tail 100
+/logs debezium-ecom
+/logs keycloak</div>
+    <p><b>What it does:</b> Maps friendly service names to <code>{namespace, deployment}</code> pairs. Supports <code>--tail N</code> and <code>--follow</code>.</p>
+    <div class="why"><b class="benefit">Benefit:</b> No need to memorize which namespace each service is in. Consistent flag syntax across all services.</div>
+    <div class="meta"><span>Tools: Bash</span><span>Services: ecom, inventory, ui, kafka, debezium-*, flink, keycloak, csrf</span></div>
+  </div>
+
+  <div class="skill-card" id="skill-cdc-verify">
+    <h3><span class="cat obs">observability</span> cdc-verify</h3>
+    <p><b>Why it exists:</b> The CDC pipeline spans 5 components (ecom-db → Debezium → Kafka → Flink SQL → analytics-db). Verifying end-to-end requires seeding a row, polling the analytics DB, and checking each hop.</p>
+    <div class="invoke">/cdc-verify</div>
+    <p><b>What it does:</b> Runs <code>scripts/verify-cdc.sh</code>. Inserts a test book into <code>ecom-db</code>, then polls <code>analytics-db</code> for up to 30 seconds waiting for the row to appear in <code>dim_books</code>. Also checks Debezium health, Flink job statuses, and Kafka topic presence.</p>
+    <div class="why"><b class="benefit">Benefit:</b> Verifies the hardest part of the stack. Catches silent CDC breakages (stuck Flink job, Debezium offset drift) that pods-Running would not.</div>
+    <div class="meta"><span>Tools: Bash</span><span>Timeout: 30s</span></div>
+  </div>
+
+  <h2>Debugging &amp; Fix Skills</h2>
+
+  <div class="skill-card" id="skill-fix-stability">
+    <h3><span class="cat debug">debug</span> fix-stability</h3>
+    <p><b>Why it exists:</b> After <code>up.sh</code> finishes, 7 components can be silently broken (kafka-exporter missing, Kiali can't reach Prometheus, cert-dashboard not deployed, cart <code>+</code> not flushing, gateway xDS stale, workload certs expired). These are documented in <a href="up-sh-stability-fixes.html">up.sh Stability Fixes</a>.</p>
+    <div class="invoke">/fix-stability</div>
+    <p><b>What it does:</b> Runs 7 targeted diagnostic checks matching each known failure mode. For each broken component, provides the exact fix command (idempotent, safe to re-run). Includes an all-in-one diagnostic summary.</p>
+    <div class="why"><b class="benefit">Benefit:</b> Compresses a ~4-hour debugging session (happened to me on 2026-04-05) into a 30-second diagnostic. Encodes the tricky bits: Istio Ambient non-mesh AuthZ denials, Hibernate 7 <code>saveAndFlush()</code>, gateway xDS staleness.</div>
+    <div class="meta"><span>Tools: Bash, Read, Edit</span><span>7 checks</span><span>See: up-sh-stability-fixes.md</span></div>
+  </div>
+
+  <div class="skill-card" id="skill-fix-debezium">
+    <h3><span class="cat debug">debug</span> fix-debezium</h3>
+    <p><b>Why it exists:</b> After a CNPG HA failover, Debezium Server enters <code>CrashLoopBackOff</code> because the new primary doesn't have the logical replication slot, and the Kafka-stored offset references a WAL position that no longer exists.</p>
+    <div class="invoke">/fix-debezium</div>
+    <p><b>What it does:</b> Identifies which Debezium instance is failing (ecom or inventory), connects to the new CNPG primary, recreates the missing <code>debezium_ecom_slot</code> / <code>debezium_inventory_slot</code>, clears the stale offset topic in Kafka, and restarts Debezium. Instance re-snapshots from scratch.</p>
+    <div class="why"><b class="benefit">Benefit:</b> Turns a deep-PostgreSQL-logical-replication debug session into a 3-minute recovery. Captures the CNPG-specific failover pattern that isn't documented upstream.</div>
+    <div class="meta"><span>Tools: Bash</span><span>Targets: CrashLoopBackOff after failover</span></div>
+  </div>
+
+  <h2>Development &amp; Data Skills</h2>
+
+  <div class="skill-card" id="skill-db">
+    <h3><span class="cat dev">dev</span> db</h3>
+    <div class="args">argument-hint: &lt;database&gt; &lt;query&gt;</div>
+    <p><b>Why it exists:</b> Connecting to each of the 4 CNPG databases (ecom, inventory, analytics, keycloak) requires knowing the pod name, credentials, and the CNPG "connect via TCP not unix socket" gotcha (<code>psql -h localhost</code>).</p>
+    <div class="invoke">/db ecom "SELECT count(*) FROM cart_items"
+/db analytics "SELECT * FROM dim_books LIMIT 5"
+/db keycloak "\\dt"</div>
+    <p><b>What it does:</b> Looks up the CNPG primary pod, extracts credentials from the K8s secret, runs the query via <code>kubectl exec … psql</code>. Abstracts away the peer-auth / socket quirks.</p>
+    <div class="why"><b class="benefit">Benefit:</b> One consistent syntax for all 4 databases. No need to remember pod names or the <code>-h localhost</code> CNPG gotcha.</div>
+    <div class="meta"><span>Tools: Bash</span><span>Databases: ecom, inventory, analytics, keycloak</span></div>
+  </div>
+
+  <div class="skill-card" id="skill-operator">
+    <h3><span class="cat dev">dev</span> operator</h3>
+    <div class="args">argument-hint: &lt;action&gt; [--no-cache]</div>
+    <p><b>Why it exists:</b> The cert-dashboard operator (Go + operator-sdk + OLM) has a build/test/deploy/verify lifecycle that spans 3 images, 1 CRD, and 2 deployments. Actions like "rebuild operator image, reload to kind, restart CR" are multi-step.</p>
+    <div class="invoke">/operator build
+/operator deploy
+/operator status
+/operator logs
+/operator rebuild --no-cache
+/operator uninstall</div>
+    <p><b>What it does:</b> Dispatches on action: builds Go binary + operator image + dashboard image, runs go tests, loads images to kind, applies CRD, installs OLM if needed, creates CR, verifies dashboard at NodePort 32600. <code>rebuild</code> does the whole cycle.</p>
+    <div class="why"><b class="benefit">Benefit:</b> The longest skill (183 lines) because it's the most complex workflow. Hides OLM's quirks and the double-image (operator + dashboard) nature of the setup.</div>
+    <div class="meta"><span>Tools: Bash, Read, Grep, Glob</span><span>Actions: build, test, deploy, rebuild, status, logs, verify, uninstall</span></div>
+  </div>
+
+  <div class="skill-card" id="skill-diagrams">
+    <h3><span class="cat dev">dev</span> diagrams</h3>
+    <div class="args">argument-hint: [architecture|data-flow|all]</div>
+    <p><b>Why it exists:</b> The architecture diagrams are authored as SVGs and need to be exported to PNG/GIF for LinkedIn sharing, docs, and the HTML index page. The export pipeline uses rsvg-convert + ffmpeg.</p>
+    <div class="invoke">/diagrams all
+/diagrams architecture
+/diagrams data-flow</div>
+    <p><b>What it does:</b> Converts SVG → PNG at fixed resolution, assembles multi-frame animated GIFs via ffmpeg, drops outputs into <code>docs/images/</code>.</p>
+    <div class="why"><b class="benefit">Benefit:</b> Reproducible diagram rendering. New diagrams just need an SVG dropped in the right place — the skill handles format conversion.</div>
+    <div class="meta"><span>Tools: Bash</span><span>Outputs: PNG, GIF</span></div>
+  </div>
+
+  <h2>Strengths of This Skill System</h2>
+
+  <div class="card">
+    <h3 style="margin-top:0">1. Encodes Tribal Knowledge</h3>
+    <p>Each skill captures an "aha" moment from debugging. <code>recover</code> encodes "ztunnel must restart FIRST". <code>fix-stability</code> encodes "Istio Ambient AuthZ denies non-mesh callers". <code>fix-debezium</code> encodes "CNPG failover breaks logical replication slots". Without skills, this knowledge lives in one person's head.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">2. Idempotent by Design</h3>
+    <p>Every skill can be run multiple times safely. <code>bootstrap</code> auto-detects what's already deployed. <code>deploy</code> does a rolling restart (no downtime). <code>fix-*</code> skills check before fixing. This makes experimentation cheap.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">3. Composable</h3>
+    <p>Skills call other skills naturally. <code>bootstrap</code> ends with <code>smoke</code>. <code>recover</code> ends with a health verification. <code>deploy</code> runs <code>status</code> afterwards. Workflows compose from small pieces.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">4. Documentation That Stays Current</h3>
+    <p>Skills are executed, so they can't drift from reality like prose docs. If the underlying script or binary path changes, the skill breaks immediately and gets fixed. <code>CLAUDE.md</code> references skills for current usage.</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">5. Safe Tool Boundaries</h3>
+    <p>Every skill declares <code>allowed-tools</code> in its frontmatter. Most only allow <code>Bash</code>. <code>fix-stability</code> allows <code>Bash, Read, Edit</code>. <code>operator</code> adds <code>Grep, Glob</code> for code search. This keeps skills from accidentally gaining unsafe capabilities.</p>
+  </div>
+
+  <h2>Benefits Realized</h2>
+  <table>
+    <thead><tr><th>Benefit</th><th>Before Skills</th><th>After Skills</th></tr></thead>
+    <tbody>
+      <tr><td>Fresh bootstrap</td><td>20+ manual steps, copy-pasted from CLAUDE.md</td><td><code>/bootstrap --fresh --yes</code></td></tr>
+      <tr><td>Full stack recovery (after Docker restart)</td><td>Debug session, 30-60 min if you remember the steps</td><td><code>/recover</code> — 2 min</td></tr>
+      <tr><td>Verify CDC pipeline</td><td>6 manual checks across 4 components</td><td><code>/cdc-verify</code></td></tr>
+      <tr><td>Diagnose post-bootstrap issues</td><td>~4 hours debugging (happened 2026-04-05)</td><td><code>/fix-stability</code> — 30 sec diagnostic</td></tr>
+      <tr><td>Deploy a single service</td><td>Remember 5 build tool incantations</td><td><code>/deploy ecom</code></td></tr>
+      <tr><td>Query a database</td><td>Remember pod name, CNPG socket quirks, creds</td><td><code>/db ecom "SELECT ..."</code></td></tr>
+      <tr><td>Run E2E tests</td><td><code>cd e2e &amp;&amp; npm run test</code> — must remember cd</td><td><code>/e2e</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2>When to Add a New Skill</h2>
+  <p>Add a skill when any of these apply:</p>
+  <ul>
+    <li>You've run the same multi-step command sequence 3+ times.</li>
+    <li>You just debugged something non-obvious and want the fix pattern reusable.</li>
+    <li>A workflow spans multiple tools (<code>kubectl</code> + <code>curl</code> + <code>psql</code> + <code>docker</code>) and has gotchas.</li>
+    <li>Onboarding a new operator — they will ask "how do I check X?" and a skill is the answer.</li>
+  </ul>
+  <p><b>Do NOT add a skill</b> for a one-off command, or for something that's better as a shell alias or script. Skills are for operations that benefit from Claude's context expansion (multi-step diagnosis with interpretation).</p>
+
+  <h2>How Skills Integrate With CLAUDE.md</h2>
+  <div class="card">
+    <p><code>CLAUDE.md</code> is the platform's architectural reference — it documents <i>what</i> exists. Skills are the platform's operational layer — they document <i>how</i> to work with what exists. Together:</p>
+    <ul>
+      <li><code>CLAUDE.md</code> says "Debezium Server runs in <code>infra</code> namespace, health at <code>/q/health</code>, port 32300/32301".</li>
+      <li><code>.claude/skills/fix-debezium/SKILL.md</code> says "when Debezium is CrashLoopBackOff, do these 6 steps".</li>
+      <li><code>.claude/skills/status/SKILL.md</code> says "show me Debezium health as part of the cluster status".</li>
+    </ul>
+    <p>The <b>MANDATORY RULE</b> in the project's memory: <i>"After any change that affects workflows, scripts, services, ports, or commands, update the relevant skill(s) in <code>.claude/skills/</code>."</i> This keeps skills in lockstep with the platform.</p>
+  </div>
+
+  <h2>Related Documents</h2>
+  <ul>
+    <li><a href="up-sh-stability-fixes.html">up.sh Stability Fixes</a> — the post-mortem that led to the <code>fix-stability</code> skill</li>
+    <li><a href="architecture.html">Architecture Overview</a> — what each skill operates on</li>
+    <li><a href="bookstore-platform-manual.html">Full Platform Manual</a> — the complete operator reference</li>
+    <li><a href="inline-python-scripts.html">Inline Python Scripts Reference</a> — the Python snippets skills sometimes delegate to</li>
+  </ul>
+
+  <footer>
+    <p>BookStore Platform &mdash; Claude Code Skills Reference &mdash; <a href="index.html">Back to Home</a></p>
+  </footer>
+</div>
+</body>
+</html>
