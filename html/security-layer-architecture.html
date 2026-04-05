@@ -117,6 +117,21 @@
     <h3>Edge &mdash; HTTPS Redirect + HSTS</h3>
     <div class="meta">Port 30080 → 30000 (HTTP 301) · HSTS enforced in nginx responses</div>
 
+    <h4>What This Layer Means</h4>
+    <p>The <b>Edge</b> layer is the platform's outermost boundary &mdash; the first place an incoming request hits. It has ONE job: make sure traffic is HTTPS-encrypted before any authentication, session, or application data touches the wire. It does this by:</p>
+    <ul>
+      <li>Listening on a plaintext HTTP port (30080) and bouncing every request to the HTTPS port (30000) with a <code>301 Moved Permanently</code> redirect.</li>
+      <li>On every HTTPS response, adding the <b>HSTS header</b> which tells browsers "for the next year, never come back to me over HTTP &mdash; always upgrade to HTTPS automatically, even if the user types <code>http://</code>".</li>
+    </ul>
+
+    <h4>Why This Layer Matters for Security</h4>
+    <ul>
+      <li><b>Eliminates plaintext credential exposure.</b> Without this layer, a user who types <code>http://myecom.net</code> would send the login form, JWT, and session cookies in cleartext &mdash; anyone sniffing the network (coffee-shop Wi-Fi, compromised router, malicious ISP) would steal them.</li>
+      <li><b>Defeats SSL-stripping attacks.</b> Attackers running a MITM proxy can remove the <code>Location: https://</code> header and serve plaintext back to the user. HSTS makes the browser refuse plaintext <i>without even asking the server</i>, so the attacker can't downgrade the connection.</li>
+      <li><b>Protects the layer immediately above (Gateway TLS).</b> Layer 2 only terminates TLS if the request arrives over TLS &mdash; Layer 1 guarantees that every request does.</li>
+      <li><b>Closes cookie-hijack vectors.</b> With HSTS active, cookies marked <code>Secure</code> are never sent over HTTP. Without HSTS, a single HTTP request can leak them.</li>
+    </ul>
+
     <h4>Control (from architecture.html)</h4>
     <ul>
       <li>HTTP → HTTPS 301 redirect (port 30080 → 30000)</li>
@@ -167,6 +182,23 @@ curl -skI https://myecom.net:30000 | grep -i "strict-transport-security"
     <span class="layer-tag">LAYER 2</span>
     <h3>Gateway &mdash; TLS Termination with cert-manager</h3>
     <div class="meta">Self-signed CA (10yr) → Leaf cert (30d, 7d renewBefore) · ECDSA P-256 · Multi-SAN</div>
+
+    <h4>What This Layer Means</h4>
+    <p>The <b>Gateway</b> layer is the single HTTPS front door for the entire platform. It does three things:</p>
+    <ul>
+      <li><b>Terminates TLS.</b> The encrypted bytes from the user's browser are decrypted here so the platform can route them to the correct internal service. The gateway holds the private key.</li>
+      <li><b>Presents a valid certificate.</b> Every TLS handshake requires the server to prove its identity with a certificate that the client trusts (signed by a CA the client knows).</li>
+      <li><b>Auto-rotates certificates.</b> A stale or expired certificate is a hard outage &mdash; cert-manager renews leaf certificates 7 days before they expire, with zero human intervention.</li>
+    </ul>
+
+    <h4>Why This Layer Matters for Security</h4>
+    <ul>
+      <li><b>Confidentiality + integrity of all external traffic.</b> TLS 1.2/1.3 guarantees that an attacker cannot read or modify requests in transit. Without this layer, login credentials, JWTs, cart contents, and admin actions all travel in cleartext.</li>
+      <li><b>Short-lived leaf certs (30d) limit blast radius.</b> If a leaf cert's private key is somehow exfiltrated, it is automatically replaced within 7 days of expiry &mdash; an attacker has a hard deadline on stolen keys. Long-lived (1yr+) certs are a common source of silent outages and credential abuse.</li>
+      <li><b>ECDSA P-256 over RSA.</b> ECDSA provides equivalent security to RSA-3072 with far smaller keys and signatures (64 bytes vs ~380 bytes), which means faster handshakes and lower latency on every first-connect.</li>
+      <li><b>Multi-SAN single certificate.</b> One certificate covers all 4 gateway hostnames (<code>myecom.net</code>, <code>api.service.net</code>, <code>idp.keycloak.net</code>, <code>localhost</code>). Each hostname presents identical trust &mdash; users cannot be tricked by a look-alike name with a different CA.</li>
+      <li><b>Automation eliminates human error.</b> Manual cert rotation is the #1 cause of avoidable TLS outages. cert-manager's declarative lifecycle means renewals happen silently, on schedule, every 23 days.</li>
+    </ul>
 
     <h4>Control (from architecture.html)</h4>
     <ul>
@@ -252,6 +284,24 @@ curl -sv --max-time 5 https://api.service.net:30000/ecom/books 2>&1 \
     <h3>Mesh &mdash; Istio Ambient mTLS (STRICT)</h3>
     <div class="meta">SPIFFE identity · HBONE tunneling · No sidecars · ztunnel DaemonSet</div>
 
+    <h4>What This Layer Means</h4>
+    <p>The <b>Mesh</b> layer encrypts and authenticates traffic <i>inside</i> the cluster &mdash; between pods, services, and namespaces. It is invisible to application code. The Istio Ambient mesh has three pillars:</p>
+    <ul>
+      <li><b>Automatic mTLS (mutual TLS).</b> Every pod-to-pod TCP connection is wrapped in TLS in <i>both</i> directions: the caller authenticates to the callee AND the callee authenticates to the caller. Neither side can talk to the other without presenting a valid cluster-signed certificate.</li>
+      <li><b>SPIFFE identities.</b> Every workload gets a cryptographic identity of the form <code>spiffe://cluster.local/ns/&lt;namespace&gt;/sa/&lt;serviceaccount&gt;</code>. This is the pod's passport &mdash; the one thing you can't spoof.</li>
+      <li><b>ztunnel + HBONE.</b> A per-node <code>ztunnel</code> DaemonSet transparently intercepts all pod traffic and tunnels it over HTTP/2 CONNECT (HBONE) on port 15008. No per-pod sidecars, no application awareness needed.</li>
+    </ul>
+
+    <h4>Why This Layer Matters for Security</h4>
+    <ul>
+      <li><b>Defeats the "if an attacker is on the network, you lose" threat model.</b> Traditional networks trust anything inside the perimeter. Zero-trust mTLS means an attacker who breaches one pod cannot freely read traffic destined for any other pod &mdash; every connection requires mutual proof of identity.</li>
+      <li><b>Stops lateral movement.</b> A compromised pod in the <code>observability</code> namespace cannot impersonate <code>ecom-service</code> to reach <code>ecom-db</code> &mdash; its SPIFFE identity is baked into its workload cert, and the destination ztunnel checks AuthorizationPolicies against that exact identity.</li>
+      <li><b>Replaces IP-based trust with identity-based trust.</b> Pod IPs churn on every restart. Identities (ServiceAccount + namespace) are stable. Security policies written against identities survive pod churn; policies written against IPs rot immediately.</li>
+      <li><b>Per-workload attestation.</b> SPIFFE identities are issued by istiod after it verifies the pod's ServiceAccount via the Kubernetes API. This gives cryptographic proof that the pod is running under a specific SA &mdash; not just claiming to be.</li>
+      <li><b>No sidecars = lower operational cost.</b> Ambient mode puts ztunnel on each node instead of injecting a sidecar into every pod. Memory overhead is ~50MB per node instead of ~50MB per pod. Application containers remain minimal and unaware of the mesh.</li>
+      <li><b>STRICT mode closes plaintext backdoors.</b> PERMISSIVE mode accepts both mTLS AND plaintext &mdash; useful for migrations but a security hole. STRICT refuses any connection that doesn't present a valid peer cert.</li>
+    </ul>
+
     <h4>Control (from architecture.html)</h4>
     <ul>
       <li>All pod-to-pod traffic encrypted via Istio Ambient mTLS</li>
@@ -324,6 +374,24 @@ kubectl get pods -n ecom -o jsonpath='{.items[*].spec.containers[*].name}'
     <span class="layer-tag">LAYER 4</span>
     <h3>Access &mdash; NetworkPolicy + AuthorizationPolicy</h3>
     <div class="meta">37 NetworkPolicies · 12 AuthorizationPolicies · 7 default-deny-ingress policies · namespace isolation</div>
+
+    <h4>What This Layer Means</h4>
+    <p>The <b>Access</b> layer decides <i>who can talk to whom</i> inside the cluster. It operates at two Kubernetes/Istio enforcement points:</p>
+    <ul>
+      <li><b>NetworkPolicy (kindnet, L3/L4).</b> Kubernetes-native firewall rules declared per-namespace. Each namespace starts with a <code>default-deny-ingress</code> policy that blocks ALL incoming traffic, then explicit policies allow only required flows (e.g. "gateway pods can reach ecom-service on port 8080").</li>
+      <li><b>AuthorizationPolicy (Istio, L4/L7).</b> Istio rules enforced by ztunnel. They operate on SPIFFE identities and namespaces, not raw IPs. They decide whether the identity on the <i>client</i> side of the mTLS connection is allowed to talk to the workload on the <i>server</i> side.</li>
+    </ul>
+    <p>Together these give "zero trust" internal networking: every connection must be explicitly allowed by BOTH layers to succeed.</p>
+
+    <h4>Why This Layer Matters for Security</h4>
+    <ul>
+      <li><b>Enforces least-privilege network access.</b> <code>ecom-service</code> needs the ecom database and Kafka &mdash; nothing else. Without this layer, a compromised <code>ecom-service</code> pod could reach the inventory database, Keycloak's internal API, or Kafka consumer groups it has no business touching.</li>
+      <li><b>Default-deny is the security-critical default.</b> Without a <code>default-deny-ingress</code> policy, Kubernetes allows ALL pod-to-pod traffic by default. Adding allow-policies on top is useless if the implicit default is allow. Default-deny inverts the model: if it's not explicitly allowed, it's blocked.</li>
+      <li><b>Defense in depth across L3, L4, and L7.</b> NetworkPolicy and AuthorizationPolicy use different enforcement mechanisms (kindnet vs ztunnel). An attacker needs to bypass BOTH. If a bug in one lets traffic through, the other still blocks it.</li>
+      <li><b>Namespace isolation contains blast radius.</b> Databases live in the namespace of their owner service. If an attacker pops <code>inventory-service</code>, the <code>ecom-db-policy</code> blocks them from the ecom database. Compromise of one bounded context stays bounded.</li>
+      <li><b>Identity-based rules survive IP churn.</b> AuthorizationPolicy rules like <code>from.source.namespaces: [ecom]</code> continue to work after pod restarts, scaling events, or rolling updates. IP-based firewall rules rot minutes after deployment.</li>
+      <li><b>Observable and auditable.</b> Policies are YAML in Git. Access decisions can be code-reviewed, diffed, and rolled back &mdash; unlike ad-hoc iptables rules added via SSH.</li>
+    </ul>
 
     <h4>Control (from architecture.html)</h4>
     <ul>
@@ -399,6 +467,25 @@ kubectl run -n analytics test --rm -it --restart=Never --image=curlimages/curl -
     <span class="layer-tag">LAYER 5</span>
     <h3>Identity &mdash; Keycloak OIDC + JWT Validation</h3>
     <div class="meta">OIDC Authorization Code Flow with PKCE S256 · JWT validated at every service · In-memory token storage</div>
+
+    <h4>What This Layer Means</h4>
+    <p>The <b>Identity</b> layer answers two questions on every request:</p>
+    <ul>
+      <li><b>Who is the user?</b> (authentication) &mdash; verified via a signed JWT issued by Keycloak after the user logs in.</li>
+      <li><b>What can they do?</b> (authorization) &mdash; determined by the <code>realm_access.roles</code> claims embedded in the JWT (<code>customer</code>, <code>admin</code>).</li>
+    </ul>
+    <p>The UI obtains a JWT via the OIDC Authorization Code Flow with PKCE (Proof Key for Code Exchange) using the S256 (SHA-256) challenge method. The JWT is attached to every API call as <code>Authorization: Bearer &lt;jwt&gt;</code>. Every backend service independently verifies its signature against Keycloak's JWKS (JSON Web Key Set).</p>
+
+    <h4>Why This Layer Matters for Security</h4>
+    <ul>
+      <li><b>Single source of truth for identity.</b> Passwords live in exactly one place (Keycloak). Backend services never see a password &mdash; only signed JWTs. Rotating credentials, disabling accounts, or forcing re-auth is a one-click action in Keycloak and instantly affects every service.</li>
+      <li><b>PKCE S256 defeats authorization code interception.</b> In public clients (SPAs, mobile apps) the client secret cannot be kept secret. PKCE replaces the secret with a dynamically generated <code>code_verifier</code> that is hashed to <code>code_challenge</code> with SHA-256. An attacker who intercepts the authorization code cannot exchange it for a token without the verifier &mdash; which never leaves the legitimate browser.</li>
+      <li><b>JWT validation at every hop &mdash; zero-trust tokens.</b> Tokens are validated at two layers: (1) Istio <code>RequestAuthentication</code> checks the JWT signature at the mesh before traffic reaches the pod, (2) Spring Security / FastAPI middleware re-validates inside the app. Defense-in-depth: even if the mesh is misconfigured, the app still enforces auth.</li>
+      <li><b>Role-based access control at the edge.</b> Admin endpoints require <code>hasRole('admin')</code>. A customer's JWT lacks the <code>admin</code> role &mdash; their request to <code>/admin/**</code> returns 403 before any business logic runs. No privilege escalation via URL guessing.</li>
+      <li><b>In-memory token storage blocks XSS token theft.</b> localStorage is readable by ANY JavaScript on the page (including injected scripts from a successful XSS). Tokens stored in an in-memory JS closure cannot be exfiltrated via <code>localStorage.getItem</code>. Paired with CSP (Content Security Policy), this makes XSS-based account takeover much harder.</li>
+      <li><b>HTTP-only refresh tokens.</b> Refresh tokens (long-lived) live in <code>HttpOnly</code> cookies &mdash; JavaScript cannot read them at all. Only the browser, talking to Keycloak, can use them. XSS cannot steal long-lived credentials.</li>
+      <li><b>Short-lived access tokens limit stolen-token damage.</b> Keycloak-issued access tokens expire in minutes. Even if an attacker captures one, they have a small window before it's useless.</li>
+    </ul>
 
     <h4>Control (from architecture.html)</h4>
     <ul>
@@ -506,6 +593,27 @@ echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | python3 -m json.tool \
     <span class="layer-tag">LAYER 6</span>
     <h3>Application &mdash; CSRF, Rate Limiting, Container Hardening</h3>
     <div class="meta">Gateway ext_authz CSRF · Bucket4j rate limits · runAsNonRoot · readOnlyRootFilesystem · drop ALL capabilities</div>
+
+    <h4>What This Layer Means</h4>
+    <p>The <b>Application</b> layer protects against attacks that a valid JWT can't stop &mdash; where the user IS authenticated but is being tricked, overloaded, or the container itself is compromised. Three categories:</p>
+    <ul>
+      <li><b>CSRF protection.</b> The gateway runs <code>csrf-service</code> as an Istio ext_authz provider. Every mutating request (POST/PUT/DELETE/PATCH) must carry a valid <code>X-CSRF-Token</code> header that matches a UUID stored in Redis for that JWT.</li>
+      <li><b>Rate limiting.</b> Bucket4j token-bucket filters at ecom-service cap mutations per user: CART 60/min, CHECKOUT 10/min, ADMIN 30/min, BOOKS 200/min. Excess requests return HTTP 429.</li>
+      <li><b>Container hardening.</b> Every pod runs as non-root (UID 1000), on a read-only root filesystem, with ALL Linux capabilities dropped, <code>allowPrivilegeEscalation: false</code>, and <code>seccompProfile: RuntimeDefault</code>.</li>
+    </ul>
+
+    <h4>Why This Layer Matters for Security</h4>
+    <ul>
+      <li><b>CSRF stops cross-origin trickery.</b> If a user is logged in and visits <code>evil.com</code>, that site can't easily call <code>api.service.net/ecom/checkout</code> on the user's behalf &mdash; even with cookies, because the attacker doesn't know the per-session CSRF token stored in Redis. Prevents silent fund transfers, profile changes, and cart manipulation attacks.</li>
+      <li><b>CSRF enforced at the gateway, not the app.</b> Putting CSRF checking in <code>csrf-service</code> (Istio ext_authz) means every downstream service benefits automatically. A developer cannot accidentally skip CSRF validation by forgetting a decorator.</li>
+      <li><b>Rate limiting defeats brute-force and resource exhaustion.</b> Without limits, an attacker with a valid customer JWT could fire thousands of <code>/checkout</code> requests per second, locking inventory, flooding Kafka, or draining credit card processor quota. Per-user buckets isolate abusers from honest users.</li>
+      <li><b>Rate limiting throttles credential-stuffing.</b> Even with weak passwords, automated login attempts slow down at the rate limit &mdash; reducing success rate of stolen-credentials attacks.</li>
+      <li><b>runAsNonRoot prevents root escalation.</b> Many container escapes require root in the container to begin with. Running as UID 1000 (non-root) closes most kernel-exploit paths that rely on root capabilities.</li>
+      <li><b>readOnlyRootFilesystem blocks in-place persistence.</b> Malware inside a pod cannot modify the binary or drop persistence files. On the next restart, the pod comes back clean. Forensics also benefit: the filesystem IS the signed image.</li>
+      <li><b>drop ALL capabilities eliminates the kernel surface area.</b> Linux capabilities grant root-adjacent powers (CAP_NET_ADMIN, CAP_SYS_PTRACE, etc.). Dropping ALL and then re-adding ONLY what the app needs (usually: nothing) means a kernel CVE affecting a specific capability doesn't affect this workload.</li>
+      <li><b>allowPrivilegeEscalation: false blocks setuid binaries.</b> Prevents tools like <code>sudo</code>, <code>ping</code>, or any setuid binary from elevating privileges inside the container &mdash; commonly exploited in multi-tenant scenarios.</li>
+      <li><b>seccompProfile.RuntimeDefault blocks ~55 syscalls known to be dangerous.</b> The default seccomp profile blocks syscalls used by rootkits and kernel-exploit payloads (e.g. <code>keyctl</code>, <code>add_key</code>, <code>kexec_load</code>). A huge reduction in kernel attack surface.</li>
+    </ul>
 
     <h4>Control (from architecture.html)</h4>
     <ul>
