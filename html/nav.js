@@ -24,6 +24,7 @@
         { label: 'Technical Reference Manual', href: 'bookstore-platform-manual.html', highlight: true },
         { label: 'User Guide', href: 'user-guide.html' },
         { label: 'Architecture Deep Dive', href: 'architecture.html' },
+        { label: 'Security Layer Proof (6 Layers)', href: 'security-layer-architecture.html', highlight: true },
         { label: 'Enhancement Report', href: 'comprehensive-platform-enhancements.html' }
       ]
     },
