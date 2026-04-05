@@ -191,6 +191,26 @@ spec:
       mode: PERMISSIVE
 
 ---
+# Prometheus: port 9090 PERMISSIVE for Kiali access.
+# Kiali runs in istio-system which is NOT in the ambient mesh. It sends plaintext
+# to Prometheus (in observability, which IS in the mesh). Without PERMISSIVE on
+# port 9090, ztunnel enforces STRICT mTLS and resets Kiali's plaintext connection.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: prometheus-kiali-permissive
+  namespace: observability
+spec:
+  selector:
+    matchLabels:
+      app: prometheus
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "9090":
+      mode: PERMISSIVE
+
+---
 # PgAdmin: NodePort 31111 receives plaintext from kind hostPort — allow on app port 80.
 apiVersion: security.istio.io/v1
 kind: PeerAuthentication

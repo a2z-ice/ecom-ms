@@ -32,15 +32,20 @@ public class CartService {
 
         return cartItemRepository.findByUserIdAndBookId(userId, request.bookId())
             .map(existing -> {
-                existing.setQuantity(existing.getQuantity() + request.quantity());
-                return cartItemRepository.save(existing);
+                // Explicit read of current quantity then set new value.
+                // Use a local to ensure the int is fully resolved before arithmetic.
+                int currentQty = existing.getQuantity();
+                int newQty = currentQty + request.quantity();
+                existing.setQuantity(newQty);
+                CartItem saved = cartItemRepository.saveAndFlush(existing);
+                return saved;
             })
             .orElseGet(() -> {
                 CartItem item = new CartItem();
                 item.setUserId(userId);
                 item.setBook(book);
                 item.setQuantity(request.quantity());
-                return cartItemRepository.save(item);
+                return cartItemRepository.saveAndFlush(item);
             });
     }
 
