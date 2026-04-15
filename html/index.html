@@ -95,6 +95,10 @@
     .hero-label::before { content: ''; width: 28px; height: 2px; background: linear-gradient(90deg, #a78bfa, transparent); }
     .hero-h { font-size: 2.4rem; font-weight: 800; line-height: 1.2; margin-bottom: 10px; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 40%, #cbd5e1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .hero-sub { font-size: 1rem; color: #94a3b8; line-height: 1.6; max-width: 580px; margin-bottom: 20px; }
+    .hero-meta { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; margin-bottom: 22px; padding: 10px 16px; background: rgba(15,23,42,0.45); border: 1px solid rgba(51,65,85,0.5); border-left: 3px solid #a78bfa; border-radius: 8px; max-width: 580px; }
+    .hero-meta-item { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: #cbd5e1; }
+    .hero-meta-key { font-size: 0.62rem; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #64748b; }
+    .hero-meta-val { font-weight: 600; color: #e2e8f0; }
     .hero-stats { display: flex; gap: 28px; flex-wrap: wrap; margin-bottom: 0; }
     .hero-stat { text-align: center; }
     .hero-stat-num { font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1.2; }
@@ -355,6 +359,10 @@ document.addEventListener('keydown', function(e) {
         <div class="hero-label">Production-Grade Microservices on Kubernetes</div>
         <div class="hero-h">BookStore Platform</div>
         <p class="hero-sub">A fully operational e-commerce platform built with zero-trust security, event-driven architecture, and real-time analytics &mdash; deployed on a local Kubernetes cluster with production-aligned patterns</p>
+        <div class="hero-meta">
+          <div class="hero-meta-item"><span class="hero-meta-key">Author</span><span class="hero-meta-val">Fnu Assaduzzaman</span></div>
+          <div class="hero-meta-item"><span class="hero-meta-key">Published</span><span class="hero-meta-val">February 27, 2026</span></div>
+        </div>
         <div class="hero-stats">
           <div class="hero-stat"><div class="hero-stat-num">35</div><div class="hero-stat-label">Sessions</div></div>
           <div class="hero-stat"><div class="hero-stat-num">430+</div><div class="hero-stat-label">E2E Tests</div></div>
